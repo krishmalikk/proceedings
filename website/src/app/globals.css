@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream-100 text-ink-900 antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif text-ink-900;
+  }
+
+  h1 {
+    @apply text-4xl sm:text-5xl lg:text-6xl font-normal leading-tight tracking-tight;
+  }
+
+  h2 {
+    @apply text-3xl sm:text-4xl font-normal leading-tight;
+  }
+
+  h3 {
+    @apply text-xl sm:text-2xl font-normal;
+  }
+}
+
+@layer components {
+  .container-narrow {
+    @apply max-w-5xl mx-auto px-6 sm:px-8 lg:px-12;
+  }
+
+  .container-wide {
+    @apply max-w-7xl mx-auto px-6 sm:px-8 lg:px-12;
+  }
+
+  /* Primary button - solid black */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 text-sm font-medium rounded-pill text-cream-50 bg-ink-900 hover:bg-ink-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ink-900;
+  }
+
+  /* Secondary button - outlined pill */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 text-sm font-medium rounded-pill text-ink-900 bg-transparent border border-ink-300 hover:border-ink-900 hover:bg-ink-900 hover:text-cream-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ink-900;
+  }
+
+  /* Pill/tag style */
+  .pill {
+    @apply inline-flex items-center px-4 py-2 text-sm rounded-pill border border-ink-200 text-ink-700 bg-white/50;
+  }
+
+  .pill-active {
+    @apply inline-flex items-center px-4 py-2 text-sm rounded-pill border border-ink-900 text-ink-900 bg-white;
+  }
+
+  .section-padding {
+    @apply py-20 sm:py-24 lg:py-32;
+  }
+
+  .section-padding-sm {
+    @apply py-12 sm:py-16 lg:py-20;
+  }
+
+  .card {
+    @apply bg-white border border-ink-100 rounded-2xl p-6 sm:p-8 shadow-sm;
+  }
+
+  .card-hover {
+    @apply bg-white border border-ink-100 rounded-2xl p-6 sm:p-8 shadow-sm transition-all duration-200 hover:shadow-md hover:border-ink-200;
+  }
+
+  /* Nav link pill style */
+  .nav-link {
+    @apply px-4 py-2 text-sm font-medium rounded-pill border border-transparent text-ink-600 hover:border-ink-200 hover:text-ink-900 transition-all duration-200;
+  }
+
+  .nav-link-active {
+    @apply px-4 py-2 text-sm font-medium rounded-pill border border-ink-900 text-ink-900 transition-all duration-200;
+  }
+
+  /* Decorative line */
+  .accent-line {
+    @apply w-12 h-0.5 bg-ink-900;
+  }
+
+  /* Label/overline text */
+  .overline {
+    @apply text-xs font-medium uppercase tracking-widest text-ink-500;
+  }
+}
+
+/* Custom selection color */
+::selection {
+  @apply bg-ink-900 text-cream-50;
+}
