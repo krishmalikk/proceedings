@@ -55,6 +55,7 @@ env/
 .venv/
 
 # Chatbot specific
+chatbot/chroma_db/
 chatbot/vector_store/
 chatbot/*.egg-info/
 chatbot/.eggs/

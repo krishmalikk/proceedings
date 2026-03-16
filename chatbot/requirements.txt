@@ -1,28 +1,37 @@
-# LlamaIndex core
+# ============================================
+# FAQ Chatbot Dependencies
+# ============================================
+# Install all dependencies with: pip install -r requirements.txt
+
+# === LlamaIndex Core ===
+# The main framework for building LLM applications with your data
 llama-index==0.10.68
 llama-index-core==0.10.68
+
+# === LlamaIndex Integrations ===
+# HuggingFace embeddings - converts text to vectors (runs locally)
 llama-index-embeddings-huggingface==0.2.3
+
+# Anthropic integration - connects to Claude AI
 llama-index-llms-anthropic==0.1.16
-llama-index-llms-openai==0.1.31
+
+# File readers - handles PDF, TXT, and other file types
 llama-index-readers-file==0.1.33
 
-# Vector store
+# ChromaDB integration - connects LlamaIndex to ChromaDB
+llama-index-vector-stores-chroma==0.1.10
+
+# === Vector Database ===
+# ChromaDB - stores document embeddings locally
 chromadb==0.4.24
 
-# API server
-fastapi==0.111.0
-uvicorn[standard]==0.30.1
-python-multipart==0.0.9
-
-# Document processing
+# === Document Processing ===
+# PyPDF - reads PDF files
 pypdf==4.2.0
-python-docx==1.1.0
 
-# Environment management
+# === Utilities ===
+# Load environment variables from .env file
 python-dotenv==1.0.1
 
-# Anthropic SDK
+# Anthropic SDK - official Claude API client
 anthropic==0.29.0
-
-# OpenAI SDK (optional fallback)
-openai==1.35.3
