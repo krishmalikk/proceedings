@@ -128,7 +128,7 @@ export default function AskForm() {
               <div className="mt-6 pt-4 border-t border-ink-100">
                 <p className="overline mb-3">Sources</p>
                 <div className="flex flex-wrap gap-2">
-                  {[...new Set(result.sources.map(s => s.source))].map((source) => (
+                  {Array.from(new Set(result.sources.map(s => s.source))).map((source) => (
                     <SourceCitation key={source} source={source} />
                   ))}
                 </div>
