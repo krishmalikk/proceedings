@@ -1,0 +1,370 @@
+[
+  {
+    "url": "https://www.uscis.gov/green-card",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "green-card",
+    "last_crawled": null,
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/green-card/green-card-eligibility",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "green-card",
+    "last_crawled": null,
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/green-card/green-card-processes-and-procedures",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "green-card",
+    "last_crawled": null,
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/humanitarian/refugees-and-asylum",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "humanitarian",
+    "last_crawled": null,
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "work-visas",
+    "last_crawled": null,
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "work-visas",
+    "last_crawled": null,
+    "status": "done"
+  },
+  {
+    "url": "https://travel.state.gov/content/travel/en/us-visas/immigrate.html",
+    "domain": "travel.state.gov",
+    "source_type": "government",
+    "category": "immigrant-visas",
+    "last_crawled": null,
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/citizenship",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "citizenship",
+    "last_crawled": "2026-03-24T22:36:14.652557+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/family",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "family-immigration",
+    "last_crawled": "2026-03-24T22:36:19.162637+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/h-1b-specialty-occupations",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "work-visas",
+    "last_crawled": "2026-03-24T22:36:23.530561+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/humanitarian/temporary-protected-status",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "humanitarian",
+    "last_crawled": "2026-03-24T22:36:26.877608+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/forms/all-forms",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general",
+    "last_crawled": "2026-03-24T22:36:30.365715+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/green-card/green-card-processes-and-procedures/visa-availability-and-priority-dates",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "green-card",
+    "last_crawled": "2026-03-24T22:36:33.661293+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/fees/fees-visa-services.html",
+    "domain": "travel.state.gov",
+    "source_type": "government",
+    "category": "general",
+    "last_crawled": "2026-03-24T22:36:36.709340+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://travel.state.gov/content/travel/en/us-visas/immigrate/diversity-visa-program-entry.html",
+    "domain": "travel.state.gov",
+    "source_type": "government",
+    "category": "general",
+    "last_crawled": "2026-03-24T22:36:41.815467+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://travel.state.gov/content/travel/en/us-visas/immigrate/the-immigrant-visa-process.html",
+    "domain": "travel.state.gov",
+    "source_type": "government",
+    "category": "general",
+    "last_crawled": "2026-03-24T22:36:46.687965+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.dol.gov/agencies/eta/foreign-labor",
+    "domain": "dol.gov",
+    "source_type": "government",
+    "category": "general",
+    "last_crawled": "2026-03-24T22:36:49.103531+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.ilrc.org/resources",
+    "domain": "ilrc.org",
+    "source_type": "organization",
+    "category": "general",
+    "last_crawled": "2026-03-24T22:36:51.726825+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.americanimmigrationlawyers.org/practice/consumer-resources",
+    "domain": "americanimmigrationlawyers.org",
+    "source_type": "organization",
+    "category": "general",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/students-and-exchange-visitors/optional-practical-training-opt-for-f-1-students",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "work-visas",
+    "last_crawled": "2026-03-24T22:37:00.432842+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/students-and-exchange-visitors/stem-opt",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "work-visas",
+    "last_crawled": "2026-03-24T22:37:07.087031+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/o-1-visa-individuals-with-extraordinary-ability-or-achievement",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "work-visas",
+    "last_crawled": "2026-03-24T22:37:10.421510+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/l-1a-intracompany-transferee-executive-or-manager",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "work-visas",
+    "last_crawled": "2026-03-24T22:37:13.696430+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/humanitarian/consideration-of-deferred-action-for-childhood-arrivals-daca",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "humanitarian",
+    "last_crawled": "2026-03-24T22:37:19.903792+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/family/family-of-us-citizens",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "family-immigration",
+    "last_crawled": "2026-03-24T22:37:24.391046+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/family/family-of-permanent-residents",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "family-immigration",
+    "last_crawled": "2026-03-24T22:37:29.923719+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/green-card/green-card-eligibility/green-card-through-job",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "green-card",
+    "last_crawled": "2026-03-24T22:37:34.941281+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/green-card/green-card-eligibility/green-card-for-family-preference-immigrants",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "green-card",
+    "last_crawled": "2026-03-24T22:37:39.432243+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/i-130",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "process",
+    "last_crawled": "2026-03-24T22:37:42.832978+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/i-485",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "process",
+    "last_crawled": "2026-03-24T22:37:46.931215+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/i-765",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "process",
+    "last_crawled": "2026-03-24T22:37:51.380255+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.boundless.com/immigration-resources/what-is-a-green-card/",
+    "domain": "boundless.com",
+    "source_type": "law_firm",
+    "category": "green-card",
+    "last_crawled": "2026-03-25T18:20:59.732331+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.boundless.com/immigration-resources/h1b-visa-guide/",
+    "domain": "boundless.com",
+    "source_type": "law_firm",
+    "category": "work-visas",
+    "last_crawled": "2026-03-25T18:21:04.890999+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.boundless.com/immigration-resources/marriage-green-card-guide/",
+    "domain": "boundless.com",
+    "source_type": "law_firm",
+    "category": "family-immigration",
+    "last_crawled": "2026-03-25T18:21:10.175922+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.boundless.com/immigration-resources/citizenship-guide/",
+    "domain": "boundless.com",
+    "source_type": "law_firm",
+    "category": "citizenship",
+    "last_crawled": "2026-03-25T18:21:15.307636+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/free-books/fiance-marriage-visa-book/chapter1-3.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "family-immigration",
+    "last_crawled": "2026-03-25T18:21:18.161056+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/how-get-green-card.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "green-card",
+    "last_crawled": "2026-03-25T18:21:22.979678+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/us-immigration-asylum-faq.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "humanitarian",
+    "last_crawled": "2026-03-25T18:21:27.789296+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/nonimmigrant/work/h1b/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "work-visas",
+    "last_crawled": "2026-03-25T18:21:30.900078+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/green-card/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "green-card",
+    "last_crawled": "2026-03-25T18:21:35.367106+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.immigrationdirect.com/immigration-articles/green-card-faq/",
+    "domain": "immigrationdirect.com",
+    "source_type": "law_firm",
+    "category": "faq",
+    "last_crawled": "2026-03-25T18:21:46.237831+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/citizenship/learn-about-citizenship/citizenship-and-naturalization",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "citizenship",
+    "last_crawled": "2026-03-25T18:21:48.728895+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/citizenship/learn-about-citizenship/10-steps-to-naturalization",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "citizenship",
+    "last_crawled": "2026-03-25T18:21:51.995101+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/permanent-workers",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "work-visas",
+    "last_crawled": "2026-03-25T18:21:56.459723+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/green-card/green-card-eligibility/green-card-through-marriage",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "family-immigration",
+    "last_crawled": "2026-03-25T18:22:02.915031+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/humanitarian/humanitarian-parole",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "humanitarian",
+    "last_crawled": "2026-03-25T18:22:11.339228+00:00",
+    "status": "done"
+  }
+]

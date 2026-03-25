@@ -1,0 +1,19 @@
+# ===========================================
+# URLs to crawl — one per line
+# Lines starting with # are comments
+# ===========================================
+
+# USCIS — Green Card
+https://www.uscis.gov/green-card
+https://www.uscis.gov/green-card/green-card-eligibility
+https://www.uscis.gov/green-card/green-card-processes-and-procedures
+
+# USCIS — Humanitarian
+https://www.uscis.gov/humanitarian/refugees-and-asylum
+
+# USCIS — Working in the US
+https://www.uscis.gov/working-in-the-united-states
+https://www.uscis.gov/working-in-the-united-states/temporary-workers
+
+# State Department — Immigrant Visas
+https://travel.state.gov/content/travel/en/us-visas/immigrate.html
