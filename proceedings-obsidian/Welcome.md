@@ -5,15 +5,19 @@ Start here: **[[Proceedings — Project Overview]]**
 ---
 
 ## Pipeline Scripts
-- [[crawler.py]] — Stage 1: Web crawling via Firecrawl
+- [[discover_urls.py]] — Stage 0: Auto-discover immigration law firm URLs
+- [[crawler.py]] — Stage 1: Web crawling via Firecrawl with metadata
+- [[pipeline.py]] — Orchestrator: crawl → auto-label → incremental index
 - [[auto_label.py]] — Stage 2: Automated labeling via Gemini
 - [[Label Studio Setup]] — Stage 2: Manual labeling on GCP VM
-- [[index.py]] — Stage 3: Chunking, embedding, vector indexing
-- [[query.py]] — Stage 4: RAG query engine with guardrails
+- [[index.py]] — Stage 3: Chunking, embedding, vector indexing (incremental)
+- [[query.py]] — Stage 4: RAG query engine with guardrails + Firestore logging
+- [[api.py]] — FastAPI server exposing RAG as HTTP endpoints
 
 ## Infrastructure
+- [[Deployment]] — Cloud Run (API) + Vercel (website)
 - [[GCP Setup]] — Bucket provisioning script
-- [[Website]] — Next.js marketing site
+- [[Website]] — Next.js site with `/ask` Q&A page
 
 ## Business
 - [[Business Documents]] — All client-facing documents

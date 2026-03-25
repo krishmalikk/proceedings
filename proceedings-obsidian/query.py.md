@@ -1,14 +1,14 @@
 # query.py
 
 **Stage:** 4 — Query / RAG
-**Lines:** 337
+**Lines:** ~400
 **Location:** `/query.py`
 
 ---
 
 ## Purpose
 
-Interactive CLI that takes a user question, retrieves the 5 most relevant chunks from Vector Search, and generates an answer via Gemini Pro with strict legal guardrails.
+Core RAG module. Used by both the CLI (`main()`) and [[api.py]] (imports `query`, `load_chunk_mapping`, etc.).
 
 ---
 
@@ -20,9 +20,12 @@ Interactive CLI that takes a user question, retrieves the 5 most relevant chunks
 | `embed_query(query)` | Embeds query with `text-embedding-005` using `RETRIEVAL_QUERY` task type |
 | `retrieve_chunks(query_embedding, ...)` | Queries Vector Search endpoint for top-5 neighbors |
 | `build_prompt(question, context_chunks)` | Constructs the Gemini prompt with guardrails and numbered context chunks |
-| `generate_answer(prompt)` | Calls `gemini-2.0-pro` (temp=0.2, top_p=0.8, max_tokens=1024) |
-| `query(question, ...)` | Full RAG pipeline: embed → retrieve → build prompt → generate |
-| `main()` | Interactive loop (type question, get answer, "quit" to exit) |
+| `generate_answer(prompt)` | Calls Gemini 2.5 Flash via Vertex AI (temp=0.2, top_p=0.8, max_tokens=1024) |
+| `query(question, ...)` | Full RAG pipeline, returns structured dict: `{answer, chunks, is_fallback}` |
+| `save_qa_pair(question, result, db)` | Saves Q&A pair to Firestore |
+| `get_recent_qa(db, limit, offset)` | Fetches recent Q&A pairs from Firestore |
+| `update_feedback(doc_id, helpful, db)` | Updates feedback on a Q&A pair |
+| `main()` | Interactive CLI loop with Firestore logging |
 
 ---
 
@@ -41,8 +44,11 @@ The prompt explicitly instructs Gemini to:
 
 ## Generation Config
 
+Uses `genai.Client(vertexai=True)` — bills through GCP paid account, no free tier limits.
+
 | Parameter | Value | Why |
 |-----------|-------|-----|
+| Model | `gemini-2.5-flash` | Fast, capable, via Vertex AI |
 | `temperature` | 0.2 | Low for factual, grounded answers |
 | `max_output_tokens` | 1024 | Enough for detailed answers |
 | `top_p` | 0.8 | Slightly restricts sampling for consistency |

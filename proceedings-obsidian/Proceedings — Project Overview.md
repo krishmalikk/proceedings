@@ -2,7 +2,7 @@
 
 **Type:** RAG (Retrieval-Augmented Generation) pipeline for legal intake
 **Domain:** Immigration law
-**Status:** Early stage / pre-launch
+**Status:** Deployed — API on Cloud Run, website on Vercel
 
 ---
 
@@ -17,19 +17,22 @@ The business model is a **consulting service** sold to law firms: a 30-day pilot
 ## Architecture
 
 ```
-urls.txt → crawler.py → crawled_pages/ → GCS bucket
-                                             ↓
-                                   Label Studio (GCP VM)
-                                             ↓
-                                   GCS /labeled/ subfolder
-                                             ↓
-                                        index.py
-                               (chunk → embed → vector index)
-                                             ↓
-                              Vertex AI Vector Search + chunk_mapping.json
-                                             ↓
-                                        query.py
-                              (embed query → retrieve → Gemini Pro → answer)
+discover_urls.py → url_registry.json → crawler.py → crawled_pages/ → GCS /crawled/
+                                                                          ↓
+                                                              pipeline.py (auto-label via Gemini)
+                                                                          ↓
+                                                              GCS /labeled/ subfolder
+                                                                          ↓
+                                                                     index.py (incremental)
+                                                          (chunk → embed → vector index)
+                                                                          ↓
+                                                   Vertex AI Vector Search + chunk_mapping.json
+                                                                          ↓
+                          User → Vercel (Next.js /ask) → Cloud Run (api.py) → query.py
+                                                                          ↓
+                                                          Gemini 2.5 Flash → answer
+                                                                          ↓
+                                                              Firestore (Q&A storage)
 ```
 
 ---
@@ -38,21 +41,27 @@ urls.txt → crawler.py → crawled_pages/ → GCS bucket
 
 | Stage | Script | What It Does |
 |-------|--------|--------------|
-| 1. Crawl | [[crawler.py]] | Reads URLs from `urls.txt`, scrapes via Firecrawl API, saves Markdown locally and to GCS |
-| 2. Label | [[Label Studio Setup]] + [[auto_label.py]] | Content is labeled in Label Studio (hosted on GCP VM) or auto-labeled via Gemini |
-| 3. Index | [[index.py]] | Downloads labeled data from GCS, chunks into ~512 tokens, embeds with `text-embedding-005`, creates Vertex AI Vector Search index |
-| 4. Query | [[query.py]] | Interactive CLI: embeds question, retrieves top-5 chunks, generates answer via `gemini-2.0-pro` with guardrails |
+| 0. Discover | [[discover_urls.py]] | Auto-finds immigration law firm URLs via web search and seed lists |
+| 1. Crawl | [[crawler.py]] | Reads from `url_registry.json`, scrapes via Firecrawl, adds YAML frontmatter, uploads to GCS |
+| 2. Label | [[pipeline.py]] / [[auto_label.py]] | Auto-labels content via Gemini 2.5 Flash (Vertex AI). Label Studio available for manual review |
+| 3. Index | [[index.py]] | Downloads labeled data, chunks into ~512 tokens, embeds with `text-embedding-005`, upserts to Vector Search (incremental) |
+| 4. Serve | [[api.py]] → [[query.py]] | FastAPI on Cloud Run: embeds question, retrieves top-5 chunks, generates answer via Gemini 2.5 Flash, saves Q&A to Firestore |
+| 5. Frontend | [[Website]] `/ask` page | Next.js on Vercel: ask form, answer display, source citations, feedback, recent Q&A |
+
+**Full pipeline command:** `python pipeline.py` (runs stages 1-3 end to end)
 
 ---
 
 ## Key Relationships
 
-- [[crawler.py]] feeds into [[Label Studio Setup]]
-- [[auto_label.py]] automates the labeling step using Gemini
-- [[index.py]] consumes labeled output and produces the vector index + `chunk_mapping.json`
-- [[query.py]] depends on both the vector index and `chunk_mapping.json`
+- [[discover_urls.py]] populates `url_registry.json` for [[crawler.py]]
+- [[crawler.py]] feeds into [[pipeline.py]] (auto-label + index) or [[Label Studio Setup]] (manual)
+- [[pipeline.py]] orchestrates crawl → label → index without manual steps
+- [[index.py]] supports incremental mode (detects existing index from `.env`)
+- [[api.py]] imports from [[query.py]] and serves the [[Website]] frontend
+- [[query.py]] uses Gemini 2.5 Flash via Vertex AI (paid, no rate limits) and logs Q&A to Firestore
 - [[GCP Setup]] provisions the storage bucket all scripts share
-- The [[Website]] is a separate Next.js marketing site for the consulting service
+- [[Deployment]] covers Cloud Run (API) and Vercel (website)
 - [[Business Documents]] define the client-facing offer and onboarding process
 
 ---
@@ -64,12 +73,14 @@ urls.txt → crawler.py → crawled_pages/ → GCS bucket
 | Crawling | Firecrawl API |
 | Storage | Google Cloud Storage |
 | Labeling | Label Studio (self-hosted on GCP VM) |
-| Auto-labeling | Gemini 2.5 Flash |
+| Auto-labeling | Gemini 2.5 Flash (Vertex AI) |
 | Embeddings | Vertex AI `text-embedding-005` (768-dim) |
 | Vector DB | Vertex AI Vector Search (Tree-AH, DOT_PRODUCT) |
-| Generation | Gemini 2.0 Pro |
-| Website | Next.js 14, React 18, Tailwind CSS, TypeScript |
-| Language | Python 3 (pipeline), TypeScript (website) |
+| Generation | Gemini 2.5 Flash (Vertex AI) |
+| API server | FastAPI on Cloud Run |
+| Q&A storage | Firestore (`qa_pairs` collection) |
+| Website | Next.js 14 on Vercel, React 18, Tailwind CSS, TypeScript |
+| Language | Python 3 (pipeline + API), TypeScript (website) |
 
 ---
 

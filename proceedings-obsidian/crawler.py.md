@@ -1,14 +1,14 @@
 # crawler.py
 
 **Stage:** 1 — Crawling
-**Lines:** 229
+**Lines:** ~240
 **Location:** `/crawler.py`
 
 ---
 
 ## Purpose
 
-Reads URLs from `urls.txt`, crawls each one via the Firecrawl API, converts pages to clean Markdown, saves locally to `crawled_pages/`, and uploads to a GCS bucket.
+Reads URLs from `url_registry.json` (or legacy `urls.txt`), crawls via Firecrawl API, adds YAML frontmatter with metadata, filters low-quality content, saves locally and uploads to GCS.
 
 ---
 
@@ -16,19 +16,23 @@ Reads URLs from `urls.txt`, crawls each one via the Firecrawl API, converts page
 
 | Function | Description |
 |----------|-------------|
-| `load_urls()` | Reads URLs from `urls.txt`, skipping blanks and comments |
-| `url_to_filename(url)` | Converts a URL to a safe filename (e.g., `uscis-gov-green-card.md`) |
-| `crawl_url(app, url)` | Scrapes a single URL with retries (exponential backoff: 1s, 2s, 4s) |
+| `load_url_registry()` | Reads pending URLs from `url_registry.json` |
+| `update_registry_entry(url, status)` | Updates status/last_crawled in registry (resumable) |
+| `load_urls_legacy()` | Fallback: reads from `urls.txt` (`--legacy` flag) |
+| `url_to_filename(url)` | Converts a URL to a safe filename |
+| `crawl_url(app, url)` | Scrapes a single URL with retries (exponential backoff) |
+| `add_frontmatter(content, entry)` | Prepends YAML frontmatter (source_url, domain, source_type, crawled_at) |
+| `is_content_useful(content)` | Filters pages with < 200 chars of real content |
 | `save_markdown(content, filename)` | Writes Markdown to `crawled_pages/` directory |
-| `upload_to_gcs(local_dir, bucket_name)` | Uploads all `.md` files from a directory to GCS |
-| `main()` | Orchestrates the full crawl-and-upload pipeline |
+| `upload_to_gcs(local_dir, bucket_name)` | Uploads `.md` files to `gs://bucket/crawled/` |
+| `main()` | Orchestrates crawl with domain-aware rate limiting |
 
 ---
 
 ## Data Flow
 
 ```
-urls.txt → Firecrawl API → crawled_pages/*.md → GCS bucket (root)
+url_registry.json → Firecrawl API → add frontmatter → crawled_pages/*.md → GCS /crawled/
 ```
 
 ---
@@ -48,18 +52,19 @@ urls.txt → Firecrawl API → crawled_pages/*.md → GCS bucket (root)
 
 ---
 
-## Currently Crawled URLs
+## Currently Crawled (45 pages)
 
-7 pages from USCIS and State Department:
-- Green card (general, eligibility, processes)
-- Humanitarian (refugees and asylum)
-- Working in the US (general, temporary workers)
-- State Dept immigrant visas
+**Government (USCIS, State Dept, DOL):** Green card (general, eligibility, processes, marriage, employment, family preference), H-1B, OPT, STEM OPT, O-1, L-1A, citizenship, naturalization, DACA, TPS, humanitarian parole, asylum, permanent workers, visa fees, diversity visa, immigrant visa process, forms, priority dates
+
+**Law firm resources:** Boundless (green card, H-1B, marriage, citizenship guides), Nolo (green card, marriage visa, asylum FAQ), VisaGuide (H-1B, green card)
 
 ---
 
 ## Notes
 
 - Retries up to 3 times per URL with exponential backoff
-- 1-second delay between URLs for rate limiting
-- Output feeds into [[Label Studio Setup]] for content labeling
+- Domain-aware rate limiting: 3s same-domain, 1s between domains
+- Resumable: tracks status in registry, skips already-done URLs
+- Content filtering: skips pages with < 200 chars of real content
+- YAML frontmatter on each file for source tracking
+- Output feeds into [[pipeline.py]] or [[Label Studio Setup]]

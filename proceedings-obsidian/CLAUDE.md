@@ -4,14 +4,25 @@ This folder is the Obsidian knowledge base for the Proceedings project. When wor
 
 ## Vault Index
 
-- `Proceedings — Project Overview.md` — Full architecture, tech stack, pipeline diagram, env vars, design decisions
-- `crawler.py.md` — Stage 1: Firecrawl crawling (functions, data flow, dependencies)
-- `auto_label.py.md` — Stage 2: Gemini auto-labeling (label categories, rate limiting, workflow)
-- `Label Studio Setup.md` — Stage 2: Manual labeling on GCP VM (infrastructure, storage config, template)
-- `index.py.md` — Stage 3: Chunking, embedding, vector indexing (7-step pipeline, key parameters)
-- `query.py.md` — Stage 4: RAG query engine (guardrails, generation config, full pipeline)
+### Architecture & Deployment
+- `Proceedings — Project Overview.md` — Full architecture, tech stack, pipeline diagram, design decisions
+- `Deployment.md` — Cloud Run (API) and Vercel (website) deployment details, URLs, env vars
+
+### Pipeline Scripts
+- `discover_urls.py.md` — URL auto-discovery via web search and seed lists
+- `crawler.py.md` — Firecrawl crawling with metadata frontmatter, registry-based, resumable
+- `pipeline.py.md` — Full pipeline orchestrator: crawl → auto-label → incremental index
+- `auto_label.py.md` — Gemini auto-labeling (label categories, workflow)
+- `Label Studio Setup.md` — Manual labeling on GCP VM (infrastructure, storage config)
+- `index.py.md` — Chunking, embedding, vector indexing (incremental mode)
+- `query.py.md` — RAG query engine with Firestore Q&A logging and feedback
+- `api.py.md` — FastAPI server on Cloud Run (endpoints, CORS, rate limiting)
+
+### Infrastructure
 - `GCP Setup.md` — Bucket provisioning script (project ID, bucket config)
-- `Website.md` — Next.js marketing site (pages, components, commands)
+- `Website.md` — Next.js site on Vercel (pages including /ask, components, commands)
+
+### Business Documents
 - `Business Documents.md` — Client-facing documents index
 - `Data Intake Checklist.md` — Client onboarding form (12 sections)
 - `Launch Requirements.md` — V1 vs Later prioritization
