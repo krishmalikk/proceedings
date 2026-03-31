@@ -139,79 +139,19 @@ def upload_labeled_file(
 
 
 def run_crawl():
-    """Run the crawler for pending URLs."""
+    """Run the crawler for pending URLs using agent_crawl (trafilatura)."""
     print("=" * 50)
-    print("STAGE 1: Crawling pending URLs")
+    print("STAGE 1: Crawling pending URLs (trafilatura)")
     print("=" * 50)
-    os.system(f"{sys.executable} crawler.py")
+    os.system(f"{sys.executable} agent_crawl.py")
 
 
 def run_label(bucket_name: str):
-    """Auto-label crawled files using Gemini."""
+    """Auto-label crawled files using Agent Engine."""
     print("\n" + "=" * 50)
-    print("STAGE 2: Auto-labeling with Gemini")
+    print("STAGE 2: Auto-labeling with Agent Engine")
     print("=" * 50)
-
-    project_id = os.getenv("GCP_PROJECT_ID")
-    region = os.getenv("GCP_REGION", "us-central1")
-
-    if not project_id:
-        print("Error: GCP_PROJECT_ID not set. Cannot auto-label.")
-        return
-
-    gemini_client = genai.Client(
-        vertexai=True,
-        project=project_id,
-        location=region,
-    )
-    files = get_crawled_files()
-
-    if not files:
-        print("No crawled files found in crawled_pages/")
-        return
-
-    # Check what's already labeled
-    already_labeled = get_already_labeled(bucket_name)
-    files_to_label = [f for f in files if f.name not in already_labeled]
-
-    print(f"  Total crawled files: {len(files)}")
-    print(f"  Already labeled: {len(already_labeled)}")
-    print(f"  To label: {len(files_to_label)}")
-
-    # Find next available label ID
-    label_id = len(already_labeled) + 100  # offset to avoid collisions
-
-    labeled_count = 0
-    for i, filepath in enumerate(files_to_label):
-        print(f"\n  [{i+1}/{len(files_to_label)}] {filepath.name}")
-
-        content = filepath.read_text(encoding="utf-8")
-        if len(content.strip()) < 100:
-            print(f"    Skipped (too short)")
-            continue
-
-        try:
-            labels = classify_content(gemini_client, content)
-            print(f"    Labels: {labels}")
-
-            # First upload the crawled file to GCS /crawled/ if not already there
-            gcs_client = storage.Client()
-            bucket = gcs_client.bucket(bucket_name)
-            crawled_blob = bucket.blob(f"crawled/{filepath.name}")
-            if not crawled_blob.exists():
-                crawled_blob.upload_from_filename(str(filepath))
-
-            upload_labeled_file(bucket_name, filepath.name, labels, label_id)
-            label_id += 1
-            labeled_count += 1
-
-            # Rate limit for Gemini free tier
-            time.sleep(4)
-        except Exception as e:
-            print(f"    Error: {e}")
-            continue
-
-    print(f"\n  Labeled {labeled_count} new files")
+    os.system(f"{sys.executable} agent_label.py")
 
 
 def run_index():
