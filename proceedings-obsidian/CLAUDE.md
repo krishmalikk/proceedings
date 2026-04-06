@@ -5,22 +5,28 @@ This folder is the Obsidian knowledge base for the Proceedings project. When wor
 ## Vault Index
 
 ### Architecture & Deployment
-- `Proceedings — Project Overview.md` — Full architecture, tech stack, pipeline diagram, design decisions
-- `Deployment.md` — Cloud Run (API) and Vercel (website) deployment details, URLs, env vars
+- `Proceedings — Project Overview.md` — Full architecture, tech stack, 47-category taxonomy, pipeline diagram, current stats
+- `Deployment.md` — Cloud Run (API), Vercel (website), Agent Engine deployment details
 
-### Pipeline Scripts
+### Active Pipeline Scripts
 - `discover_urls.py.md` — URL auto-discovery via web search and seed lists
-- `crawler.py.md` — Firecrawl crawling with metadata frontmatter, registry-based, resumable
-- `pipeline.py.md` — Full pipeline orchestrator: crawl → auto-label → incremental index
-- `auto_label.py.md` — Gemini auto-labeling (label categories, workflow)
-- `Label Studio Setup.md` — Manual labeling on GCP VM (infrastructure, storage config)
+- `agent_crawl.py.md` — trafilatura-based web crawling (replaced Firecrawl)
+- `agent_label.py.md` — Content labeling via deployed Agent Engine (47 categories)
+- `labeling_agent.md` — Agent package: taxonomy (47 categories), ImmigrationLabelingAgent class
+- `pipeline.py.md` — Pipeline orchestrator: crawl → label → index
+- `continuous_crawl.py.md` — Continuous pipeline runner (discover → crawl → label → index in a loop)
 - `index.py.md` — Chunking, embedding, vector indexing (incremental mode)
 - `query.py.md` — RAG query engine with Firestore Q&A logging and feedback
 - `api.py.md` — FastAPI server on Cloud Run (endpoints, CORS, rate limiting)
 
+### Legacy Scripts (kept for reference)
+- `crawler.py.md` — Original Firecrawl-based crawler
+- `auto_label.py.md` — Original Gemini labeling (6 categories)
+- `Label Studio Setup.md` — Manual labeling on GCP VM
+
 ### Infrastructure
-- `GCP Setup.md` — Bucket provisioning script (project ID, bucket config)
-- `Website.md` — Next.js site on Vercel (pages including /ask, components, commands)
+- `GCP Setup.md` — Bucket provisioning script
+- `Website.md` — Next.js site on Vercel (pages including /ask, components)
 
 ### Business Documents
 - `Business Documents.md` — Client-facing documents index

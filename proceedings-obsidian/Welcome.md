@@ -6,16 +6,22 @@ Start here: **[[Proceedings — Project Overview]]**
 
 ## Pipeline Scripts
 - [[discover_urls.py]] — Stage 0: Auto-discover immigration law firm URLs
-- [[crawler.py]] — Stage 1: Web crawling via Firecrawl with metadata
-- [[pipeline.py]] — Orchestrator: crawl → auto-label → incremental index
-- [[auto_label.py]] — Stage 2: Automated labeling via Gemini
-- [[Label Studio Setup]] — Stage 2: Manual labeling on GCP VM
+- [[agent_crawl.py]] — Stage 1: Web crawling via trafilatura (replaced Firecrawl)
+- [[agent_label.py]] — Stage 2: Content labeling via Agent Engine (47 categories)
+- [[labeling_agent]] — Agent package: taxonomy + ImmigrationLabelingAgent class
+- [[pipeline.py]] — Orchestrator: crawl → label → index
+- [[continuous_crawl.py]] — Continuous mode: discover → crawl → label → index in a loop
 - [[index.py]] — Stage 3: Chunking, embedding, vector indexing (incremental)
 - [[query.py]] — Stage 4: RAG query engine with guardrails + Firestore logging
 - [[api.py]] — FastAPI server exposing RAG as HTTP endpoints
 
+## Legacy (kept for reference)
+- [[crawler.py]] — Original Firecrawl-based crawler (replaced by agent_crawl.py)
+- [[auto_label.py]] — Original Gemini labeling (replaced by agent_label.py)
+- [[Label Studio Setup]] — Manual labeling on GCP VM
+
 ## Infrastructure
-- [[Deployment]] — Cloud Run (API) + Vercel (website)
+- [[Deployment]] — Cloud Run (API) + Vercel (website) + Agent Engine
 - [[GCP Setup]] — Bucket provisioning script
 - [[Website]] — Next.js site with `/ask` Q&A page
 

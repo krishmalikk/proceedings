@@ -61,7 +61,7 @@ def main():
         },
     )
 
-    resource_name = remote_agent.name
+    resource_name = remote_agent.api_resource.name
     print(f"\nAgent deployed successfully!")
     print(f"  Resource name: {resource_name}")
     print()
@@ -70,7 +70,8 @@ def main():
 
     # Quick test
     print("\nTesting deployed agent...")
-    result = remote_agent.query(
+    test_agent = client.agent_engines.get(name=resource_name)
+    result = test_agent.query(
         content="The H-1B visa cap is 65,000 per year with a 20,000 master's cap.",
         source_url="https://www.uscis.gov/h-1b",
     )

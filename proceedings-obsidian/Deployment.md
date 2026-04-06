@@ -66,7 +66,9 @@ Located at `/Dockerfile`. Copies `api.py` and `query.py`, installs Python depend
 | API server | Cloud Run | FastAPI backend |
 | Vector database | Vertex AI Vector Search | Chunk retrieval |
 | LLM | Gemini 2.5 Flash (Vertex AI) | Answer generation |
+| Labeling agent | Vertex AI Agent Engine | 47-category content classification |
 | Embeddings | Vertex AI text-embedding-005 | Query + document embeddings |
 | Object storage | GCS (`law-firm-knowledge-base`) | Crawled pages, labeled data, chunk mapping |
 | Q&A database | Firestore | Question/answer pairs + feedback |
-| Labeling | Label Studio (GCP VM) | Optional manual review |
+| Web crawling | trafilatura (local) | Replaced Firecrawl (free, open-source) |
+| Labeling (manual) | Label Studio (GCP VM) | Optional manual review |
