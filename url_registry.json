@@ -1494,5 +1494,325 @@
     "category": "elder-law",
     "last_crawled": null,
     "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/injury/car-accidents/car-accident-basics.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "personal-injury",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/injury/personal-injury-basics.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "personal-injury",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/family/divorce.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "family-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/family/child-custody.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "family-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/criminal/criminal-law-basics.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "criminal-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/bankruptcy.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "bankruptcy-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/realestate.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "real-estate-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/employment/employment-law-basics.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "labor-employment",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/tax.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "tax-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/areaoflaw/dui-dwi.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "dui-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/immigration.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.findlaw.com/estate.html",
+    "domain": "findlaw.com",
+    "source_type": "law_firm",
+    "category": "estate-planning",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/immigration/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/immigration/green-cards/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/immigration/deportation-defense/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "deportation-defense",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/immigration/citizenship-and-naturalization/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "naturalization-citizenship",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/immigration/asylum/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "asylum-refugees",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/family-law/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "family-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/criminal/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "criminal-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/bankruptcy/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "bankruptcy-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/real-estate/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "real-estate-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/employment/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "labor-employment",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/injury/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "personal-injury",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/estate-planning/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "estate-planning",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.justia.com/tax/",
+    "domain": "justia.com",
+    "source_type": "law_firm",
+    "category": "tax-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/tort",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "personal-injury",
+    "last_crawled": "2026-04-07T01:09:27.867014+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/product_liability",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "personal-injury",
+    "last_crawled": "2026-04-07T01:09:30.897827+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/alimony",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "family-law",
+    "last_crawled": "2026-04-07T01:09:33.932030+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/adoption",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "family-law",
+    "last_crawled": "2026-04-07T01:09:39.778777+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/trademark",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "intellectual-property",
+    "last_crawled": "2026-04-07T01:09:50.837089+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/patent",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "intellectual-property",
+    "last_crawled": "2026-04-07T01:10:03.102408+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/landlord-tenant_law",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "real-estate-law",
+    "last_crawled": "2026-04-07T01:10:15.414742+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/wrongful_termination",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-07T01:10:26.239612+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/sexual_harassment",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-07T01:10:42.904227+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/humanitarian/refugees-and-asylum/asylum",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "asylum-refugees",
+    "last_crawled": "2026-04-07T01:11:05.550482+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/green-card/after-we-grant-your-green-card",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-07T01:11:23.927809+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/cap-count-for-h-2b-nonimmigrants",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "temporary-work-visas",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.ftc.gov/legal-library/browse/statutes/fair-debt-collection-practices-act",
+    "domain": "ftc.gov",
+    "source_type": "government",
+    "category": "bankruptcy-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.dol.gov/general/topic/benefits-leave/fmla",
+    "domain": "dol.gov",
+    "source_type": "government",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-07T01:11:34.742753+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.dol.gov/agencies/whd/minimum-wage",
+    "domain": "dol.gov",
+    "source_type": "government",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-07T01:11:44.391705+00:00",
+    "status": "done"
   }
 ]
