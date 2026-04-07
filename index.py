@@ -311,17 +311,46 @@ def save_chunk_mapping(
 # ---------------------------------------------------------------------------
 
 def is_chunk_useful(text: str, min_tokens: int = 50) -> bool:
-    """Filter out chunks that are too short or mostly navigation/links."""
+    """Filter out chunks that are too short, error pages, or mostly navigation/links."""
+    import re as re_module
+
+    text_lower = text.lower()
+
+    # Filter error pages and boilerplate
+    junk_phrases = [
+        "page not found",
+        "404",
+        "something went wrong",
+        "please try again",
+        "these tips can help you find",
+        "skip to main content",
+        "arrow_downwardjump to bottom",
+        "cancel task",
+        "virtual assistant",
+        "was this page helpful",
+        "how can the content be improved",
+    ]
+    junk_count = sum(1 for phrase in junk_phrases if phrase in text_lower)
+    if junk_count >= 2:
+        return False
+
+    # Filter very short chunks
     encoder = tiktoken.get_encoding("cl100k_base")
     tokens = encoder.encode(text)
-
     if len(tokens) < min_tokens:
         return False
 
-    # Check link density: if more than 60% of text is markdown links, skip
-    link_chars = sum(len(m) for m in __import__("re").findall(r"\[([^\]]*)\]\([^)]*\)", text))
-    if len(text) > 0 and link_chars / len(text) > 0.6:
+    # Check link density: if more than 50% of text is markdown links, skip
+    link_chars = sum(len(m) for m in re_module.findall(r"\[([^\]]*)\]\([^)]*\)", text))
+    if len(text) > 0 and link_chars / len(text) > 0.5:
         return False
+
+    # Filter chunks that are mostly navigation lists (many short bullet items)
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    if len(lines) > 5:
+        short_lines = sum(1 for l in lines if len(l) < 30)
+        if short_lines / len(lines) > 0.7:
+            return False
 
     return True
 

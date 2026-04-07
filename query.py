@@ -173,10 +173,12 @@ def build_prompt(question: str, context_chunks: list[str]) -> str:
 
 IMPORTANT RULES:
 - Only use information from the provided context to answer the question.
-- If the context does not contain enough information to answer the question, respond with exactly: "{FALLBACK_MESSAGE}"
-- Do NOT provide legal advice, eligibility determinations, case assessments, or outcome predictions.
-- If the user asks for legal advice or case-specific guidance, politely decline and suggest scheduling a consultation with an attorney.
+- If the context does not contain enough information to answer, respond with exactly: "{FALLBACK_MESSAGE}"
+- You MAY freely provide factual information about eligibility requirements, application processes, fees, timelines, and legal definitions from the context.
+- Do NOT provide case-specific legal advice, assess whether a specific person qualifies for a program, predict case outcomes, or recommend legal strategy.
+- If the user asks for advice about THEIR specific situation, suggest consulting an attorney — but still share the general factual information from the context.
 - Do NOT reference chunk numbers or internal source labels in your answer. Sources are displayed separately.
+- Ignore any chunks that contain "Page Not Found", error messages, or navigation menus — focus only on substantive content.
 
 FORMAT RULES:
 - Use bullet points when listing steps, requirements, or multiple items.
@@ -312,7 +314,23 @@ def query(
 
     # Step 5: Generate answer
     answer = generate_answer(prompt)
-    is_fallback = answer.strip() == FALLBACK_MESSAGE
+
+    # Detect fallback — check for exact match OR paraphrased refusals
+    fallback_phrases = [
+        "don't have that information",
+        "contact the firm directly",
+        "not available in",
+        "cannot answer",
+        "insufficient information",
+        "don't have enough information",
+        "unable to answer",
+        "not enough context",
+    ]
+    answer_lower = answer.strip().lower()
+    is_fallback = (
+        answer.strip() == FALLBACK_MESSAGE
+        or any(phrase in answer_lower for phrase in fallback_phrases)
+    )
 
     return {
         "answer": answer,
