@@ -1,0 +1,15 @@
+website/
+node_modules/
+.next/
+proceedings-obsidian/
+crawled_pages/
+google-cloud-sdk/
+google-cloud-cli-*.tar.gz
+venv/
+.venv/
+__pycache__/
+*.pyc
+.git/
+.env
+tests/
+documents/

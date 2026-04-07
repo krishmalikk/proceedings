@@ -6,6 +6,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY api.py query.py ./
+COPY labeling_agent/ ./labeling_agent/
 
 EXPOSE 8080
 
