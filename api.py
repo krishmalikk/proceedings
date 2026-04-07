@@ -131,6 +131,7 @@ class QAItem(BaseModel):
     question: str
     answer: str
     sources: list[str]
+    labels: list[str]
     created_at: str | None
     is_fallback: bool
     helpful: bool | None
@@ -178,25 +179,36 @@ async def ask_question(body: AskRequest, request: Request):
 
 
 @app.get("/api/qa", response_model=QAListResponse)
-async def list_qa(limit: int = 20, offset: int = 0):
-    """List recent Q&A pairs."""
+async def list_qa(limit: int = 20, offset: int = 0, category: str = ""):
+    """List recent Q&A pairs, optionally filtered by category label."""
     if limit > 50:
         limit = 50
     items = get_recent_qa(_db, limit=limit, offset=offset)
-    return QAListResponse(
-        items=[
-            QAItem(
-                id=item["id"],
-                question=item.get("question", ""),
-                answer=item.get("answer", ""),
-                sources=item.get("sources", []),
-                created_at=item.get("created_at"),
-                is_fallback=item.get("is_fallback", False),
-                helpful=item.get("helpful"),
-            )
-            for item in items
-        ]
-    )
+
+    qa_items = []
+    for item in items:
+        # Extract labels from retrieved_chunks
+        labels = set()
+        for chunk in item.get("retrieved_chunks", []):
+            labels.update(chunk.get("labels", []))
+        labels_list = sorted(labels)
+
+        # Filter by category if specified
+        if category and category not in labels_list:
+            continue
+
+        qa_items.append(QAItem(
+            id=item["id"],
+            question=item.get("question", ""),
+            answer=item.get("answer", ""),
+            sources=item.get("sources", []),
+            labels=labels_list,
+            created_at=item.get("created_at"),
+            is_fallback=item.get("is_fallback", False),
+            helpful=item.get("helpful"),
+        ))
+
+    return QAListResponse(items=qa_items)
 
 
 @app.post("/api/qa/{doc_id}/feedback")
@@ -207,6 +219,42 @@ async def submit_feedback(doc_id: str, body: FeedbackRequest):
         return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Q&A pair not found: {e}")
+
+
+@app.get("/api/qa/stats")
+async def qa_stats():
+    """Get Q&A quality statistics."""
+    from collections import Counter
+
+    items = get_recent_qa(_db, limit=200, offset=0)
+    total = len(items)
+    fallbacks = [i for i in items if i.get("is_fallback")]
+    successful = [i for i in items if not i.get("is_fallback")]
+
+    # Label distribution
+    all_labels = []
+    for item in successful:
+        for chunk in item.get("retrieved_chunks", []):
+            all_labels.extend(chunk.get("labels", []))
+    label_counts = dict(Counter(all_labels).most_common(20))
+
+    # Feedback
+    helpful = sum(1 for i in items if i.get("helpful") is True)
+    not_helpful = sum(1 for i in items if i.get("helpful") is False)
+
+    # Knowledge gaps
+    gaps = [{"question": f.get("question", "")[:100]} for f in fallbacks[:10]]
+
+    return {
+        "total": total,
+        "successful": len(successful),
+        "fallbacks": len(fallbacks),
+        "fallback_rate": len(fallbacks) / total if total > 0 else 0,
+        "helpful": helpful,
+        "not_helpful": not_helpful,
+        "top_categories": label_counts,
+        "knowledge_gaps": gaps,
+    }
 
 
 @app.get("/api/health", response_model=HealthResponse)

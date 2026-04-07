@@ -7,9 +7,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = searchParams.get('limit') || '20'
     const offset = searchParams.get('offset') || '0'
+    const category = searchParams.get('category') || ''
+
+    const params = new URLSearchParams({ limit, offset })
+    if (category) params.set('category', category)
 
     const res = await fetch(
-      `${PYTHON_API_URL}/api/qa?limit=${limit}&offset=${offset}`
+      `${PYTHON_API_URL}/api/qa?${params}`
     )
 
     const data = await res.json()

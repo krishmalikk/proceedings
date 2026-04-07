@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Send, ThumbsUp, ThumbsDown, Loader2, AlertTriangle } from 'lucide-react'
 import SourceCitation from './SourceCitation'
+import CategoryPill from './CategoryPill'
 
 interface Source {
   chunk_id: string
@@ -19,17 +20,25 @@ interface AskResult {
   id: string
 }
 
-export default function AskForm() {
-  const [question, setQuestion] = useState('')
+interface AskFormProps {
+  initialQuestion?: string
+}
+
+export default function AskForm({ initialQuestion }: AskFormProps) {
+  const [question, setQuestion] = useState(initialQuestion || '')
   const [result, setResult] = useState<AskResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [feedbackGiven, setFeedbackGiven] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!question.trim() || question.trim().length < 5) return
+  // Auto-submit if initialQuestion is provided
+  useEffect(() => {
+    if (initialQuestion && initialQuestion.trim().length >= 5) {
+      submitQuestion(initialQuestion.trim())
+    }
+  }, [initialQuestion])
 
+  async function submitQuestion(q: string) {
     setLoading(true)
     setError('')
     setResult(null)
@@ -39,7 +48,7 @@ export default function AskForm() {
       const res = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question.trim() }),
+        body: JSON.stringify({ question: q }),
       })
 
       if (!res.ok) {
@@ -54,6 +63,12 @@ export default function AskForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!question.trim() || question.trim().length < 5) return
+    submitQuestion(question.trim())
   }
 
   async function handleFeedback(helpful: boolean) {
@@ -71,6 +86,11 @@ export default function AskForm() {
     }
   }
 
+  // Extract unique labels from all sources
+  const allLabels = result
+    ? Array.from(new Set(result.sources.flatMap(s => s.labels))).filter(l => l !== 'general-immigration-info' && l !== 'general-legal-info')
+    : []
+
   return (
     <div>
       {/* Question Input */}
@@ -78,7 +98,7 @@ export default function AskForm() {
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a question about immigration law, visa processes, green cards..."
+          placeholder="Ask a question about law, immigration, visas, green cards..."
           className="w-full px-6 py-4 pr-14 text-ink-900 bg-white border border-ink-200 rounded-2xl resize-none focus:outline-none focus:border-ink-400 focus:ring-1 focus:ring-ink-400 transition-colors"
           rows={3}
           maxLength={500}
@@ -123,9 +143,18 @@ export default function AskForm() {
               </p>
             </div>
 
+            {/* Categories */}
+            {allLabels.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-1.5">
+                {allLabels.slice(0, 5).map((label) => (
+                  <CategoryPill key={label} label={label} size="sm" />
+                ))}
+              </div>
+            )}
+
             {/* Sources */}
             {result.sources.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-ink-100">
+              <div className="mt-4 pt-4 border-t border-ink-100">
                 <p className="overline mb-3">Sources</p>
                 <div className="flex flex-wrap gap-2">
                   {Array.from(new Set(result.sources.map(s => s.source))).map((source) => (

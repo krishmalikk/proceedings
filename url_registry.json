@@ -366,5 +366,845 @@
     "category": "humanitarian",
     "last_crawled": "2026-03-25T18:22:11.339228+00:00",
     "status": "done"
+  },
+  {
+    "url": "https://www.fragomen.com/insights/immigration-faqs.html",
+    "domain": "fragomen.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.murthy.com/faq/",
+    "domain": "murthy.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:09:39.492513+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.wegreened.com/eb1-extraordinary-ability-green-card",
+    "domain": "wegreened.com",
+    "source_type": "law_firm",
+    "category": "employment-green-cards",
+    "last_crawled": "2026-04-06T23:09:41.042081+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.wegreened.com/niw-national-interest-waiver-green-card",
+    "domain": "wegreened.com",
+    "source_type": "law_firm",
+    "category": "employment-green-cards",
+    "last_crawled": "2026-04-06T23:09:44.321916+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.wegreened.com/perm-labor-certification",
+    "domain": "wegreened.com",
+    "source_type": "law_firm",
+    "category": "employment-green-cards",
+    "last_crawled": "2026-04-06T23:09:47.607290+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.bal.com/bal/immigration-resources/",
+    "domain": "bal.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.klaskolaw.com/resources/",
+    "domain": "klaskolaw.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.visaplace.com/immigration-faqs/",
+    "domain": "visaplace.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.visaplace.com/blog-immigration-law/us-immigration/",
+    "domain": "visaplace.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:09:58.404558+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/information-for-employers-and-employees",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "h1b-visa",
+    "last_crawled": "2026-04-06T23:10:00.586273+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/e-1-treaty-traders",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "temporary-work-visas",
+    "last_crawled": "2026-04-06T23:10:03.769852+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/e-2-treaty-investors",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "temporary-work-visas",
+    "last_crawled": "2026-04-06T23:10:06.936249+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/tn-nafta-professionals",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "temporary-work-visas",
+    "last_crawled": "2026-04-06T23:10:10.053084+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/h-2a-temporary-agricultural-workers",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "temporary-work-visas",
+    "last_crawled": "2026-04-06T23:10:13.180519+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/h-2b-temporary-non-agricultural-workers",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "temporary-work-visas",
+    "last_crawled": "2026-04-06T23:10:16.233919+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/green-card/green-card-eligibility/green-card-through-refugee-or-asylee-status",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "asylum-refugees",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uscis.gov/humanitarian/victims-of-human-trafficking-and-other-crimes",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "humanitarian-parole",
+    "last_crawled": "2026-04-06T23:10:23.537231+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/family/bring-your-spouse-to-live-in-the-us",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "family-based-immigration",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uscis.gov/family/family-of-refugees-and-asylees",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "asylum-refugees",
+    "last_crawled": "2026-04-06T23:10:30.897499+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/i-140",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "employment-green-cards",
+    "last_crawled": "2026-04-06T23:10:33.989348+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/i-129",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "h1b-visa",
+    "last_crawled": "2026-04-06T23:10:37.065360+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/i-589",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "asylum-refugees",
+    "last_crawled": "2026-04-06T23:10:40.155446+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/n-400",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "naturalization-citizenship",
+    "last_crawled": "2026-04-06T23:10:43.218710+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/i-751",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "family-based-immigration",
+    "last_crawled": "2026-04-06T23:10:46.287914+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/i-90",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:10:49.341868+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.alllaw.com/articles/nolo/us-immigration/how-get-green-card-through-marriage.html",
+    "domain": "alllaw.com",
+    "source_type": "law_firm",
+    "category": "family-based-immigration",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.alllaw.com/articles/nolo/us-immigration/green-card-through-employment.html",
+    "domain": "alllaw.com",
+    "source_type": "law_firm",
+    "category": "employment-green-cards",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.alllaw.com/articles/nolo/us-immigration/h-1b-visa-for-specialty-workers.html",
+    "domain": "alllaw.com",
+    "source_type": "law_firm",
+    "category": "h1b-visa",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.alllaw.com/articles/nolo/us-immigration/asylum-application-process.html",
+    "domain": "alllaw.com",
+    "source_type": "law_firm",
+    "category": "asylum-refugees",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.alllaw.com/articles/nolo/us-immigration/becoming-citizen.html",
+    "domain": "alllaw.com",
+    "source_type": "law_firm",
+    "category": "naturalization-citizenship",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.alllaw.com/articles/nolo/us-immigration/daca-deferred-action-childhood-arrivals.html",
+    "domain": "alllaw.com",
+    "source_type": "law_firm",
+    "category": "daca",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.immigrationhelp.org/learning-center/what-is-a-green-card",
+    "domain": "immigrationhelp.org",
+    "source_type": "organization",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "skipped"
+  },
+  {
+    "url": "https://www.immigrationhelp.org/learning-center/what-is-daca",
+    "domain": "immigrationhelp.org",
+    "source_type": "organization",
+    "category": "daca",
+    "last_crawled": null,
+    "status": "skipped"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/free-books/fiance-marriage-visa-book/chapter2-2.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "family-based-immigration",
+    "last_crawled": "2026-04-06T23:13:06.769919+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/tips-preparing-asylum-application.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "asylum-refugees",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/free-books/fiance-marriage-visa-book/chapter12-1.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "naturalization-citizenship",
+    "last_crawled": "2026-04-06T23:13:14.808384+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/how-employer-sponsor-h-1b-worker.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "h1b-visa",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/deportation-removal-proceedings-background-faqs.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "deportation-defense",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://citizenpath.com/green-card-through-marriage/",
+    "domain": "citizenpath.com",
+    "source_type": "law_firm",
+    "category": "family-based-immigration",
+    "last_crawled": "2026-04-06T23:13:24.811143+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://citizenpath.com/naturalization-test/",
+    "domain": "citizenpath.com",
+    "source_type": "law_firm",
+    "category": "naturalization-citizenship",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://citizenpath.com/adjustment-of-status/",
+    "domain": "citizenpath.com",
+    "source_type": "law_firm",
+    "category": "adjustment-of-status",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://citizenpath.com/employment-authorization-document/",
+    "domain": "citizenpath.com",
+    "source_type": "law_firm",
+    "category": "work-authorization",
+    "last_crawled": "2026-04-06T23:13:38.290978+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.immigrationdirect.com/immigration-articles/what-is-daca/",
+    "domain": "immigrationdirect.com",
+    "source_type": "law_firm",
+    "category": "daca",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.immigrationdirect.com/immigration-articles/h1b-visa-guide/",
+    "domain": "immigrationdirect.com",
+    "source_type": "law_firm",
+    "category": "h1b-visa",
+    "last_crawled": "2026-04-06T23:13:43.777393+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/nonimmigrant/exchange-visitor/j1/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "student-visas",
+    "last_crawled": "2026-04-06T23:13:46.259975+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/nonimmigrant/work/l1/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "temporary-work-visas",
+    "last_crawled": "2026-04-06T23:13:50.223719+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/nonimmigrant/work/o1/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "temporary-work-visas",
+    "last_crawled": "2026-04-06T23:13:54.231375+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/immigrant/family-based/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "family-based-immigration",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/immigrant/employment-based/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "employment-green-cards",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.boundless.com/immigration-resources/adjustment-of-status-guide/",
+    "domain": "boundless.com",
+    "source_type": "law_firm",
+    "category": "adjustment-of-status",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.boundless.com/immigration-resources/k-1-fiance-visa-guide/",
+    "domain": "boundless.com",
+    "source_type": "law_firm",
+    "category": "family-based-immigration",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.boundless.com/immigration-resources/ead-work-permit-guide/",
+    "domain": "boundless.com",
+    "source_type": "law_firm",
+    "category": "work-authorization",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://travel.state.gov/content/travel/en/us-visas/immigrate/immigrant-visa-process/step-1-submit-a-petition.html",
+    "domain": "travel.state.gov",
+    "source_type": "government",
+    "category": "consular-processing",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://travel.state.gov/content/travel/en/us-visas/immigrate/immigrant-visa-process/interview.html",
+    "domain": "travel.state.gov",
+    "source_type": "government",
+    "category": "consular-processing",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/wait-times.html",
+    "domain": "travel.state.gov",
+    "source_type": "government",
+    "category": "consular-processing",
+    "last_crawled": "2026-04-06T23:14:16.488392+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/p-1a-internationally-recognized-athlete",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/temporary-workers/r-1-temporary-religious-workers",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uscis.gov/humanitarian/special-immigrants",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:38:58.662672+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/green-card/green-card-eligibility/green-card-for-special-immigrants",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uscis.gov/adoption",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:39:11.744646+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.murthy.com/2024/h-1b-visa-news/",
+    "domain": "murthy.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.wegreened.com/eb2-green-card",
+    "domain": "wegreened.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:40:33.953981+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.wegreened.com/green-card-processing-time",
+    "domain": "wegreened.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:40:48.164408+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://citizenpath.com/faq/green-card/",
+    "domain": "citizenpath.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://citizenpath.com/faq/citizenship/",
+    "domain": "citizenpath.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:41:03.085522+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/nonimmigrant/work/tn/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:42:14.444053+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/nonimmigrant/work/e2/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/nonimmigrant/work/e1/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/nonimmigrant/exchange-visitor/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/immigrant/diversity-visa/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:42:39.907368+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/humanitarian/unaccompanied-children",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uscis.gov/military",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:43:52.381448+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/eb-5-immigrant-investor-program",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://travel.state.gov/content/travel/en/us-visas/study.html",
+    "domain": "travel.state.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:44:05.590997+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://travel.state.gov/content/travel/en/us-visas/tourism-visit.html",
+    "domain": "travel.state.gov",
+    "source_type": "government",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-06T23:44:21.463990+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/who-qualifies-for-asylum.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/green-card-through-family-member.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/options-undocumented-immigrants.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/free-books/fiance-marriage-visa-book/chapter7-2.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/adjustment-of-status-who-can-apply.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "general-immigration-info",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/personal-injury-lawsuit-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "personal-injury",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/car-accident-lawsuit-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "personal-injury",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/divorce-basics-29782.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "family-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/child-custody-basics-29069.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "family-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/child-support-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "family-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/criminal-law-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "criminal-defense",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/the-criminal-defense-process.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "criminal-defense",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uscourts.gov/services-forms/bankruptcy",
+    "domain": "uscourts.gov",
+    "source_type": "government",
+    "category": "bankruptcy-law",
+    "last_crawled": "2026-04-06T23:57:09.810245+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/chapter-7-bankruptcy-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "bankruptcy-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/chapter-13-bankruptcy-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "bankruptcy-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/landlord-tenant-law-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "real-estate-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/buying-house-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "real-estate-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/make-will-quick-29915.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "estate-planning",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/trusts-basics-29668.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "estate-planning",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.dol.gov/general/topic/wages",
+    "domain": "dol.gov",
+    "source_type": "government",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-06T23:57:33.488609+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.eeoc.gov/discrimination-type",
+    "domain": "eeoc.gov",
+    "source_type": "government",
+    "category": "labor-employment",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/wrongful-termination-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "labor-employment",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.irs.gov/individuals/understanding-your-irs-notice-or-letter",
+    "domain": "irs.gov",
+    "source_type": "government",
+    "category": "tax-law",
+    "last_crawled": "2026-04-06T23:57:46.540512+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.irs.gov/payments/payment-plans-installment-agreements",
+    "domain": "irs.gov",
+    "source_type": "government",
+    "category": "tax-law",
+    "last_crawled": "2026-04-06T23:57:55.432060+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/dui-dw-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "dui-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uspto.gov/trademarks/basics",
+    "domain": "uspto.gov",
+    "source_type": "government",
+    "category": "intellectual-property",
+    "last_crawled": "2026-04-06T23:58:08.304907+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uspto.gov/patents/basics",
+    "domain": "uspto.gov",
+    "source_type": "government",
+    "category": "intellectual-property",
+    "last_crawled": "2026-04-06T23:58:15.670469+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/llc-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "business-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.sba.gov/business-guide/launch-your-business/choose-business-structure",
+    "domain": "sba.gov",
+    "source_type": "government",
+    "category": "business-law",
+    "last_crawled": "2026-04-06T23:58:27.454428+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.nolo.com/legal-encyclopedia/medicaid-basics.html",
+    "domain": "nolo.com",
+    "source_type": "law_firm",
+    "category": "elder-law",
+    "last_crawled": "2026-04-06T23:58:46.081773+00:00",
+    "status": "done"
   }
 ]
