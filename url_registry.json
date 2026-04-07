@@ -1206,5 +1206,293 @@
     "category": "elder-law",
     "last_crawled": "2026-04-06T23:58:46.081773+00:00",
     "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/personal_injury",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "personal-injury",
+    "last_crawled": "2026-04-07T00:12:46.519214+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/divorce",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "family-law",
+    "last_crawled": "2026-04-07T00:12:57.116493+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/child_custody",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "family-law",
+    "last_crawled": "2026-04-07T00:13:07.380269+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/criminal_law",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "criminal-law",
+    "last_crawled": "2026-04-07T00:13:17.527944+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/bankruptcy",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "bankruptcy-law",
+    "last_crawled": "2026-04-07T00:13:25.069774+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/real_property",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "real-estate-law",
+    "last_crawled": "2026-04-07T00:13:35.384780+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/estate_planning",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "estate-planning",
+    "last_crawled": "2026-04-07T00:13:47.888760+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/employment_law",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "labor-employment",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/tax",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "tax-law",
+    "last_crawled": "2026-04-07T00:13:56.219388+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/intellectual_property",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "intellectual-property",
+    "last_crawled": "2026-04-07T00:14:04.047326+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/environmental_law",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "environmental-law",
+    "last_crawled": "2026-04-07T00:14:12.692009+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/elder_law",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "elder-law",
+    "last_crawled": "2026-04-07T00:14:20.592887+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/immigration",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "general-immigration-info",
+    "last_crawled": "2026-04-07T00:14:34.512584+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/negligence",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "personal-injury",
+    "last_crawled": "2026-04-07T00:14:47.707422+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/contracts",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "business-law",
+    "last_crawled": "2026-04-07T00:14:58.917528+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/corporation",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "corporate-law",
+    "last_crawled": "2026-04-07T00:15:13.817569+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/wills",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "trusts-estates",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.law.cornell.edu/wex/dui-dwi",
+    "domain": "law.cornell.edu",
+    "source_type": "organization",
+    "category": "dui-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.uscourts.gov/about-federal-courts/types-cases/criminal-cases",
+    "domain": "uscourts.gov",
+    "source_type": "government",
+    "category": "criminal-law",
+    "last_crawled": "2026-04-07T00:15:28.345529+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscourts.gov/about-federal-courts/types-cases/civil-cases",
+    "domain": "uscourts.gov",
+    "source_type": "government",
+    "category": "litigation",
+    "last_crawled": "2026-04-07T00:15:40.815517+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscourts.gov/services-forms/bankruptcy/bankruptcy-basics",
+    "domain": "uscourts.gov",
+    "source_type": "government",
+    "category": "bankruptcy-law",
+    "last_crawled": "2026-04-07T00:15:52.465779+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://consumer.ftc.gov/articles/what-know-about-debt-collection",
+    "domain": "ftc.gov",
+    "source_type": "government",
+    "category": "bankruptcy-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://consumer.ftc.gov/articles/getting-credit-report",
+    "domain": "ftc.gov",
+    "source_type": "government",
+    "category": "business-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.dol.gov/general/topic/termination",
+    "domain": "dol.gov",
+    "source_type": "government",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-07T00:16:09.852036+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.dol.gov/general/topic/discrimination",
+    "domain": "dol.gov",
+    "source_type": "government",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-07T00:16:21.485164+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.dol.gov/general/topic/workhours",
+    "domain": "dol.gov",
+    "source_type": "government",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-07T00:16:30.970426+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.irs.gov/businesses/small-businesses-self-employed/self-employed-individuals-tax-center",
+    "domain": "irs.gov",
+    "source_type": "government",
+    "category": "tax-law",
+    "last_crawled": "2026-04-07T00:16:41.540567+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.irs.gov/credits-deductions-for-individuals",
+    "domain": "irs.gov",
+    "source_type": "government",
+    "category": "tax-law",
+    "last_crawled": "2026-04-07T00:16:50.206128+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.hud.gov/topics/rental_assistance",
+    "domain": "hud.gov",
+    "source_type": "government",
+    "category": "real-estate-law",
+    "last_crawled": "2026-04-07T00:17:04.908091+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.hud.gov/program_offices/fair_housing_equal_opp",
+    "domain": "hud.gov",
+    "source_type": "government",
+    "category": "real-estate-law",
+    "last_crawled": "2026-04-07T00:17:16.234660+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.eeoc.gov/sexual-harassment",
+    "domain": "eeoc.gov",
+    "source_type": "government",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-07T00:17:31.221270+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.eeoc.gov/age-discrimination",
+    "domain": "eeoc.gov",
+    "source_type": "government",
+    "category": "labor-employment",
+    "last_crawled": "2026-04-07T00:17:43.874110+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.epa.gov/laws-regulations/summary-clean-air-act",
+    "domain": "epa.gov",
+    "source_type": "government",
+    "category": "environmental-law",
+    "last_crawled": "2026-04-07T00:17:54.301383+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.epa.gov/laws-regulations/summary-clean-water-act",
+    "domain": "epa.gov",
+    "source_type": "government",
+    "category": "environmental-law",
+    "last_crawled": "2026-04-07T00:18:04.927913+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.ssa.gov/benefits/retirement/",
+    "domain": "ssa.gov",
+    "source_type": "government",
+    "category": "elder-law",
+    "last_crawled": null,
+    "status": "failed"
+  },
+  {
+    "url": "https://www.ssa.gov/benefits/disability/",
+    "domain": "ssa.gov",
+    "source_type": "government",
+    "category": "elder-law",
+    "last_crawled": null,
+    "status": "failed"
   }
 ]
