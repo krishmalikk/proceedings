@@ -1,16 +1,13 @@
 """
-agent_crawl.py — Crawl URLs using Vertex AI Agent Builder Discovery Engine
-============================================================================
-Replaces Firecrawl with Google's Discovery Engine Website Data Store for
-web crawling. Falls back to trafilatura for content extraction if
-Discovery Engine's extractive content is insufficient.
+agent_crawl.py — Crawl URLs using Firecrawl API
+=================================================
+Crawls pending URLs from url_registry.json using Firecrawl for
+JavaScript rendering and clean Markdown extraction.
 
 USAGE:
-  python agent_crawl.py                    # Crawl pending URLs from registry
-  python agent_crawl.py --extract-only     # Skip crawl, just extract content from existing data store
+  python agent_crawl.py
 """
 
-import argparse
 import json
 import os
 import re
@@ -20,15 +17,12 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
+from firecrawl import FirecrawlApp
 from google.cloud import storage
 
 load_dotenv()
 
-GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "proceedings-490601")
-GCP_REGION = os.getenv("GCP_REGION", "us-central1")
 GCP_BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "law-firm-knowledge-base")
-DISCOVERY_ENGINE_DATA_STORE_ID = os.getenv("DISCOVERY_ENGINE_DATA_STORE_ID", "")
-
 REGISTRY_PATH = "url_registry.json"
 MIN_CONTENT_LENGTH = 200
 
@@ -73,42 +67,7 @@ def url_to_filename(url: str) -> str:
 def add_frontmatter(content: str, entry: dict) -> str:
     """Prepend YAML frontmatter with source metadata."""
     now = datetime.now(timezone.utc).isoformat()
-    frontmatter = f"""---
-source_url: {entry['url']}
-domain: {entry.get('domain', '')}
-source_type: {entry.get('source_type', 'unknown')}
-category: {entry.get('category', 'general')}
-crawled_at: {now}
-crawled_by: vertex-ai-discovery-engine
----
-
-"""
-    return frontmatter + content
-
-
-def scrape_with_trafilatura(url: str) -> str | None:
-    """
-    Scrape a URL using trafilatura (HTML → clean text/Markdown).
-    This is the primary extraction method, replacing Firecrawl.
-    """
-    try:
-        import trafilatura
-
-        downloaded = trafilatura.fetch_url(url)
-        if not downloaded:
-            return None
-
-        text = trafilatura.extract(
-            downloaded,
-            include_links=True,
-            include_tables=True,
-            output_format="txt",
-            favor_recall=True,
-        )
-        return text
-    except Exception as e:
-        print(f"    trafilatura error: {e}")
-        return None
+    return f"---\nsource_url: {entry['url']}\ndomain: {entry.get('domain', '')}\nsource_type: {entry.get('source_type', 'unknown')}\ncategory: {entry.get('category', 'general')}\ncrawled_at: {now}\n---\n\n{content}"
 
 
 def save_markdown(content: str, filename: str, output_dir: str = "crawled_pages") -> str:
@@ -125,41 +84,28 @@ def upload_to_gcs(local_dir: str, bucket_name: str, prefix: str = "crawled/") ->
     client = storage.Client()
     bucket = client.bucket(bucket_name)
     uploaded = 0
-
     for filepath in Path(local_dir).glob("*.md"):
         blob_name = f"{prefix}{filepath.name}"
         blob = bucket.blob(blob_name)
         blob.upload_from_filename(str(filepath))
-        print(f"  Uploaded {filepath.name} -> gs://{bucket_name}/{blob_name}")
         uploaded += 1
-
     return uploaded
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Crawl URLs using Vertex AI / trafilatura")
-    parser.add_argument("--extract-only", action="store_true", help="Skip crawl trigger, just extract")
-    args = parser.parse_args()
+    api_key = os.getenv("FIRECRAWL_API_KEY")
+    if not api_key:
+        print("Error: FIRECRAWL_API_KEY not set in .env")
+        return
 
-    print("=" * 50)
-    print("CRAWLING: Vertex AI Discovery Engine + trafilatura")
-    print("=" * 50)
-
+    app = FirecrawlApp(api_key=api_key)
     entries = load_url_registry()
+
     if not entries:
         print("No pending URLs in registry.")
         return
 
-    print(f"Found {len(entries)} URLs to crawl.\n")
-
-    # Use trafilatura for content extraction (replaces Firecrawl)
-    # This is a local, free, open-source alternative
-    try:
-        import trafilatura
-        print("Using trafilatura for content extraction (no Firecrawl dependency)\n")
-    except ImportError:
-        print("Error: trafilatura not installed. Run: pip install trafilatura")
-        return
+    print(f"Found {len(entries)} URLs to crawl with Firecrawl.\n")
 
     last_domain = ""
     succeeded = []
@@ -171,8 +117,7 @@ def main():
         filename = url_to_filename(url)
         domain = entry.get("domain", "")
 
-        print(f"[{i}/{len(entries)}] Crawling: {url}")
-        print(f"  Output: {filename}")
+        print(f"[{i}/{len(entries)}] {url[:90]}")
 
         # Domain-aware rate limiting
         if domain == last_domain:
@@ -181,44 +126,37 @@ def main():
             time.sleep(1)
         last_domain = domain
 
-        content = scrape_with_trafilatura(url)
+        try:
+            result = app.scrape(url, formats=["markdown"])
+            markdown = result.markdown or ""
 
-        if not content:
+            if not markdown or len(markdown.strip()) < MIN_CONTENT_LENGTH:
+                skipped.append(url)
+                update_registry_entry(url, "skipped")
+                print(f"  Skipped (insufficient content)")
+                continue
+
+            content = add_frontmatter(markdown, entry)
+            save_markdown(content, filename)
+            succeeded.append(url)
+            update_registry_entry(url, "done")
+            print(f"  Saved ({len(markdown):,} chars)")
+
+        except Exception as e:
             failed.append(url)
             update_registry_entry(url, "failed")
-            print(f"  X Failed")
-            continue
-
-        # Content quality check
-        if len(content.strip()) < MIN_CONTENT_LENGTH:
-            skipped.append(url)
-            update_registry_entry(url, "skipped")
-            print(f"  - Skipped (insufficient content: {len(content.strip())} chars)")
-            continue
-
-        # Add metadata frontmatter
-        content_with_meta = add_frontmatter(content, entry)
-        save_markdown(content_with_meta, filename)
-        succeeded.append(url)
-        update_registry_entry(url, "done")
-        print(f"  Saved ({len(content):,} characters)")
+            print(f"  Failed: {str(e)[:80]}")
 
     # Upload to GCS
-    print(f"\nUploading to GCS bucket: {GCP_BUCKET_NAME}")
-    uploaded_count = upload_to_gcs("crawled_pages", GCP_BUCKET_NAME)
+    print(f"\nUploading to GCS...")
+    uploaded = upload_to_gcs("crawled_pages", GCP_BUCKET_NAME)
 
-    # Summary
     print(f"\n{'='*50}")
-    print(f"CRAWL COMPLETE")
+    print(f"CRAWL COMPLETE (Firecrawl)")
     print(f"  Succeeded: {len(succeeded)}/{len(entries)}")
-    print(f"  Skipped:   {len(skipped)}/{len(entries)} (low content)")
+    print(f"  Skipped:   {len(skipped)}/{len(entries)}")
     print(f"  Failed:    {len(failed)}/{len(entries)}")
-    print(f"  Uploaded:  {uploaded_count} files to gs://{GCP_BUCKET_NAME}/crawled/")
-
-    if failed:
-        print(f"\nFailed URLs:")
-        for url in failed:
-            print(f"  - {url}")
+    print(f"  Uploaded:  {uploaded} files")
 
 
 if __name__ == "__main__":
