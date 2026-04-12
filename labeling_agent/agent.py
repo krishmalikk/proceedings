@@ -18,7 +18,6 @@ import time
 # ---------------------------------------------------------------------------
 
 CATEGORIES = [
-    # Immigration sub-categories
     {"id": "h1b-visa", "name": "H-1B Specialty Occupation", "description": "H-1B visa cap, lottery, registration, transfers, amendments, specialty occupation requirements, LCA, prevailing wage"},
     {"id": "family-based-immigration", "name": "Family-Based Immigration", "description": "Family preference categories, I-130 petitions, immediate relatives, marriage-based green cards, fiance visas (K-1)"},
     {"id": "asylum-refugees", "name": "Asylum & Refugees", "description": "Affirmative and defensive asylum, refugee processing, credible fear, withholding of removal, Convention Against Torture"},
@@ -38,35 +37,7 @@ CATEGORIES = [
     {"id": "travel-documents", "name": "Travel Documents", "description": "Advance parole, re-entry permits, refugee travel documents, emergency travel"},
     {"id": "work-authorization", "name": "Work Authorization", "description": "Employment Authorization Document (EAD), I-765, EAD categories, automatic extensions, combo card"},
     {"id": "immigration-court", "name": "Immigration Court", "description": "EOIR proceedings, BIA appeals, motions to reopen, motions to reconsider, administrative closure"},
-    {"id": "general-immigration-info", "name": "General Immigration Info", "description": "Immigration overview content, glossaries, general resources, forms index, processing times"},
-    # Broad US law categories
-    {"id": "personal-injury", "name": "Personal Injury Law", "description": "Car accidents, slip and fall, wrongful death, product liability, premises liability, negligence claims"},
-    {"id": "family-law", "name": "Family Law", "description": "Divorce, child custody, child support, alimony, adoption, prenuptial agreements, domestic violence, guardianship"},
-    {"id": "criminal-law", "name": "Criminal Law", "description": "Criminal charges, felonies, misdemeanors, plea bargains, sentencing, criminal trials, white collar crime"},
-    {"id": "criminal-defense", "name": "Criminal Defense Law", "description": "Defense strategies, Miranda rights, bail, public defenders, jury trials, appeals, expungement"},
-    {"id": "business-law", "name": "Business Law", "description": "Business formation, contracts, partnerships, LLC, commercial disputes, mergers and acquisitions"},
-    {"id": "corporate-law", "name": "Corporate Law", "description": "Corporate governance, shareholder rights, SEC compliance, board duties, corporate restructuring"},
-    {"id": "bankruptcy-law", "name": "Bankruptcy Law", "description": "Chapter 7, Chapter 11, Chapter 13, creditor rights, debt discharge, automatic stay"},
-    {"id": "real-estate-law", "name": "Real Estate Law", "description": "Property transactions, title disputes, zoning, landlord-tenant, foreclosure, commercial leases"},
-    {"id": "estate-planning", "name": "Estate Planning Law", "description": "Wills, trusts, power of attorney, living wills, estate administration, probate avoidance"},
-    {"id": "trusts-estates", "name": "Trusts & Estates Law", "description": "Probate proceedings, trust administration, estate litigation, inheritance disputes, fiduciary duties"},
-    {"id": "intellectual-property", "name": "Intellectual Property Law", "description": "Patents, trademarks, copyrights, trade secrets, IP licensing, infringement litigation"},
-    {"id": "labor-employment", "name": "Labor & Employment Law", "description": "Wrongful termination, discrimination, harassment, wage disputes, FMLA, ADA, EEOC, union law"},
-    {"id": "tax-law", "name": "Tax Law", "description": "Income tax, corporate tax, tax planning, IRS audits, tax disputes, international tax"},
-    {"id": "health-law", "name": "Health Law", "description": "Healthcare regulations, HIPAA, Medicare/Medicaid, medical licensing, health insurance disputes"},
-    {"id": "medical-malpractice", "name": "Medical Malpractice Law", "description": "Surgical errors, misdiagnosis, birth injuries, hospital negligence, informed consent"},
-    {"id": "environmental-law", "name": "Environmental Law", "description": "EPA regulations, Clean Air Act, Clean Water Act, hazardous waste, environmental litigation"},
-    {"id": "dui-law", "name": "DUI Law", "description": "Drunk driving charges, DUI/DWI defense, license suspension, breathalyzer, field sobriety tests"},
-    {"id": "elder-law", "name": "Elder Law", "description": "Medicaid planning, nursing home rights, elder abuse, conservatorship, Social Security, veterans benefits"},
-    {"id": "education-law", "name": "Education Law", "description": "Student rights, special education IEP/504, Title IX, school discipline, higher education law"},
-    {"id": "entertainment-law", "name": "Entertainment Law", "description": "Entertainment contracts, talent agreements, music licensing, film rights, royalties"},
-    {"id": "cybersecurity-law", "name": "Cybersecurity Law", "description": "Data breach response, privacy regulations, CCPA/GDPR, cybercrime, information security"},
-    {"id": "administrative-law", "name": "Administrative Law", "description": "Government agency regulations, administrative hearings, rulemaking, FOIA, regulatory compliance"},
-    {"id": "commercial-law", "name": "Commercial Law", "description": "UCC, commercial transactions, sales law, secured transactions, commercial disputes"},
-    {"id": "litigation", "name": "Litigation", "description": "Civil litigation, trial practice, discovery, depositions, settlement negotiations, appeals, class actions"},
-    {"id": "international-law", "name": "International Law", "description": "International treaties, cross-border disputes, international trade, foreign investment, extradition"},
-    {"id": "traffic-law", "name": "Traffic Law", "description": "Traffic violations, speeding tickets, reckless driving, license points, traffic court"},
-    {"id": "general-legal-info", "name": "General Legal Info", "description": "Legal overview content, legal glossaries, general resources, how to find a lawyer, legal aid"},
+    {"id": "general-immigration-info", "name": "General Immigration Info", "description": "Immigration overview content, glossaries, general resources, forms index, processing times, non-immigration legal content"},
 ]
 
 VALID_LABELS = [cat["id"] for cat in CATEGORIES]
