@@ -22,11 +22,9 @@ Agent package for classifying immigration/legal content into 47 categories. Depl
 
 ---
 
-## Taxonomy: 47 Categories
+## Taxonomy: 20 Immigration Categories
 
-**Immigration (20):** h1b-visa, family-based-immigration, asylum-refugees, naturalization-citizenship, daca, employment-green-cards, eb5-investor-visa, student-visas, temporary-work-visas, diversity-visa-lottery, deportation-defense, humanitarian-parole, tps, visa-fees-filing, consular-processing, adjustment-of-status, travel-documents, work-authorization, immigration-court, general-immigration-info
-
-**Broad US Law (27):** personal-injury, family-law, criminal-law, criminal-defense, business-law, corporate-law, bankruptcy-law, real-estate-law, estate-planning, trusts-estates, intellectual-property, labor-employment, tax-law, health-law, medical-malpractice, environmental-law, dui-law, elder-law, education-law, entertainment-law, cybersecurity-law, administrative-law, commercial-law, litigation, international-law, traffic-law, general-legal-info
+h1b-visa, family-based-immigration, asylum-refugees, naturalization-citizenship, daca, employment-green-cards, eb5-investor-visa, student-visas, temporary-work-visas, diversity-visa-lottery, deportation-defense, humanitarian-parole, tps, visa-fees-filing, consular-processing, adjustment-of-status, travel-documents, work-authorization, immigration-court, general-immigration-info
 
 ---
 
@@ -49,7 +47,7 @@ class ImmigrationLabelingAgent:
 ## Deployment
 
 Deployed via [[deploy_agent.py]] to Agent Engine.
-Current resource: `projects/971592620882/locations/us-central1/reasoningEngines/7846942358309437440`
+Current resource: `projects/971592620882/locations/us-central1/reasoningEngines/1295286819927097344`
 
 ---
 

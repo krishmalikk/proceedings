@@ -1814,5 +1814,37 @@
     "category": "labor-employment",
     "last_crawled": "2026-04-07T01:11:44.391705+00:00",
     "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-fifth-preference-eb-5",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "eb5-investor-visa",
+    "last_crawled": "2026-04-12T16:14:48.165015+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/permanent-workers/eb-5-immigrant-investor-program/about-the-eb-5-visa-classification",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "eb5-investor-visa",
+    "last_crawled": "2026-04-12T16:14:53.282176+00:00",
+    "status": "done"
+  },
+  {
+    "url": "https://www.uscis.gov/working-in-the-united-states/permanent-workers/eb-5-immigrant-investor-program/eb-5-direct-and-regional-center-program",
+    "domain": "uscis.gov",
+    "source_type": "government",
+    "category": "eb5-investor-visa",
+    "last_crawled": "2026-04-12T16:15:09.157157+00:00",
+    "status": "failed"
+  },
+  {
+    "url": "https://visaguide.world/us-visa/immigrant/employment-based/eb5/",
+    "domain": "visaguide.world",
+    "source_type": "law_firm",
+    "category": "eb5-investor-visa",
+    "last_crawled": "2026-04-12T16:15:12.326202+00:00",
+    "status": "failed"
   }
 ]

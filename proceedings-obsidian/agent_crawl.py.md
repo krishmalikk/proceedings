@@ -7,15 +7,15 @@
 
 ## Purpose
 
-Crawls pending URLs from `url_registry.json` using trafilatura (free, open-source HTML→text extraction). Replaces the paid Firecrawl API.
+Crawls pending URLs from `url_registry.json` using Firecrawl API with JavaScript rendering for clean Markdown extraction.
 
 ---
 
 ## How It Works
 
 1. Loads pending URLs from `url_registry.json`
-2. For each URL, uses `trafilatura.fetch_url()` + `trafilatura.extract()` to download and extract clean text
-3. Adds YAML frontmatter (source_url, domain, source_type, crawled_at, crawled_by)
+2. For each URL, uses Firecrawl API to scrape and convert to Markdown
+3. Adds YAML frontmatter (source_url, domain, source_type, category, crawled_at)
 4. Saves to `crawled_pages/` and uploads to `gs://bucket/crawled/`
 5. Updates registry status (done/failed/skipped)
 
@@ -23,11 +23,11 @@ Crawls pending URLs from `url_registry.json` using trafilatura (free, open-sourc
 
 ## Key Details
 
-- **trafilatura** — Open-source, runs locally, no API key
+- **Firecrawl** — Renders JavaScript, handles dynamic law firm sites
 - Content quality filter: skips pages with < 200 chars
 - Domain-aware rate limiting: 3s same-domain, 1s between domains
 - Resumable: tracks status in registry
-- Cannot render JavaScript (limitation vs Firecrawl)
+- Requires `FIRECRAWL_API_KEY` in `.env`
 
 ---
 
@@ -42,6 +42,6 @@ python agent_crawl.py --extract-only  # Skip crawl trigger
 
 ## Related
 
-- Replaces [[crawler.py]] (which used Firecrawl)
+- Replaces [[crawler.py]] (original version)
 - Output consumed by [[agent_label.py]] and [[index.py]]
 - Called by [[pipeline.py]] stage 1 and [[continuous_crawl.py]]
