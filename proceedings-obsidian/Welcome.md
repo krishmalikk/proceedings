@@ -22,6 +22,7 @@ Start here: **[[Proceedings — Project Overview]]**
 
 ## Infrastructure
 - [[Deployment]] — Cloud Run (API) + Vercel (website) + Agent Engine
+- [[Statistics & Analytics]] — Chunks, labels, Q&A performance, quality timeline
 - [[GCP Setup]] — Bucket provisioning script
 - [[Website]] — Next.js site with `/ask` Q&A page
 

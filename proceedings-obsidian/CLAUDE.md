@@ -25,6 +25,7 @@ This folder is the Obsidian knowledge base for the Proceedings project. When wor
 - `Label Studio Setup.md` — Manual labeling on GCP VM
 
 ### Infrastructure
+- `Statistics & Analytics.md` — Full stats: chunks, labels, Q&A performance, domains, quality timeline
 - `GCP Setup.md` — Bucket provisioning script
 - `Website.md` — Next.js site on Vercel (pages including /ask, components)
 
