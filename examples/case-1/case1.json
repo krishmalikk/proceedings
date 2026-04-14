@@ -1,0 +1,34 @@
+{
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/some-full-path-to-url",
+  "current_category": "H-1B",
+  "background_summary": "laid off on h1b. Green card applied. I-140 approved. I-797 approved. I-94 valid",
+  "consulate": "N/A",
+  "tags": [
+    "H-1B",
+    "laid-off",
+    "grace-period",
+    "employment-based-immigration",
+    "work-authorization",
+    "legal-status"
+  ],
+  "questions_list_summary": [
+    "What options do I have",
+    "If I move from H1B to F1, and later want to return to H1B, will I have to go through the lottery?"
+  ],
+  "key_stages": {
+    "I-140": "approved",
+    "I-797": "approved",
+    "I-94": "valid"
+  },
+  "key_dates": {
+    "priority_date": "10/23/2014",
+    "employment_end_date": "03/31/2026"
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "some metadata information about source url",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}

@@ -1,0 +1,33 @@
+{
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1skecda/has_anyones_employer_started_h1b_petition_for_fy",
+  "current_category": "OPT",
+  "background_summary": "I was selected in the lottery, but my employer mentioned they might file around June.",
+  "consulate": "N/A",
+  "tags": [
+    "H-1B",
+    "OPT",
+    "h1b-filing",
+    "h1b-lottery",
+    "cost"
+  ],
+  "questions_list_summary": [
+    "Has anyone’s employer started filing H-1B petitions for FY 2027? ",
+    "When are employers typically starting to file this year?",
+    "How long does it usually take to prepare and submit the petition after selection?",
+    "What is the total cost (regular vs premium processing)?",
+    "If premium processing is used, how quickly can the petition be filed and approved?"
+  ],
+  "key_stages": {
+    "h1b-lottery": "approved"
+  },
+  "key_dates": {
+    "opt-expire-date": "05/31/2026"
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "some metadata information about source url",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}
