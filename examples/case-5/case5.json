@@ -1,28 +1,32 @@
 {
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1skecda/has_anyones_employer_started_h1b_petition_for_fy/",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1sktrr2/tax_filing_f1_to_h1b_transition_in_2025/",
   "current_category": "H-1B",
   "background_summary": "wife had her h1b till sept 2026 but in 2024 April she had made a visit to India where they set a date of March 2025 as end date of entry as her then passport expired. Since then we renewed the Passport and due to her pregnancy around that time there was an oversight of this date as her h1b visa stamp she got from India was till sept 2026. She has been legally employed since then and paying tax also.\n\nWhen this was realized she was about to file for h1b extension. Her lawyers are prepping for an NPT application requesting for pardon.",
   "consulate": "N/A",
   "tags": [
     "H-1B",
-    "I-94",
-    "overstay",
-    "NPT"
+    "h1b-transfer",
+    "RFE",
+    "physician",
+    "premium-processing",
+    "re-entry",
+    "I-797"
   ],
   "issues_tag_list": [
-    "overstay"
+    "RFE"
   ],
   "issues_list_summary": [
+    "Iran as the country of birth;",
+    "Evidence of working in the US with prior employer as a way of maintaining status."
   ],
   "questions_list_summary": [
-    "How bad is situation?"
+    "Issues in re-entry ?"
   ],
   "key_stages": {
   },
   "key_dates": {
-    "h1b-visa-expire-date": "07/30/2026"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",

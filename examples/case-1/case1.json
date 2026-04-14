@@ -13,6 +13,13 @@
     "work-authorization",
     "legal-status"
   ],
+  "issues_tag_list": [
+    "laid-off",
+    "grace-period"
+  ],
+  "issues_list_summary": [
+    "maintain legal status"
+  ],
   "questions_list_summary": [
     "What options do I have",
     "If I move from H1B to F1, and later want to return to H1B, will I have to go through the lottery?"
