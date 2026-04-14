@@ -1,9 +1,10 @@
 {
+    "source_system": "web_crawl",
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1sktrr2/tax_filing_f1_to_h1b_transition_in_2025/",
-  "current_category": "H-1B",
-  "background_summary": "wife had her h1b till sept 2026 but in 2024 April she had made a visit to India where they set a date of March 2025 as end date of entry as her then passport expired. Since then we renewed the Passport and due to her pregnancy around that time there was an oversight of this date as her h1b visa stamp she got from India was till sept 2026. She has been legally employed since then and paying tax also.\n\nWhen this was realized she was about to file for h1b extension. Her lawyers are prepping for an NPT application requesting for pardon.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "background_summary": "<summary_by_Gemini>",
   "consulate": "N/A",
   "tags": [
     "H-1B",
@@ -14,23 +15,21 @@
     "re-entry",
     "I-797"
   ],
-  "issues_tag_list": [
-    "RFE"
+  "concerns_or_questions_tag_list": [
+    "re-entry", "country-ban"
   ],
-  "issues_list_summary": [
-    "Iran as the country of birth;",
-    "Evidence of working in the US with prior employer as a way of maintaining status."
-  ],
-  "questions_list_summary": [
-    "Issues in re-entry ?"
-  ],
-  "key_stages": {
+  "concerns_or_questions_summary":
+    "Iran as the country of birth, Evidence of working in the US with prior employer as a way of maintaining status.",
+  "key_stages_or_info": {
+    "citizen": "UK",
+    "born": "Iran"
   },
   "key_dates": {
+    "h1b_expire_date": "09/30/2026"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,
-  "source_metadata": "some metadata information about source url",
+  "source_metadata": "<some metadata information about source url>",
   "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
 }

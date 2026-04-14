@@ -1,9 +1,10 @@
 {
+  "source_system": "web_crawl",
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/some-full-path-to-url",
-  "current_category": "H-1B",
-  "background_summary": "laid off on h1b. Green card applied. I-140 approved. I-797 approved. I-94 valid",
+  "current_visa_status_or_greencard_category": ["H-1B", "employment-based-immigration"],
+  "background_summary": "<summary_by_Gemini>",
   "consulate": "N/A",
   "tags": [
     "H-1B",
@@ -13,18 +14,13 @@
     "work-authorization",
     "legal-status"
   ],
-  "issues_tag_list": [
+  "concerns_or_questions_tag_list": [
     "laid-off",
-    "grace-period"
+    "grace-period",
+    "legal-status"
   ],
-  "issues_list_summary": [
-    "maintain legal status"
-  ],
-  "questions_list_summary": [
-    "What options do I have",
-    "If I move from H1B to F1, and later want to return to H1B, will I have to go through the lottery?"
-  ],
-  "key_stages": {
+  "concerns_or_questions_summary": "maintain legal status; What options do I have? If I move from H1B to F1, and later want to return to H1B, will I have to go through the lottery?",
+  "key_stages_or_info": {
     "I-140": "approved",
     "I-797": "approved",
     "I-94": "valid"
@@ -36,6 +32,6 @@
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,
-  "source_metadata": "some metadata information about source url",
+  "source_metadata": "<some metadata information about source url>",
   "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
 }

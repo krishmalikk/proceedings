@@ -1,30 +1,27 @@
 {
+    "source_system": "web_crawl",
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1sktrr2/tax_filing_f1_to_h1b_transition_in_2025/",
-  "current_category": "H-1B",
-  "background_summary": "wife had her h1b till sept 2026 but in 2024 April she had made a visit to India where they set a date of March 2025 as end date of entry as her then passport expired. Since then we renewed the Passport and due to her pregnancy around that time there was an oversight of this date as her h1b visa stamp she got from India was till sept 2026. She has been legally employed since then and paying tax also.\n\nWhen this was realized she was about to file for h1b extension. Her lawyers are prepping for an NPT application requesting for pardon.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "background_summary": "<summary_by_Gemini>",
   "consulate": "N/A",
   "tags": [
     "H-1B",
     "visa-transfer",
     "f1-to-h1b",
+    "tax-filing"
   ],
-  "issues_tag_list": [
+  "concerns_or_questions_tag_list": [
   ],
-  "issues_list_summary": [
-  ],
-  "questions_list_summary": [
-    "Shall I file tax as non-resident ?"
-  ],
-  "key_stages": {
+  "concerns_or_questions_summary": "what tax filing status to use ?",
+  "key_stages_or_info": {
   },
   "key_dates": {
-
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,
-  "source_metadata": "some metadata information about source url",
+  "source_metadata": "<some metadata information about source url>",
   "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
 }
