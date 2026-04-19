@@ -39,28 +39,28 @@
 
 ### By Domain (Top 20)
 
-| Domain | URLs |
-|--------|------|
-| uscis.gov | 59 |
-| nolo.com | 30 |
-| law.cornell.edu | 27 |
-| visaguide.world | 13 |
-| justia.com | 13 |
-| findlaw.com | 12 |
-| travel.state.gov | 9 |
-| dol.gov | 7 |
-| boundless.com | 7 |
-| alllaw.com | 6 |
-| citizenpath.com | 6 |
-| wegreened.com | 5 |
-| uscourts.gov | 4 |
-| irs.gov | 4 |
-| immigrationdirect.com | 3 |
-| eeoc.gov | 3 |
-| ftc.gov | 3 |
-| murthy.com | 2 |
-| visaplace.com | 2 |
-| immigrationhelp.org | 2 |
+| Domain                | URLs |
+| --------------------- | ---- |
+| uscis.gov             | 59   |
+| nolo.com              | 30   |
+| law.cornell.edu       | 27   |
+| visaguide.world       | 13   |
+| justia.com            | 13   |
+| findlaw.com           | 12   |
+| travel.state.gov      | 9    |
+| dol.gov               | 7    |
+| boundless.com         | 7    |
+| alllaw.com            | 6    |
+| citizenpath.com       | 6    |
+| wegreened.com         | 5    |
+| uscourts.gov          | 4    |
+| irs.gov               | 4    |
+| immigrationdirect.com | 3    |
+| eeoc.gov              | 3    |
+| ftc.gov               | 3    |
+| murthy.com            | 2    |
+| visaplace.com         | 2    |
+| immigrationhelp.org   | 2    |
 
 ---
 
@@ -90,28 +90,28 @@
 
 ## Label Distribution (20 Immigration Categories)
 
-| Label | Chunks | % of Total |
-|-------|--------|-----------|
-| general-immigration-info | 322 | 44.4% |
-| visa-fees-filing | 195 | 26.9% |
-| consular-processing | 148 | 20.4% |
-| family-based-immigration | 134 | 18.5% |
-| employment-green-cards | 134 | 18.5% |
-| adjustment-of-status | 123 | 17.0% |
-| temporary-work-visas | 119 | 16.4% |
-| work-authorization | 117 | 16.1% |
-| h1b-visa | 77 | 10.6% |
-| asylum-refugees | 65 | 9.0% |
-| diversity-visa-lottery | 48 | 6.6% |
-| naturalization-citizenship | 40 | 5.5% |
-| deportation-defense | 38 | 5.2% |
-| humanitarian-parole | 37 | 5.1% |
-| tps | 30 | 4.1% |
-| student-visas | 27 | 3.7% |
-| eb5-investor-visa | 26 | 3.6% |
-| daca | 20 | 2.8% |
-| immigration-court | 19 | 2.6% |
-| travel-documents | 15 | 2.1% |
+| Label                      | Chunks | % of Total |
+| -------------------------- | ------ | ---------- |
+| general-immigration-info   | 322    | 44.4%      |
+| visa-fees-filing           | 195    | 26.9%      |
+| consular-processing        | 148    | 20.4%      |
+| family-based-immigration   | 134    | 18.5%      |
+| employment-green-cards     | 134    | 18.5%      |
+| adjustment-of-status       | 123    | 17.0%      |
+| temporary-work-visas       | 119    | 16.4%      |
+| work-authorization         | 117    | 16.1%      |
+| h1b-visa                   | 77     | 10.6%      |
+| asylum-refugees            | 65     | 9.0%       |
+| diversity-visa-lottery     | 48     | 6.6%       |
+| naturalization-citizenship | 40     | 5.5%       |
+| deportation-defense        | 38     | 5.2%       |
+| humanitarian-parole        | 37     | 5.1%       |
+| tps                        | 30     | 4.1%       |
+| student-visas              | 27     | 3.7%       |
+| eb5-investor-visa          | 26     | 3.6%       |
+| daca                       | 20     | 2.8%       |
+| immigration-court          | 19     | 2.6%       |
+| travel-documents           | 15     | 2.1%       |
 
 *Note: Chunks can have multiple labels (multi-label classification), so percentages total >100%.*
 
@@ -149,19 +149,19 @@
 
 ## Quality Improvements Timeline
 
-| Date | Change | Impact |
-|------|--------|--------|
-| Mar 24 | Initial deployment | 21 chunks, 7 pages |
-| Mar 25 | Expanded to 45 pages | 328 chunks |
-| Mar 25 | Fixed Gemini model (Vertex AI) | Answers work consistently |
-| Mar 30 | Agent Engine + 20 immigration labels | Better categorization |
-| Apr 6 | Firecrawl restored, 177 pages | 719 chunks |
-| Apr 6 | Loosened guardrails | Fallback rate 54.5% → ~15% |
-| Apr 6 | Junk chunk filter | 70-80 garbage chunks removed |
-| Apr 6 | Improved fallback detection | Catches paraphrased refusals |
-| Apr 12 | Immigration-only taxonomy | 20 focused categories |
-| Apr 12 | Firecrawl retry (44 recovered) | 725 chunks, 181 pages |
-| Apr 12 | EB-5 knowledge gap fixed | 10/10 test questions answered |
+| Date   | Change                               | Impact                        |
+| ------ | ------------------------------------ | ----------------------------- |
+| Mar 24 | Initial deployment                   | 21 chunks, 7 pages            |
+| Mar 25 | Expanded to 45 pages                 | 328 chunks                    |
+| Mar 25 | Fixed Gemini model (Vertex AI)       | Answers work consistently     |
+| Mar 30 | Agent Engine + 20 immigration labels | Better categorization         |
+| Apr 6  | Firecrawl restored, 177 pages        | 719 chunks                    |
+| Apr 6  | Loosened guardrails                  | Fallback rate 54.5% → ~15%    |
+| Apr 6  | Junk chunk filter                    | 70-80 garbage chunks removed  |
+| Apr 6  | Improved fallback detection          | Catches paraphrased refusals  |
+| Apr 12 | Immigration-only taxonomy            | 20 focused categories         |
+| Apr 12 | Firecrawl retry (44 recovered)       | 725 chunks, 181 pages         |
+| Apr 12 | EB-5 knowledge gap fixed             | 10/10 test questions answered |
 
 ---
 

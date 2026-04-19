@@ -19,6 +19,11 @@ This folder is the Obsidian knowledge base for the Proceedings project. When wor
 - `query.py.md` — RAG query engine with Firestore Q&A logging and feedback
 - `api.py.md` — FastAPI server on Cloud Run (endpoints, CORS, rate limiting)
 
+### Reddit Pipeline (branch: reddit-scraping)
+- `Reddit Pipeline.md` — Architecture, scraper tool, orchestrator agent, GCS time-series storage
+- `Subreddits.md` — 52 immigration subreddits with descriptions and label mapping
+- `Expanded Taxonomy.md` — 39 categories from Imm Categories Excel (visa types, green card, H-1B specific)
+
 ### Legacy Scripts (kept for reference)
 - `crawler.py.md` — Original Firecrawl-based crawler
 - `auto_label.py.md` — Original Gemini labeling (6 categories)

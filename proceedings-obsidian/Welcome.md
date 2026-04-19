@@ -15,6 +15,11 @@ Start here: **[[Proceedings — Project Overview]]**
 - [[query.py]] — Stage 4: RAG query engine with guardrails + Firestore logging
 - [[api.py]] — FastAPI server exposing RAG as HTTP endpoints
 
+## Reddit Pipeline (branch: reddit-scraping)
+- [[Reddit Pipeline]] — Architecture, components, CLI usage, GCS storage
+- [[Subreddits]] — 52 immigration subreddits being crawled with descriptions
+- [[Expanded Taxonomy]] — 39 categories (11 visa, 9 green card, 12 process, 7 H-1B specific)
+
 ## Legacy (kept for reference)
 - [[crawler.py]] — Original Firecrawl-based crawler (replaced by agent_crawl.py)
 - [[auto_label.py]] — Original Gemini labeling (replaced by agent_label.py)
