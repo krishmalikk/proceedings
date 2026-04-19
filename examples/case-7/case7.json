@@ -1,10 +1,11 @@
 {
-  "source_system": "web_crawl",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1skzyek/l1a_to_h1b_cos_avoid/",
   "current_visa_or_greencard_category": ["L-1A"],
-    "current_nationality": "IND",
+  "current_nationality": "IND",
   "current_resident_of_country": "USA",
   "visa_or_greencard_applying_for": ["H-1"],
   "background_summary": "<summary_by_Gemini>",
@@ -20,10 +21,10 @@
   ],
   "concerns_or_questions_summary": "Employer only doing COS. Activate H-1B COS later on the same approved petition ?",
   "key_stages_or_info": {
-    "h1b-lottery": "approved"
+    "h1b-lottery": "approved",
+    "I-140": "approved"
   },
   "key_dates": {
-    "I-140": "approved",
     "priority_date": "11/30/2025",
     "h1b_start_date": "10/01/2026",
     "visa_expire_date": "09/30/2026"
