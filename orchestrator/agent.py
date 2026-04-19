@@ -108,13 +108,16 @@ class RedditScrapingAgent:
             location=self.location,
         )
 
-    def query(self, *, urls: list[str] = None, subreddits: list[str] = None) -> dict:
+    def query(self, *, urls: list[str] = None, subreddits: list[str] = None,
+              posts_per_sub: int = 25, sort_modes: list[str] = None) -> dict:
         """
         Orchestrate: discover URLs → scrape → label.
 
         Args:
             urls: Direct list of URLs to scrape (if provided, skip discovery)
             subreddits: List of subreddit names to discover posts from
+            posts_per_sub: Max posts per subreddit per sort mode (default 25)
+            sort_modes: Reddit sort modes (default: ["new", "hot", "top"])
 
         Returns:
             {
@@ -131,9 +134,9 @@ class RedditScrapingAgent:
         if urls:
             target_urls = urls
         elif subreddits:
-            target_urls = self._discover_reddit_urls(subreddits)
+            target_urls = self._discover_reddit_urls(subreddits, posts_per_sub, sort_modes)
         else:
-            target_urls = self._discover_reddit_urls(DEFAULT_SUBREDDITS)
+            target_urls = self._discover_reddit_urls(DEFAULT_SUBREDDITS, posts_per_sub, sort_modes)
 
         if not target_urls:
             return {"scraped": [], "total": 0, "succeeded": 0, "failed": 0}
@@ -165,37 +168,61 @@ class RedditScrapingAgent:
             "failed": len(target_urls) - succeeded,
         }
 
-    def _discover_reddit_urls(self, subreddits: list[str]) -> list[str]:
-        """Discover recent post URLs from Reddit subreddits."""
+    def _discover_reddit_urls(self, subreddits: list[str], posts_per_sub: int = 25, sort_modes: list[str] = None) -> list[str]:
+        """
+        Discover post URLs from Reddit subreddits.
+
+        Args:
+            subreddits: List of subreddit names
+            posts_per_sub: Max posts per subreddit (default 25)
+            sort_modes: Reddit sort modes to fetch (default: ["new", "hot", "top"])
+        """
         import ssl
         import urllib.request
 
-        # Bypass SSL verification for Reddit API (macOS cert issue)
+        if sort_modes is None:
+            sort_modes = ["new", "hot", "top"]
+
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 
+        seen_ids = set()
         urls = []
+
         for sub in subreddits:
-            try:
-                api_url = f"https://old.reddit.com/r/{sub}/new.json?limit=10"
-                req = urllib.request.Request(api_url, headers={
-                    "User-Agent": "proceedings-bot/1.0 (immigration research)"
-                })
-                with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
-                    data = json.loads(resp.read().decode())
+            sub_urls = []
+            for sort in sort_modes:
+                try:
+                    # For "top", get all-time top posts
+                    params = f"limit={posts_per_sub}"
+                    if sort == "top":
+                        params += "&t=all"
 
-                posts = data.get("data", {}).get("children", [])
-                for post in posts:
-                    permalink = post.get("data", {}).get("permalink", "")
-                    if permalink:
-                        # Use old.reddit.com for better Firecrawl compatibility
-                        urls.append(f"https://old.reddit.com{permalink}")
-            except Exception as e:
-                print(f"  Warning: Could not fetch r/{sub}: {e}")
-                urls.append(f"https://old.reddit.com/r/{sub}/")
+                    api_url = f"https://old.reddit.com/r/{sub}/{sort}.json?{params}"
+                    req = urllib.request.Request(api_url, headers={
+                        "User-Agent": "proceedings-bot/1.0 (immigration research)"
+                    })
+                    with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
+                        data = json.loads(resp.read().decode())
 
-        return urls[:50]
+                    posts = data.get("data", {}).get("children", [])
+                    for post in posts:
+                        post_id = post.get("data", {}).get("id", "")
+                        permalink = post.get("data", {}).get("permalink", "")
+                        if permalink and post_id not in seen_ids:
+                            seen_ids.add(post_id)
+                            sub_urls.append(f"https://old.reddit.com{permalink}")
+                except Exception as e:
+                    print(f"  Warning: Could not fetch r/{sub}/{sort}: {e}")
+
+                time.sleep(1)  # Rate limit between Reddit API calls
+
+            print(f"  r/{sub}: found {len(sub_urls)} unique posts")
+            urls.extend(sub_urls)
+
+        print(f"  Total unique posts discovered: {len(urls)}")
+        return urls
 
     def _call_scraper(self, urls: list[str]) -> list[dict]:
         """Call the Cloud Run Scraper Tool via HTTP."""

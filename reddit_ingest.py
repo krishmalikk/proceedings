@@ -28,6 +28,10 @@ def main():
                         help="Comma-separated subreddit names (e.g., h1b,immigration,USCIS)")
     parser.add_argument("--urls", type=str, default="",
                         help="Comma-separated URLs to scrape directly")
+    parser.add_argument("--posts-per-sub", type=int, default=25,
+                        help="Max posts per subreddit (default: 25)")
+    parser.add_argument("--sort", type=str, default="new,hot,top",
+                        help="Reddit sort modes (default: new,hot,top)")
     parser.add_argument("--scraper-url", type=str, default="",
                         help="Cloud Run Scraper Tool URL (if deployed)")
     args = parser.parse_args()
@@ -52,6 +56,9 @@ def main():
     agent.set_up()
     print("Agent initialized.\n")
 
+    # Parse sort modes
+    sort_modes = [s.strip() for s in args.sort.split(",") if s.strip()]
+
     # Determine what to scrape
     if args.urls:
         urls = [u.strip() for u in args.urls.split(",") if u.strip()]
@@ -59,11 +66,14 @@ def main():
         result = agent.query(urls=urls)
     elif args.subreddits:
         subs = [s.strip() for s in args.subreddits.split(",") if s.strip()]
-        print(f"Scraping subreddits: {', '.join(subs)}\n")
-        result = agent.query(subreddits=subs)
+        print(f"Scraping subreddits: {', '.join(subs)}")
+        print(f"  Posts per sub: {args.posts_per_sub}, Sort: {sort_modes}\n")
+        result = agent.query(subreddits=subs, posts_per_sub=args.posts_per_sub, sort_modes=sort_modes)
     else:
-        print("Scraping default subreddits: h1b, immigration, USCIS, greencard, f1visa, askimmigration\n")
-        result = agent.query()
+        print(f"Scraping default subreddits: {', '.join(DEFAULT_SUBREDDITS)}")
+        print(f"  Posts per sub: {args.posts_per_sub}, Sort: {sort_modes}\n")
+        from orchestrator.agent import DEFAULT_SUBREDDITS
+        result = agent.query(posts_per_sub=args.posts_per_sub, sort_modes=sort_modes)
 
     # Print results
     print(f"\n{'='*60}")
