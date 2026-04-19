@@ -1,0 +1,37 @@
+# ===========================================
+# Immigration subreddits to scrape
+# One per line, # for comments
+# ===========================================
+
+# High-volume immigration discussion
+h1b
+immigration
+USCIS
+greencard
+f1visa
+askimmigration
+
+# Work visa specific
+h1bvisas
+workvisas
+
+# Student/academic
+internationalstudents
+StudyInTheUS
+
+# Asylum/refugee
+asylum
+refugees
+
+# Country-specific immigration
+immigrationCanada
+ukvisa
+ImmigrationUK
+
+# General expat/relocation
+iwantout
+expats
+digitalnomad
+
+# Legal advice (immigration threads)
+legaladvice
