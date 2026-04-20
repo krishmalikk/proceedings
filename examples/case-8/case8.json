@@ -2,8 +2,8 @@
   "ingestion_method": "web_crawl",
   "source_system": "reddit",
   "source_url": "https://reddit.com",
-  "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1skzyek/l1a_to_h1b_cos_avoid/",
+  "source_uri": "r1/USVisas",
+  "full_url": "https://www.reddit.com/r/USVisas/comments/1socshn/b1b2_interview_experience_australia/",
   "current_visa_or_greencard_category": ["L-1A"],
   "current_nationality": "AUS",
   "current_resident_of_country": "AUS",
@@ -13,7 +13,8 @@
   "tags": [
     "B-1",
     "B-2",
-    "first-time-visa"
+    "first-time-visa",
+    "experience-posting"
   ],
   "concerns_or_questions_tag_list": [
   ],

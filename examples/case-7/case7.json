@@ -15,9 +15,10 @@
     "change-of-status-COS",
     "l1-to-h1b",
     "visa-transfer"
+    "re-entry"
   ],
   "concerns_or_questions_tag_list": [
-    "change-of-status-COS"
+    "change-of-status(COS)", "re-entry"
   ],
   "concerns_or_questions_summary": "Employer only doing COS. Activate H-1B COS later on the same approved petition ?",
   "key_stages_or_info": {
@@ -27,7 +28,7 @@
   "key_dates": {
     "priority_date": "11/30/2025",
     "h1b_start_date": "10/01/2026",
-    "visa_expire_date": "09/30/2026"
+    "visa_expire_date": "08/31/2028"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
