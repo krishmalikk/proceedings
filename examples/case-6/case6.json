@@ -5,14 +5,12 @@
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1sl99fd/slots_not_available_or_rescheduling/",
   "current_visa_or_greencard_category": ["H-1B"],
-  "current_nationality": "IND",
-  "current_resident_of_country": "IND",
   "background_summary": "<summary_by_Gemini>",
-  "consulate": "India",
   "tags": [
     "H-1B",
+    "visa-stamping",
     "visa-interview-slot",
-    "visa-visa-interview-rescheduling"
+    "visa-interview-rescheduling"
   ],
   "concerns_or_questions_tag_list": [
     "visa-interview-slot",
@@ -21,6 +19,7 @@
   "concerns_or_questions_summary":
     "No slots for interview",
   "key_stages_or_info": {
+    "citizen_of_country": "IN"
   },
   "key_dates": {
   },

@@ -80,8 +80,6 @@ class ImmigrationPost(BaseModel):
                 "source_uri": "r1/h1b",
                 "full_url": "https://www.reddit.com/r/h1b/comments/1skzyek/l1a_to_h1b_cos_avoid/",
                 "current_visa_or_greencard_category": ["L-1A"],
-                "current_nationality": "IND",
-                "current_resident_of_country": "USA",
                 "visa_or_greencard_applying_for": ["H-1"],
                 "background_summary": "<summary_by_Gemini>",
                 "consulate": "India",

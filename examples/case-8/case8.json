@@ -5,8 +5,6 @@
   "source_uri": "r1/USVisas",
   "full_url": "https://www.reddit.com/r/USVisas/comments/1socshn/b1b2_interview_experience_australia/",
   "current_visa_or_greencard_category": ["L-1A"],
-  "current_nationality": "AUS",
-  "current_resident_of_country": "AUS",
   "visa_or_greencard_applying_for": ["B-1"],
   "background_summary": "<summary_by_Gemini>",
   "consulate": "AUS",
@@ -20,7 +18,8 @@
   ],
   "concerns_or_questions_summary": "<to-be generatedby-AI",
   "key_stages_or_info": {
-    "outcome_status": "approved"
+    "outcome_status": "approved",
+    "citizen_of_country": "AU"
   },
   "key_dates": {
     "visa_interview_date": "03/31/2026"

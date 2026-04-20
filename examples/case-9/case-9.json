@@ -2,22 +2,24 @@
   "ingestion_method": "web_crawl",
   "source_system": "reddit",
   "source_url": "https://reddit.com",
-  "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1sktrr2/tax_filing_f1_to_h1b_transition_in_2025/",
-  "current_visa_or_greencard_category": ["H-1B"],
+  "source_uri": "r1/USVisas",
+  "full_url": "https://www.reddit.com/r/USVisas/comments/1sqzb8o/indian_citizen_living_in_maldives_on_a_work_visa/",
+  "visa_or_greencard_applying_for": ["B-1"],
   "background_summary": "<summary_by_Gemini>",
+  "consulate": "CLM",
   "tags": [
-    "H-1B",
-    "visa-transfer",
-    "f1-to-h1",
-    "tax-filing"
+    "B-1",
+    "B-2",
+    "prior-visa",
+    "consulate-eligibility"
   ],
   "concerns_or_questions_tag_list": [
-    "tax-filing"
+        "consulate-eligibility"
   ],
-  "concerns_or_questions_summary": "what tax filing status to use ?",
+  "concerns_or_questions_summary": "AM I eligible to go to Colomo for visa ? Wait times, documents ?",
   "key_stages_or_info": {
-    "citizen_of_country": "IN"
+    "citizen_of_country": "IN",
+    "resident_of_country": "MV"
   },
   "key_dates": {
   },

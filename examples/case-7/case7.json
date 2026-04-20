@@ -4,21 +4,19 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1skzyek/l1a_to_h1b_cos_avoid/",
-  "current_visa_or_greencard_category": ["L-1A"],
-  "current_nationality": "IND",
-  "current_resident_of_country": "USA",
+  "current_visa_or_greencard_category": ["L-1A", "employer-based-immigration"],
   "visa_or_greencard_applying_for": ["H-1"],
   "background_summary": "<summary_by_Gemini>",
-  "consulate": "India",
   "tags": [
     "L-1A",
     "change-of-status-COS",
-    "l1-to-h1b",
-    "visa-transfer"
-    "re-entry"
+    "l1-to-h1",
+    "visa-transfer",
+    "re-entry",
+    "spouse-status"
   ],
   "concerns_or_questions_tag_list": [
-    "change-of-status(COS)", "re-entry"
+    "change-of-status(COS)", "re-entry", "spouse-status"
   ],
   "concerns_or_questions_summary": "Employer only doing COS. Activate H-1B COS later on the same approved petition ?",
   "key_stages_or_info": {

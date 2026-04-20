@@ -5,10 +5,7 @@
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1skecda/has_anyones_employer_started_h1b_petition_for_fy/",
   "current_visa_or_greencard_category": ["H-1B"],
-  "current_nationality": "IND",
-  "current_resident_of_country": "IND",
   "background_summary": "<summary_by_Gemini>",
-  "consulate": "N/A",
   "tags": [
     "H-1B",
     "I-94",
@@ -23,7 +20,7 @@
   "key_stages_or_info": {
   },
   "key_dates": {
-    "h1b-visa-expire-date": "07/30/2026"
+    "visa_expire_date": "07/30/2026"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
