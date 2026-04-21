@@ -2,25 +2,26 @@
   "ingestion_method": "web_crawl",
   "source_system": "reddit",
   "source_url": "https://reddit.com",
-  "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1skecda/has_anyones_employer_started_h1b_petition_for_fy/",
-  "current_visa_or_greencard_category": ["H-1B"],
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1sr9aa9/b1b2_visa_in_delhi_for_my_parents/",
+  "visa_or_greencard_applying_for": ["B-1"],
   "background_summary": "<summary_by_Gemini>",
+  "consulate": "DEL",
   "tags": [
-    "H-1B",
-    "I-94",
-    "overstay",
-    "h1b-extension",
-    "NPT"
+    "B-1",
+    "B-2",
+    "family-ties",
+    "income-issue",
+    "first-time-visa"
   ],
   "concerns_or_questions_tag_list": [
-    "overstay", "NPT", "need-advice"
+    "family-ties",
+    "income-issue"
   ],
-  "concerns_or_questions_summary": "Overstay on I-94. NPT. Re-entry. How bad is situation?",
+  "concerns_or_questions_summary": "B-1/2 converns",
   "key_stages_or_info": {
   },
   "key_dates": {
-    "visa_expire_date": "07/30/2026"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",

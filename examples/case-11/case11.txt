@@ -1,0 +1,16 @@
+https://www.reddit.com/r/usvisascheduling/comments/1sr9aa9/b1b2_visa_in_delhi_for_my_parents/
+
+My parents from rural city lucknow traveling to Delhi for their US visa interview in two weeks.
+
+What should they be careful about? not doing to get B1/B2 visa rejected?
+
+context-
+Me and my sister are in the US (researchers in two universities in south). Both married and on H1B and J1 visa respectively. My presnts are in their 62-65 years age, both are very active in farming in our farm land. They don't have regular/annual income from farmig (more family garden with fruits and vegetables) but good for their local expenses.
+
+My other two siblings (also married) live in the same home in joint family scenario. The parents don't have any income on reguar basis, most of the big expense I take care time to time, they live happy and healthy.
+
+My parents want to visit both of us for three weeks. See some local places and go back.
+
+They have not traveled outside India (since 2017 to Singapore) and one day road trip to Nepal.
+
+I though of asking people what they could do to make their chances a little successful. Any commenst and insight would be highly appreciated!
