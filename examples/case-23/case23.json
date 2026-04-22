@@ -1,0 +1,27 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssbfjb/recent_h1b_port_of_entry_experience/",
+  "visa_or_greencard_applying_for": ["employment-based-immigration"],
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "H-1",
+    "POE"
+  ],
+  "concerns_or_questions_tag_list": [
+    "POE"
+  ],
+  "concerns_or_questions_summary": "worried about POE questioning",
+  "key_stages_or_info": {
+  },
+  "key_dates": {
+    "visa_expire_date": "08/31/2026"
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}

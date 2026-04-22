@@ -1,0 +1,32 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1srpmma/h1b_selected_fy_2027_stem_opt_pending/",
+  "visa_or_greencard_applying_for": ["H-1"],
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "H-1",
+    "stem-opt",
+    "stem-opt-extension",
+    "cap-gap"
+  ],
+  "concerns_or_questions_tag_list": [
+    "stem-opt"
+  ],
+  "concerns_or_questions_summary": "stem opt pending",
+  "key_stages_or_info": {
+    "h1b-lottery": "approved",
+    "stem-opt": "pending",
+    "I-765": "filed"
+  },
+  "key_dates": {
+    "i765_file_date": "11/30/2025"
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}

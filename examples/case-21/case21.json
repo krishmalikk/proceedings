@@ -1,0 +1,28 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssd4i1/is_my_understanding_correct_about_f1_h4/",
+  "visa_or_greencard_applying_for": ["H-4"],
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "F-1",
+    "OPT",
+    "EAD",
+    "change-of-status(COS)"
+  ],
+  "concerns_or_questions_tag_list": [
+    "H-4", "EAD"
+  ],
+  "concerns_or_questions_summary": "When can H-4 start ?",
+  "key_stages_or_info": {
+  },
+  "key_dates": {
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}

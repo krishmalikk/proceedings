@@ -1,0 +1,15 @@
+# https://www.reddit.com/r/h1b/comments/1sr9zh0/perm_restart_due_to_promotion_any_way_around_this/
+
+I’m in a really stressful situation and wanted to see if anyone has gone through something similar or has any advice.
+
+My company has decided to restart my PERM process (my I-140 has not been filed yet) because I moved from Engineer I to Engineer II. The frustrating part is that my job duties are essentially the same, and the pay increase was minimal (about $2).
+
+Their reasoning is that I need to be in the same position under which the PERM was filed, and they can’t deviate from that policy without affecting consistency across labor certifications. I’ve tried discussing it with them multiple times, but they’re firm on restarting the process under the new title.
+
+I even asked if I could move back to my old role, but they said that since my H-1B extension was filed under Engineer II, they can’t proceed with filing the I-140 under Engineer I anymore.
+
+As you can imagine, restarting PERM means another 2+ years, which is really concerning given my visa timeline.
+
+Has anyone dealt with something like this before? Is there any workaround in situations like this, or am I stuck with restarting the entire process?
+
+Would really appreciate any insight.
