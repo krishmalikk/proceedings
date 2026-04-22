@@ -4,20 +4,21 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1ssbfjb/recent_h1b_port_of_entry_experience/",
-  "visa_or_greencard_applying_for": ["I-485"],
+  "visa_or_greencard_applying_for": ["H-1B"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1",
-    "POE"
+    "F-1",
+    "stem-opt",
+    "change-of-status(COS)"
   ],
   "concerns_or_questions_tag_list": [
-    "POE"
+    "SEVIS"
   ],
-  "concerns_or_questions_summary": "worried about POE questioning",
+  "concerns_or_questions_summary": "worried about SEVIS record if employer withdraw H-1",
   "key_stages_or_info": {
+    "stem-opt": "approved"
   },
   "key_dates": {
-    "visa_expire_date": "08/31/2026"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
