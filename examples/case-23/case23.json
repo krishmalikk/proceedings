@@ -4,6 +4,7 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1ssbfjb/recent_h1b_port_of_entry_experience/",
+  "current_visa_status_or_greencard_category": ["H-1B", "employment-based-immigration"],
   "visa_or_greencard_applying_for": ["employment-based-immigration"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [

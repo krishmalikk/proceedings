@@ -3,25 +3,24 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1sl99fd/slots_not_available_or_rescheduling/",
-  "current_visa_or_greencard_category": ["H-1B"],
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ss7jbo/any_june_2025_h1b_ext_regular_processing_texas/",
+  "current_visa_status_or_greencard_category": ["H-1B"],
+  "visa_or_greencard_applying_for": ["h1b-extension"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1B",
-    "visa-stamping",
-    "visa-interview-slot",
-    "visa-interview-rescheduling"
+    "H-1",
+    "h1b-extension",
+    "240day-extension",
+    "SRC"
   ],
   "concerns_or_questions_tag_list": [
-    "visa-interview-slot",
-    "travel-concern"
+    "processing-time", "regular-vs-premium-processing"
   ],
-  "concerns_or_questions_summary":
-    "No slots for interview",
+  "concerns_or_questions_summary": "h1 extension taking long.",
   "key_stages_or_info": {
-    "citizen_of_country": "IN"
   },
   "key_dates": {
+    "h1b_processing_start_date": "06/30/2025"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
