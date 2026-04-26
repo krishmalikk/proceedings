@@ -3,7 +3,7 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1ssbfjb/recent_h1b_port_of_entry_experience/",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssbejg/h1b_pending_but_stem_opt_just_approved_safe_to/",
   "current_visa_status_or_greencard_category": ["F-1", "OPT"],
   "visa_or_greencard_applying_for": ["H-1B"],
   "background_summary": "<summary_by_Gemini>",
@@ -13,9 +13,9 @@
     "change-of-status(COS)"
   ],
   "concerns_or_questions_tag_list": [
-    "SEVIS"
+    "SEVIS", "legal-status"
   ],
-  "concerns_or_questions_summary": "worried about SEVIS record if employer withdraw H-1",
+  "concerns_or_questions_summary": "worried about SEVIS record and legal status if employer withdraw H-1",
   "key_stages_or_info": {
     "stem-opt": "approved"
   },

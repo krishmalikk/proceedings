@@ -5,17 +5,19 @@
   "source_uri": "r1/usvisascheduling",
   "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1srn4ab/need_advice_k1_approval_expiration_is_the_29th/",
   "visa_or_greencard_applying_for": ["K-1"],
-  "background_summary": "<summary_by_Gemini>",
+  "background_summary": "fiance from Indonesia",
   "consulate": "ID",
   "tags": [
     "K-1",
     "I-129"
   ],
   "concerns_or_questions_tag_list": [
-        "K-1"
+        "K-1", "visa-expiring"
   ],
   "concerns_or_questions_summary": "K-1 approval expiration",
   "key_stages_or_info": {
+    "citizen_of_country": "US",
+    "fiance_of_country": "ID",
     "K-1": "approved"
   },
   "key_dates": {

@@ -3,24 +3,20 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1sql86k/got_a_200k_startup_offer_but_visa_expires_in_7/",
-  "current_visa_status_or_greencard_category": ["H-1B"],
+  "full_url": "https://www.reddit.com/r/h1b/comments/1svzcbc/laid_off_right_after_h1b_lottery_picked/,,
   "visa_or_greencard_applying_for": ["H-1"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "H-1",
-    "change-of-employer(COE)",
-    "job-offer",
-    "visa-transfer"
+    "job-search"
   ],
   "concerns_or_questions_tag_list": [
-    "H-1", "change-status-options", "status-expiring"
+    "job-search"
   ],
-  "concerns_or_questions_summary": "Visa expiring soon. No H-1 attempt left",
+  "concerns_or_questions_summary": "laid_off_right_after_h1b_lottery_picked",
   "key_stages_or_info": {
   },
   "key_dates": {
-    "h1b_expire_date": "06/12/2026"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",

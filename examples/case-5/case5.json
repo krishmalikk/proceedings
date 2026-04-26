@@ -3,7 +3,7 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1sktrr2/tax_filing_f1_to_h1b_transition_in_2025/",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1shzoxn/h1b_rfe/",
   "current_visa_or_greencard_category": ["H-1B"],
   "visa_or_greencard_applying_for": ["H-1B"],
   "background_summary": "<summary_by_Gemini>",
@@ -18,10 +18,10 @@
     "I-797"
   ],
   "concerns_or_questions_tag_list": [
-    "re-entry", "country-ban"
+    "re-entry", "country-ban", "RFE"
   ],
   "concerns_or_questions_summary":
-    "Iran as the country of birth, Evidence of working in the US with prior employer as a way of maintaining status.",
+    "RFE in H1 due to Iran as the country of birth, Evidence of working in the US with prior employer as a way of maintaining status.",
   "key_stages_or_info": {
     "citizen_of_country": "GB",
     "born_in_country": "IR"
