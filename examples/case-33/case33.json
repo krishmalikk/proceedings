@@ -2,24 +2,26 @@
   "ingestion_method": "web_crawl",
   "source_system": "reddit",
   "source_url": "https://reddit.com",
-  "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1sl99fd/slots_not_available_or_rescheduling/",
-  "current_visa_or_greencard_category": ["H-1B"],
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1sycek2/b1b2_experience_at_delhi_consulateindia/",
+  "visa_or_greencard_applying_for": ["B-1", "B-2"],
+  "consulate": "DEL",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1B",
-    "visa-stamping",
-    "visa-interview-slot",
-    "visa-interview-scheduling"
+    "B-1",
+    "B-2",
+    "emergency-visa-appointment",
+    "visa-renewal",
+    "physician",
+    "experience-posting"
   ],
   "concerns_or_questions_tag_list": [
-    "visa-interview-slot",
-    "travel-concern"
+    "214b",
+    "visa-refused",
+    "family-ties"
   ],
-  "concerns_or_questions_summary":
-    "No slots for interview",
   "key_stages_or_info": {
-    "citizen_of_country": "IN"
+    "visa_outcome_status": "approved"
   },
   "key_dates": {
   },

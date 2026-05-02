@@ -2,24 +2,21 @@
   "ingestion_method": "web_crawl",
   "source_system": "reddit",
   "source_url": "https://reddit.com",
-  "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1sl99fd/slots_not_available_or_rescheduling/",
-  "current_visa_or_greencard_category": ["H-1B"],
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1sxqhgy/appointment_confirmation/",
+  "visa_or_greencard_applying_for": ["B-1", "B-2"],
+  "consulate": "HKG",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1B",
-    "visa-stamping",
-    "visa-interview-slot",
+    "B-1",
+    "B-2",
     "visa-interview-scheduling"
   ],
   "concerns_or_questions_tag_list": [
-    "visa-interview-slot",
-    "travel-concern"
+    "visa-interview-scheduling",
+    "visa-interview-slot"
   ],
-  "concerns_or_questions_summary":
-    "No slots for interview",
   "key_stages_or_info": {
-    "citizen_of_country": "IN"
   },
   "key_dates": {
   },
