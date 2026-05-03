@@ -4,17 +4,17 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
   "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2ko95/h1bh4_from_india/",
-  "visa_or_greencard_applying_for": ["H-1", "H-4"],
+  "visa_applying_for": ["H-1", "H-4"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "OFC",
     "visa-interview-scheduling",
-    "combined-appointment"
+    "combined-appointment",
   ],
   "concerns_or_questions_tag_list": [
-    "visa-interview-scheduling"
+    "visa-interview-scheduling", "no-slot"
   ],
-  "concerns_or_questions_summary": "No appointments",
+  "concerns_or_questions_summary": "No slot for appointment",
   "key_stages_or_info": {
   },
   "key_dates": {

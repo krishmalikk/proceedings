@@ -4,7 +4,7 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
   "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1szjafq/h1b_h4_visa_appointment/",
-  "visa_or_greencard_applying_for": ["H-1", "H-4"],
+  "visa_applying_for": ["H-1", "H-4"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "visa-interview-scheduling",

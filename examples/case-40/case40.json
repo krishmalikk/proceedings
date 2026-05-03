@@ -3,24 +3,17 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
-  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1swyec7/j1_visa_renewal_refused_214b_pgy1_resident_need/",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2o7j5/need_help_with_j1_renewal_in_india/",
   "visa_applying_for": ["J-1"],
-  "consulate": "BOM",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "J-1",
-    "residency",
-    "visa-renewal",
-    "physician"
+    "visa-interview-scheduling", "OFC"
   ],
   "concerns_or_questions_tag_list": [
-    "214b",
-    "visa-refused",
-    "family-ties"
+    "visa-interview-scheduling", "no-slot"
   ],
-  "concerns_or_questions_summary": "visa refused on renewal at consulate",
+  "concerns_or_questions_summary": "No slot",
   "key_stages_or_info": {
-    "visa_outcome_status": "refused"
   },
   "key_dates": {
   },
