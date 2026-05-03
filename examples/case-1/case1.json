@@ -4,7 +4,7 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/some-full-path-to-url",
-  "current_visa_status_or_greencard_category": ["H-1B", "employment-based-immigration"],
+  "current_visa_status_and_greencard_category": ["H-1B", "employment-based-immigration"],
   "visa_applying_for": ["H-1"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [

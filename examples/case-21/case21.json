@@ -4,7 +4,7 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1ssd4i1/is_my_understanding_correct_about_f1_h4/",
-    "current_visa_status_or_greencard_category": ["F-1", "OPT"],
+    "current_visa_status_and_greencard_category": ["F-1", "OPT"],
   "visa_applying_for": ["H-4"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [

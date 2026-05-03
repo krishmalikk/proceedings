@@ -4,7 +4,7 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1ssbejg/h1b_pending_but_stem_opt_just_approved_safe_to/",
-  "current_visa_status_or_greencard_category": ["F-1", "OPT"],
+  "current_visa_status_and_greencard_category": ["F-1", "OPT"],
   "visa_applying_for": ["H-1B"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [

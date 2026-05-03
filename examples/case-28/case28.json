@@ -4,7 +4,7 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1ss7jbo/any_june_2025_h1b_ext_regular_processing_texas/",
-  "current_visa_status_or_greencard_category": ["H-1B"],
+  "current_visa_status_and_greencard_category": ["H-1B"],
   "visa_applying_for": ["h1b-extension"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [

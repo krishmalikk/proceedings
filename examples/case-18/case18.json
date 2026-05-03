@@ -4,8 +4,7 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1sr9zh0/perm_restart_due_to_promotion_any_way_around_this/",
-  "current_visa_status_or_greencard_category": ["H-1B"],
-  "greencard_category": ["employment-based-immigration"],
+  "current_visa_status_and_greencard_category": ["H-1B", "employment-based-immigration"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "H-1",
