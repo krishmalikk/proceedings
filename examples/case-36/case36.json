@@ -6,7 +6,6 @@
   "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2l417/travel_risk_h4_spouse_traveling_with_old_employer/",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-4",
     "travel-concern",
     "I-797"
   ],
@@ -18,6 +17,7 @@
   },
   "key_dates": {
   },
+  "spouse_status": ["H-4"],
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,

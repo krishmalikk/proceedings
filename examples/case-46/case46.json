@@ -4,19 +4,24 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
   "full_url": "https://www.reddit.com/r/h1b/comments/1t2em1c/i485_filled_on_h1b/",
-  "visa_applying_for": ["J-1", "J-2"],
+  "current_visa_status_and_greencard_category": ["EB-1A", "employment-based-immigration"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "combined-appointment", "emergency-visa-appointment"
+    "processing-fee", "DOF", "AP", "EAD", "FAD"
   ],
   "concerns_or_questions_tag_list": [
-    "visa-interview-scheduling", "combined-appointment", "emergency-visa-appointment"
+    "petition-withdraw", "change-of-employer(COE)"
   ],
   "concerns_or_questions_summary": "Appointment together ?",
   "key_stages_or_info": {
+    "I-140": "approved",
+    "I-485": "filed"
   },
   "key_dates": {
+    "i140_approved_date": "05/31/2023",
+    "i485_file_date": "02/28/2026",
   },
+  "spouse_status": ["AP", "EAD"],
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,

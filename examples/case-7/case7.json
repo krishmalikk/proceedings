@@ -28,6 +28,7 @@
     "h1b_start_date": "10/01/2026",
     "visa_expire_date": "08/31/2028"
   },
+  "spouse_status": ["L-2S"],
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,
