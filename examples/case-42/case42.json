@@ -3,18 +3,19 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
-  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2l417/travel_risk_h4_spouse_traveling_with_old_employer/",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1szx085/b1b2_visa_rejected_for_my_parents_in_delhi_they/",
+  "visa_applying_for": ["B-1", "B-2"],
+  "consulate": "DEL",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-4",
-    "travel-concern",
-    "I-797"
+    "translator"
   ],
   "concerns_or_questions_tag_list": [
-    "CBP", "EAD"
+    "translator", "family-ties", "re-apply", "visa-refused"
   ],
-  "concerns_or_questions_summary": "Any issues travelling with old-employer visa stamped ?",
+  "concerns_or_questions_summary": "visa-refused. Re-apply ? translator in Delhi not available",
   "key_stages_or_info": {
+    "visa_outcome_status": "refused"
   },
   "key_dates": {
   },
