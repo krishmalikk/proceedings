@@ -2,27 +2,22 @@
   "ingestion_method": "web_crawl",
   "source_system": "reddit",
   "source_url": "https://reddit.com",
-  "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1skryr3/i94_overstay_by_13_months/",
-  "current_visa_or_greencard_category": ["H-1B"],
-  "visa_or_greencard_applying_for": ["H-1B"],
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2l417/travel_risk_h4_spouse_traveling_with_old_employer/",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1B",
-    "I-94",
-    "overstay",
-    "h1b-extension",
-    "NPT",
-    "passport-expired"
+    "H-4",
+    "travel-concern",
+    "translator",
+    "I-797"
   ],
   "concerns_or_questions_tag_list": [
-    "overstay", "NPT"
+    "CBP", "EAD"
   ],
-  "concerns_or_questions_summary": "Overstay on I-94. NPT. Re-entry. How bad is situation?",
+  "concerns_or_questions_summary": "Any issues travelling with old-employer visa stamped ?",
   "key_stages_or_info": {
   },
   "key_dates": {
-    "visa_expire_date": "07/30/2026"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
