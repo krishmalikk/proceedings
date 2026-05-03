@@ -443,7 +443,7 @@
     "url": "https://www.uscis.gov/working-in-the-united-states/information-for-employers-and-employees",
     "domain": "uscis.gov",
     "source_type": "government",
-    "category": "h1b-visa",
+    "category": "H-1B",
     "last_crawled": "2026-04-06T23:10:00.586273+00:00",
     "status": "done"
   },
@@ -531,7 +531,7 @@
     "url": "https://www.uscis.gov/i-129",
     "domain": "uscis.gov",
     "source_type": "government",
-    "category": "h1b-visa",
+    "category": "H-1B",
     "last_crawled": "2026-04-06T23:10:37.065360+00:00",
     "status": "done"
   },
@@ -587,7 +587,7 @@
     "url": "https://www.alllaw.com/articles/nolo/us-immigration/h-1b-visa-for-specialty-workers.html",
     "domain": "alllaw.com",
     "source_type": "law_firm",
-    "category": "h1b-visa",
+    "category": "H-1B",
     "last_crawled": "2026-04-12T15:47:55.716917+00:00",
     "status": "done"
   },
@@ -659,7 +659,7 @@
     "url": "https://www.nolo.com/legal-encyclopedia/how-employer-sponsor-h-1b-worker.html",
     "domain": "nolo.com",
     "source_type": "law_firm",
-    "category": "h1b-visa",
+    "category": "H-1B",
     "last_crawled": "2026-04-12T15:48:18.288969+00:00",
     "status": "done"
   },
@@ -715,7 +715,7 @@
     "url": "https://www.immigrationdirect.com/immigration-articles/h1b-visa-guide/",
     "domain": "immigrationdirect.com",
     "source_type": "law_firm",
-    "category": "h1b-visa",
+    "category": "H-1B",
     "last_crawled": "2026-04-06T23:13:43.777393+00:00",
     "status": "done"
   },
@@ -1819,7 +1819,7 @@
     "url": "https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-fifth-preference-eb-5",
     "domain": "uscis.gov",
     "source_type": "government",
-    "category": "eb5-investor-visa",
+    "category": "EB-5",
     "last_crawled": "2026-04-12T16:14:48.165015+00:00",
     "status": "done"
   },
@@ -1827,7 +1827,7 @@
     "url": "https://www.uscis.gov/working-in-the-united-states/permanent-workers/eb-5-immigrant-investor-program/about-the-eb-5-visa-classification",
     "domain": "uscis.gov",
     "source_type": "government",
-    "category": "eb5-investor-visa",
+    "category": "EB-5",
     "last_crawled": "2026-04-12T16:14:53.282176+00:00",
     "status": "done"
   },
@@ -1835,7 +1835,7 @@
     "url": "https://www.uscis.gov/working-in-the-united-states/permanent-workers/eb-5-immigrant-investor-program/eb-5-direct-and-regional-center-program",
     "domain": "uscis.gov",
     "source_type": "government",
-    "category": "eb5-investor-visa",
+    "category": "EB-5",
     "last_crawled": "2026-04-12T16:15:09.157157+00:00",
     "status": "failed"
   },
@@ -1843,7 +1843,7 @@
     "url": "https://visaguide.world/us-visa/immigrant/employment-based/eb5/",
     "domain": "visaguide.world",
     "source_type": "law_firm",
-    "category": "eb5-investor-visa",
+    "category": "EB-5",
     "last_crawled": "2026-04-12T16:15:12.326202+00:00",
     "status": "failed"
   }

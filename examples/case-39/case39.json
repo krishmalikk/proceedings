@@ -3,18 +3,22 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
-  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1szjafq/h1b_h4_visa_appointment/",
-  "visa_or_greencard_applying_for": ["H-1", "H-4"],
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t0p107/reapplying_for_b2_visa_for_fifa_world_cup_2026/",
+  "visa_or_greencard_applying_for": ["B-2"],
+  "consulate": "UZ",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "visa-interview-scheduling",
-    "combined-appointment"
+    "FIFA",
+    "family-ties",
+    "first-time-visa",
+    "re-apply"
   ],
   "concerns_or_questions_tag_list": [
-    "visa-interview-scheduling"
+    "214b", "visa-refused", "re-apply"
   ],
-  "concerns_or_questions_summary": "Combined or separate appointment ?",
+  "concerns_or_questions_summary": "Re-apply ?",
   "key_stages_or_info": {
+    "visa_outcome_status": "refused"
   },
   "key_dates": {
   },
