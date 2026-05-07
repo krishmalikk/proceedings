@@ -1,0 +1,27 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6ckoe/i129_with_pp_no_response_yet_after_15_business/",
+  "current_visa_status_and_greencard_category": [],
+  "visa_applying_for": "I-129",
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "VSC", "premium-processing"
+  ],
+  "concerns_or_questions_tag_list": [
+    "backlog", "processing-time"
+  ],
+  "concerns_or_questions_summary": "Waiting for response",
+  "key_stages_or_info": {
+  },
+  "key_dates": {
+    "i129_file_date": "04/26/2026"
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}
