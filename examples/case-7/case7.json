@@ -12,8 +12,7 @@
     "change-of-status-COS",
     "l1-to-h1",
     "visa-transfer",
-    "re-entry",
-    "spouse-status"
+    "re-entry"
   ],
   "concerns_or_questions_tag_list": [
     "change-of-status(COS)", "re-entry", "spouse-status"
@@ -21,7 +20,8 @@
   "concerns_or_questions_summary": "Employer only doing COS. Activate H-1B COS later on the same approved petition ?",
   "key_stages_or_info": {
     "h1b-lottery": "approved",
-    "I-140": "approved"
+    "I-140": "approved",
+    "spouse-status": "H-1"
   },
   "key_dates": {
     "priority_date": "11/30/2025",

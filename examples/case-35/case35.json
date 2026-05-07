@@ -1,0 +1,28 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t19ux7/l1b_h4_ead_timing_bundle_vs_stagger_to_avoid_gap/",
+  "current_visa_status_or_greencard_category": "L-1B",
+  "visa_or_greencard_applying_for": ["H-4", "h1b-extension,", "change-of-status(COS)", "EAD"],
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "H-4", "h1b-extension,", "change-of-status(COS)", "EAD", "EB-1C"
+  ],
+  "concerns_or_questions_tag_list": [
+    "bundled-premium-processing", "processing-time"
+  ],
+  "concerns_or_questions_summary": "bundle or not to bundle, bundle vs stagger, processing time,H4 EAD timeline, work gap",
+  "key_stages_or_info": {
+    "I-140": "pending",
+    "spouse-status": "H-1"
+  },
+  "key_dates": {
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}
