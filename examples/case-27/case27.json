@@ -4,7 +4,7 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1spj9us/i94_validity/",
-  "current_visa_status_or_greencard_category": ["H-1B"],
+  "current_visa_status_and_greencard_category": ["H-1B"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "I-94",

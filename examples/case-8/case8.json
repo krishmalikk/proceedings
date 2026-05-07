@@ -4,14 +4,15 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/USVisas",
   "full_url": "https://www.reddit.com/r/USVisas/comments/1socshn/b1b2_interview_experience_australia/",
-  "visa_or_greencard_applying_for": ["B-1"],
+  "visa_applying_for": ["B-1"],
   "background_summary": "<summary_by_Gemini>",
   "consulate": "AUS",
   "tags": [
     "B-1",
     "B-2",
     "first-time-visa",
-    "experience-posting"
+    "experience-posting",
+    "tips"
   ],
   "concerns_or_questions_tag_list": [
   ],

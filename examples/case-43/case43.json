@@ -1,0 +1,24 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1sze2px/us_visa_scheduling_middle_name_in_the_first_name/",
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "DS-160"
+  ],
+  "concerns_or_questions_tag_list": [
+    "DS-160", "form-mistake"
+  ],
+  "concerns_or_questions_summary": "Mistake in filling namee",
+  "key_stages_or_info": {
+  },
+  "key_dates": {
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}

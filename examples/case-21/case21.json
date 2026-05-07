@@ -4,18 +4,19 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1ssd4i1/is_my_understanding_correct_about_f1_h4/",
-    "current_visa_status_or_greencard_category": ["F-1", "OPT"],
-  "visa_or_greencard_applying_for": ["H-4"],
+  "current_visa_status_and_greencard_category": ["F-1", "OPT"],
+  "visa_applying_for": ["H-4"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "F-1",
     "OPT",
-    "EAD",
     "change-of-status(COS)",
+    "H-4",
+    "bundled-premium-processing",
     "f1-to-h4"
   ],
   "concerns_or_questions_tag_list": [
-    "H-4", "EAD"
+    "H-4", "EAD", "change-status-options"
   ],
   "concerns_or_questions_summary": "When can H-4 start ?",
   "key_stages_or_info": {
@@ -23,6 +24,7 @@
   },
   "key_dates": {
   },
+  "spouse_status": ["O-1", "H-1", "I-140", "cap-subject"],
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,

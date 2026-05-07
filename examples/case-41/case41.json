@@ -1,0 +1,22 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2eu90/tips_for_f1_applicants_struggling_with_the_may/",
+  "visa_applying_for": ["F-1"],
+  "consulate": "IN",
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "visa-interview-scheduling", "tips"
+  ],
+  "key_stages_or_info": {
+  },
+  "key_dates": {
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}

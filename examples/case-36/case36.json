@@ -1,0 +1,26 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2l417/travel_risk_h4_spouse_traveling_with_old_employer/",
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "travel-concern",
+    "I-797"
+  ],
+  "concerns_or_questions_tag_list": [
+    "CBP", "EAD"
+  ],
+  "concerns_or_questions_summary": "Any issues travelling with old-employer visa stamped ?",
+  "key_stages_or_info": {
+  },
+  "key_dates": {
+  },
+  "spouse_status": ["H-4"],
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}

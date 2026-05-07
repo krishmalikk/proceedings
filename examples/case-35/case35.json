@@ -3,20 +3,20 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
-  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t19ux7/l1b_h4_ead_timing_bundle_vs_stagger_to_avoid_gap/",
-  "current_visa_status_or_greencard_category": "L-1B",
-  "visa_or_greencard_applying_for": ["H-4", "h1b-extension,", "change-of-status(COS)", "EAD"],
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1svvi3z/parents_b1b2_visa_approved_mumbai_india/",
+  "visa_applying_for": ["B-1", "B-2"],
+  "consulate": "BOM",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-4", "h1b-extension,", "change-of-status(COS)", "EAD", "EB-1C"
+    "B-1",
+    "B-2",
+    "experience-posting",
+    "translator"
   ],
   "concerns_or_questions_tag_list": [
-    "bundled-premium-processing", "processing-time"
   ],
-  "concerns_or_questions_summary": "bundle or not to bundle, bundle vs stagger, processing time,H4 EAD timeline, work gap",
   "key_stages_or_info": {
-    "I-140": "pending",
-    "spouse-status": "H-1"
+    "visa_outcome_status": "approved"
   },
   "key_dates": {
   },

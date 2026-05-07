@@ -8,12 +8,10 @@
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "H-1B",
-    "visa-stamping",
-    "visa-interview-slot",
     "visa-interview-scheduling"
   ],
   "concerns_or_questions_tag_list": [
-    "visa-interview-slot",
+    "no-slot",
     "travel-concern"
   ],
   "concerns_or_questions_summary":
