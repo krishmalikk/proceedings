@@ -1,0 +1,27 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/usvisascheduling",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t62q5s/social_media_handles_in_ds160_for_visa_stamping/",
+  "current_visa_status_and_greencard_category": ["H-1B", "I-485"],
+  "visa_applying_for": "H-1B",
+  "consulate": "KR",
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "visa-stamping", "change-of-status(COS)"
+  ],
+  "concerns_or_questions_tag_list": [
+    "social-media", "DS-160"
+  ],
+  "concerns_or_questions_summary": "Too many social media",
+  "key_stages_or_info": {
+  },
+  "key_dates": {
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}
