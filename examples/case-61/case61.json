@@ -1,0 +1,26 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t7jfjr/h1b_premium_processing_timeline_texas_center/",
+  "visa_applying_for": ["H-1B"],
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "premium-proessing",
+    "TSC",
+    "processing-timeline"
+  ],
+  "key_stages_or_info": {
+    "outcome_status": "pending"
+  },
+  "key_dates": {
+    "h1b_receipt_date": "04/29/2026",
+    "h1b_file_date": "04/27/2026"
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}
