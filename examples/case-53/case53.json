@@ -3,15 +3,16 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1t3bb5x/update_on_hr_875_act_mandates_immediate/",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6m1wh/lost_i797_before_consulate_appointment/",
   "background_summary": "<summary_by_Gemini>",
+  "visa_applying_for": "H-1B",
   "tags": [
-    "blog", "bill", "news-update"
+    "I-797"
   ],
   "concerns_or_questions_tag_list": [
-    "prior-conviction", "deportation"
+    "lost-document"
   ],
-  "concerns_or_questions_summary": "Deportation for DUI Offenses",
+  "concerns_or_questions_summary": "Lost I-797",
   "key_stages_or_info": {
   },
   "key_dates": {
