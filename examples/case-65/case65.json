@@ -2,25 +2,22 @@
   "ingestion_method": "web_crawl",
   "source_system": "reddit",
   "source_url": "https://reddit.com",
-  "source_uri": "r1/usvisas",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1srrskk/layoff_before_visa_approval/",
-    "current_visa_status_and_greencard_category": ["H-1B"],
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t7143u/laid_off_need_suggestion_how_to_navigte_situation/",
+  "current_visa_status_and_greencard_category": ["H-1B"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1",
-    "h1b-extension",
-    "layoff",
-    "regular-processing"
+    "layoff"
   ],
   "concerns_or_questions_tag_list": [
-    "change-status-options", "visa-expiring"
+    "job-search", "startup", "legal-status"
   ],
-  "concerns_or_questions_summary": "What change options ?",
+  "concerns_or_questions_summary": "Which job to take ?",
   "key_stages_or_info": {
+    "I-140": "approved"
   },
   "key_dates": {
-    "employment_end_date": "04/30/2026",
-    "visa_expire_date": "05/07/2026"
+    "employment_end_date": "04/01/2026"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
