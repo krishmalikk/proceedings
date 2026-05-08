@@ -2,22 +2,24 @@
   "ingestion_method": "web_crawl",
   "source_system": "reddit",
   "source_url": "https://reddit.com",
-  "source_uri": "r1/usvisascheduling",
-  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1sycek2/b1b2_experience_at_delhi_consulateindia/",
-  "visa_applying_for": ["B-1", "B-2"],
-  "consulate": "DEL",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6i5ct/timeline_for_h1b_approval/",
+  "visa_applying_for": ["H-1B"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "B-1",
-    "B-2",
-    "emergency-visa-appointment",
-    "experience-posting",
-    "tips"
+    "premium-proessing",
+    "VSC",
+    "experience-posting"
+  ],
+  "concerns_or_questions_tag_list": [
   ],
   "key_stages_or_info": {
     "outcome_status": "approved"
   },
   "key_dates": {
+    "h1b_receipt_date": "04/28/2026",
+    "h1b_file_date": "04/24/2026",
+    "h1b_approved_date": "05/07/2026"
   },
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",

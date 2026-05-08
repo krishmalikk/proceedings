@@ -8,7 +8,6 @@
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "H-1",
-    "RFE",
     "I-129",
     "consular-processing",
     "premium-processing",
@@ -17,14 +16,14 @@
     "background-check"
   ],
   "concerns_or_questions_tag_list": [
-    "processing-time", "background-check"
+    "processing-time", "background-check", "RFE"
   ],
   "concerns_or_questions_summary": "Why this long to process",
   "key_stages_or_info": {
   },
   "key_dates": {
     "h1b_receipt_date": "08/28/2025",
-    "h1b_premium_processing_start_date": "09/01/2025",
+    "h1b_processing_start_date": "09/01/2025",
     "rfe_date": "09/03/2025",
     "rfe_response_date": "09/12/2025"
   },
