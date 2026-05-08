@@ -3,14 +3,14 @@
   "source_system": "reddit",
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
-  "full_url": "https://www.reddit.com/r/h1b/comments/1t6m1wh/lost_i797_before_consulate_appointment/",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6s8d7/traveling_after_h1b_cos_gets_approved_but_before/",
   "background_summary": "<summary_by_Gemini>",
-  "visa_applying_for": "H-1B",
+  "current_visa_status_and_greencard_category": ["F-1", "stem-opt"],
   "tags": [
-    "I-797"
+    "change-of-status(COS)"
   ],
   "concerns_or_questions_tag_list": [
-    "lost-document"
+    "travel-concern", "gap-concern"
   ],
   "concerns_or_questions_summary": "Lost I-797",
   "key_stages_or_info": {
