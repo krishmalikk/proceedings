@@ -10,6 +10,7 @@ dist/
 build/
 venv/
 .venv/
+.idea/
 
 # Local crawl output
 crawled_pages/
