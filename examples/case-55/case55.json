@@ -1,0 +1,26 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t0ix2i/emergency_h1b_visa_appointment_denied_at/",
+  "background_summary": "<summary_by_Gemini>",
+  "current_visa_status_and_greencard_category": ["H-1"],
+  "consulate": "HYD",
+  "tags": [
+    "visa-stamping", "emergency-visa-appointment", "visa-interview-scheduling"
+  ],
+  "concerns_or_questions_tag_list": [
+    "no-slot", "visa-interview-scheduling"
+  ],
+  "concerns_or_questions_summary": "critical family situation; no visa appointment",
+  "key_stages_or_info": {
+  },
+  "key_dates": {
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}
