@@ -1,0 +1,12 @@
+# https://www.reddit.com/r/h1b/comments/1t78xwk/planning_to_travel_to_us_on_b1b2_visa_but_have/
+
+Planning to travel to US on B1/B2 visa but have H1B approval
+NEED HELP Traveling TO US.
+
+Hi I am currently working in India. Last year in 2025 I got an opportunity to move to US. My employer filed H1B its picked and petition was filed in June 2025 and I got the approval recently in April 2026.
+
+I do not have immediate plans to shift to US as getting slots is not easy right now and because of job uncertainty.
+
+How feasible it is to visit US on tourist visa in coming two months ? I visited US on B1/B2 - couple of 2 week short trips while my approval was pending.
+
+Now that I got the approval is it safe to travel? I want to be very sure that I am not flagged and this will not affect my future H1B stamping. Thanks a lot in advance.
