@@ -1,0 +1,40 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t7sqmn/h1b_cos_from_b2_approved_with_new_i94_but_offer/",
+  "current_visa_status_and_greencard_category": ["B-2"],
+  "visa_applying_for": ["H-1B"],
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "change-of-status(COS)",
+    "timeline",
+    "b1b2-to-h1",
+    "h1b-transfer",
+    "RFE"
+  ],
+  "concerns_or_questions_tag_list": [
+    "legal-status", "60day-grace-period", "change-status-options", "offer-rescinded"
+  ],
+  "concerns_or_questions_summary": "No previous employer paystub. Am I out of status ?",
+
+  "key_stages_or_info": {
+    "I-797": "approved",
+    "I-94": "valid"
+  },
+  "key_dates": {
+    "i94_expire_date": "12/31/2029",
+    "employment_end_date": "08/31/2025",
+    "i129_file_date": "02/28/2026",
+    "rfe_date": "02/28/2026",
+    "rfe_response_date": "03/31/2026",
+    "h1b_approved_date": "04/30/2026"
+  },
+
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}
