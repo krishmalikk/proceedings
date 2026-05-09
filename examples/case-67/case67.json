@@ -1,0 +1,31 @@
+{
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t7v31n/approval_timeline_h1b_extension_of_stay_with/",
+  "current_visa_status_and_greencard_category": ["H-1B"],
+  "visa_applying_for": ["h1b-extension"],
+  "background_summary": "<summary_by_Gemini>",
+  "tags": [
+    "premium-processing",
+    "experience-posting",
+    "NSC"
+  ],
+  "key_stages_or_info": {
+      "outcome_status": "approved"
+  },
+  "key_dates": {
+    "lca_approved_date": "04/10/2026",
+    "h1b_file_date": "04/22/2026",
+    "h1b_received_date": "04/24/2026",
+    "h1b_processing_start_date": "04/27/2025",
+    "h1b_approved_date": "05/01/2026",
+    "i797a_received_date": "05/06/2026"
+  },
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13 14:30:05",
+  "confidence_score": 92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13"
+}
