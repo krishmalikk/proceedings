@@ -2,22 +2,24 @@
   "ingestion_method": "web_crawl",
   "source_system": "reddit",
   "source_url": "https://reddit.com",
-  "source_uri": "r1/usvisascheduling",
-  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2o7j5/need_help_with_j1_renewal_in_india/",
-  "current_visa_status_and_greencard_category": ["J-1"],
-  "visa_applying_for": ["j1-renewal"],
+  "source_uri": "r1/h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t95tyf/opt_ead_to_h4_ead/",
+    "current_visa_status_and_greencard_category": ["OPT", "EAD"],
+  "visa_applying_for": ["H-1", "H-4", "EAD"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "visa-interview-scheduling", "OFC"
+    "I-765",
+    "premium-processing"
   ],
-  "concerns_or_questions_tag_list": [
-    "visa-interview-scheduling", "no-slot"
+    "concerns_or_questions_tag_list": [
+      "I-765", "EAD", "required-documents"
   ],
-  "concerns_or_questions_summary": "No slot",
+  "concerns_or_questions_summary": "I-765 question",
   "key_stages_or_info": {
   },
   "key_dates": {
   },
+  "spouse_status": ["I-140", "h1-extension"],
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,
