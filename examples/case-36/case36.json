@@ -4,9 +4,11 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
   "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2l417/travel_risk_h4_spouse_traveling_with_old_employer/",
+  "current_visa_status_and_greencard_category": ["H-4"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "travel-concern",
+    "previous-employer",
     "I-797"
   ],
   "concerns_or_questions_tag_list": [
@@ -17,7 +19,6 @@
   },
   "key_dates": {
   },
-  "spouse_status": ["H-4"],
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,

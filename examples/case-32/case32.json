@@ -4,13 +4,14 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/usvisascheduling",
   "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1swyec7/j1_visa_renewal_refused_214b_pgy1_resident_need/",
-  "visa_applying_for": ["J-1"],
+  "current_visa_status_and_greencard_category": ["J-1"],
+  "visa_applying_for": ["j1-renewal"],
   "consulate": "BOM",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "J-1",
     "residency",
     "visa-renewal",
+    "visa-stamping",
     "physician"
   ],
   "concerns_or_questions_tag_list": [

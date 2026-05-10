@@ -5,9 +5,9 @@
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1t7esdh/travel_during_rfe/",
   "current_visa_status_and_greencard_category": ["H-1B"],
+  "visa_applying_for": ["h1b-transfer"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "h1b-transfer"
   ],
   "concerns_or_questions_tag_list": [
     "RFE", "travel-concern", "60day-grace-period", "100k-fee"

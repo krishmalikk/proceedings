@@ -7,12 +7,10 @@
   "current_visa_status_and_greencard_category": ["H-1B", "employment-based-immigration"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1",
-    "POE",
     "I-485"
   ],
   "concerns_or_questions_tag_list": [
-    "POE", "visa-expiring", "travel-concern"
+    "POE", "visa-expiring", "travel-concern", "CBP"
   ],
   "concerns_or_questions_summary": "worried about POE questioning",
   "key_stages_or_info": {

@@ -8,7 +8,6 @@
   "visa_applying_for": ["H-1B"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1B",
     "I-94",
     "overstay",
     "h1b-extension",
@@ -24,6 +23,7 @@
   "key_dates": {
     "visa_expire_date": "07/30/2026"
   },
+    "spouse_status": ["H-1B"],
   "posting_date": "2026-04-11",
   "ingestion_timestamp": "2026-04-13 14:30:05",
   "confidence_score": 92,

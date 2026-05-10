@@ -5,14 +5,11 @@
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1srz7ef/h1b_transfer_2026_taking_2_weeks_off_between_jobs/",
   "current_visa_status_and_greencard_category": ["H-1B"],
-  "visa_applying_for": ["H-1"],
+  "visa_applying_for": ["h1b-transfer"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1",
-    "h1b-transfer",
     "premium-processing",
-    "change-of-employer(COE)",
-    "legal-status"
+    "change-of-employer(COE)"
   ],
   "concerns_or_questions_tag_list": [
     "legal-status", "gap-concern"

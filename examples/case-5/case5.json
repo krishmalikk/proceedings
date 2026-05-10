@@ -5,11 +5,9 @@
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1shzoxn/h1b_rfe/",
   "current_visa_or_greencard_category": ["H-1B"],
-  "visa_applying_for": ["H-1B"],
+  "visa_applying_for": ["h1b-transfer"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1B",
-    "h1b-transfer",
     "RFE",
     "physician",
     "change-of-employer(COE)",

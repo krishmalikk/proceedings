@@ -8,8 +8,12 @@
   "consulate": "IN",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "visa-interview-scheduling", "tips", "visa-stamping", "backlog"
+    "tips", "visa-stamping", "backlog", "blog"
   ],
+  "concerns_or_questions_tag_list": [
+    "visa-interview-scheduling", "no-slot"
+  ],
+  "concerns_or_questions_summary": "No slot",
   "key_stages_or_info": {
   },
   "key_dates": {

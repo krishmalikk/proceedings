@@ -8,14 +8,11 @@
   "visa_applying_for": ["H-1"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "L-1A",
-    "change-of-status-COS",
     "l1-to-h1",
-    "visa-transfer",
-    "re-entry"
+    "visa-transfer"
   ],
   "concerns_or_questions_tag_list": [
-    "change-of-status(COS)", "re-entry"
+    "change-of-status(COS)", "re-entry", "layoff", "travel-concern"
   ],
   "concerns_or_questions_summary": "Employer only doing COS. Activate H-1B COS later on the same approved petition ?",
   "key_stages_or_info": {

@@ -8,9 +8,12 @@
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "premium-proessing",
-    "TSC",
-    "processing-timeline"
+    "TSC"
   ],
+  "concerns_or_questions_tag_list": [
+    "processing-time", "timeline"
+  ],
+  "concerns_or_questions_summary": "Status Pending",
   "key_stages_or_info": {
     "outcome_status": "pending"
   },

@@ -4,20 +4,19 @@
   "source_url": "https://reddit.com",
   "source_uri": "r1/h1b",
   "full_url": "https://www.reddit.com/r/h1b/comments/1sp6m0e/rfe_case_denied_for_h1b/",
-  "visa_applying_for": ["H-1"],
+    "current_visa_status_and_greencard_category": ["H-1B"],
+  "visa_applying_for": ["h1b-transfer"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1",
-    "visa-transfer",
     "RFE",
-    "visa-refused",
     "rfe-denied"
   ],
   "concerns_or_questions_tag_list": [
-    "speciality-occupation", "wage-level-compliance"
+    "speciality-occupation", "wage-level-compliance", "change-of-status(COS)"
   ],
   "concerns_or_questions_summary": "RFE denied",
   "key_stages_or_info": {
+    "outcome_status": "refused"
   },
   "key_dates": {
   },

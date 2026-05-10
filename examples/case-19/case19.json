@@ -8,19 +8,18 @@
   "consulate": "PK",
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1",
     "visa-interview",
-    "PERM",
     "221g",
-    "221g-pink",
-    "visa-refused"
+    "221g-pink"
   ],
   "concerns_or_questions_tag_list": [
     "visa-refused"
   ],
   "concerns_or_questions_summary": "Visa status not changing, still refused",
   "key_stages_or_info": {
-    "citizen_of_country": "PK"
+    "outcome_status": "refused",
+    "citizen_of_country": "PK",
+    "ceac_status": "refused"
   },
   "key_dates": {
   },

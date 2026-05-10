@@ -8,12 +8,11 @@
   "background_summary": "<summary_by_Gemini>",
   "tags": [
     "I-94",
-    "h1b-extension",
     "visa_expire_date",
     "passport_expire_date"
   ],
   "concerns_or_questions_tag_list": [
-    "visa_expire_date", "i94_expire_date"
+    "visa-expiring", "h1b-extension", "travel-concern", "re-entry"
   ],
   "concerns_or_questions_summary": "i94_expire_date before visa_expire_date",
   "key_stages_or_info": {

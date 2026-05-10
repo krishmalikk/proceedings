@@ -7,13 +7,13 @@
   "visa_applying_for": ["H-1"],
   "background_summary": "<summary_by_Gemini>",
   "tags": [
-    "H-1",
     "I-129",
     "consular-processing",
     "premium-processing",
     "cap-exempt",
     "first-time-visa",
-    "background-check"
+    "background-check",
+    "CSC"
   ],
   "concerns_or_questions_tag_list": [
     "processing-time", "background-check", "RFE"
