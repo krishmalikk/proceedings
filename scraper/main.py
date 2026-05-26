@@ -1,19 +1,21 @@
 """
-Cloud Run Scraper Tool — Firecrawl + GCS
-==========================================
-Receives a list of URLs, scrapes each via Firecrawl API,
-writes .md files to GCS in time-series folders, and returns
-{url, gcs_path, raw_text, status} for each page.
-
-Called by the Vertex AI Agent (Orchestrator).
+Cloud Run Scraper Tool — Firecrawl + Reddit JSON API + GCS
+============================================================
+Per Imm Specifications: Takes list of URLs, calls Firecrawl (or Reddit API),
+writes .md files to GCS in time-series folders, returns {source_url, source_uri,
+full_url, gcs_path, raw_text} for each URL back to the Agent.
 
 USAGE:
   uvicorn main:app --port 8080
 """
 
+import json
 import os
 import re
+import ssl
 import time
+import urllib.request
+import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -25,9 +27,9 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", "")
-GCP_BUCKET_NAME = os.getenv("GCP_BUCKET_NAME", "law-firm-knowledge-base")
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", os.getenv("GCP_BUCKET_NAME", "law-firm-knowledge-base"))
 
-app = FastAPI(title="Proceedings Scraper Tool")
+app = FastAPI(title="Imm Scraper Tool")
 
 
 # ---------------------------------------------------------------------------
@@ -35,53 +37,122 @@ app = FastAPI(title="Proceedings Scraper Tool")
 # ---------------------------------------------------------------------------
 
 class ScrapeRequest(BaseModel):
-    urls: list[str] = Field(..., min_length=1, max_length=50)
+    urls: list[str] = Field(..., min_length=1, max_length=100)
 
 
 class ScrapeResult(BaseModel):
-    url: str
-    gcs_path: str
-    raw_text: str
-    status: str  # "success", "failed", "skipped"
+    source_url: str       # Base domain (e.g. "https://reddit.com")
+    source_uri: str       # Relative path (e.g. "r/h1b")
+    full_url: str         # Full URL of the page
+    gcs_path: str         # gs://bucket/raw/YYYY-MM-DD/uuid_content.md
+    raw_text: str         # Full markdown content
+    status: str           # "success", "failed", "skipped"
     error: str = ""
 
 
 class ScrapeResponse(BaseModel):
-    results: list[ScrapeResult]
-    total: int
-    succeeded: int
-    failed: int
+    status: str
+    data: list[ScrapeResult]
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def url_to_filename(url: str) -> str:
-    """Convert URL to safe filename."""
+def parse_url_parts(url: str) -> tuple[str, str]:
+    """Extract source_url (base domain) and source_uri (path) from a URL."""
     parsed = urlparse(url)
-    domain = parsed.netloc.replace("www.", "").replace(".", "-")
+    base = f"{parsed.scheme}://{parsed.netloc}"
     path = parsed.path.strip("/")
-    if path:
-        slug = re.sub(r"[^a-zA-Z0-9\-]", "-", path.replace("/", "-"))
-        slug = re.sub(r"-+", "-", slug).strip("-")
-        filename = f"{domain}-{slug}.md"
-    else:
-        filename = f"{domain}-index.md"
-    return filename.lower()[:200]  # Cap filename length
+    return base, path
 
 
-def get_time_series_prefix() -> str:
-    """Get GCS prefix in YYYY/MM/DD format."""
+def get_gcs_path(bucket_name: str) -> tuple[str, str]:
+    """Generate GCS blob name and full gs:// path with date folder + UUID."""
     now = datetime.now(timezone.utc)
-    return f"raw/{now.strftime('%Y/%m/%d')}"
+    date_folder = now.strftime("%Y-%m-%d")
+    file_id = str(uuid.uuid4())[:8]
+    blob_name = f"raw/{date_folder}/{file_id}_content.md"
+    gcs_path = f"gs://{bucket_name}/{blob_name}"
+    return blob_name, gcs_path
 
 
-def scrape_url(app_fc, url: str, max_retries: int = 3) -> str | None:
-    """Scrape a single URL via Firecrawl with retries."""
+def is_reddit_url(url: str) -> bool:
+    """Check if URL is a Reddit URL."""
+    parsed = urlparse(url)
+    return "reddit.com" in parsed.netloc
+
+
+def scrape_reddit_post(url: str) -> tuple[str, dict]:
+    """Scrape a Reddit post using the JSON API. Returns (markdown, metadata)."""
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+
+    # Normalize URL for JSON API
+    clean_url = url.rstrip("/")
+    if not clean_url.endswith(".json"):
+        json_url = clean_url + ".json"
+    else:
+        json_url = clean_url
+
+    req = urllib.request.Request(json_url, headers={
+        "User-Agent": "proceedings-bot/1.0 (immigration research)"
+    })
+
+    with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
+        data = json.loads(resp.read().decode())
+
+    post_data = data[0]["data"]["children"][0]["data"]
+    title = post_data.get("title", "")
+    selftext = post_data.get("selftext", "")
+    author = post_data.get("author", "")
+    subreddit = post_data.get("subreddit", "")
+    score = post_data.get("score", 0)
+    created_utc = post_data.get("created_utc", 0)
+
+    # Extract top comments
+    comments = []
+    if len(data) > 1:
+        for comment in data[1]["data"]["children"][:10]:
+            if comment.get("kind") == "t1":
+                body = comment["data"].get("body", "")
+                c_author = comment["data"].get("author", "")
+                c_score = comment["data"].get("score", 0)
+                if body and len(body) > 20:
+                    comments.append(f"**u/{c_author}** (score: {c_score}):\n{body}")
+
+    # Build markdown
+    md_parts = [f"# {title}\n"]
+    md_parts.append(f"**Subreddit:** r/{subreddit} | **Author:** u/{author} | **Score:** {score}\n")
+    if selftext:
+        md_parts.append(f"\n{selftext}\n")
+    if comments:
+        md_parts.append(f"\n---\n\n## Top Comments\n")
+        for c in comments:
+            md_parts.append(f"\n{c}\n")
+
+    markdown = "\n".join(md_parts)
+
+    metadata = {
+        "subreddit": subreddit,
+        "author": author,
+        "score": score,
+        "created_utc": created_utc,
+        "num_comments": len(comments),
+    }
+
+    return markdown, metadata
+
+
+def scrape_with_firecrawl(url: str, max_retries: int = 3) -> str | None:
+    """Scrape a non-Reddit URL via Firecrawl API."""
+    from firecrawl import FirecrawlApp
+    fc = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
+
     for attempt in range(max_retries):
         try:
-            result = app_fc.scrape(url, formats=["markdown"])
+            result = fc.scrape(url, formats=["markdown"])
             markdown = result.markdown or ""
             if markdown and len(markdown.strip()) >= 100:
                 return markdown
@@ -100,34 +171,38 @@ def scrape_url(app_fc, url: str, max_retries: int = 3) -> str | None:
 
 @app.post("/scrape", response_model=ScrapeResponse)
 async def scrape_urls(body: ScrapeRequest):
-    """Scrape a list of URLs via Firecrawl, write to GCS, return results."""
-    if not FIRECRAWL_API_KEY:
-        raise HTTPException(status_code=500, detail="FIRECRAWL_API_KEY not configured")
-
-    from firecrawl import FirecrawlApp
-    fc_app = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
-
+    """Scrape list of URLs, write .md to GCS, return results for Agent."""
     gcs_client = storage.Client()
-    bucket = gcs_client.bucket(GCP_BUCKET_NAME)
-    prefix = get_time_series_prefix()
+    bucket = gcs_client.bucket(GCS_BUCKET_NAME)
 
     results = []
-    succeeded = 0
-    failed = 0
 
     for i, url in enumerate(body.urls):
-        filename = url_to_filename(url)
-        gcs_path = f"gs://{GCP_BUCKET_NAME}/{prefix}/{filename}"
+        source_url, source_uri = parse_url_parts(url)
+        blob_name, gcs_path = get_gcs_path(GCS_BUCKET_NAME)
 
         try:
-            markdown = scrape_url(fc_app, url)
+            # Scrape based on URL type
+            if is_reddit_url(url):
+                markdown, metadata = scrape_reddit_post(url)
+                source_metadata = json.dumps(metadata)
+            else:
+                if not FIRECRAWL_API_KEY:
+                    results.append(ScrapeResult(
+                        source_url=source_url, source_uri=source_uri,
+                        full_url=url, gcs_path="", raw_text="",
+                        status="failed", error="FIRECRAWL_API_KEY not set"
+                    ))
+                    continue
+                markdown = scrape_with_firecrawl(url)
+                source_metadata = ""
 
-            if not markdown:
+            if not markdown or len(markdown.strip()) < 100:
                 results.append(ScrapeResult(
-                    url=url, gcs_path="", raw_text="",
-                    status="skipped", error="Empty or too short content"
+                    source_url=source_url, source_uri=source_uri,
+                    full_url=url, gcs_path="", raw_text="",
+                    status="skipped", error="Content too short or empty"
                 ))
-                failed += 1
                 continue
 
             # Add frontmatter
@@ -135,36 +210,32 @@ async def scrape_urls(body: ScrapeRequest):
             content = f"---\nsource_url: {url}\ncrawled_at: {now}\n---\n\n{markdown}"
 
             # Write to GCS
-            blob = bucket.blob(f"{prefix}/{filename}")
+            blob = bucket.blob(blob_name)
             blob.upload_from_string(content, content_type="text/markdown")
 
             results.append(ScrapeResult(
-                url=url,
+                source_url=source_url,
+                source_uri=source_uri,
+                full_url=url,
                 gcs_path=gcs_path,
                 raw_text=markdown,
                 status="success",
             ))
-            succeeded += 1
 
         except Exception as e:
             results.append(ScrapeResult(
-                url=url, gcs_path="", raw_text="",
+                source_url=source_url, source_uri=source_uri,
+                full_url=url, gcs_path="", raw_text="",
                 status="failed", error=str(e)[:200]
             ))
-            failed += 1
 
-        # Rate limit between requests
+        # Rate limit
         if i < len(body.urls) - 1:
             time.sleep(1)
 
-    return ScrapeResponse(
-        results=results,
-        total=len(body.urls),
-        succeeded=succeeded,
-        failed=failed,
-    )
+    return ScrapeResponse(status="success", data=results)
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "proceedings-scraper"}
+    return {"status": "ok", "service": "imm-scraper-tool"}

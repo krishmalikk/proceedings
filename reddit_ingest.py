@@ -86,23 +86,38 @@ def print_summary(all_results: list[dict], max_samples: int = 5) -> None:
     print(f"  Failed/Skipped:  {len(failed)}")
 
     if succeeded:
-        # Label distribution
+        # Label distribution from labeled_json
         from collections import Counter
-        all_labels = Counter()
+        all_tags = Counter()
+        visa_cats = Counter()
         for r in succeeded:
-            for l in r.get("labels", []):
-                all_labels[l] += 1
+            lj = r.get("labeled_json", {}) or {}
+            for t in lj.get("tags", []):
+                all_tags[t] += 1
+            for v in lj.get("current_visa_or_greencard_category", []):
+                visa_cats[v] += 1
 
-        print(f"\n--- Top Labels ---")
-        for label, count in all_labels.most_common(10):
-            print(f"  {label:35s} {count}")
+        if all_tags:
+            print(f"\n--- Top Tags ---")
+            for tag, count in all_tags.most_common(10):
+                print(f"  {tag:35s} {count}")
+
+        if visa_cats:
+            print(f"\n--- Visa Categories Seen ---")
+            for cat, count in visa_cats.most_common(10):
+                print(f"  {cat:20s} {count}")
 
         print(f"\n--- Sample Successes ({min(max_samples, len(succeeded))} of {len(succeeded)}) ---")
         for r in succeeded[:max_samples]:
-            url = r.get("url", "")[:70]
-            labels = r.get("labels", [])[:3]
+            url = r.get("full_url", r.get("url", ""))[:70]
+            lj = r.get("labeled_json", {}) or {}
+            tags = lj.get("tags", [])[:4]
+            summary = lj.get("background_summary", "")[:80]
+            conf = lj.get("confidence_score", 0)
             print(f"  {url}")
-            print(f"    → {labels}")
+            print(f"    Tags: {tags} (confidence: {conf})")
+            if summary:
+                print(f"    Summary: {summary}")
 
     if failed:
         print(f"\n--- Sample Failures ({min(max_samples, len(failed))} of {len(failed)}) ---")
