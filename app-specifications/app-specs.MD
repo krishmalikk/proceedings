@@ -3,20 +3,28 @@
 
 ## 1. Executive Summary
 
-This document outlines the specifications for a web-based platform that uses an AI chatbot interface as the primary method for users to search for, interact with and create postings . The goal is to replace traditional form-based search and submission with a conversational, intuitive experience.
+This document outlines the specifications for a web-based and mobile based platform that uses an AI chatbot interface as the primary method for users to search for, interact with and create postings . 
+The goal is to replace traditional form-based search and submission with a conversational, intuitive experience.
 
 ## 2. Product Vision & Goals
 
+The app referred in this document refers to both mobile and web version of same functionality.
+
 ### Vision: 
-- To create the most frictionless and intuitive listing platform by leveraging natural language processing for both discovery and creation. using labelling tools and advanced Vertex AI featured
-- Acts as an expert on US Immigration on generic informat
+- To create the most frictionless and intuitive us-immigration vertical platform by leveraging natural language processing for both discovery and creation. 
+- Use labelling/tagging tools and advanced Vertex AI features in backend
+- Acts as an expert on US Immigration with generic knowledge base along with postings ingested by this website as well other websites like reddit.com
+
 
 ### Goals:
-- Use symmantic search to find similar postings based upon labelling created in backend and stored with the content
-- Use Machine Leaning / advanced Gemini / LLM featured to connect people who are in same boat of US Immigration journey
+- Use symmantic search to find similar postings based upon labelling created in backend and stored with the content as sidecar pattern
+- Use Machine Leaning / advanced Gemini / LLM features to connect people who are in same boat of US Immigration journey
 - Increase search relevance by understanding user intent rather than just keywords. 
 - Provide a mobile-first, highly responsive user experience.
 - have abilility to setup a profile to capture basic details of user's journey into US immigration
+- Store metadata of each posting in same json format in same sidecar pattern with content in Vertex AI search as ingested from reddit.com
+- Chatbot captures basic information (if not already setup) which can be represented as tags as specified in various CSV files located in [tags](../tags-cleaned) in a JSON format specified in [content-ingestion=specifications](../content-ingestion-specifications)
+- The information captured for the user is stored in GCP backend against the generated userid and will be provided as context to Gemini, as needed
 
 ## 3. Target Audience
 Seekers: Users looking for advise on any US immigration topic, connect with people in similar journey
@@ -27,17 +35,16 @@ Posters: Users wanting to post their experience and their journey which can help
 
 Below documents refer to the backend processes of content ingestion from other websites (like reddit.com), data labelling and store ito Vertex AI Search.
 1. Folder containing various context documents [content-ingestion-specification](../content-ingestion-specifications)
-2. Pipeline to ingest from reddit.com  [reddit-ingestion-pipelines](../content-ingestion-specifications/REDDIT-INGESTION-PIPELINE.md) 
 3. Folder containing tagging specifications [tagging-pecifications](../tagging-specifications)
 4. Folder containing master list of tags which will be used for tagging [tags-cleaned](../tags-cleaned)
-5. Folder containing examples of postings and corresponding metadata / labels/ tags created for that posting [posting-examples](../postings-examples)
 
-This app is another channel of ingestion and also an interface to symmetric search from this content.
 
 ## 5. Key Features & Functionality
 
-- This app acts as  additional channel of contents/ postings related to US Immigration similar to reddit API ingestion where user can directly post or ask question. 
+- This app acts as  additional channel of contents/ postings ingestion related to US Immigration similar to reddit API ingestion where user can directly post or ask question. 
 - Ability to detect if this app is being accessed from within the USA or outside and this will determine the behaviour of the user's experience
+- This app is an interface to symmetric search from Vertex AI Search backend on the content ingested from this app as well as from other pipelines like reddit.com
+
 
 ### 5.1. The AI Chatbot Interface (Core Interaction)
 
@@ -104,6 +111,12 @@ For example:
 
 ### 5.2. Searching via Chat
 
+#### Knowledge base 
+There are two kinds of results returned when users seeks to search:
+1) Search within the content postings grounded in Vertex AI datastore
+2) When asked for advise, the conversational chatbot can act as an expert of US Immigration system, although a disclaimer should be provided as this advise provided is not a legal advice.
+
+#### Presentation
 Dynamic Results Display: Search results are presented within or alongside the chat interface in a rich card format (title, key details).
 
 Conversational Filtering: Users can refine results using natural language (e.g., "Show me recent experiences only," "Only show ones posted today").
@@ -128,7 +141,16 @@ Messaging: (Optional/V2) In-app messaging between Seekers and Posters, potential
 
 ### 5.5 User Profile
 
-Setup: User enters basic information specifically relevant about their journey in US Immigration system
+#### Setup: User enters basic information specifically relevant about their journey in US Immigration system
+#### Basic Information: At the time of onboarding a user or when user is seeking / posting information, a basic information of the user (applicant) should be gathered. 
+For example:
+- If a person already is USA on `F-1`, `H-1` etc, then using the flow in diagram [f1-to-h1-gc](./imm-flows-example/f1-to-h1-gc.png) determine through the Conversational AI chatbot what stage is the applicant is in and what stage he planning to go next
+- If a person does not live in USA and applying from a consulate abroad then determine the basic information on visa category, first-time, any prior visas etc.
+- If a person already applied for a visa abroad then determine user's experience of interview/process along with outcome and any tips the user can provide to future applicants
+- Acting as an expert of US Immigration sustem, if any of above flows does not apply to applicant then determine what non-immigrant or immigrant flow applies to the applicant and follow that flow to determine applicant's stage
+#### Capture thie one-time basic information of the user and allow user to keep providing updates to the status of his/her US immigration journey, along with dates, as and when it happens
+#### This basic information should be stored in backend in GCP and should be accessed by Vertex AI Conversational system as context
+#### No personal information PII or PII should be gathered in setting up user profile
 
 
 ## 6 Technical Specifications
@@ -164,7 +186,33 @@ CDN: Google CLoud provider for fast asset delivery.
 
 ## 7. User Flows
 
-### 7.1 Flow 1: Searching
+### 7.1 Flow 1: Onboarding / User profile
+See section 5.5 above on User Profile
+#### Case1: App detects User is outside USA and his/her profile not setup
+
+Bot greets: "Hi! Are you looking to apply for a US visa or general information regarding US visas ?"
+
+User: "yes, I need to apply for a B-1 visa"
+
+Bot responds: "I can help you with that. Do you already have a visa interview scheduled or need help in scheduling ?"
+
+User: " I already have it scheduled"
+
+Bot Responds: "When is it scheduled ?"
+
+User: "06/10/2026"
+
+Bot Responds: "Great. I have other users who are scheduled before you for same visa. Would you like to know their experiences ?"
+
+User: "Yes, please"
+
+Bot Responds: "Great, while I search for other user's experiences, please provide your basic information so that I provide precise information to you"
+
+System then ask for basic information which can be represented as tags as specified in various CSV files located in [tags](../tags-cleaned) in a JSON format specified in [content-ingestion=specifications](../content-ingestion-specifications)
+
+System queries from Verttex AI backend.
+
+### 7.2 Flow 1: Searching
 
 User lands on homepage.
 
@@ -176,7 +224,7 @@ System queries from Verttex AI backend.
 
 Bot responds: "Here are some recent experiences from applicants appeared in Mumbai consulate for B-1/B-2 visa" and displays a carousel of listing cards.
 
-### Flow 2: Posting
+### Flow 3: Posting
 
 User lands on homepage.
 
