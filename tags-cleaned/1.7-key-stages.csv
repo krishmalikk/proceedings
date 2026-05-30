@@ -1,0 +1,26 @@
+tag,Description
+citizen_of_country,Country of citizenship key (value is country code from section 1.4)
+born_in_country,Country of birth key (value is country code from section 1.4)
+resident_of_country,Country of residence key (value is country code from section 1.4)
+fiance_of_country,Country of fiance/fiancee key (value is country code from section 1.4)
+spouse_status,Spouse's immigration status key (value is a status tag)
+ceac_status,"CEAC case-tracker status key. Use ONLY when the post EXPLICITLY cites the CEAC portal / ""CEAC status"". Value is a CEAC status string (e.g. Issued, Refused, Administrative Processing, Ready, Application Received). For non-CEAC outcomes, use outcome_status instead."
+ceac_status_issued,CEAC status indicating visa was issued
+ceac_status_approved,CEAC status indicating petition/visa was approved
+outcome_status,"Generic outcome status key (value is an outcome from section 1.9). Use this as the DEFAULT for any visa/petition/interview outcome the post describes. Reserve ceac_status for posts that explicitly reference the CEAC portal."
+visa_status,Current visa status key
+visa_type,Type of visa held (value is a visa tag from section 1.1)
+case_status,Status of an immigration case
+petition_status,Status of a petition (e.g.
+application_status,Status of an application
+biometrics_status,Status of biometrics appointment/completion
+interview_status,Status of an interview (scheduled/completed/waived)
+rfe_status,Status of a Request for Evidence response
+consulate_assigned,Consulate assigned for processing (value is a city/post code from section 1.4)
+service_center_assigned,USCIS Service Center assigned for processing
+priority_date_status,Priority date currency status (current/not-current)
+admissibility_status,Status of admissibility determination
+employer_name,Employer associated with a work visa
+sponsor_name,Sponsor name for petition-based applications
+country_of_chargeability,Country of chargeability for visa quota purposes
+travel_country,Country candidate traveled to / from in the relevant event (value is country code from section 1.4)

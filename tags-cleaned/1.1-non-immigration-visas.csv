@@ -1,0 +1,78 @@
+tag,Name / Classification,Primary Purpose & Description,Relevant Tags
+B-1,Business Visitor,"Short-term business activities like meetings, conferences, or contract negotiations.",temporary-business-visa
+B-2,Tourism Visitor,"Vacation, visiting family, or seeking medical treatment.",temporary-visitor-visa
+F-1,Academic Student,"Full-time students at accredited colleges, universities, or language schools.",student-visa
+F-2,F-1 Dependent,Immediate family members of an F-1 student.,dependent-visa
+M-1,Vocational Student,Students in non-academic or vocational training programs.,student-visa
+J-1,Exchange Visitor,"Exchange programs (research scholars, students, interns, physicians, au pairs, trainees).",exchange-visitor
+J-2,J-1 Dependent,Spouse and unmarried children (under 21) of J-1 exchange visitors.,dependent-visa
+H-1B,Specialty Occupation,"Professionals in specialized fields (IT, engineering, sciences) requiring at least a bachelor's degree.",temporary-work-visa
+H-1B1,FTA Professionals (Chile & Singapore),H-1B variant specifically for citizens of Chile and Singapore.,temporary-work-visa
+H-2A,Temporary Agricultural Worker,Performs agricultural labor or services of a temporary or seasonal nature.,temporary-work-visa
+H-2B,Temporary Non-Agricultural Worker,"Seasonal or temporary non-agricultural jobs (hospitality, landscaping, construction, seafood).",temporary-work-visa
+H-3,Trainee / Special Education Exchange Visitor,Individuals receiving training in any field not available in their home country.,temporary-work-visa
+H-4,H-Visa Dependent,Spouses and unmarried children (under 21) of any H-category visa holder.,dependent-visa
+L-1,Intracompany Transferee,"Managers, executives, or specialized employees transferring from a foreign branch to a US office.",temporary-work-visa
+L-1A,Intracompany Transferee - Manager/Executive,Managers and executives transferring from a foreign branch to a US office.,temporary-work-visa
+L-1B,Intracompany Transferee - Specialized Knowledge,Specialized knowledge professionals transferring from a foreign branch to a US office.,temporary-work-visa
+L-2,L-1 Dependent,Spouse and unmarried children (under 21) of L-1 visa holders.,dependent-visa
+L-2S,L-2 with Employment Authorization,L-2 spouse with automatic work authorization based on L-1 status.,dependent-visa
+O-1,Extraordinary Ability,"Individuals with extraordinary achievement in science, arts, education, business, or athletics.",temporary-work-visa
+O-1A,Extraordinary Ability - Sciences/Education/Business/Athletics,"Extraordinary achievement in sciences, education, business, or athletics.",temporary-work-visa
+O-1B,Extraordinary Ability - Arts,Extraordinary achievement in the arts or motion picture/television industry.,temporary-work-visa
+O-2,Essential Support Personnel,Individuals who accompany and assist an O-1 holder for a specific event or performance.,temporary-work-visa
+O-3,O-1/O-2 Dependent,Spouse and unmarried children (under 21) of O-1 and O-2 visa holders.,dependent-visa
+E-1,Treaty Trader,Individuals or employees of companies engaged in substantial international trade between the U.S. and a treaty country.,treaty-visa
+E-2,Treaty Investor,Live and work in the U.S. by investing a substantial amount of capital in a U.S. business.,treaty-visa
+E-3,Australian Specialty Occupation,Exclusive to Australian nationals working in a specialty occupation.,treaty-visa
+K-1,Fiancé(e),Fiancé(e) of a U.S. citizen entering the U.S. for marriage.,family-visa
+K-3,Spouse of U.S. Citizen,Shortens separation while immigrant petition is pending.,family-visa
+K-4,Child of K-3,Unmarried children (under 21) of K-3 visa holders.,family-visa
+P-1,"Athletes & Entertainers, Internationally Recognized",Athletes or entertainers performing at specific events.,temporary-work-visa
+P-1A,"Athletes, Internationally Recognized",Individual athletes or athletic teams that are internationally recognized.,temporary-work-visa
+P-1B,Entertainment Group,Members of an entertainment group recognized internationally as outstanding for a sustained period.,temporary-work-visa
+P-2,Reciprocal Exchange Program,Artists or entertainers under a reciprocal exchange program.,temporary-work-visa
+P-3,Culturally Unique Program,"Artists or entertainers performing, teaching, or coaching under a culturally unique program.",temporary-work-visa
+P-4,P-1/P-2/P-3 Dependent,"Spouse and unmarried children (under 21) of P-1, P-2, or P-3 holders.",dependent-visa
+P-1S,P-1 Support,Essential support personnel for a P-1 performance.,temporary-work-visa
+P-2S,P-2 Support,Essential support personnel for a P-2 performance.,temporary-work-visa
+P-3S,P-3 Support,Essential support personnel for a P-3 performance.,temporary-work-visa
+R-1,Religious Worker,Ministers or people in religious vocations working for non-profit religious organizations.,religious-worker-visa
+R-2,R-1 Dependent,Spouse and unmarried children (under 21) of R-1 visa holders.,dependent-visa
+C-1,General Transit,Individuals traveling through the U.S. en route to a third country.,transit-visa
+C-2,UN Transit,Foreign representatives traveling solely to the United Nations Headquarters.,transit-visa
+C-3,Government Official Transit,Foreign government officials passing through the U.S. for official duties.,transit-visa
+D,Crewmember,Personnel working on international ships or airlines stopping in the U.S.,crewmember-visa
+A,Diplomatic,"Foreign government officials, diplomats, and their immediate family.",diplomatic-visa
+A-1,Diplomatic - Senior Officials,"Heads of state, ambassadors, public ministers, and senior career diplomatic/consular officers.",diplomatic-visa
+A-2,Diplomatic - Other Government Officials,Other accredited foreign government officials.,diplomatic-visa
+A-3,Diplomatic - Personal Employees,"Personal attendants, domestic workers, or servants of A-1 and A-2 holders.",diplomatic-visa
+T-1,Trafficking Victim,Primary victim of severe forms of human trafficking.,humanitarian-visa
+T-2,Spouse of T-1,Spouse of the T-1 holder.,humanitarian-visa
+T-3,Child of T-1,Children of the T-1 holder.,humanitarian-visa
+T-4,Parent of T-1,Parents of the T-1 holder (only if T-1 is under age 21).,humanitarian-visa
+T-5,Sibling of T-1,Unmarried siblings under age 18 (only if T-1 is under age 21).,humanitarian-visa
+T-6,Derivative Child of T-1,"Children of a derivative family member (e.g., grandchildren of T-1).",humanitarian-visa
+TN,NAFTA / USMCA Professionals,Professional visas for citizens of Canada and Mexico.,temporary-work-visa
+TN-1,TN Canadian,Canadian citizens who are qualified professionals with a U.S. job offer.,temporary-work-visa
+TN-2,TN Mexican,Mexican citizens who are qualified professionals with a U.S. job offer.,temporary-work-visa
+TD,TN Dependent,Spouses and unmarried children (under 21) of TN-1 or TN-2 holders.,dependent-visa
+TD-1,TN-1 Dependent,Spouses and unmarried children (under 21) of Canadian TN-1 holders.,dependent-visa
+TD-2,TN-2 Dependent,Spouses and unmarried children (under 21) of Mexican TN-2 holders.,dependent-visa
+I,Foreign Media,"Representatives of foreign press, radio, film, or other information media.",media-visa
+I-1,Foreign Media Principal,"Journalists, reporters, film crews, editors working for foreign media organizations.",media-visa
+I-2,Foreign Media Dependent,Spouse and unmarried children (under 21) of the principal I visa holder.,dependent-visa
+U-1,Crime Victim,Victims of certain qualifying crimes who assist law enforcement.,humanitarian-visa
+U-2,Crime Victim Spouse,Spouse of a U-1 principal.,humanitarian-visa
+U-3,Crime Victim Child,Unmarried child (under 21) of a U-1 principal.,humanitarian-visa
+V-1,LPR Spouse,Spouse of a Lawful Permanent Resident awaiting an immigrant visa.,family-visa
+V-2,LPR Child,Unmarried child (under 21) of an LPR awaiting an immigrant visa.,family-visa
+V-3,LPR Derivative,Derivative child of a V-1 or V-2 holder.,family-visa
+G-1,Permanent Mission Member,Permanent mission members of a recognized government to an international organization.,diplomatic-visa
+G-2,International Organization Representative,Other accredited representatives of foreign governments to international organizations.,diplomatic-visa
+G-3,Non-Recognized Government Representative,Representatives of non-recognized or non-member governments.,diplomatic-visa
+G-4,International Organization Employee,Officers and employees of designated international organizations.,diplomatic-visa
+G-5,International Organization Personal Employee,"Personal employees of G-1, G-2, G-3, or G-4 holders.",diplomatic-visa
+Q-1,International Cultural Exchange,Participants in international cultural exchange programs.,exchange-visitor
+S-5,Criminal Informant,Witnesses or informants concerning a criminal organization or enterprise.,humanitarian-visa
+S-6,Terrorist Informant,Witnesses or informants concerning terrorism.,humanitarian-visa
