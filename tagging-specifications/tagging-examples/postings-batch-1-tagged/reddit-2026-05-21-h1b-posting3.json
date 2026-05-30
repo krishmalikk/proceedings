@@ -1,0 +1,63 @@
+{
+  "case_id": "reddit-2026-05-21-h1b-posting3",
+  "doc_kind": "post",
+  "parent_case_id": "",
+  "reddit_post_id": "posting3",
+  "ingestion_method": "manual_upload",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "",
+  "post_title": "Is having a H1B of any use anymore?",
+  "language": "en",
+  "posting_date": "2026-05-21",
+  "ingestion_timestamp": "2026-05-21T21:12:49Z",
+  "last_updated_timestamp": "2026-05-21T21:12:49Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "manual upload from manual-reddit-postings/postings-batch-1/posting3.md",
+  "gcs_path": "gs://imm-postings-ingestion/2026-05-21/reddit/reddit-2026-05-21-h1b-posting3.md",
+  "background_summary": "The applicant, who had an H1B visa, was forced to leave the U.S. after a B-2 visa denial. Subsequently, their H1B job offer was rescinded due to an RFE demanding a $100k fee.",
+  "concerns_or_questions_summary": "The applicant questions the continued utility of their H1B status given these recent setbacks, despite having a valid visa stamp.",
+  "current_visa_or_greencard_category": [
+    "H-1B",
+    "B-2"
+  ],
+  "visa_applying_for": [
+    "H-1B"
+  ],
+  "primary_consulate": "IN",
+  "consulates": [
+    "IN"
+  ],
+  "tags": [
+    "experience-posting",
+    "visa-stamping"
+  ],
+  "concerns_or_questions_tags": [
+    "100k-fee",
+    "h1b-rfe",
+    "offer-rescinded",
+    "visa-refused",
+    "deportation"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "critical",
+  "resolution_status": "open",
+  "derived_topic_cluster": [],
+  "key_stages_or_info": {
+    "visa_type": "H-1B",
+    "spouse_status": "H-1B",
+    "travel_country": "IN",
+    "outcome_status": "denied",
+    "rfe_status": "RFE"
+  },
+  "key_dates": {
+    "visa_expire_date": "2027-12-31",
+    "visa_refused_date": "2026-05-06",
+    "rfe_date": "2026-05-06"
+  },
+  "embedding_text": "Is having a H1B of any use anymore?. The applicant, who had an H1B visa, was forced to leave the U.S. after a B-2 visa denial. Subsequently, their H1B job offer was rescinded due to an RFE demanding a $100k fee. The applicant questions the continued utility of their H1B status given these recent setbacks, despite having a valid visa stamp. Tags: experience-posting, visa-stamping. Concerns: 100k-fee, h1b-rfe, offer-rescinded, visa-refused, deportation. Stages: visa_type:H-1B, spouse_status:H-1B, travel_country:IN, outcome_status:denied, rfe_status:RFE. Dates: visa_expire_date:2027-12-31, visa_refused_date:2026-05-06, rfe_date:2026-05-06.",
+  "index_state": null
+}

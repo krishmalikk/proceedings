@@ -1,0 +1,46 @@
+{
+  "case_id": "reddit-2026-05-21-h1b-posting2",
+  "doc_kind": "post",
+  "parent_case_id": "",
+  "reddit_post_id": "posting2",
+  "ingestion_method": "manual_upload",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "",
+  "post_title": "expect more tightening to h1b and OPT programs",
+  "language": "en",
+  "posting_date": "2026-05-21",
+  "ingestion_timestamp": "2026-05-21T21:12:02Z",
+  "last_updated_timestamp": "2026-05-21T21:12:02Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "manual upload from manual-reddit-postings/postings-batch-1/posting2.md",
+  "gcs_path": "gs://imm-postings-ingestion/2026-05-21/reddit/reddit-2026-05-21-h1b-posting2.md",
+  "background_summary": "The post discusses potential tightening of H-1B and OPT programs, linking to news articles for discussion.",
+  "concerns_or_questions_summary": "The user is asking for discussion on the implications of potential policy changes affecting H-1B and OPT programs.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "news-update",
+    "discussion"
+  ],
+  "concerns_or_questions_tags": [
+    "OPT",
+    "bill"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "h1b-policy",
+    "opt-policy"
+  ],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "expect more tightening to h1b and OPT programs. The post discusses potential tightening of H-1B and OPT programs, linking to news articles for discussion. The user is asking for discussion on the implications of potential policy changes affecting H-1B and OPT programs. Tags: news-update, discussion, H-1B, OPT, bill. Stages: . Dates: .",
+  "index_state": null
+}

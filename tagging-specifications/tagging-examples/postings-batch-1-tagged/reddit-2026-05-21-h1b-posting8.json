@@ -1,0 +1,72 @@
+{
+  "case_id": "reddit-2026-05-21-h1b-posting8",
+  "doc_kind": "post",
+  "parent_case_id": "",
+  "reddit_post_id": "posting8",
+  "ingestion_method": "manual_upload",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "",
+  "post_title": "H1B Employer Didn\u2019t Pay Me, New Offer Rescinded, Now Considering Legal Action \u2014 Need Advice",
+  "language": "en",
+  "posting_date": "2026-05-21",
+  "ingestion_timestamp": "2026-05-21T21:15:23Z",
+  "last_updated_timestamp": "2026-05-21T21:15:23Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "manual upload from manual-reddit-postings/postings-batch-1/posting8.md",
+  "gcs_path": "gs://imm-postings-ingestion/2026-05-21/reddit/reddit-2026-05-21-h1b-posting8.md",
+  "background_summary": "Applicant on H1B, relocated to Seattle from Texas for a construction company job in Jan 2026. Let go in mid-March, employer didn't provide termination letter or pay for multiple weeks. New H1B transfer offer was rescinded due to missing paystubs/proof of employment. Applicant filed a wage complaint, withdrew it under pressure, and communication became inconsistent. They recently filed a B2 Change of Status to avoid falling out of status.",
+  "concerns_or_questions_summary": "The applicant is seeking advice on similar situations, specifically whether hiring an employment attorney for unpaid wages was worth it. They also ask about employers withholding paystubs, H1B transfer issues due to missing documentation, USCIS accepting alternate proof of employment, and refiling wage complaints after withdrawal.",
+  "current_visa_or_greencard_category": [
+    "H-1B"
+  ],
+  "visa_applying_for": [
+    "B-2"
+  ],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "layoff",
+    "wage-level-compliance",
+    "employer-letter",
+    "offer-rescinded",
+    "change-of-status-COS",
+    "out-of-status",
+    "legal-status",
+    "employment-based-immigration",
+    "discussion",
+    "60day-grace-period",
+    "unlawful-presence",
+    "income-issue"
+  ],
+  "concerns_or_questions_tags": [
+    "h1b-transfer",
+    "required-documents",
+    "attorney-fee",
+    "lawyer-recommendation",
+    "h1b-rfe",
+    "processing-delay"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "other",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "h1b-status-repair",
+    "employment-dispute"
+  ],
+  "key_stages_or_info": {
+    "employer_name": "small construction company",
+    "visa_status": "H-1B",
+    "case_status": "pending",
+    "resident_of_country": "US"
+  },
+  "key_dates": {
+    "employment_end_date": "2026-03-16",
+    "layoff_notification_date": "2026-03-15"
+  },
+  "embedding_text": "H1B Employer Didn\u2019t Pay Me, New Offer Rescinded, Now Considering Legal Action \u2014 Need Advice. Applicant on H1B, relocated to Seattle from Texas for a construction company job in Jan 2026. Let go in mid-March, employer didn't provide termination letter or pay for multiple weeks. New H1B transfer offer was rescinded due to missing paystubs/proof of employment. Filed wage complaint, withdrew it under pressure, and communication became inconsistent. They recently filed a B2 Change of Status to avoid falling out of status. Seeking advice on similar situations. Was hiring an employment attorney for unpaid wages worth it? Dealt with employers withholding paystubs/delaying final pay on H1B? H1B transfer issues due to missing documentation? USCIS accepting alternate proof of employment instead of paystubs? Refiling wage complaints after withdrawing them?. Tags: H-1B, B-2, layoff, wage-level-compliance, employer-letter, offer-rescinded, change-of-status-COS, out-of-status, legal-status, employment-based-immigration, discussion, 60day-grace-period, unlawful-presence, income-issue, h1b-transfer, required-documents, wage-complaint, attorney-fee, lawyer-recommendation, legal-action, h1b-rfe, processing-delay. Stages: employer_name: small construction company, visa_status: H-1B, case_status: pending, resident_of_country: US. Dates: employment_end_date: 2026-03-16, layoff_notification_date: 2026-03-15.",
+  "index_state": null
+}

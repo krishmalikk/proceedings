@@ -1,0 +1,66 @@
+{
+  "case_id": "reddit-2026-05-21-h1b-posting1",
+  "doc_kind": "post",
+  "parent_case_id": "",
+  "reddit_post_id": "posting1",
+  "ingestion_method": "manual_upload",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "",
+  "post_title": "Feeling lost and hopeless on H1-B",
+  "language": "en",
+  "posting_date": "2026-05-21",
+  "ingestion_timestamp": "2026-05-21T21:11:00Z",
+  "last_updated_timestamp": "2026-05-21T21:11:00Z",
+  "tagging_confidence": 0.95,
+  "source_metadata": "manual upload from manual-reddit-postings/postings-batch-1/posting1.md",
+  "gcs_path": "gs://imm-postings-ingestion/2026-05-21/reddit/reddit-2026-05-21-h1b-posting1.md",
+  "background_summary": "The applicant is on an H1-B visa which is maxing out in August 2026. Their current company has paused all PERM processes, offering only an India office relocation. The applicant's boyfriend has an H1-B but no I-140, preventing the applicant from being a dependent. They have financial debt in the US and responsibilities for parents in India.",
+  "concerns_or_questions_summary": "The applicant is seeking advice on navigating their situation, including options for staying in the US, moving to Canada or Mexico, and dealing with job search difficulties and low salary offers in India. They are concerned about their H1-B max-out and lack of PERM sponsorship.",
+  "current_visa_or_greencard_category": [
+    "H-1B"
+  ],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [
+    "IN",
+    "CA",
+    "MX"
+  ],
+  "tags": [
+    "re-entry",
+    "income-issue",
+    "family-ties",
+    "third-country",
+    "green-card-status"
+  ],
+  "concerns_or_questions_tags": [
+    "h1b-6-year-rule",
+    "perm-filing",
+    "h4-work-auth",
+    "job-search",
+    "travel-concern",
+    "change-status-options",
+    "status-expiring"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "h1b-max-out-options",
+    "status-maintenance",
+    "international-relocation"
+  ],
+  "key_stages_or_info": {
+    "resident_of_country": "US",
+    "country_of_chargeability": "IN"
+  },
+  "key_dates": {
+    "h1b_expire_date": "2026-08-31"
+  },
+  "embedding_text": "Feeling lost and hopeless on H1-B. The applicant is on an H1-B visa which is maxing out in August 2026. Their current company has paused all PERM processes, offering only an India office relocation. The applicant's boyfriend has an H1-B but no I-140, preventing the applicant from being a dependent. They have financial debt in the US and responsibilities for parents in India. The applicant is seeking advice on navigating their situation, including options for staying in the US, moving to Canada or Mexico, and dealing with job search difficulties and low salary offers in India. They are concerned about their H1-B max-out and lack of PERM sponsorship. Tags: H-1B, IN, CA, MX, re-entry, income-issue, family-ties, third-country, green-card-status, h1b-6-year-rule, perm-filing, h4-work-auth, job-search, travel-concern, change-status-options, status-expiring. Stages: resident_of_country: US, country_of_chargeability: IN. Dates: h1b_expire_date: 2026-08-31.",
+  "index_state": null
+}

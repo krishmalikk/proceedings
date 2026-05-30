@@ -1,0 +1,3 @@
+Feeling lost and hopeless on H1-B
+
+I am maxing out my h1-b in August this year and my current company has paused all the perm processes. They are only giving an option to join india office for meanwhile. My boyfriend just got his H1-b last year , so he doesn’t have an I-140. So i can’t be a dependent and work. I have been trying to apply jobs in canada , but none of them sponsor work permits. I don’t have a PR. I do have some financial debt in US. And also financial responsibilities of my parents back in India. The salary being offered is very low in India(my company). I just don’t know how to navigate this situation. Has anyone been in this place or tried to move to canada or Mexico? Really looking for some hope.

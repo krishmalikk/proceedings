@@ -1,0 +1,49 @@
+{
+  "case_id": "reddit-2026-05-21-h1b-posting4",
+  "doc_kind": "post",
+  "parent_case_id": "",
+  "reddit_post_id": "posting4",
+  "ingestion_method": "manual_upload",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "",
+  "post_title": "Your Life at EVERY level of the H1B'",
+  "language": "en",
+  "posting_date": "2026-05-21",
+  "ingestion_timestamp": "2026-05-21T21:13:22Z",
+  "last_updated_timestamp": "2026-05-21T21:13:22Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "manual upload from manual-reddit-postings/postings-batch-1/posting4.md",
+  "gcs_path": "gs://imm-postings-ingestion/2026-05-21/reddit/reddit-2026-05-21-h1b-posting4.md",
+  "background_summary": "The post describes the long-term psychological impact of living on an H1B visa, including constant anxiety and the inability to take risks due to immigration status.",
+  "concerns_or_questions_summary": "The author expresses the pervasive stress and lack of relaxation experienced by H1B holders, exacerbated by the extremely long Green Card backlog for Indian nationals.",
+  "current_visa_or_greencard_category": [
+    "H-1B"
+  ],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [
+    "IN"
+  ],
+  "tags": [
+    "60day-grace-period",
+    "green-card-status",
+    "employment-based-immigration"
+  ],
+  "concerns_or_questions_tags": [
+    "backlog",
+    "unlawful-presence",
+    "processing-delay"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": [],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Your Life at EVERY level of the H1B'. The post describes the long-term psychological impact of living on an H1B visa, including constant anxiety and the inability to take risks due to immigration status. The author expresses the pervasive stress and lack of relaxation experienced by H1B holders, exacerbated by the extremely long Green Card backlog for Indian nationals. Tags: 60day-grace-period, green-card-status, employment-based-immigration, backlog, unlawful-presence, processing-delay. Stages: . Dates: .",
+  "index_state": null
+}

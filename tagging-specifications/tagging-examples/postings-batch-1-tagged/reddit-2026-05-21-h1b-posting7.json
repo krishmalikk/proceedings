@@ -1,0 +1,57 @@
+{
+  "case_id": "reddit-2026-05-21-h1b-posting7",
+  "doc_kind": "post",
+  "parent_case_id": "",
+  "reddit_post_id": "posting7",
+  "ingestion_method": "manual_upload",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "",
+  "post_title": "H1B - H4 filed, new offer + transfer in grace period",
+  "language": "en",
+  "posting_date": "2026-05-21",
+  "ingestion_timestamp": "2026-05-21T21:14:45Z",
+  "last_updated_timestamp": "2026-05-21T21:14:45Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "manual upload from manual-reddit-postings/postings-batch-1/posting7.md",
+  "gcs_path": "gs://imm-postings-ingestion/2026-05-21/reddit/reddit-2026-05-21-h1b-posting7.md",
+  "background_summary": "The applicant, previously on H1B, filed for H4 during a grace period. They then received a new job offer and are considering an H1B transfer.",
+  "concerns_or_questions_summary": "The applicant is urgently seeking advice on their immigration status (H4 pending vs. H1B) when a new H1B transfer is filed during the grace period. They also ask if a company can file a Change of Employer (COE) instead of Change of Status (COS) and withdraw the H4 application, and about the risk of receiving a Notice to Appear (NTA) if the previous H1B is revoked and H4 filing was delayed within the grace period.",
+  "current_visa_or_greencard_category": [
+    "H-1B",
+    "H-4"
+  ],
+  "visa_applying_for": [
+    "H-1B"
+  ],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [],
+  "concerns_or_questions_tags": [
+    "h1b-transfer",
+    "h1b-withdrawal",
+    "change-of-employer-COE",
+    "change-of-status-COS",
+    "petition-withdrawal",
+    "NTA",
+    "60day-grace-period",
+    "legal-status",
+    "out-of-status"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "h1b-status-repair",
+    "status-management"
+  ],
+  "key_stages_or_info": {
+    "visa_type": "H-1B"
+  },
+  "key_dates": {},
+  "embedding_text": "H1B - H4 filed, new offer + transfer in grace period. The applicant, previously on H1B, filed for H4 during a grace period. They then received a new job offer and are considering an H1B transfer. The applicant is urgently seeking advice on their immigration status (H4 pending vs. H1B) when a new H1B transfer is filed during the grace period. They also ask if a company can file a Change of Employer (COE) instead of Change of Status (COS) and withdraw the H4 application, and about the risk of receiving a Notice to Appear (NTA) if the previous H1B is revoked and H4 filing was delayed within the grace period. Tags: H-1B, H-4, h1b-transfer, h1b-withdrawal, change-of-employer-COE, change-of-status-COS, petition-withdrawal, NTA, 60day-grace-period, legal-status, out-of-status. Stages: visa_type:H-1B. Dates: .",
+  "index_state": null
+}

@@ -1,0 +1,76 @@
+{
+  "case_id": "reddit-2026-05-21-h1b-posting6",
+  "doc_kind": "post",
+  "parent_case_id": "",
+  "reddit_post_id": "posting6",
+  "ingestion_method": "manual_upload",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "",
+  "post_title": "Key_Election_8698",
+  "language": "en",
+  "posting_date": "2026-05-21",
+  "ingestion_timestamp": "2026-05-21T21:14:15Z",
+  "last_updated_timestamp": "2026-05-21T21:14:15Z",
+  "tagging_confidence": 0.95,
+  "source_metadata": "manual upload from manual-reddit-postings/postings-batch-1/posting6.md",
+  "gcs_path": "gs://imm-postings-ingestion/2026-05-21/reddit/reddit-2026-05-21-h1b-posting6.md",
+  "background_summary": "The applicant's H1B visa, approved in 2024, was refused during an interview in Hyderabad on April 23, 2026, which was delayed due to a family medical issue.",
+  "concerns_or_questions_summary": "The applicant is seeking clarification on the refusal, which stemmed from a DS-160 typo, an outdated vendor letter, missing client documents, and questions about salary deductions and attorney fees. They are advised to track the status daily.",
+  "current_visa_or_greencard_category": [
+    "H-1B"
+  ],
+  "visa_applying_for": [
+    "H-1B"
+  ],
+  "primary_consulate": "HYD",
+  "consulates": [
+    "HYD",
+    "IN"
+  ],
+  "tags": [
+    "experience-posting",
+    "consulate",
+    "h1b-approval",
+    "DS-160",
+    "employer-letter",
+    "VO",
+    "visa-interview",
+    "visa-stamping",
+    "h1b-stamping"
+  ],
+  "concerns_or_questions_tags": [
+    "visa-refused",
+    "form-mistake",
+    "required-documents",
+    "income-issue",
+    "processing-time",
+    "processing-delay",
+    "attorney-fee",
+    "refused",
+    "h1b-denial"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "h1b-refusal",
+    "consular-interview-issues",
+    "document-discrepancies"
+  ],
+  "key_stages_or_info": {
+    "consulate_assigned": "HYD",
+    "visa_type": "H-1B",
+    "outcome_status": "refused",
+    "case_status": "refused",
+    "travel_country": "IN"
+  },
+  "key_dates": {
+    "visa_interview_date": "2026-04-23"
+  },
+  "embedding_text": "Key_Election_8698. The applicant's H1B visa, approved in 2024, was refused during an interview in Hyderabad on April 23, 2026, which was delayed due to a family medical issue. The applicant is seeking clarification on the refusal, which stemmed from a DS-160 typo, an outdated vendor letter, missing client documents, and questions about salary deductions and attorney fees. They are advised to track the status daily. Tags: experience-posting, consulate, h1b-approval, DS-160, employer-letter, VO, visa-interview, visa-stamping, h1b-stamping, visa-refused, form-mistake, required-documents, income-issue, processing-time, processing-delay, attorney-fee, refused, h1b-denial. Stages: consulate_assigned: HYD, visa_type: H-1B, outcome_status: refused, case_status: refused, travel_country: IN. Dates: visa_interview_date: 2026-04-23.",
+  "index_state": null
+}

@@ -1,0 +1,43 @@
+{
+  "case_id": "reddit-2026-05-21-h1b-posting5",
+  "doc_kind": "post",
+  "parent_case_id": "",
+  "reddit_post_id": "posting5",
+  "ingestion_method": "manual_upload",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "",
+  "post_title": "Just Abolish the H-1B Visa",
+  "language": "en",
+  "posting_date": "2026-05-21",
+  "ingestion_timestamp": "2026-05-21T21:13:51Z",
+  "last_updated_timestamp": "2026-05-21T21:13:51Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "manual upload from manual-reddit-postings/postings-batch-1/posting5.md",
+  "gcs_path": "gs://imm-postings-ingestion/2026-05-21/reddit/reddit-2026-05-21-h1b-posting5.md",
+  "background_summary": "The post is an opinion piece from commonplace.org advocating for the abolition of the H-1B visa program.",
+  "concerns_or_questions_summary": "This post expresses a strong negative sentiment towards the H-1B visa, suggesting its complete removal.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "discussion",
+    "employment-based-immigration"
+  ],
+  "concerns_or_questions_tags": [],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "h1b-policy-discussion",
+    "visa-reform"
+  ],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Just Abolish the H-1B Visa. The post is an opinion piece from commonplace.org advocating for the abolition of the H-1B visa program. This post expresses a strong negative sentiment towards the H-1B visa, suggesting its complete removal. Tags: discussion,employment-based-immigration. Stages: . Dates: .",
+  "index_state": null
+}

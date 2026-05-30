@@ -1,0 +1,51 @@
+{
+  "case_id": "reddit-2026-05-21-h1b-posting9",
+  "doc_kind": "post",
+  "parent_case_id": "",
+  "reddit_post_id": "posting9",
+  "ingestion_method": "manual_upload",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "",
+  "post_title": "H1b timeline",
+  "language": "en",
+  "posting_date": "2026-05-21",
+  "ingestion_timestamp": "2026-05-21T21:15:58Z",
+  "last_updated_timestamp": "2026-05-21T21:15:58Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "manual upload from manual-reddit-postings/postings-batch-1/posting9.md",
+  "gcs_path": "gs://imm-postings-ingestion/2026-05-21/reddit/reddit-2026-05-21-h1b-posting9.md",
+  "background_summary": "The user's H1B grace period is expiring on June 24th, and they are finalizing a job offer.",
+  "concerns_or_questions_summary": "The user is asking if there is enough time (under 3 weeks) for a company to file an H1B petition before their grace period expires.",
+  "current_visa_or_greencard_category": [
+    "H-1B"
+  ],
+  "visa_applying_for": [
+    "H-1B"
+  ],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "job-offer"
+  ],
+  "concerns_or_questions_tags": [
+    "grace-period",
+    "h1b-petition",
+    "processing-time"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [],
+  "key_stages_or_info": {
+    "visa_status": "H-1B"
+  },
+  "key_dates": {
+    "60day_grace_period_expire_date": "2026-06-24"
+  },
+  "embedding_text": "H1b timeline. The user's H1B grace period is expiring on June 24th, and they are finalizing a job offer. The user is asking if there is enough time (under 3 weeks) for a company to file an H1B petition before their grace period expires. Tags: job-offer, grace-period, h1b-petition, processing-time. Stages: visa_status:H-1B. Dates: 60day_grace_period_expire_date:2026-06-24.",
+  "index_state": null
+}
