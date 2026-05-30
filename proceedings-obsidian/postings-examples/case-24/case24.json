@@ -1,0 +1,48 @@
+{
+  "case_id": "case-24",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssbejg/h1b_pending_but_stem_opt_just_approved_safe_to/",
+  "post_title": "H1B pending but STEM OPT just approved - safe to withdraw?",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "F-1 student with STEM OPT just approved (valid until January 2028) and a current employer's pending H-1B change of status filed September 2025. Wants to move to a new E-Verify employer and is asking whether withdrawing the still-pending H-1B keeps F-1 status and the SEVIS record intact, and whether pending withdrawal is safer than post-approval withdrawal.",
+  "current_visa_or_greencard_category": ["F-1"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "OPT",
+    "stem-opt",
+    "SEVIS"
+  ],
+  "concerns_or_questions_tags": [
+    "h1b-withdrawal",
+    "change-of-status-COS",
+    "petition-withdrawal",
+    "legal-status",
+    "maintenance-of-status"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "academic",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-cos-withdrawal", "stem-opt-protection"],
+  "key_stages_or_info": {
+    "application_status": "approved",
+    "petition_status": "pending"
+  },
+  "key_dates": {
+    "opt_expire_date": "2028-01-31"
+  },
+  "embedding_text": "H1B pending but STEM OPT just approved - safe to withdraw?. F-1 student with STEM OPT just approved (valid until January 2028) and a current employer's pending H-1B change of status filed September 2025. Wants to move to a new E-Verify employer and is asking whether withdrawing the still-pending H-1B keeps F-1 status and the SEVIS record intact, and whether pending withdrawal is safer than post-approval withdrawal. Tags: F-1, H-1B, OPT, stem-opt, SEVIS, h1b-withdrawal, change-of-status-COS, petition-withdrawal, legal-status, maintenance-of-status. Stages: application_status:approved, petition_status:pending. Dates: opt_expire_date:2028-01-31."
+}

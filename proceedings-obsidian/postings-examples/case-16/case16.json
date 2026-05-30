@@ -1,0 +1,48 @@
+{
+  "case_id": "case-16",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1srrskk/layoff_before_visa_approval/",
+  "post_title": "Layoff before visa approval",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Current employer filed an H-1B extension in regular processing but the user is being laid off in the last week of April with the current visa expiring the first week of May. With about three weeks of valid status remaining, the user is asking what options they have to maintain status.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "h1b-extension",
+    "regular-processing"
+  ],
+  "concerns_or_questions_tags": [
+    "layoff",
+    "visa-expiring",
+    "status-expiring",
+    "change-status-options",
+    "60day-grace-period",
+    "legal-status"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-layoff", "status-expiring", "grace-period-rules"],
+  "key_stages_or_info": {
+    "petition_status": "pending"
+  },
+  "key_dates": {
+    "employment_end_date": "2026-04-30",
+    "visa_expire_date": "2026-05-07"
+  },
+  "embedding_text": "Layoff before visa approval. Current employer filed an H-1B extension in regular processing but the user is being laid off in the last week of April with the current visa expiring the first week of May. With about three weeks of valid status remaining, the user is asking what options they have to maintain status. Tags: H-1B, h1b-extension, regular-processing, layoff, visa-expiring, status-expiring, change-status-options, 60day-grace-period, legal-status. Stages: petition_status:pending. Dates: employment_end_date:2026-04-30, visa_expire_date:2026-05-07."
+}

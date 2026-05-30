@@ -1,0 +1,57 @@
+{
+  "case_id": "case-46",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t2em1c/i485_filled_on_h1b/",
+  "post_title": "I485 filled on H1B",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "User on H-1B with an EB-1A I-140 approved in May 2023 filed I-485 in February under DOF using the company lawyer; spouse's EAD/AP are approved while hers is pending and FAD is about a month away. With a better job offer in hand, she asks whether the current employer can legally withdraw her I-485 if she switches employers, noting EB-1A is self-petitioned and not tied to an employer via I-485J.",
+  "current_visa_or_greencard_category": ["H-1B", "EB-1A"],
+  "visa_applying_for": ["EB-1A"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-140",
+    "I-485",
+    "I-485J",
+    "EAD",
+    "AP",
+    "DOF",
+    "FAD",
+    "processing-fee",
+    "attorney-fee",
+    "employment-based-immigration"
+  ],
+  "concerns_or_questions_tags": [
+    "change-of-employer-COE",
+    "petition-withdrawal",
+    "h1b-transfer",
+    "i140-portability",
+    "priority-date-portability"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["eb1a-i485-portability", "employer-change-during-485"],
+  "key_stages_or_info": {
+    "petition_status": "I-140 approved",
+    "application_status": "I-485 pending",
+    "spouse_status": "AP-EAD approved"
+  },
+  "key_dates": {
+    "i140_approved_date": "2023-05-31",
+    "i485_filed_date": "2026-02-28"
+  },
+  "embedding_text": "I485 filled on H1B. User on H-1B with an EB-1A I-140 approved in May 2023 filed I-485 in February under DOF using the company lawyer; spouse's EAD/AP are approved while hers is pending and FAD is about a month away. With a better job offer in hand, she asks whether the current employer can legally withdraw her I-485 if she switches employers, noting EB-1A is self-petitioned and not tied to an employer via I-485J. Tags: H-1B, EB-1A, I-140, I-485, I-485J, EAD, AP, DOF, FAD, processing-fee, attorney-fee, employment-based-immigration, change-of-employer-COE, petition-withdrawal, h1b-transfer, i140-portability, priority-date-portability. Stages: petition_status:I-140 approved, application_status:I-485 pending, spouse_status:AP-EAD approved. Dates: i140_approved_date:2023-05-31, i485_filed_date:2026-02-28."
+}

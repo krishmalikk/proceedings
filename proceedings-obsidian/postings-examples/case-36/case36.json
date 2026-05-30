@@ -1,0 +1,50 @@
+{
+  "case_id": "case-36",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/usvisascheduling",
+  "subreddit": "usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2l417/travel_risk_h4_spouse_traveling_with_old_employer/",
+  "post_title": "Travel Risk: H4 Spouse traveling with old employer visa stamp on expired passport + new I-797 (Returning May 2025)",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "H-4 spouse holds a still-valid H-4 stamp in an expired passport bearing the petitioner's prior employer's name; both spouses now have new I-797s with the current employer valid to December 30, 2028, and a renewed passport. Traveling to India with a Canadian-citizen and a US-citizen child, the user asks whether entry on the old-employer H-4 stamp is risky, what CBP issues to watch for, and whether the H-4 EAD will be affected.",
+  "current_visa_or_greencard_category": ["H-4"],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": ["IN"],
+  "tags": [
+    "I-797",
+    "previous-employer",
+    "passport-expired",
+    "EAD",
+    "h4-ead",
+    "CBP"
+  ],
+  "concerns_or_questions_tags": [
+    "travel-concern",
+    "re-entry",
+    "port-of-entry"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h4-travel-risk", "old-employer-stamp", "cbp-reentry"],
+  "key_stages_or_info": {
+    "spouse_status": "H-1B",
+    "travel_country": "IN"
+  },
+  "key_dates": {
+    "visa_expire_date": "2026-05-25",
+    "h1b_expire_date": "2028-12-30"
+  },
+  "embedding_text": "Travel Risk: H4 Spouse traveling with old employer visa stamp on expired passport + new I-797 (Returning May 2025). H-4 spouse holds a still-valid H-4 stamp in an expired passport bearing the petitioner's prior employer's name; both spouses now have new I-797s with the current employer valid to December 30, 2028, and a renewed passport. Traveling to India with a Canadian-citizen and a US-citizen child, the user asks whether entry on the old-employer H-4 stamp is risky, what CBP issues to watch for, and whether the H-4 EAD will be affected. Tags: H-4, IN, I-797, previous-employer, passport-expired, EAD, h4-ead, CBP, travel-concern, re-entry, port-of-entry. Stages: spouse_status:H-1B, travel_country:IN. Dates: visa_expire_date:2026-05-25, h1b_expire_date:2028-12-30."
+}

@@ -1,0 +1,48 @@
+{
+  "case_id": "case-10",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/usvisascheduling",
+  "subreddit": "usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1srn4ab/need_advice_k1_approval_expiration_is_the_29th/",
+  "post_title": "Need advice — K1 approval expiration is the 29th",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "K-1 fiancé petition (I-129F) was approved with expiration April 29; interview not scheduled until June 23. Embassy is unresponsive via phone, email, and portal. Need to know whether to take action to extend the approval or whether the extension is automatic.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["K-1"],
+  "primary_consulate": "ID",
+  "consulates": ["ID"],
+  "tags": [
+    "I-129F",
+    "consulate"
+  ],
+  "concerns_or_questions_tags": [
+    "visa-expiring",
+    "visa-interview",
+    "consulate-eligibility"
+  ],
+  "principal_country_of_chargeability": "ID",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["k1-fiance-visa", "consular-delays"],
+  "key_stages_or_info": {
+    "citizen_of_country": "US",
+    "fiance_of_country": "ID",
+    "K-1": "approved",
+    "I-129F": "approved"
+  },
+  "key_dates": {
+    "visa_interview_date": "2026-06-23",
+    "visa_expire_date": "2026-04-29"
+  },
+  "embedding_text": "Need advice — K1 approval expiration is the 29th. K-1 petition I-129F approved expiring April 29; interview June 23; embassy unresponsive. Tags: K-1, ID, I-129F, consulate, visa-expiring, visa-interview, consulate-eligibility. Stages: citizen_of_country:US, fiance_of_country:ID, K-1:approved, I-129F:approved. Dates: visa_interview_date:2026-06-23, visa_expire_date:2026-04-29."
+}

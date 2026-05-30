@@ -1,0 +1,41 @@
+{
+  "case_id": "case-59",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t78xwk/planning_to_travel_to_us_on_b1b2_visa_but_have/",
+  "post_title": "Planning to travel to US on B1/B2 visa but have H1B approval",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster working in India had an H-1B petition filed in June 2025 and approved in April 2026 but has no immediate plans to move to the US. Has previously made short B-1/B-2 trips while the petition was pending and asks whether traveling to the US on the tourist visa now is safe, whether they could be flagged, and whether it could affect future H-1B stamping.",
+  "current_visa_or_greencard_category": ["B-1", "B-2"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": ["IN"],
+  "tags": [],
+  "concerns_or_questions_tags": [
+    "travel-concern",
+    "dual-intent",
+    "h1b-stamping",
+    "re-entry"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["b1b2-travel-with-h1b-approval", "h1b-stamping-risk"],
+  "key_stages_or_info": {
+    "H-1B": "approved",
+    "resident_of_country": "IN"
+  },
+  "key_dates": {},
+  "embedding_text": "Planning to travel to US on B1/B2 visa but have H1B approval. Poster working in India had an H-1B petition filed in June 2025 and approved in April 2026 but has no immediate plans to move to the US. Has previously made short B-1/B-2 trips while the petition was pending and asks whether traveling to the US on the tourist visa now is safe, whether they could be flagged, and whether it could affect future H-1B stamping. Tags: B-1, B-2, H-1B, IN, travel-concern, dual-intent, h1b-stamping, re-entry. Stages: H-1B:approved, resident_of_country:IN. Dates: (none)."
+}

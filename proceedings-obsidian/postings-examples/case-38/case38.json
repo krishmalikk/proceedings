@@ -1,0 +1,39 @@
+{
+  "case_id": "case-38",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/usvisascheduling",
+  "subreddit": "usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2ko95/h1bh4_from_india/",
+  "post_title": "H1B/H4 from India",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Applicant in India cannot find H-1B/H-4 OFC and visa interview slots in the scheduling site for over a month and is asking for guidance or suggestions on booking appointments.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B", "H-4"],
+  "primary_consulate": "IN",
+  "consulates": ["IN"],
+  "tags": [
+    "OFC"
+  ],
+  "concerns_or_questions_tags": [
+    "visa-interview-scheduling",
+    "no-slot",
+    "combined-appointment"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-h4-appointment", "india-no-slot"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "H1B/H4 from India. Applicant in India cannot find H-1B/H-4 OFC and visa interview slots in the scheduling site for over a month and is asking for guidance or suggestions on booking appointments. Tags: H-1B, H-4, IN, OFC, visa-interview-scheduling, no-slot, combined-appointment. Stages: (none). Dates: (none)."
+}

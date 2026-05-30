@@ -1,0 +1,174 @@
+tag,Description
+processing-fee,Government filing or processing fee for a form/visa
+consular-processing,Path to a Green Card processed at a U.S. consulate abroad (vs. AOS in U.S.)
+family-based-immigration,Immigration through family relationship to a U.S. citizen or LPR
+employment-based-immigration,Immigration through an employer sponsorship pathway
+adjustment-of-status-AOS,Process of adjusting to Green Card status from within the U.S.
+temporary-work-visas,Non-immigrant visa categories that authorize temporary employment
+asylum,Protection granted to persons unable to return home due to persecution
+refugee,Protection granted to persons outside the U.S. unable to return home due to persecution
+diversity-visa-lottery,Annual lottery for nationals of low-immigration countries
+naturalization,Process of becoming a U.S. citizen
+deportation-defense,Legal defense against removal/deportation proceedings
+humanitarian-parole,Temporary entry for urgent humanitarian reasons
+student-visa,Generic term for F-1/M-1 academic or vocational student visas
+immigration-court,Court proceedings under EOIR for removal/relief
+grace-period,Period after status ends during which the noncitizen remains lawfully present
+layoff,Termination of employment affecting visa status
+legal-status,Lawful immigration status
+visa-interview,Interview at a U.S. consulate for visa adjudication
+visa-interview-scheduling,Process of scheduling the visa interview
+consulate,U.S. consulate processing visa applications abroad
+regular-processing,Standard USCIS processing timeline (vs. premium processing)
+premium-processing,Expedited USCIS adjudication for an additional fee
+visa-transfer,Transfer of visa status between employers or sponsors
+regular-vs-premium-processing,Comparison between regular and premium processing options
+overstay,Remaining in U.S. beyond authorized period of stay
+pardon,Pardon granted by an executive (state or federal)
+tax-filing,Tax filing concerns affecting immigration status
+cap-gap,Gap between F-1 status expiration and H-1B effective date covered by automatic extension
+physician,Physician-specific immigration concerns (e.g.
+re-entry,Re-entering the U.S. after travel abroad
+country-ban,Country-specific travel/entry ban affecting nationals
+passport-expired,Passport has expired
+stem-opt,STEM Optional Practical Training (24-month extension)
+application-support-center-ASC,USCIS Application Support Center for biometrics
+visa-application-center-VAC,Third-party center for biometrics/document collection before consular interview
+sevis,Student and Exchange Visitor Information System tracking record
+designated-school-official-DSO,School official managing F-1/M-1 student SEVIS records
+change-of-status-COS,Change from one nonimmigrant status to another while in U.S.
+visa-expired,Visa stamp has expired (status may still be valid)
+habeas,Habeas corpus petition challenging immigration detention
+pp-clock,Premium processing 15-business-day clock
+cap-exempt,Petition exempt from the annual H-1B cap (e.g.
+cap-subject,Petition subject to the annual H-1B cap
+date-of-admission-DOA,Date of admission to the U.S. (per CBP record)
+180day-rule,180-day adjudication or portability rule (varies by context)
+240day-rule,240-day automatic extension of work authorization while extension is pending
+240day-extension,Automatic 240-day extension of work authorization for timely-filed extensions
+change-of-employer-COE,Process of changing employer on a work visa
+stop-time-rule,Rule that stops accrual of continuous residence on issuance of NTA
+cancellation-of-removal,Discretionary relief from removal under INA 240A
+in-absentia,Removal order issued in absentia when respondent fails to appear
+221g,Section 221(g) refusal — consular officer requires additional documentation
+221g-pink,Pink-colored 221(g) slip — typically administrative processing
+221g-blue,Blue-colored 221(g) slip — typically additional documents required
+221g-yellow,Yellow-colored 221(g) slip — typically requires further review
+214b,Section 214(b) refusal — failure to overcome immigrant intent presumption
+visa-stamping,Process of getting a visa stamp in passport at a consulate
+offer-rescinded,Job offer rescinded affecting work visa status
+travel-concern,Concern about traveling abroad while on a U.S. visa/status
+bundled-processing,Combined processing of related applications
+lawyer-recommendation,Request for or sharing of immigration attorney recommendations
+100k-fee,$100k H-1B fee for large H-1B-dependent employers (proposed/applied policy)
+wage-level-compliance,Compliance with prevailing wage levels for H-1B/PERM
+60day-grace-period,60-day grace period after employment ends for nonimmigrant workers
+bench-policy,Policy on benching (non-payment of H-1B workers between projects)
+specialty-occupation,Specialty occupation requirement for H-1B
+fdns-visit,USCIS Fraud Detection and National Security site visit
+stamping-delay,Delay in obtaining visa stamping at a consulate
+h4-work-auth,Work authorization for H-4 dependent spouses (EAD)
+aging-out,Child turning 21 during Green Card process losing derivative eligibility
+third-country,Visa stamping in a country other than the applicant's home country
+prior-visa-rejection,Prior visa application refusal/rejection
+first-time-visa,First-time visa application (no prior U.S. visa)
+change-status-options,Available options for changing immigration status
+work-location,Place of work / employment location concern (e.g.
+green-card-status,Status of Green Card application or holder
+citizenship,U.S. citizenship
+citizenship-interview,Interview for naturalization (N-400)
+visa-application,Generic visa application
+green-card-application,Generic Green Card application
+humanitarian,Humanitarian-based immigration matter
+administrative,Administrative-processing or administrative-status matter
+social-media,Social media disclosure/review concerns in visa applications
+background-check,Background check during immigration processing
+deportation,Removal from the United States
+prior-conviction,Prior criminal conviction affecting immigration eligibility
+arrest,Prior arrest affecting immigration eligibility
+processing-delay,Delay in immigration case processing
+emergency-visa-appointment,Emergency/expedited visa appointment request
+prior-visa,Reference to a previously held visa
+consulate-eligibility,Eligibility to apply at a specific consulate (third-country processing)
+translator,Translator/interpreter need for an interview or document
+income-issue,Income-related concern (tax
+family-ties,Strength of family ties used in nonimmigrant intent assessment
+age,Age-related immigration concerns
+annotation,Visa annotation on the stamp (e.g.
+esta-record-reviewed,ESTA record reviewed by CBP/agency
+visa-revoked,Visa has been revoked
+visa-refused,Visa application refused
+biometrics,Biometrics (fingerprints/photograph) collection
+processing-time,USCIS or DOS processing timeline
+agent,Designated agent in NVC immigrant visa process
+job-search,Job search activities while on a visa
+interview-waiver,Waiver of in-person visa interview (Dropbox/interview-waiver eligibility)
+job-title,Job title concern (matching LCA/petition)
+job-description,Job description concern (matching LCA/petition)
+port-of-entry,U.S. port of entry where admission occurs
+job-offer,Job offer required/lost for visa eligibility
+rfe-denied,RFE response was followed by denial
+discussion,General discussion thread (forum-style tag)
+visa-expiring,Visa stamp about to expire
+status-expiring,Immigration status about to expire
+visa-renewal,Renewal of a visa stamp
+residency,U.S. residency concerns (LPR or for tax/state purposes)
+212e,INA 212(e) two-year home-residency requirement for certain J-1 holders
+previous-employer,Previous employer relevant to current case (e.g.
+combined-appointment,Combined biometrics and interview appointment
+re-apply,Reapplying after a prior refusal/denial
+no-slot,No visa interview slot available at consulate
+tips,General tips/advice posts
+form-mistake,Mistake on a filed form
+petition-withdrawal,Withdrawal of an immigration petition
+gap-concern,Concern about gaps in status or employment
+endless-wait,Long wait/no decision (delay frustration)
+backlog,Visa bulletin / processing backlog
+bill,Pending or new immigration legislation
+lost-document,Lost immigration document (passport/EAD/I-94)
+timeline,Case timeline sharing/inquiry
+experience-posting,Sharing personal immigration experience
+open-for-attorney,Question intended for an attorney to answer
+blog,Blog post link/reference
+news-update,News update related to immigration
+official-press-release,Official press release from USCIS/DOS/DOL/DHS
+promotion,Promotion at work (relevant to H-1B/LCA wage)
+startup,Startup employer / founder immigration concerns
+required-documents,Documents required for a filing or interview
+fifa-world-cup,FIFA World Cup 2026 visit to the U.S. — visa/travel concerns for the tournament
+maintenance-of-status,Maintaining lawful nonimmigrant status
+out-of-status,Falling out of lawful nonimmigrant status
+denial-reason,Reason given for a denial
+waiver-eligibility,Eligibility for an immigration waiver
+visa-bulletin,Monthly Visa Bulletin from DOS
+priority-date-current,Priority date is current in the Visa Bulletin
+visa-quota,Annual numerical limits on visa categories
+country-of-chargeability,Country to which an immigrant visa is charged
+dual-intent,"Dual intent visas (H-1B, L-1) — temporary stay with immigrant intent allowed"
+unlawful-presence,Time accrued out of status (triggers 3/10-year bars)
+travel-ban,Country/category-specific travel ban
+public-charge,Public charge ground of inadmissibility
+medical-exam,Required medical examination (I-693 / panel physician)
+vaccinations,Vaccination requirements for immigration medical exam
+fee-increase,Government fee schedule increase
+attorney-fee,Attorney/legal fees
+employer-letter,Employer support/verification letter
+ability-to-pay,Employer's ability to pay required wage
+npt-pardon,Nunc Pro Tunc pardon — retroactive grant of status to fix unlawful presence gap
+priority-date-portability,AC21 portability of priority date when switching employers / I-140 holders
+ac21-extension,3-year H-1B extensions beyond the 6-year cap under AC21 sections 104(c) and 106(a)
+day1-cpt,Day-1 CPT bridge programs — F-1 enrollment that authorizes immediate work via CPT, often used to fill gaps after OPT ends
+dui,DUI / drunk-driving incident affecting moral character and inadmissibility determinations
+nonimmigrant-intent,INA 214(b) nonimmigrant-intent presumption — most common B-1/B-2/F-1 refusal ground
+last-action-rule,"USCIS last-action rule — when COS and visa stamping interact, the most recent action governs status"
+country-of-birth-screening,Security/background screening triggered by country of birth (e.g. Iran, China, Russia) distinct from country of nationality
+tal-screening,Technology Alert List screening — additional review for STEM applicants in sensitive fields
+misrepresentation,INA 212(a)(6)(C) misrepresentation ground of inadmissibility
+fraud,Fraud-based denial or inadmissibility concern
+f1-reinstatement,F-1 reinstatement of status (via Form I-539) after a status violation
+i94-error,Port-of-entry I-94 issuance errors (wrong class of admission or wrong admit-until date)
+concurrent-h1b,Concurrent H-1B employment with multiple petitioning employers
+travel-history-disclosure,DS-160 travel-history disclosure concerns (prior US trips and trips to third countries)
+affidavit-of-support,I-864 affidavit-of-support sponsor / sponsee / income-threshold concerns
+gc-renewal,Green-card renewal via Form I-90 (every 10 years for LPRs)
+naturalization-test,N-400 civics and English-language test concerns

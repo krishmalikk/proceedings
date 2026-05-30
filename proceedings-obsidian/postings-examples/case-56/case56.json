@@ -1,0 +1,47 @@
+{
+  "case_id": "case-56",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6rwwx/waiting_for_h1b_approval/",
+  "post_title": "Waiting for H1B approval",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster on F-1 STEM OPT had H-1B approved for consular processing in Feb 2025; employer later filed an H-1B change of status on Nov 20, 2025. USCIS processing time now shows a 6.5-month delay. Asking whether others have recently received COS approvals on similar timelines.",
+  "current_visa_or_greencard_category": ["F-1"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "stem-opt",
+    "consular-processing",
+    "change-of-status-COS"
+  ],
+  "concerns_or_questions_tags": [
+    "processing-time",
+    "processing-delay",
+    "timeline",
+    "f1-to-h1b"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-cos-processing-delay", "f1-to-h1b-transition"],
+  "key_stages_or_info": {
+    "H-1B": "approved"
+  },
+  "key_dates": {
+    "h1b_approved_date": "2025-02-28",
+    "i129_filed_date": "2025-11-20"
+  },
+  "embedding_text": "Waiting for H1B approval. Poster on F-1 STEM OPT had H-1B approved for consular processing in Feb 2025; employer later filed an H-1B change of status on Nov 20, 2025. USCIS processing time now shows a 6.5-month delay. Asking whether others have recently received COS approvals on similar timelines. Tags: F-1, H-1B, stem-opt, consular-processing, change-of-status-COS, processing-time, processing-delay, timeline, f1-to-h1b. Stages: H-1B:approved. Dates: h1b_approved_date:2025-02-28, i129_filed_date:2025-11-20."
+}

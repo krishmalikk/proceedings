@@ -1,0 +1,43 @@
+{
+  "case_id": "case-31",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1svzcbc/laid_off_right_after_h1b_lottery_picked/",
+  "post_title": "Laid off right after H1B lottery picked",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "User was working at a late-stage startup on F-1 OPT when their H-1B lottery was picked on March 30; two weeks later they were terminated for performance reasons. With about a year of OPT left, one remaining lottery chance and roughly 75 days to find a new sponsoring employer, they are asking for advice and support on the job search and visa situation.",
+  "current_visa_or_greencard_category": ["F-1"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "startup",
+    "opt-extension",
+    "stem-opt"
+  ],
+  "concerns_or_questions_tags": [
+    "layoff",
+    "job-search",
+    "h1b-lottery",
+    "60day-grace-period",
+    "f1-to-h1b"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "startup",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["opt-layoff", "h1b-lottery-recovery", "job-search-strategy"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Laid off right after H1B lottery picked. User was working at a late-stage startup on F-1 OPT when their H-1B lottery was picked on March 30; two weeks later they were terminated for performance reasons. With about a year of OPT left, one remaining lottery chance and roughly 75 days to find a new sponsoring employer, they are asking for advice and support on the job search and visa situation. Tags: F-1, H-1B, startup, opt-extension, stem-opt, layoff, job-search, h1b-lottery, 60day-grace-period, f1-to-h1b. Stages: (none). Dates: (none)."
+}

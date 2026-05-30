@@ -1,0 +1,46 @@
+{
+  "case_id": "case-28",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ss7jbo/any_june_2025_h1b_ext_regular_processing_texas/",
+  "post_title": "Any June 2025 H1B ext regular processing Texas",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "H-1B extension filed in regular processing at the Texas Service Center is approaching the 240-day limit by end of May 2026. Considering upgrading to premium processing next week.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "TSC",
+    "240day-extension",
+    "regular-processing"
+  ],
+  "concerns_or_questions_tags": [
+    "h1b-extension",
+    "premium-processing",
+    "regular-vs-premium-processing",
+    "processing-time"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-extension", "premium-processing-upgrade"],
+  "key_stages_or_info": {
+    "service_center_assigned": "TSC"
+  },
+  "key_dates": {
+    "h1b_processing_start_date": "2025-06-30"
+  },
+  "embedding_text": "Any June 2025 H1B ext regular processing Texas. H-1B extension filed in regular processing at the Texas Service Center is approaching the 240-day limit by end of May 2026. Considering upgrading to premium processing next week. Tags: H-1B, TSC, 240day-extension, regular-processing, h1b-extension, premium-processing, regular-vs-premium-processing, processing-time. Stages: service_center_assigned:TSC. Dates: h1b_processing_start_date:2025-06-30."
+}

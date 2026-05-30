@@ -1,0 +1,44 @@
+{
+  "case_id": "case-8",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/USVisas",
+  "subreddit": "USVisas",
+  "full_url": "https://www.reddit.com/r/USVisas/comments/1socshn/b1b2_interview_experience_australia/",
+  "post_title": "B1/B2 Interview Experience - Australia",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Australian applicant sharing a positive first-time B-1/B-2 visa interview experience at a consulate in Australia, including the questions asked, demeanor that helped, and tips for other applicants. Notes one denial they observed and recommends preparation resources like YouTube videos from ex-officers.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["B-1", "B-2"],
+  "primary_consulate": "AU",
+  "consulates": ["AU"],
+  "tags": [
+    "first-time-visa",
+    "experience-posting",
+    "tips",
+    "visa-interview",
+    "family-ties"
+  ],
+  "concerns_or_questions_tags": [],
+  "principal_country_of_chargeability": "AU",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "resolved",
+  "derived_topic_cluster": ["b1b2-interview-experience", "visa-interview-tips"],
+  "key_stages_or_info": {
+    "outcome_status": "approved",
+    "citizen_of_country": "AU"
+  },
+  "key_dates": {
+    "visa_interview_date": "2026-03-31"
+  },
+  "embedding_text": "B1/B2 Interview Experience - Australia. Australian applicant sharing a positive first-time B-1/B-2 visa interview experience at a consulate in Australia, including the questions asked, demeanor that helped, and tips for other applicants. Notes one denial they observed and recommends preparation resources like YouTube videos from ex-officers. Tags: B-1, B-2, AU, first-time-visa, experience-posting, tips, visa-interview, family-ties. Stages: outcome_status:approved, citizen_of_country:AU. Dates: visa_interview_date:2026-03-31."
+}

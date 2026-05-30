@@ -1,0 +1,6 @@
+# https://www.reddit.com/r/h1b/comments/1t6m1wh/lost_i797_before_consulate_appointment/
+
+Lost i797 before consulate appointment
+Hey having a panic attack because I can't find my i797 anywhere and I have my appointment in a week. I'm contacted my lawyers but because panic attack also asking here
+
+Will a scan work?? I know it's not 100% but is it "usually"

@@ -1,0 +1,39 @@
+{
+  "case_id": "case-30",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1stzm8f/who_tf_is_hiring_with_h1b/",
+  "post_title": "Who tf is hiring with H1B",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Job market for H-1B candidates has tightened — most companies now state they cannot sponsor. With a final H-1B lottery attempt due in March 2027, the user is asking for strategies, target roles or companies, and whether anyone has recently landed a sponsorship offer.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "discussion"
+  ],
+  "concerns_or_questions_tags": [
+    "job-search",
+    "h1b-lottery",
+    "job-offer"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-sponsorship-market", "job-search-strategy"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Who tf is hiring with H1B. Job market for H-1B candidates has tightened — most companies now state they cannot sponsor. With a final H-1B lottery attempt due in March 2027, the user is asking for strategies, target roles or companies, and whether anyone has recently landed a sponsorship offer. Tags: H-1B, discussion, job-search, h1b-lottery, job-offer. Stages: (none). Dates: (none)."
+}

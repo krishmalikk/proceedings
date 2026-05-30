@@ -1,0 +1,58 @@
+{
+  "case_id": "case-69",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t7sqmn/h1b_cos_from_b2_approved_with_new_i94_but_offer/",
+  "post_title": "H-1B COS (from B-2) approved with new i-94, but offer rescinded",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "After prior H-1B ended Aug 2025, poster did B-2 COS (Oct 2025) then H-1B COS (Feb 2026) for employer ABC — both received RFEs and were approved April 2026 with I-797A and I-94 valid until 2029, but ABC rescinded the offer with no pay stubs ever generated. New employer XYZ wants paystubs to prove status was maintained. Asking whether the poster is still in valid H-1B status within 60 days of the I-797 approval, and how a new employer should approach the H-1B transfer with no prior paystubs.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-94",
+    "I-797A",
+    "change-of-status-COS",
+    "timeline"
+  ],
+  "concerns_or_questions_tags": [
+    "RFE",
+    "h1b-rfe",
+    "h1b-transfer",
+    "b1b2-to-h1b",
+    "offer-rescinded",
+    "legal-status",
+    "60day-grace-period",
+    "change-status-options",
+    "maintenance-of-status"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["b2-to-h1b-cos", "offer-rescinded-status-risk", "h1b-transfer-without-paystubs"],
+  "key_stages_or_info": {
+    "I-797A": "approved",
+    "I-94": "valid"
+  },
+  "key_dates": {
+    "i94_expire_date": "2029-12-31",
+    "employment_end_date": "2025-08-31",
+    "i129_filed_date": "2026-02-28",
+    "rfe_date": "2026-02-28",
+    "rfe_response_date": "2026-03-31",
+    "h1b_approved_date": "2026-04-30"
+  },
+  "embedding_text": "H-1B COS (from B-2) approved with new i-94, but offer rescinded. After prior H-1B ended Aug 2025, poster did B-2 COS (Oct 2025) then H-1B COS (Feb 2026) for employer ABC — both received RFEs and were approved April 2026 with I-797A and I-94 valid until 2029, but ABC rescinded the offer with no pay stubs ever generated. New employer XYZ wants paystubs to prove status was maintained. Asking whether the poster is still in valid H-1B status within 60 days of the I-797 approval, and how a new employer should approach the H-1B transfer with no prior paystubs. Tags: H-1B, I-94, I-797A, change-of-status-COS, timeline, RFE, h1b-rfe, h1b-transfer, b1b2-to-h1b, offer-rescinded, legal-status, 60day-grace-period, change-status-options, maintenance-of-status. Stages: I-797A:approved, I-94:valid. Dates: i94_expire_date:2029-12-31, employment_end_date:2025-08-31, i129_filed_date:2026-02-28, rfe_date:2026-02-28, rfe_response_date:2026-03-31, h1b_approved_date:2026-04-30."
+}

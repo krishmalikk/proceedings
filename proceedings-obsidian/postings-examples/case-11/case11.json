@@ -1,0 +1,43 @@
+{
+  "case_id": "case-11",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/usvisascheduling",
+  "subreddit": "usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1sr9aa9/b1b2_visa_in_delhi_for_my_parents/",
+  "post_title": "B1/B2 Visa in Delhi for my parents",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Asking for advice on how their first-time B-1/B-2 visa interview in Delhi should go for retired parents (ages 62-65) from rural Lucknow with minimal regular farming income and limited travel history. Wants to know what they should be careful about to avoid rejection and improve their chances of approval.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["B-1", "B-2"],
+  "primary_consulate": "DEL",
+  "consulates": ["DEL", "IN"],
+  "tags": [
+    "first-time-visa",
+    "family-ties"
+  ],
+  "concerns_or_questions_tags": [
+    "income-issue",
+    "visa-interview",
+    "tips",
+    "age"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["b1b2-parents-visa", "nonimmigrant-intent"],
+  "key_stages_or_info": {
+    "citizen_of_country": "IN"
+  },
+  "key_dates": {},
+  "embedding_text": "B1/B2 Visa in Delhi for my parents. Asking for advice on how their first-time B-1/B-2 visa interview in Delhi should go for retired parents (ages 62-65) from rural Lucknow with minimal regular farming income and limited travel history. Wants to know what they should be careful about to avoid rejection and improve their chances of approval. Tags: B-1, B-2, DEL, IN, first-time-visa, family-ties, income-issue, visa-interview, tips, age. Stages: citizen_of_country:IN. Dates: (none)."
+}

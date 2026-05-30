@@ -1,0 +1,46 @@
+{
+  "case_id": "case-25",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssa16i/will_h1b_100k_fee_apply/",
+  "post_title": "Will H1B $100k fee apply?",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.90,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Previously on F-1 (2014) and H-1B (2015-2024) with an approved I-140. H-1B has now expired and currently in home country. If a new employer sponsors H-1B, will the $100k H-1B fee apply?",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "F-1",
+    "I-140",
+    "prior-visa",
+    "visa-expired",
+    "employment-based-immigration"
+  ],
+  "concerns_or_questions_tags": [
+    "100k-fee",
+    "h1b-100k-fee",
+    "h1b-petition",
+    "h1b-reinstatement"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-resumption", "h1b-100k-fee-policy"],
+  "key_stages_or_info": {
+    "I-140": "approved"
+  },
+  "key_dates": {},
+  "embedding_text": "Will H1B $100k fee apply? Prior F-1 and H-1B history; H-1B expired; I-140 approved; abroad; asking if new H-1B sponsorship triggers $100k fee. Tags: H-1B, F-1, I-140, prior-visa, visa-expired, employment-based-immigration, 100k-fee, h1b-100k-fee, h1b-petition, h1b-reinstatement. Stages: I-140:approved. Dates: (none)."
+}

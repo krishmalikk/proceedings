@@ -1,0 +1,45 @@
+{
+  "case_id": "case-73",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t90i2f/h1b_transfer_application_delay_from_outside_us/",
+  "post_title": "H1B Transfer Application Delay from outside US",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster was working in the U.S. on H-1B but had to return to India after a layoff. A new employer filed an H-1B transfer petition in January under premium processing, but no updates have been received. Asking for advice on possible next steps and whether others have experienced similar delays.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": ["IN"],
+  "tags": [
+    "premium-processing",
+    "consular-processing",
+    "job-offer"
+  ],
+  "concerns_or_questions_tags": [
+    "layoff",
+    "h1b-transfer",
+    "processing-delay",
+    "processing-time",
+    "endless-wait"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-transfer-from-abroad", "premium-processing-delay"],
+  "key_stages_or_info": {
+    "resident_of_country": "IN"
+  },
+  "key_dates": {},
+  "embedding_text": "H1B Transfer Application Delay from outside US. Poster was working in the U.S. on H-1B but had to return to India after a layoff. A new employer filed an H-1B transfer petition in January under premium processing, but no updates have been received. Asking for advice on possible next steps and whether others have experienced similar delays. Tags: H-1B, IN, premium-processing, consular-processing, job-offer, layoff, h1b-transfer, processing-delay, processing-time, endless-wait. Stages: resident_of_country:IN. Dates: (none)."
+}

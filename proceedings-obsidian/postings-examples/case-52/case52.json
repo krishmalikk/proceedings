@@ -1,0 +1,45 @@
+{
+  "case_id": "case-52",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t3bb5x/update_on_hr_875_act_mandates_immediate/",
+  "post_title": "Update on HR 875 Act Mandates Immediate Deportation for DUI Offenses (Incl Past DUIs)",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "News update summarizing H.R. 875, a bipartisan House bill that would make any DUI/DWI conviction grounds for automatic deportation of visa holders, green card holders, and undocumented immigrants, including decades-old pleas. The bill passed the House 246-160 and awaits a Senate vote and presidential signature.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "news-update",
+    "bill",
+    "blog",
+    "INA",
+    "dui"
+  ],
+  "concerns_or_questions_tags": [
+    "prior-conviction",
+    "deportation"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "legislation-update",
+    "dui-deportation-policy"
+  ],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Update on HR 875 Act Mandates Immediate Deportation for DUI Offenses (Incl Past DUIs). News update summarizing H.R. 875, a bipartisan House bill that would make any DUI/DWI conviction grounds for automatic deportation of visa holders, green card holders, and undocumented immigrants, including decades-old pleas. The bill passed the House 246-160 and awaits a Senate vote and presidential signature. Tags: news-update, bill, blog, INA, prior-conviction, deportation, dui. Stages: (none). Dates: (none)."
+}

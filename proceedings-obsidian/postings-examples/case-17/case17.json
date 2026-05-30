@@ -1,0 +1,55 @@
+{
+  "case_id": "case-17",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssm9z8/what_are_my_options/",
+  "post_title": "What are my options?",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Currently on H-1B valid until 2026 and about to be laid off with only the 60-day grace period as fallback; not in any other status. Asking whether Day 1 CPT is a realistic bridge option after a layoff, how H-1B transfer timing works after enrolling, whether Day 1 CPT schools hold up under future scrutiny, and when (before last day or during grace period) enrollment must occur.",
+  "current_visa_or_greencard_category": [
+    "H-1B"
+  ],
+  "visa_applying_for": [
+    "F-1"
+  ],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "CPT",
+    "h1b-to-f1"
+  ],
+  "concerns_or_questions_tags": [
+    "layoff",
+    "60day-grace-period",
+    "change-status-options",
+    "legal-status",
+    "h1b-transfer",
+    "open-for-attorney",
+    "lawyer-recommendation",
+    "day1-cpt"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "h1b-layoff",
+    "day1-cpt-bridge",
+    "status-change-options"
+  ],
+  "key_stages_or_info": {},
+  "key_dates": {
+    "h1b_expire_date": "2026-12-31"
+  },
+  "embedding_text": "What are my options?. Currently on H-1B valid until 2026 and about to be laid off with only the 60-day grace period as fallback; not in any other status. Asking whether Day 1 CPT is a realistic bridge option after a layoff, how H-1B transfer timing works after enrolling, whether Day 1 CPT schools hold up under future scrutiny, and when (before last day or during grace period) enrollment must occur. Tags: H-1B, F-1, CPT, h1b-to-f1, layoff, 60day-grace-period, change-status-options, legal-status, h1b-transfer, open-for-attorney, lawyer-recommendation, day1-cpt. Stages: (none). Dates: h1b_expire_date:2026-12-31."
+}

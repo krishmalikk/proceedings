@@ -1,0 +1,41 @@
+{
+  "case_id": "case-13",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/USVisas",
+  "subreddit": "USVisas",
+  "full_url": "https://www.reddit.com/r/USVisas/comments/1srjll6/f1_visa_revoked_a_year_after_short_summer_program/",
+  "post_title": "F1 visa revoked a year after short summer program",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Held a 5-year F-1 visa for a 2017 summer-semester exchange; completed the program and left the U.S. on time, but received an embassy email in 2018 revoking the visa citing 'additional information became available after issuance.' Now planning to apply for a B-1/B-2 tourist visa and asking whether others have had similar revocations, whether it is routine/administrative, and whether it affects future visa applications.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["B-1", "B-2"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "F-1",
+    "prior-visa",
+    "visa-revoked"
+  ],
+  "concerns_or_questions_tags": [
+    "prior-visa-rejection",
+    "visa-application",
+    "re-apply"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["prior-visa-revocation", "b1b2-application"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "F1 visa revoked a year after short summer program. Held a 5-year F-1 visa for a 2017 summer-semester exchange; completed the program and left the U.S. on time, but received an embassy email in 2018 revoking the visa citing 'additional information became available after issuance.' Now planning to apply for a B-1/B-2 tourist visa and asking whether others have had similar revocations, whether it is routine/administrative, and whether it affects future visa applications. Tags: B-1, B-2, F-1, prior-visa, visa-revoked, prior-visa-rejection, visa-application, re-apply. Stages: (none). Dates: (none)."
+}

@@ -1,0 +1,39 @@
+{
+  "case_id": "case-48",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6dyz3/job_search_with_h1b_in_med_devicediagnostics/",
+  "post_title": "Job search with H1b in med device/diagnostics",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Bay-Area H-1B holder with about 4 years of diagnostics-industry experience and a BME master's is struggling to find medical device or diagnostics companies that will support an H-1B transfer. They ask whether others have recently succeeded with H-1B transfers in this space and for biotech communities or chats to join.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "work-location"
+  ],
+  "concerns_or_questions_tags": [
+    "h1b-transfer",
+    "job-search",
+    "job-offer"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "healthcare",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-transfer-job-search", "biotech-sponsorship"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Job search with H1b in med device/diagnostics. Bay-Area H-1B holder with about 4 years of diagnostics-industry experience and a BME master's is struggling to find medical device or diagnostics companies that will support an H-1B transfer. They ask whether others have recently succeeded with H-1B transfers in this space and for biotech communities or chats to join. Tags: H-1B, work-location, h1b-transfer, job-search, job-offer. Stages: (none). Dates: (none)."
+}

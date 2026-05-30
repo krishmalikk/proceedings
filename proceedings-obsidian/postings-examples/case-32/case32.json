@@ -1,0 +1,61 @@
+{
+  "case_id": "case-32",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/usvisascheduling",
+  "subreddit": "usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1swyec7/j1_visa_renewal_refused_214b_pgy1_resident_need/",
+  "post_title": "J1 visa renewal refused 214(b) PGY1 resident need advice",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "PGY1 medical resident on a valid ECFMG-sponsored J-1 applied for a J-1 renewal at the Mumbai consulate during vacation and was refused under section 214(b). The user is asking why a physician J-1 renewal would draw a 214(b) refusal, whether the spouse being on H-1B hurt the case, and how to strengthen home-country ties for a successful reapplication.",
+  "current_visa_or_greencard_category": [
+    "J-1"
+  ],
+  "visa_applying_for": [
+    "J-1"
+  ],
+  "primary_consulate": "BOM",
+  "consulates": [
+    "BOM",
+    "IN"
+  ],
+  "tags": [
+    "ECFMG",
+    "physician",
+    "visa-stamping",
+    "212e"
+  ],
+  "concerns_or_questions_tags": [
+    "j1-renewal",
+    "visa-renewal",
+    "214b",
+    "visa-refused",
+    "family-ties",
+    "re-apply",
+    "residency",
+    "nonimmigrant-intent"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "healthcare",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "j1-214b-refusal",
+    "physician-residency-renewal",
+    "india-consular-refusal"
+  ],
+  "key_stages_or_info": {
+    "spouse_status": "H-1B",
+    "outcome_status": "refused"
+  },
+  "key_dates": {},
+  "embedding_text": "J1 visa renewal refused 214(b) PGY1 resident need advice. PGY1 medical resident on a valid ECFMG-sponsored J-1 applied for a J-1 renewal at the Mumbai consulate during vacation and was refused under section 214(b). The user is asking why a physician J-1 renewal would draw a 214(b) refusal, whether the spouse being on H-1B hurt the case, and how to strengthen home-country ties for a successful reapplication. Tags: J-1, BOM, IN, ECFMG, physician, visa-stamping, 212e, j1-renewal, visa-renewal, 214b, visa-refused, family-ties, re-apply, residency, nonimmigrant-intent. Stages: spouse_status:H-1B, outcome_status:refused. Dates: (none)."
+}

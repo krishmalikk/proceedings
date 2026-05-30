@@ -1,0 +1,45 @@
+{
+  "case_id": "case-55",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t0ix2i/emergency_h1b_visa_appointment_denied_at/",
+  "post_title": "Emergency H1B Visa Appointment Denied at Hyderabad Consulate — Father Critical with Cancer — Feeling Completely Lost",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster is in India for a critically ill father (advanced colon cancer) and needs H-1B stamping to return to the US, but the earliest regular slot at Hyderabad is in 2027. Their first emergency appointment request was denied despite a medical letter and employer/vendor support letters. They have one more chance to apply and are seeking advice to strengthen the second request.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "HYD",
+  "consulates": ["HYD", "IN"],
+  "tags": [
+    "visa-stamping",
+    "h1b-stamping",
+    "employer-letter"
+  ],
+  "concerns_or_questions_tags": [
+    "emergency-visa-appointment",
+    "visa-interview-scheduling",
+    "no-slot",
+    "stamping-delay",
+    "re-apply"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-stamping-emergency", "india-consular-delays"],
+  "key_stages_or_info": {
+    "travel_country": "IN"
+  },
+  "key_dates": {},
+  "embedding_text": "Emergency H1B Visa Appointment Denied at Hyderabad Consulate — Father Critical with Cancer — Feeling Completely Lost. Poster is in India for a critically ill father (advanced colon cancer) and needs H-1B stamping to return to the US, but the earliest regular slot at Hyderabad is in 2027. Their first emergency appointment request was denied despite a medical letter and employer/vendor support letters. They have one more chance to apply and are seeking advice to strengthen the second request. Tags: H-1B, HYD, IN, visa-stamping, h1b-stamping, employer-letter, emergency-visa-appointment, visa-interview-scheduling, no-slot, stamping-delay, re-apply. Stages: travel_country:IN. Dates: (none)."
+}

@@ -1,0 +1,45 @@
+{
+  "case_id": "case-57",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6i5ct/timeline_for_h1b_approval/",
+  "post_title": "Timeline for H-1B Approval",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Experience post sharing H-1B premium processing timeline at the Vermont Service Center: filed April 24, receipt April 28, approval May 7.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "premium-processing",
+    "VSC",
+    "experience-posting",
+    "timeline"
+  ],
+  "concerns_or_questions_tags": [],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "resolved",
+  "derived_topic_cluster": ["h1b-approval-timeline", "vsc-premium-processing"],
+  "key_stages_or_info": {
+    "outcome_status": "approved",
+    "service_center_assigned": "VSC"
+  },
+  "key_dates": {
+    "h1b_receipt_date": "2026-04-28",
+    "h1b_filed_date": "2026-04-24",
+    "h1b_approved_date": "2026-05-07"
+  },
+  "embedding_text": "Timeline for H-1B Approval. Experience post sharing H-1B premium processing timeline at the Vermont Service Center: filed April 24, receipt April 28, approval May 7. Tags: H-1B, premium-processing, VSC, experience-posting, timeline. Stages: outcome_status:approved, service_center_assigned:VSC. Dates: h1b_receipt_date:2026-04-28, h1b_filed_date:2026-04-24, h1b_approved_date:2026-05-07."
+}

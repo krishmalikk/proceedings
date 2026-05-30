@@ -1,40 +1,36 @@
-# Obsidian Vault Context
+# CLAUDE.md
 
-This folder is the Obsidian knowledge base for the Proceedings project. When working on any part of the project, reference these notes for detailed context.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Vault Index
+## Project Overview
 
-### Architecture & Deployment
-- `Proceedings — Project Overview.md` — Full architecture, tech stack, 47-category taxonomy, pipeline diagram, current stats
-- `Deployment.md` — Cloud Run (API), Vercel (website), Agent Engine deployment details
+This is a US Immigration & Visa Tagging System — a data taxonomy project for standardizing immigration-related content tagging plus a corpus of tagged candidate postings. No executable code.
 
-### Active Pipeline Scripts
-- `discover_urls.py.md` — URL auto-discovery via web search and seed lists
-- `agent_crawl.py.md` — trafilatura-based web crawling (replaced Firecrawl)
-- `agent_label.py.md` — Content labeling via deployed Agent Engine (47 categories)
-- `labeling_agent.md` — Agent package: taxonomy (47 categories), ImmigrationLabelingAgent class
-- `pipeline.py.md` — Pipeline orchestrator: crawl → label → index
-- `continuous_crawl.py.md` — Continuous pipeline runner (discover → crawl → label → index in a loop)
-- `index.py.md` — Chunking, embedding, vector indexing (incremental mode)
-- `query.py.md` — RAG query engine with Firestore Q&A logging and feedback
-- `api.py.md` — FastAPI server on Cloud Run (endpoints, CORS, rate limiting)
+## Project Structure
 
-### Legacy Scripts (kept for reference)
-- `crawler.py.md` — Original Firecrawl-based crawler
-- `auto_label.py.md` — Original Gemini labeling (6 categories)
-- `Label Studio Setup.md` — Manual labeling on GCP VM
+| Path | Contents |
+|---|---|
+| `us_immigration_tag_specification.md` | Authoritative specification of tag categories and naming rules |
+| `tags-cleaned/` | The 10 master tag-list CSVs (one per category, sections 1.1–1.10) |
+| `postings-examples/` | 72 candidate postings, each in `case-N/` with `caseN.md` (raw) + `caseN.json` (canonical metadata) |
+| `JSON-SCHEMA-FIELD-DICTIONARY.md` | Field-by-field rules for the posting metadata JSON |
+| `LLM-EXTRACTION-PROMPT.md` | Production system prompt for the real-time tagger (Vertex AI / Gemini) |
 
-### Infrastructure
-- `Statistics & Analytics.md` — Full stats: chunks, labels, Q&A performance, domains, quality timeline
-- `GCP Setup.md` — Bucket provisioning script
-- `Website.md` — Next.js site on Vercel (pages including /ask, components)
+## Master tag lists (in `tags-cleaned/`)
 
-### Business Documents
-- `Business Documents.md` — Client-facing documents index
-- `Data Intake Checklist.md` — Client onboarding form (12 sections)
-- `Launch Requirements.md` — V1 vs Later prioritization
-- `Pilot Offer.md` — 30-day pilot one-pager ($750 pilot, $300-500/mo ongoing)
+| File | Tag category |
+|---|---|
+| `1.1-non-immigration-visas.csv` | Non-immigrant visa codes (1.1) |
+| `1.2-greencard-categories.csv` | Green card categories (1.2) |
+| `1.3-abbreviations.csv` | Common immigration abbreviations (1.3) |
+| `1.4-consulates.csv` | U.S. embassy/consulate country and city codes (1.4) |
+| `1.5-forms.csv` | USCIS / State Department forms (1.5) |
+| `1.6-visa-form-actions.csv` | Visa- and form-specific actions / attributes (1.6) |
+| `1.7-key-stages.csv` | Key-value stage attribute names (1.7) |
+| `1.8-key-dates.csv` | Key-value date attribute names (1.8) |
+| `1.9-outcomes.csv` | Process / form outcomes (1.9) |
+| `1.10-common-misc.csv` | Layman / topical immigration concerns (1.10) |
 
-## How to Use
+## Working with this project
 
-When you need detailed context about a specific script, component, or business document, read the corresponding `.md` file in this directory. Each note contains function-level breakdowns, data flows, dependencies, and relationships to other parts of the project.
+This is a pure data/specification project — no build system, tests, or linting. Modifications involve editing master tag CSVs in `tags-cleaned/`, the specification document, or the per-posting JSON files under `postings-examples/`.

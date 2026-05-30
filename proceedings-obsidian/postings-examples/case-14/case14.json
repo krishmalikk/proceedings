@@ -1,0 +1,60 @@
+{
+  "case_id": "case-14",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/USVisas",
+  "subreddit": "USVisas",
+  "full_url": "https://www.reddit.com/r/USVisas/comments/1ssgqzw/usmle_b1b2_visa/",
+  "post_title": "USMLE B1/B2 visa",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Friend (Indian medical intern) was refused a B-1/B-2 visa in Delhi under 214(b) after a brief interview about a 4-week clinical observership at UT Houston with an agency-arranged letter. Asking what went wrong and how to re-apply: with the same observership letter, after USMLE step 1, with family for a vacation, or based on step 3. Worried the USMLE journey is over without a visa.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": [
+    "B-1",
+    "B-2"
+  ],
+  "primary_consulate": "DEL",
+  "consulates": [
+    "DEL",
+    "IN"
+  ],
+  "tags": [
+    "USMLE",
+    "physician",
+    "agent"
+  ],
+  "concerns_or_questions_tags": [
+    "214b",
+    "visa-refused",
+    "re-apply",
+    "prior-visa-rejection",
+    "visa-interview",
+    "required-documents",
+    "nonimmigrant-intent"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "healthcare",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "b1b2-refusal",
+    "usmle-observership",
+    "214b-refusal"
+  ],
+  "key_stages_or_info": {
+    "outcome_status": "refused",
+    "citizen_of_country": "IN"
+  },
+  "key_dates": {
+    "visa_interview_date": "2026-04-14"
+  },
+  "embedding_text": "USMLE B1/B2 visa. Friend (Indian medical intern) was refused a B-1/B-2 visa in Delhi under 214(b) after a brief interview about a 4-week clinical observership at UT Houston with an agency-arranged letter. Asking what went wrong and how to re-apply: with the same observership letter, after USMLE step 1, with family for a vacation, or based on step 3. Worried the USMLE journey is over without a visa. Tags: B-1, B-2, DEL, IN, USMLE, physician, agent, 214b, visa-refused, re-apply, prior-visa-rejection, visa-interview, required-documents, nonimmigrant-intent. Stages: outcome_status:refused, citizen_of_country:IN. Dates: visa_interview_date:2026-04-14."
+}

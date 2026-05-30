@@ -1,0 +1,50 @@
+{
+  "case_id": "case-20",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1srpmma/h1b_selected_fy_2027_stem_opt_pending/",
+  "post_title": "H1B selected FY 2027, STEM OPT pending",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Selected in the H-1B FY2027 lottery with petition filing planned for May 2026, but STEM OPT extension (I-765) filed Nov 2025 is still pending with no updates. Asking whether cap-gap will apply and how others navigated the overlap between pending STEM OPT and the H-1B filing window.",
+  "current_visa_or_greencard_category": ["F-1"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "OPT",
+    "stem-opt",
+    "I-765",
+    "h1b-lottery",
+    "stem-opt-extension",
+    "opt-extension"
+  ],
+  "concerns_or_questions_tags": [
+    "h1b-cap-gap",
+    "cap-gap",
+    "h1b-filing",
+    "processing-delay",
+    "timeline"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-cap-gap", "stem-opt-pending", "fy2027-timeline"],
+  "key_stages_or_info": {
+    "application_status": "pending"
+  },
+  "key_dates": {
+    "i765_filed_date": "2025-11-30"
+  },
+  "embedding_text": "H1B selected FY 2027, STEM OPT pending. Selected in the H-1B FY2027 lottery with petition filing planned for May 2026, but STEM OPT extension (I-765) filed Nov 2025 is still pending with no updates. Asking whether cap-gap will apply and how others navigated the overlap between pending STEM OPT and the H-1B filing window. Tags: F-1, H-1B, OPT, stem-opt, I-765, h1b-lottery, stem-opt-extension, opt-extension, h1b-cap-gap, cap-gap, h1b-filing, processing-delay, timeline. Stages: application_status:pending. Dates: i765_filed_date:2025-11-30."
+}

@@ -1,0 +1,42 @@
+{
+  "case_id": "case-6",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1sl99fd/slots_not_available_or_rescheduling/",
+  "post_title": "Slots not available or rescheduling",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Recently selected in the H-1B lottery and the company does not want travel before petition due to workload. Trying to understand the current visa-slot situation in India and whether slots are simply unavailable or being rescheduled after confirmation.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "IN",
+  "consulates": ["IN"],
+  "tags": [
+    "h1b-lottery"
+  ],
+  "concerns_or_questions_tags": [
+    "no-slot",
+    "visa-interview-scheduling",
+    "travel-concern",
+    "stamping-delay"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["india-consular-delays", "visa-slot-shortage"],
+  "key_stages_or_info": {
+    "citizen_of_country": "IN"
+  },
+  "key_dates": {},
+  "embedding_text": "Slots not available or rescheduling. Recently selected in the H-1B lottery and the company does not want travel before petition due to workload. Trying to understand the current visa-slot situation in India and whether slots are simply unavailable or being rescheduled after confirmation. Tags: H-1B, IN, h1b-lottery, no-slot, visa-interview-scheduling, travel-concern, stamping-delay. Stages: citizen_of_country:IN. Dates: (none)."
+}

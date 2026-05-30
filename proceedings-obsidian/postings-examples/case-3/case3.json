@@ -1,0 +1,49 @@
+{
+  "case_id": "case-3",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1skryr3/i94_overstay_by_13_months/",
+  "post_title": "I94 overstay by 13 months",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Spouse's I-94 expired in March 2025 (set short due to expired passport at entry) but H-1B visa stamp was valid till Sept 2026 — resulting in 13-month overstay. She continued working and paying taxes. Lawyers preparing a Nunc Pro Tunc (NPT) application requesting pardon while planning to file H-1B extension. Seeking hopeful guidance on the situation.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": ["IN"],
+  "tags": [
+    "I-94",
+    "passport-expired",
+    "re-entry"
+  ],
+  "concerns_or_questions_tags": [
+    "overstay",
+    "NPT",
+    "npt-pardon",
+    "h1b-extension",
+    "unlawful-presence"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["overstay-recovery", "h1b-status-repair"],
+  "key_stages_or_info": {
+    "spouse_status": "H-1B",
+    "travel_country": "IN"
+  },
+  "key_dates": {
+    "visa_expire_date": "2026-07-30",
+    "i94_expire_date": "2025-03-31"
+  },
+  "embedding_text": "I94 overstay by 13 months. Wife on H-1B overstayed I-94 by 13 months due to passport-renewal oversight; lawyers preparing NPT pardon while planning H-1B extension. Tags: H-1B, IN, I-94, passport-expired, re-entry, overstay, NPT, npt-pardon, h1b-extension, unlawful-presence. Stages: spouse_status:H-1B, travel_country:IN. Dates: visa_expire_date:2026-07-30, i94_expire_date:2025-03-31."
+}

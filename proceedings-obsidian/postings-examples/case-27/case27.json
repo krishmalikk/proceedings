@@ -1,0 +1,41 @@
+{
+  "case_id": "case-27",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1spj9us/i94_validity/",
+  "post_title": "I94 validity",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "I-94 admit-until date is tied to passport expiry, which is more than a year before the H-1B visa expiry. Asking whether to file an H-1B extension or travel abroad and re-enter to refresh the I-94, or whether any other option exists.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-94",
+    "passport-expired"
+  ],
+  "concerns_or_questions_tags": [
+    "visa-expiring",
+    "h1b-extension",
+    "travel-concern",
+    "re-entry"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["i94-validity", "h1b-extension-options"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "I94 validity. I-94 admit-until date is tied to passport expiry, which is more than a year before the H-1B visa expiry. Asking whether to file an H-1B extension or travel abroad and re-enter to refresh the I-94, or whether any other option exists. Tags: H-1B, I-94, passport-expired, visa-expiring, h1b-extension, travel-concern, re-entry. Stages: (none). Dates: (none)."
+}

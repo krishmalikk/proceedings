@@ -1,0 +1,41 @@
+{
+  "case_id": "case-35",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/usvisascheduling",
+  "subreddit": "usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1svvi3z/parents_b1b2_visa_approved_mumbai_india/",
+  "post_title": "Parents B1B2 visa approved Mumbai India",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Experience-sharing post describing the user's parents' successful B-1/B-2 visa interview at the Mumbai consulate, including the queue/translator setup and the full interview Q&A that ended in approval. The author offers to answer questions from others preparing parents for similar interviews.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["B-1", "B-2"],
+  "primary_consulate": "BOM",
+  "consulates": ["BOM", "IN"],
+  "tags": [
+    "experience-posting",
+    "translator",
+    "tips",
+    "visa-interview"
+  ],
+  "concerns_or_questions_tags": [],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "resolved",
+  "derived_topic_cluster": ["b1b2-experience", "mumbai-consulate-tips"],
+  "key_stages_or_info": {
+    "outcome_status": "approved",
+    "consulate_assigned": "BOM"
+  },
+  "key_dates": {},
+  "embedding_text": "Parents B1B2 visa approved Mumbai India. Experience-sharing post describing the user's parents' successful B-1/B-2 visa interview at the Mumbai consulate, including the queue/translator setup and the full interview Q&A that ended in approval. The author offers to answer questions from others preparing parents for similar interviews. Tags: B-1, B-2, BOM, IN, experience-posting, translator, tips, visa-interview. Stages: outcome_status:approved, consulate_assigned:BOM. Dates: (none)."
+}

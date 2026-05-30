@@ -1,0 +1,52 @@
+{
+  "case_id": "case-67",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t7v31n/approval_timeline_h1b_extension_of_stay_with/",
+  "post_title": "Approval Timeline: H1B extension of stay with premium processing",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Experience post: first H-1B extension of stay with premium processing handled by Fragomen and assigned to NSC. Timeline shared — LCA approved Apr 10, petition filed Apr 22, USCIS received Apr 24, PP clock started and receipt issued Apr 27, approval May 1, I-797A received in mail May 6.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-797A",
+    "LCA",
+    "premium-processing",
+    "pp-clock",
+    "NSC",
+    "experience-posting",
+    "timeline",
+    "h1b-extension"
+  ],
+  "concerns_or_questions_tags": [],
+  "principal_country_of_chargeability": "",
+  "employer_type": "other",
+  "severity": "low",
+  "resolution_status": "resolved",
+  "derived_topic_cluster": ["h1b-extension-timeline", "nsc-premium-processing"],
+  "key_stages_or_info": {
+    "outcome_status": "approved",
+    "service_center_assigned": "NSC"
+  },
+  "key_dates": {
+    "lca_approved_date": "2026-04-10",
+    "h1b_filed_date": "2026-04-22",
+    "h1b_receipt_date": "2026-04-27",
+    "h1b_processing_start_date": "2026-04-27",
+    "h1b_approved_date": "2026-05-01",
+    "i797a_receipt_date": "2026-05-06"
+  },
+  "embedding_text": "Approval Timeline: H1B extension of stay with premium processing. Experience post: first H-1B extension of stay with premium processing handled by Fragomen and assigned to NSC. Timeline shared — LCA approved Apr 10, petition filed Apr 22, USCIS received Apr 24, PP clock started and receipt issued Apr 27, approval May 1, I-797A received in mail May 6. Tags: H-1B, I-797A, LCA, premium-processing, pp-clock, NSC, experience-posting, timeline, h1b-extension. Stages: outcome_status:approved, service_center_assigned:NSC. Dates: lca_approved_date:2026-04-10, h1b_filed_date:2026-04-22, h1b_receipt_date:2026-04-27, h1b_processing_start_date:2026-04-27, h1b_approved_date:2026-05-01, i797a_receipt_date:2026-05-06."
+}

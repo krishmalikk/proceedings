@@ -1,0 +1,53 @@
+{
+  "case_id": "case-39",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/usvisascheduling",
+  "subreddit": "usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t0p107/reapplying_for_b2_visa_for_fifa_world_cup_2026/",
+  "post_title": "Reapplying for B2 visa for FIFA World Cup 2026 after 214(b) denial — Uzbekistan, need advice",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "20-year-old single Uzbekistan applicant was refused a B-2 visa under 214(b) at his first interview while seeking to attend FIFA World Cup 2026 matches with his father. He is asking whether anyone from a similar Central Asian profile successfully reapplied after a 214(b) refusal and what documents helped overcome the immigrant-intent presumption.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": [
+    "B-2"
+  ],
+  "primary_consulate": "UZ",
+  "consulates": [
+    "UZ"
+  ],
+  "tags": [
+    "first-time-visa",
+    "family-ties"
+  ],
+  "concerns_or_questions_tags": [
+    "fifa-world-cup",
+    "214b",
+    "visa-refused",
+    "re-apply",
+    "nonimmigrant-intent"
+  ],
+  "principal_country_of_chargeability": "UZ",
+  "employer_type": "other",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "b2-214b-refusal",
+    "fifa-world-cup-travel",
+    "central-asia-reapply"
+  ],
+  "key_stages_or_info": {
+    "outcome_status": "refused",
+    "consulate_assigned": "UZ"
+  },
+  "key_dates": {},
+  "embedding_text": "Reapplying for B2 visa for FIFA World Cup 2026 after 214(b) denial — Uzbekistan, need advice. 20-year-old single Uzbekistan applicant was refused a B-2 visa under 214(b) at his first interview while seeking to attend FIFA World Cup 2026 matches with his father. He is asking whether anyone from a similar Central Asian profile successfully reapplied after a 214(b) refusal and what documents helped overcome the immigrant-intent presumption. Tags: B-2, UZ, first-time-visa, family-ties, fifa-world-cup, 214b, visa-refused, re-apply, nonimmigrant-intent. Stages: outcome_status:refused, consulate_assigned:UZ. Dates: (none)."
+}

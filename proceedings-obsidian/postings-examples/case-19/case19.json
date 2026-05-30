@@ -1,0 +1,48 @@
+{
+  "case_id": "case-19",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssny5g/h1b_221g_us_embassy_pakistan_need_some_guidance/",
+  "post_title": "H1B 221(g) US embassy Pakistan - need some guidance",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Had the H-1B visa interview at the U.S. Embassy in Pakistan and was issued a 221(g) pink slip; status has been showing 'Refused' for about two weeks. USCIS approval itself took nearly a year. Asking others how long it took for their status to change, whether it stayed 'Refused' the whole time, and how the final update came through.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "PK",
+  "consulates": ["PK"],
+  "tags": [
+    "visa-interview",
+    "h1b-stamping",
+    "visa-stamping"
+  ],
+  "concerns_or_questions_tags": [
+    "221g",
+    "221g-pink",
+    "administrative-processing",
+    "visa-refused",
+    "processing-delay",
+    "endless-wait"
+  ],
+  "principal_country_of_chargeability": "PK",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-221g", "administrative-processing", "consular-delays"],
+  "key_stages_or_info": {
+    "outcome_status": "refused",
+    "citizen_of_country": "PK",
+    "ceac_status": "refused"
+  },
+  "key_dates": {},
+  "embedding_text": "H1B 221(g) US embassy Pakistan - need some guidance. Had the H-1B visa interview at the U.S. Embassy in Pakistan and was issued a 221(g) pink slip; status has been showing 'Refused' for about two weeks. USCIS approval itself took nearly a year. Asking others how long it took for their status to change, whether it stayed 'Refused' the whole time, and how the final update came through. Tags: H-1B, PK, visa-interview, h1b-stamping, visa-stamping, 221g, 221g-pink, administrative-processing, visa-refused, processing-delay, endless-wait. Stages: outcome_status:refused, citizen_of_country:PK, ceac_status:refused. Dates: (none)."
+}

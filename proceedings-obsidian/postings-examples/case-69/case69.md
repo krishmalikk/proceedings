@@ -1,0 +1,24 @@
+# https://www.reddit.com/r/h1b/comments/1t7sqmn/h1b_cos_from_b2_approved_with_new_i94_but_offer/
+
+H-1B COS (from B-2) approved with new i-94, but offer rescinded
+I am wondering if anyone here is in a similar situation like mine…
+
+B-2 to H-1B COS approval received, but employer (ABC) rescinded offer. Valid i-797A with i-94 until 2029.
+
+I am well within the 60-days from the start date of the i-797A approval, but I have no employment record or pay stubs with this employer (ABC). A new employer (XYZ) has given offer, but their immigration needs paystub to show I maintained status. What are my options?
+
+Timeline
+
+Aug 2025: Previous H-1B employment ended
+
+Oct 2025: B-2 COS applied
+
+Jan 2026: Received offer
+
+Feb 2026: H-1B COS applied. RFE received on both H-1B and B-2 COS
+
+Mar 2026: Responded to RFEs
+
+Apr 2026: Both approved, but by that time offer was already rescinded employer ABC did not want to keep waiting
+
+Am I still in valid H-1B status for 60 days from date of i-797 approval? How should any new employer approach H-1B transfer in this case without any pay stubs

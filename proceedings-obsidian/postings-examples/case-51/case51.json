@@ -1,0 +1,46 @@
+{
+  "case_id": "case-51",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6ckoe/i129_with_pp_no_response_yet_after_15_business/",
+  "post_title": "I-129 with PP. No response yet after 15 business days",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Wife filed an I-129 with premium processing at the Vermont Service Center on April 16, 2026 and has not received any USCIS response after 15 business days. Asking whether VSC is currently experiencing a backlog and what others' experience has been with this center.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-129",
+    "VSC",
+    "premium-processing",
+    "pp-clock"
+  ],
+  "concerns_or_questions_tags": [
+    "backlog",
+    "processing-time",
+    "processing-delay"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["i129-premium-processing-delay", "vsc-backlog"],
+  "key_stages_or_info": {
+    "service_center_assigned": "VSC"
+  },
+  "key_dates": {
+    "i129_filed_date": "2026-04-16"
+  },
+  "embedding_text": "I-129 with PP. No response yet after 15 business days. Wife filed an I-129 with premium processing at the Vermont Service Center on April 16, 2026 and has not received any USCIS response after 15 business days. Asking whether VSC is currently experiencing a backlog and what others' experience has been with this center. Tags: I-129, VSC, premium-processing, pp-clock, backlog, processing-time, processing-delay. Stages: service_center_assigned:VSC. Dates: i129_filed_date:2026-04-16."
+}

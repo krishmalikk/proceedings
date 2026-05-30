@@ -1,0 +1,43 @@
+{
+  "case_id": "case-22",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1srz7ef/h1b_transfer_2026_taking_2_weeks_off_between_jobs/",
+  "post_title": "H1B transfer 2026 - taking 2 weeks off between jobs",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Currently on H-1B with Employer A and Employer B is filing the H-1B transfer in premium processing; plans 2 weeks' notice plus 2 weeks off (4-week total gap) before starting at Employer B. Asking whether the break is safe under maintenance of status, whether the notice period counts, how reasonable a short employment gap is in 2026, and what USCIS expects after the transfer petition is filed.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "h1b-transfer",
+    "change-of-employer-COE",
+    "premium-processing",
+    "h1b-portability-rule"
+  ],
+  "concerns_or_questions_tags": [
+    "legal-status",
+    "gap-concern",
+    "maintenance-of-status",
+    "bench-policy"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-transfer", "employment-gap", "h1b-portability"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "H1B transfer 2026 - taking 2 weeks off between jobs. Currently on H-1B with Employer A and Employer B is filing the H-1B transfer in premium processing; plans 2 weeks' notice plus 2 weeks off (4-week total gap) before starting at Employer B. Asking whether the break is safe under maintenance of status, whether the notice period counts, how reasonable a short employment gap is in 2026, and what USCIS expects after the transfer petition is filed. Tags: H-1B, h1b-transfer, change-of-employer-COE, premium-processing, h1b-portability-rule, legal-status, gap-concern, maintenance-of-status, bench-policy. Stages: (none). Dates: (none)."
+}

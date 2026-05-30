@@ -1,0 +1,45 @@
+{
+  "case_id": "case-12",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/USVisas",
+  "subreddit": "USVisas",
+  "full_url": "https://www.reddit.com/r/USVisas/comments/1ss0nhf/b1b2_visa_with_esta_record_reviewed_annotation/",
+  "post_title": "B1/B2 visa with ESTA RECORD REVIEWED annotation",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Recently approved for a B-1/B-2 visa after a past ESTA overstay; visa carries an 'ESTA RECORD REVIEWED' annotation. Planning a short tourism trip and asking if others with this annotation faced extra CBP questions or issues at primary or secondary inspection at the port of entry.",
+  "current_visa_or_greencard_category": ["B-1", "B-2"],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "ESTA",
+    "annotation",
+    "esta-record-reviewed",
+    "overstay"
+  ],
+  "concerns_or_questions_tags": [
+    "CBP",
+    "port-of-entry",
+    "re-entry",
+    "travel-concern"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["poe-experience", "esta-overstay-history"],
+  "key_stages_or_info": {
+    "outcome_status": "approved"
+  },
+  "key_dates": {},
+  "embedding_text": "B1/B2 visa with ESTA RECORD REVIEWED annotation. Recently approved for a B-1/B-2 visa after a past ESTA overstay; visa carries an 'ESTA RECORD REVIEWED' annotation. Planning a short tourism trip and asking if others with this annotation faced extra CBP questions or issues at primary or secondary inspection at the port of entry. Tags: B-1, B-2, ESTA, annotation, esta-record-reviewed, overstay, CBP, port-of-entry, re-entry, travel-concern. Stages: outcome_status:approved. Dates: (none)."
+}

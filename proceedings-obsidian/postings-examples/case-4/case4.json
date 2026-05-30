@@ -1,0 +1,40 @@
+{
+  "case_id": "case-4",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1sktrr2/tax_filing_f1_to_h1b_transition_in_2025/",
+  "post_title": "Tax filing F1 to H1B transition in 2025",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Recently transitioned from F-1 to H-1B in October 2025 and is unsure how to file taxes for the year. Considering filing as a non-resident under the Substantial Presence Test exemption and is exploring eligibility for the US-India tax treaty article 21(2). Looking for confirmation from others in a similar situation.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "f1-to-h1b",
+    "visa-transfer"
+  ],
+  "concerns_or_questions_tags": [
+    "tax-filing"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["tax-filing-status", "f1-to-h1b-transition"],
+  "key_stages_or_info": {
+    "citizen_of_country": "IN"
+  },
+  "key_dates": {},
+  "embedding_text": "Tax filing F1 to H1B transition in 2025. Recently transitioned from F-1 to H-1B in October 2025 and is unsure how to file taxes for the year. Considering filing as a non-resident under the Substantial Presence Test exemption and is exploring eligibility for the US-India tax treaty article 21(2). Looking for confirmation from others in a similar situation. Tags: H-1B, f1-to-h1b, visa-transfer, tax-filing. Stages: citizen_of_country:IN. Dates: (none)."
+}

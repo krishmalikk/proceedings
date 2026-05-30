@@ -1,0 +1,60 @@
+{
+  "case_id": "case-65",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t7143u/laid_off_need_suggestion_how_to_navigte_situation/",
+  "post_title": "Laid off ( need suggestion how to navigte situation)",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "H-1B worker laid off April 1 with approved I-140 is weighing three offers (YC startup first-time filer, consultancy bench-pay, possible big-tech) and must preserve their 60-day grace period ending this month. Asks whether filing with a startup carries higher denial/RFE risk, whether to let the startup file while keeping consultancy as a concurrent backup, and how to navigate a big-tech offer materializing mid-transfer.",
+  "current_visa_or_greencard_category": [
+    "H-1B"
+  ],
+  "visa_applying_for": [
+    "H-1B"
+  ],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-140",
+    "LCA",
+    "employment-based-immigration"
+  ],
+  "concerns_or_questions_tags": [
+    "layoff",
+    "60day-grace-period",
+    "h1b-transfer",
+    "h1b-rfe",
+    "startup",
+    "bench-policy",
+    "job-search",
+    "legal-status",
+    "change-status-options",
+    "concurrent-h1b"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "startup",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "h1b-layoff-recovery",
+    "startup-h1b-risk",
+    "concurrent-h1b-transfer"
+  ],
+  "key_stages_or_info": {
+    "I-140": "approved"
+  },
+  "key_dates": {
+    "employment_end_date": "2026-04-01"
+  },
+  "embedding_text": "Laid off ( need suggestion how to navigte situation). H-1B worker laid off April 1 with approved I-140 is weighing three offers (YC startup first-time filer, consultancy bench-pay, possible big-tech) and must preserve their 60-day grace period ending this month. Asks whether filing with a startup carries higher denial/RFE risk, whether to let the startup file while keeping consultancy as a concurrent backup, and how to navigate a big-tech offer materializing mid-transfer. Tags: H-1B, I-140, LCA, employment-based-immigration, layoff, 60day-grace-period, h1b-transfer, h1b-rfe, startup, bench-policy, job-search, legal-status, change-status-options, concurrent-h1b. Stages: I-140:approved. Dates: employment_end_date:2026-04-01."
+}

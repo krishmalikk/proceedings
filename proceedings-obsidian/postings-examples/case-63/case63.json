@@ -1,0 +1,39 @@
+{
+  "case_id": "case-63",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t7dne6/consular_page_blank/",
+  "post_title": "Consular page blank",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster is trying to book an H-1B appointment in India: can select the OFC appointment but the consular page comes up blank when proceeding. This has happened multiple times in the past few days; asking what to do.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": ["IN"],
+  "tags": [
+    "OFC",
+    "consulate"
+  ],
+  "concerns_or_questions_tags": [
+    "visa-interview-scheduling",
+    "no-slot"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-stamping-scheduling", "india-consular-portal-issue"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Consular page blank. Poster is trying to book an H-1B appointment in India: can select the OFC appointment but the consular page comes up blank when proceeding. This has happened multiple times in the past few days; asking what to do. Tags: H-1B, IN, OFC, consulate, visa-interview-scheduling, no-slot. Stages: (none). Dates: (none)."
+}

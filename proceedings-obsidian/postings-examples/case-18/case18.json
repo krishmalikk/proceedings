@@ -1,0 +1,46 @@
+{
+  "case_id": "case-18",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1sr9zh0/perm_restart_due_to_promotion_any_way_around_this/",
+  "post_title": "PERM restart due to promotion - any way around this?",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Company is restarting the PERM process (I-140 not yet filed) because the user was promoted from Engineer I to Engineer II despite minimal duty/pay change. H-1B extension was filed under Engineer II, so the employer will not file the I-140 under the old title. Asking whether there is any workaround to avoid the 2+ year PERM restart given the visa timeline.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "PERM",
+    "I-140",
+    "h1b-extension",
+    "employment-based-immigration",
+    "perm-filing"
+  ],
+  "concerns_or_questions_tags": [
+    "promotion",
+    "job-title",
+    "job-description",
+    "wage-level-compliance"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["perm-restart", "promotion-impact", "labor-certification"],
+  "key_stages_or_info": {
+    "petition_status": "not-filed-yet"
+  },
+  "key_dates": {},
+  "embedding_text": "PERM restart due to promotion - any way around this?. Company is restarting the PERM process (I-140 not yet filed) because the user was promoted from Engineer I to Engineer II despite minimal duty/pay change. H-1B extension was filed under Engineer II, so the employer will not file the I-140 under the old title. Asking whether there is any workaround to avoid the 2+ year PERM restart given the visa timeline. Tags: H-1B, PERM, I-140, h1b-extension, employment-based-immigration, perm-filing, promotion, job-title, job-description, wage-level-compliance. Stages: petition_status:not-filed-yet. Dates: (none)."
+}

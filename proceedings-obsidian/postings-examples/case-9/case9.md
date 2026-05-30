@@ -1,0 +1,17 @@
+# https://www.reddit.com/r/USVisas/comments/1sqzb8o/indian_citizen_living_in_maldives_on_a_work_visa/
+
+I’m an Indian passport holder living and working legally in Maldives on a valid work visa. Since Maldives has no US consulate, Colombo is the official processing post for Maldivians/residents, so I’m considering applying there.
+
+I previously held a US visa and have traveled to the US 3–4 times without issues.
+
+Wanted to ask:
+
+Has anyone in a similar situation applied in Colombo?
+
+Does Colombo accept Indian nationals residing in Maldives?
+
+Any portal/document issues?
+
+How are current wait times?
+
+I’m applying as a genuine Maldives resident, not just for faster slots.

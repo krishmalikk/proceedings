@@ -1,0 +1,3 @@
+# https://www.reddit.com/r/usvisascheduling/comments/1srn4ab/need_advice_k1_approval_expiration_is_the_29th/
+
+Hi, our K1 visa i129 was approved but the expiration date is April 29th.. Our interview is June 23rd.. We can't seem to get any answers from the embassy they said they can't answer questions over the phone to email when we emailed them they told us to go to the site and post a message in our portal which we did and they haven't answered us.. Do we need to do anything to extend our approval or will it be automatic?? I hate to have come this far just to need to start all over again.. I CAN'T go through that again.. Please please any advice is greatly appreciated comments/1srn4ab/need_advice_k1_approval_expiration_is_the_29th/

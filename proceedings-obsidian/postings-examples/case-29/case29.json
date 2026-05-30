@@ -1,0 +1,48 @@
+{
+  "case_id": "case-29",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1sp6m0e/rfe_case_denied_for_h1b/",
+  "post_title": "RFE case denied for H1B",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "After switching employers, the new H-1B petition received an RFE on specialty-occupation and wage-level grounds and was denied on April 17. The user has requested change of status to B-2 while attorneys consider appeal, litigation, or re-application, and is asking what options others have taken after a similar RFE-denial.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["B-2"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "RFE",
+    "SOC"
+  ],
+  "concerns_or_questions_tags": [
+    "h1b-transfer",
+    "h1b-denial",
+    "rfe-denied",
+    "specialty-occupation",
+    "wage-level-compliance",
+    "change-of-status-COS",
+    "denial-reason",
+    "re-apply"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "other",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-rfe-denial", "specialty-occupation-rfe", "status-change-options"],
+  "key_stages_or_info": {
+    "petition_status": "denied",
+    "rfe_status": "denied"
+  },
+  "key_dates": {},
+  "embedding_text": "RFE case denied for H1B. After switching employers, the new H-1B petition received an RFE on specialty-occupation and wage-level grounds and was denied on April 17. The user has requested change of status to B-2 while attorneys consider appeal, litigation, or re-application, and is asking what options others have taken after a similar RFE-denial. Tags: H-1B, B-2, RFE, SOC, h1b-transfer, h1b-denial, rfe-denied, specialty-occupation, wage-level-compliance, change-of-status-COS, denial-reason, re-apply. Stages: petition_status:denied, rfe_status:denied. Dates: (none)."
+}

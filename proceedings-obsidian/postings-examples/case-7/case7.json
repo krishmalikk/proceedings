@@ -1,0 +1,63 @@
+{
+  "case_id": "case-7",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1skzyek/l1a_to_h1b_cos_avoid/",
+  "post_title": "L1A to H1B COS avoid",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Currently on L-1A with approved I-140 (PD Nov 2025) and selected in H-1B lottery; employer is only doing change-of-status. Wants to avoid H-1B auto-activation on Oct 1 (to preserve spouse's L-2S work authorization) by traveling to Canada Sep 28 and re-entering Oct 2-3 so the last action rule keeps L-1A status. Asks whether this travel plan works and whether the same approved H-1B petition can be activated as a COS later if needed.",
+  "current_visa_or_greencard_category": [
+    "L-1A"
+  ],
+  "visa_applying_for": [
+    "H-1B"
+  ],
+  "primary_consulate": "",
+  "consulates": [
+    "CA"
+  ],
+  "tags": [
+    "I-140",
+    "l1-to-h1b",
+    "employment-based-immigration",
+    "h1b-lottery"
+  ],
+  "concerns_or_questions_tags": [
+    "change-of-status-COS",
+    "re-entry",
+    "travel-concern",
+    "layoff",
+    "change-status-options",
+    "last-action-rule"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "l1-to-h1b-strategy",
+    "cos-avoidance",
+    "spouse-work-authorization"
+  ],
+  "key_stages_or_info": {
+    "I-140": "approved",
+    "spouse_status": "L-2S",
+    "travel_country": "CA"
+  },
+  "key_dates": {
+    "priority_date": "2025-11-30",
+    "i140_approved_date": "2026-01-31",
+    "visa_expire_date": "2028-08-31"
+  },
+  "embedding_text": "L1A to H1B COS avoid. Currently on L-1A with approved I-140 (PD Nov 2025) and selected in H-1B lottery; employer is only doing change-of-status. Wants to avoid H-1B auto-activation on Oct 1 (to preserve spouse's L-2S work authorization) by traveling to Canada Sep 28 and re-entering Oct 2-3 so the last action rule keeps L-1A status. Asks whether this travel plan works and whether the same approved H-1B petition can be activated as a COS later if needed. Tags: L-1A, H-1B, CA, I-140, l1-to-h1b, employment-based-immigration, h1b-lottery, change-of-status-COS, re-entry, travel-concern, layoff, change-status-options, last-action-rule. Stages: I-140:approved, spouse_status:L-2S, travel_country:CA. Dates: priority_date:2025-11-30, i140_approved_date:2026-01-31, visa_expire_date:2028-08-31."
+}

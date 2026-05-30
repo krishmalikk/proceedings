@@ -1,0 +1,88 @@
+tag,Associated Visa/Form,Description
+h1b-petition,H-1B,Petition filed by employer for H-1B specialty occupation worker
+h1b-filing,H-1B,Act of filing the H-1B petition
+h1b-lottery,H-1B,Annual H-1B cap selection process (random selection from registered candidates)
+h1b-transfer,H-1B,Change of employer for an H-1B worker (new I-129 with new employer)
+h1b-extension,H-1B,Extension of an existing H-1B status
+h1b-renewal,H-1B,Renewal of H-1B status with the same employer
+h1b-withdrawal,H-1B,Withdrawal of an H-1B petition by the employer
+h1b-portability-rule,H-1B,Rule allowing H-1B workers to change employers after a new petition is filed (AC21)
+h1b-material-change,H-1B,Significant change in job duties/location/wage requiring an amended H-1B petition
+h1b-6-year-rule,H-1B,Maximum 6-year limit on H-1B status with extensions beyond requiring AC21 eligibility
+h1b-selection-rule,H-1B,Rules governing H-1B cap registration and selection
+h1b-amendment,H-1B,Amended petition required due to material change in employment
+h1b-cap-gap,H-1B,Provision extending F-1 OPT until H-1B effective date
+h1b-stamping,H-1B,Visa stamping at a U.S. consulate for H-1B holders traveling abroad
+h1b-rfe,H-1B,Request for Evidence issued on an H-1B petition
+h1b-denial,H-1B,Denial of an H-1B petition
+h1b-approval,H-1B,Approval of an H-1B petition
+h1b-revocation,H-1B,Revocation of an approved H-1B petition
+h4-ead,H-4,Employment Authorization Document for H-4 dependent spouses
+h4-work-auth,H-4,Work authorization for H-4 dependent spouses
+l1-petition,L-1,Petition for intracompany transferee
+l1-extension,L-1,Extension of L-1 status
+l1-amendment,L-1,Amended L-1 petition
+l1-to-h1b,L-1 / H-1B,Change of status from L-1 to H-1B
+l2-ead,L-2,Employment Authorization Document for L-2 dependent spouses
+f1-extension,F-1,Extension of F-1 student status
+f1-stamping,F-1,Visa stamping at a U.S. consulate for F-1 students
+f1-to-h1b,F-1 / H-1B,Change of status from F-1 to H-1B
+f1-to-h4,F-1 / H-4,Change of status from F-1 to H-4
+opt-application,OPT / F-1,Application for Optional Practical Training
+opt-extension,OPT / F-1,Extension of OPT (typically STEM 24-month extension)
+stem-opt-extension,OPT / F-1,STEM 24-month OPT extension application
+cpt-application,CPT / F-1,Application for Curricular Practical Training
+j1-to-h1b,J-1 / H-1B,Change of status from J-1 to H-1B
+j1-2-year-rule,J-1,Two-year home-country physical presence requirement for certain J-1 holders
+j1-waiver,J-1,Waiver of the J-1 two-year home residency requirement
+b1b2-to-h1b,B-1/B-2 / H-1B,Change of status from B-1/B-2 to H-1B
+b1b2-extension,B-1/B-2,Extension of B-1/B-2 visitor status
+o1-petition,O-1,Petition for extraordinary ability worker
+o1-extension,O-1,Extension of O-1 status
+tn-renewal,TN,Renewal of TN status
+i129-filing,I-129,Filing of Form I-129 (Petition for Nonimmigrant Worker)
+i129-rfe,I-129,Request for Evidence on an I-129 petition
+i129-approval,I-129,Approval of an I-129 petition
+i130-filing,I-130,Filing of Form I-130 (Petition for Alien Relative)
+i130-approval,I-130,Approval of an I-130 petition
+i140-filing,I-140,Filing of Form I-140 (Immigrant Petition for Alien Worker)
+i140-approval,I-140,Approval of an I-140 petition
+i140-portability,I-140,Job portability under AC21 after I-140 approval and I-485 pending 180+ days
+i212-waiver,I-212,Waiver application for permission to reapply after removal
+i485-filing,I-485,Filing of Form I-485 (Adjustment of Status)
+i485-approval,I-485,Approval of an I-485 adjustment application
+i485-rfe,I-485,Request for Evidence on an I-485 application
+i539-filing,I-539,Filing of Form I-539 (Extend/Change Nonimmigrant Status)
+i539-extension,I-539,Extension of nonimmigrant status via Form I-539
+i539-withdrawn,I-539,Withdrawal of a pending I-539 application
+i765-filing,I-765,Filing of Form I-765 (Application for EAD)
+i765-approval,I-765,Approval of an EAD application
+i131-filing,I-131,Filing of Form I-131 (Advance Parole)
+i131-approval,I-131,Approval of an Advance Parole application
+i751-filing,I-751,Filing of Form I-751 (Remove Conditions on Residence)
+i90-filing,I-90,Filing of Form I-90 (Replace Permanent Resident Card)
+n400-filing,N-400,Filing of Form N-400 (Application for Naturalization)
+n400-interview,N-400,Naturalization interview for N-400 applicants
+n400-approval,N-400,Approval of N-400 naturalization application
+ds160-filing,DS-160,Submission of online nonimmigrant visa application DS-160
+ds160-question,DS-160,Question or clarification regarding the DS-160 form
+ds260-filing,DS-260,Submission of online immigrant visa application DS-260
+aos-filing,AOS / I-485,Filing of Adjustment of Status application
+aos-interview,AOS / I-485,Adjustment of Status interview
+aos-approval,AOS / I-485,Approval of Adjustment of Status
+ead-filing,EAD / I-765,Filing of EAD application
+ead-renewal,EAD / I-765,Renewal of EAD
+ap-filing,AP / I-131,Filing of Advance Parole application
+ap-renewal,AP / I-131,Renewal of Advance Parole
+perm-filing,PERM,Filing of PERM labor certification with DOL
+perm-approval,PERM,Approval of PERM labor certification
+niw-petition,NIW / EB-2,Petition for National Interest Waiver
+eb1-petition,EB-1,Petition for EB-1 priority worker
+eb2-petition,EB-2,Petition for EB-2 advanced degree/exceptional ability
+eb3-petition,EB-3,Petition for EB-3 skilled worker/professional
+visa-stamping,Any visa,Process of obtaining the visa stamp in passport at a U.S. consulate
+h1b-to-f1,H-1B / F-1,Change of status from H-1B to F-1 student
+h1b-to-l1,H-1B / L-1,Change of status from H-1B to L-1
+j1-renewal,J-1,Renewal of J-1 exchange visitor visa
+h1b-reinstatement,H-1B,Re-petitioning H-1B after expiration / out-of-country return
+h1b-100k-fee,H-1B,$100k H-1B fee assessment for H-1B-dependent employers

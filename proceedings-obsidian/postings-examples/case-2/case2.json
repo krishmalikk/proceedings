@@ -1,0 +1,48 @@
+{
+  "case_id": "case-2",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1skecda/has_anyones_employer_started_h1b_petition_for_fy",
+  "post_title": "Has anyone's employer started H1B petition for FY 2027?",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Selected in FY 2027 H-1B lottery but employer may not file until June; asking when employers typically start filing, how long preparation/submission takes after selection, total cost for regular vs premium processing, and timing under premium processing. Concerned that STEM OPT expires next month and is worried about getting the cap-gap extension on time.",
+  "current_visa_or_greencard_category": ["F-1"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "OPT",
+    "stem-opt"
+  ],
+  "concerns_or_questions_tags": [
+    "h1b-filing",
+    "h1b-petition",
+    "h1b-cap-gap",
+    "premium-processing",
+    "regular-vs-premium-processing",
+    "processing-fee",
+    "status-expiring"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-cap-filing-timeline", "cap-gap-issue"],
+  "key_stages_or_info": {
+    "petition_status": "not-filed-yet"
+  },
+  "key_dates": {
+    "opt_expire_date": "2026-05-31"
+  },
+  "embedding_text": "Has anyone's employer started H1B petition for FY 2027?. Selected in FY 2027 H-1B lottery but employer may not file until June; asking when employers typically start filing, how long preparation/submission takes after selection, total cost for regular vs premium processing, and timing under premium processing. Concerned that STEM OPT expires next month and is worried about getting the cap-gap extension on time. Tags: F-1, H-1B, OPT, stem-opt, h1b-filing, h1b-petition, h1b-cap-gap, premium-processing, regular-vs-premium-processing, processing-fee, status-expiring. Stages: petition_status:not-filed-yet. Dates: opt_expire_date:2026-05-31."
+}

@@ -1,0 +1,38 @@
+{
+  "case_id": "case-60",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t786e7/h1b_approval_timeline/",
+  "post_title": "H1b approval timeline",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Asking those whose H-1B petitions were approved last year how long it took to get an H-1B approval without premium processing.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "regular-processing"
+  ],
+  "concerns_or_questions_tags": [
+    "processing-time",
+    "timeline"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-regular-processing-timeline"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "H1b approval timeline. Asking those whose H-1B petitions were approved last year how long it took to get an H-1B approval without premium processing. Tags: H-1B, regular-processing, processing-time, timeline. Stages: (none). Dates: (none)."
+}

@@ -1,0 +1,3 @@
+# https://www.reddit.com/r/h1b/comments/1ss7jbo/any_june_2025_h1b_ext_regular_processing_texas/
+
+Thinking about upgrading to PP next week as it is nearing the 240 days limit (End of May 2026)

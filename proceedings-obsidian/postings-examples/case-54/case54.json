@@ -1,0 +1,41 @@
+{
+  "case_id": "case-54",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6s8d7/traveling_after_h1b_cos_gets_approved_but_before/",
+  "post_title": "Traveling after h1b cos gets approved but before oct 1st",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster is currently on F-1 STEM OPT and has an approved H-1B change of status that takes effect on October 1. Wants opinions on whether it is safe to travel abroad after the H-1B COS is approved but before the October 1 effective date.",
+  "current_visa_or_greencard_category": ["F-1"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "stem-opt",
+    "change-of-status-COS"
+  ],
+  "concerns_or_questions_tags": [
+    "travel-concern",
+    "gap-concern",
+    "re-entry",
+    "f1-to-h1b"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["f1-to-h1b-transition", "travel-before-h1b-start"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Traveling after h1b cos gets approved but before oct 1st. Poster is currently on F-1 STEM OPT and has an approved H-1B change of status that takes effect on October 1. Wants opinions on whether it is safe to travel abroad after the H-1B COS is approved but before the October 1 effective date. Tags: F-1, H-1B, stem-opt, change-of-status-COS, travel-concern, gap-concern, re-entry, f1-to-h1b. Stages: (none). Dates: (none)."
+}

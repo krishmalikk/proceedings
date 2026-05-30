@@ -1,0 +1,56 @@
+{
+  "case_id": "case-26",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1sql86k/got_a_200k_startup_offer_but_visa_expires_in_7/",
+  "post_title": "Got a $200k startup offer but visa expires in 7 weeks",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Received a $200K offer from a Palo Alto AI startup that may sponsor later, but H-1B work authorization expires June 12 (in seven weeks) and the user has no remaining H-1B lottery attempts. Considering Day 1 CPT via a second MS program or working until June 12 then going home and continuing remotely. Asking which option is safest for continuous work authorization.",
+  "current_visa_or_greencard_category": [
+    "H-1B"
+  ],
+  "visa_applying_for": [
+    "F-1"
+  ],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "CPT",
+    "startup",
+    "h1b-to-f1",
+    "change-of-employer-COE"
+  ],
+  "concerns_or_questions_tags": [
+    "job-offer",
+    "change-status-options",
+    "status-expiring",
+    "visa-expiring",
+    "h1b-transfer",
+    "work-location",
+    "day1-cpt"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "startup",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "status-expiring",
+    "day1-cpt-bridge",
+    "startup-sponsorship"
+  ],
+  "key_stages_or_info": {},
+  "key_dates": {
+    "h1b_expire_date": "2026-06-12"
+  },
+  "embedding_text": "Got a $200k startup offer but visa expires in 7 weeks. Received a $200K offer from a Palo Alto AI startup that may sponsor later, but H-1B work authorization expires June 12 (in seven weeks) and the user has no remaining H-1B lottery attempts. Considering Day 1 CPT via a second MS program or working until June 12 then going home and continuing remotely. Asking which option is safest for continuous work authorization. Tags: H-1B, F-1, CPT, startup, h1b-to-f1, change-of-employer-COE, job-offer, change-status-options, status-expiring, visa-expiring, h1b-transfer, work-location, day1-cpt. Stages: (none). Dates: h1b_expire_date:2026-06-12."
+}

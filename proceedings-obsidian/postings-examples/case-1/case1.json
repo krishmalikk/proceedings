@@ -1,0 +1,54 @@
+{
+  "case_id": "case-1",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/some-full-path-to-url",
+  "post_title": "H-1B layoff — when does the 60-day grace period start?",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "After being laid off (notification 03/17, payroll end 03/31) with valid I-797 to 2029, valid I-94 (>60 days), and approved I-140, when does the 60-day grace period actually start — from notification or last payroll date? Considering joining a consulting company temporarily or switching to F-1. If moving H-1B → F-1 and later returning to H-1B, is the lottery required again given the approved I-140?",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["F-1"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-797",
+    "I-94",
+    "I-140",
+    "employment-based-immigration",
+    "ac21-extension"
+  ],
+  "concerns_or_questions_tags": [
+    "layoff",
+    "60day-grace-period",
+    "legal-status",
+    "change-status-options",
+    "h1b-lottery",
+    "h1b-to-f1"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-layoff", "grace-period-rules", "status-change-options"],
+  "key_stages_or_info": {
+    "I-140": "approved",
+    "I-797": "approved",
+    "I-94": "valid"
+  },
+  "key_dates": {
+    "priority_date": "2014-10-23",
+    "employment_end_date": "2026-03-31",
+    "layoff_notification_date": "2026-03-17"
+  },
+  "embedding_text": "H-1B layoff — when does the 60-day grace period start? After being laid off with valid I-797, I-94, and approved I-140, considering F-1 fallback or consulting role. Tags: H-1B, F-1, I-797, I-94, I-140, employment-based-immigration, ac21-extension, layoff, 60day-grace-period, legal-status, change-status-options, h1b-lottery, h1b-to-f1. Stages: I-140:approved, I-797:approved, I-94:valid. Dates: priority_date:2014-10-23, employment_end_date:2026-03-31, layoff_notification_date:2026-03-17."
+}

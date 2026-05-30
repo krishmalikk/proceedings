@@ -1,0 +1,40 @@
+{
+  "case_id": "case-53",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6m1wh/lost_i797_before_consulate_appointment/",
+  "post_title": "Lost i797 before consulate appointment",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster cannot find their I-797 original and has a consulate appointment in a week. Has contacted lawyers but is asking whether a scan/printout will usually be accepted at the consular interview.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "consulate",
+    "visa-stamping",
+    "required-documents"
+  ],
+  "concerns_or_questions_tags": [
+    "lost-document",
+    "I-797"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["lost-i797", "consular-stamping-prep"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Lost i797 before consulate appointment. Poster cannot find their I-797 original and has a consulate appointment in a week. Has contacted lawyers but is asking whether a scan/printout will usually be accepted at the consular interview. Tags: H-1B, consulate, visa-stamping, required-documents, lost-document, I-797. Stages: (none). Dates: (none)."
+}

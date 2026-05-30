@@ -1,0 +1,47 @@
+{
+  "case_id": "case-23",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssbfjb/recent_h1b_port_of_entry_experience/",
+  "post_title": "Recent H1B port of entry experience",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Currently on H-1B with a stamp expiring August 2026 and about to file I-485 for a green card; planning a weekend trip to Mexico but anxious about re-entry. Asking for recent travel POE experiences on H-1B to gauge the risk.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": ["MX"],
+  "tags": [
+    "I-485",
+    "employment-based-immigration",
+    "i485-filing"
+  ],
+  "concerns_or_questions_tags": [
+    "port-of-entry",
+    "re-entry",
+    "travel-concern",
+    "CBP",
+    "visa-expiring"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-poe-experience", "travel-during-aos"],
+  "key_stages_or_info": {
+    "travel_country": "MX"
+  },
+  "key_dates": {
+    "visa_expire_date": "2026-08-31"
+  },
+  "embedding_text": "Recent H1B port of entry experience. Currently on H-1B with a stamp expiring August 2026 and about to file I-485 for a green card; planning a weekend trip to Mexico but anxious about re-entry. Asking for recent travel POE experiences on H-1B to gauge the risk. Tags: H-1B, MX, I-485, employment-based-immigration, i485-filing, port-of-entry, re-entry, travel-concern, CBP, visa-expiring. Stages: travel_country:MX. Dates: visa_expire_date:2026-08-31."
+}

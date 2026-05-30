@@ -1,0 +1,63 @@
+{
+  "case_id": "case-71",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t1yfvd/has_anyone_been_in_this_situation_desperately/",
+  "post_title": "Has anyone been in this situation? Desperately need help.",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster filed an H-4 COS and then a new employer filed an H-1B; both were approved the same day with the same I-94 number but different expiry dates (H-1B until 2029, H-4 until 2028). USCIS live agent said H-1B was approved first, suggesting H-4 is the last action, but the H-1B notice itself states COS is granted. The employer rescinded the offer assuming H-4, but if the poster is actually on H-1B their 60-day grace period ends in late May. Three lawyers cannot determine the active status. Asking which status is currently active and how others resolved similar dual same-day approvals.",
+  "current_visa_or_greencard_category": [
+    "H-1B",
+    "H-4"
+  ],
+  "visa_applying_for": [
+    "H-1B",
+    "H-4"
+  ],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-94",
+    "EAD",
+    "h4-ead",
+    "biometrics",
+    "change-of-status-COS"
+  ],
+  "concerns_or_questions_tags": [
+    "offer-rescinded",
+    "legal-status",
+    "60day-grace-period",
+    "change-status-options",
+    "maintenance-of-status",
+    "lawyer-recommendation",
+    "last-action-rule"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "dual-h1b-h4-approval",
+    "last-action-rule",
+    "status-determination"
+  ],
+  "key_stages_or_info": {
+    "H-1B": "approved",
+    "H-4": "approved",
+    "EAD": "pending"
+  },
+  "key_dates": {
+    "biometrics_appointment_date": "2026-04-07"
+  },
+  "embedding_text": "Has anyone been in this situation? Desperately need help.. Poster filed an H-4 COS and then a new employer filed an H-1B; both were approved the same day with the same I-94 number but different expiry dates (H-1B until 2029, H-4 until 2028). USCIS live agent said H-1B was approved first, suggesting H-4 is the last action, but the H-1B notice itself states COS is granted. The employer rescinded the offer assuming H-4, but if the poster is actually on H-1B their 60-day grace period ends in late May. Three lawyers cannot determine the active status. Asking which status is currently active and how others resolved similar dual same-day approvals. Tags: H-1B, H-4, I-94, EAD, h4-ead, biometrics, change-of-status-COS, offer-rescinded, legal-status, 60day-grace-period, change-status-options, maintenance-of-status, lawyer-recommendation, last-action-rule. Stages: H-1B:approved, H-4:approved, EAD:pending. Dates: biometrics_appointment_date:2026-04-07."
+}

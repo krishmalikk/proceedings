@@ -1,0 +1,57 @@
+{
+  "case_id": "case-50",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t62q5s/social_media_handles_in_ds160_for_visa_stamping/",
+  "post_title": "Social media handles in DS-160 for visa stamping",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Product designer who recently completed an H-1B change of status and filed I-485 is planning to travel to Korea for H-1B visa stamping. With around ten social media handles across LinkedIn, YouTube, Instagram, and TikTok (many tied to a non-profit design community), they ask whether listing so many accounts on the DS-160 could be a red flag during the social-media review.",
+  "current_visa_or_greencard_category": [
+    "H-1B"
+  ],
+  "visa_applying_for": [
+    "H-1B"
+  ],
+  "primary_consulate": "KR",
+  "consulates": [
+    "KR"
+  ],
+  "tags": [
+    "DS-160",
+    "I-485",
+    "visa-stamping",
+    "change-of-status-COS",
+    "background-check"
+  ],
+  "concerns_or_questions_tags": [
+    "social-media",
+    "ds160-question",
+    "third-country",
+    "travel-history-disclosure"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "other",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": [
+    "ds160-social-media",
+    "h1b-stamping-korea",
+    "third-country-stamping"
+  ],
+  "key_stages_or_info": {
+    "application_status": "I-485 filed",
+    "travel_country": "KR"
+  },
+  "key_dates": {},
+  "embedding_text": "Social media handles in DS-160 for visa stamping. Product designer who recently completed an H-1B change of status and filed I-485 is planning to travel to Korea for H-1B visa stamping. With around ten social media handles across LinkedIn, YouTube, Instagram, and TikTok (many tied to a non-profit design community), they ask whether listing so many accounts on the DS-160 could be a red flag during the social-media review. Tags: H-1B, KR, DS-160, I-485, visa-stamping, change-of-status-COS, background-check, social-media, ds160-question, third-country, travel-history-disclosure. Stages: application_status:I-485 filed, travel_country:KR. Dates: (none)."
+}

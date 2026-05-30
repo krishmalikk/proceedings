@@ -1,0 +1,56 @@
+{
+  "case_id": "case-5",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1shzoxn/h1b_rfe/",
+  "post_title": "H1B RFE",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Physician filed H-1B change of employer with premium processing and received an RFE citing Iran as country of birth and maintenance of status with prior employer. Lawyer's RFE response was submitted March 18 and acknowledged March 20, but the premium processing clock was stopped on March 25 with a notice pending. Asking whether others have experienced this, and worried about traveling to Europe for a wedding and re-entry without a new I-797.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-797",
+    "physician",
+    "premium-processing",
+    "change-of-employer-COE",
+    "h1b-transfer",
+    "tal-screening"
+  ],
+  "concerns_or_questions_tags": [
+    "RFE",
+    "h1b-rfe",
+    "pp-clock",
+    "re-entry",
+    "country-ban",
+    "travel-concern",
+    "country-of-birth-screening"
+  ],
+  "principal_country_of_chargeability": "IR",
+  "employer_type": "healthcare",
+  "severity": "high",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-rfe-response", "premium-processing-halt", "country-of-birth-screening"],
+  "key_stages_or_info": {
+    "citizen_of_country": "GB",
+    "born_in_country": "IR",
+    "rfe_status": "pending",
+    "petition_status": "pending"
+  },
+  "key_dates": {
+    "visa_expire_date": "2027-12-31",
+    "rfe_response_date": "2026-03-18"
+  },
+  "embedding_text": "H1B RFE. Physician filed H-1B change of employer with premium processing and received an RFE citing Iran as country of birth and maintenance of status with prior employer. Lawyer's RFE response was submitted March 18 and acknowledged March 20, but the premium processing clock was stopped on March 25 with a notice pending. Asking whether others have experienced this, and worried about traveling to Europe for a wedding and re-entry without a new I-797. Tags: H-1B, I-797, physician, premium-processing, change-of-employer-COE, h1b-transfer, tal-screening, RFE, h1b-rfe, pp-clock, re-entry, country-ban, travel-concern, country-of-birth-screening. Stages: citizen_of_country:GB, born_in_country:IR, rfe_status:pending, petition_status:pending. Dates: visa_expire_date:2027-12-31, rfe_response_date:2026-03-18."
+}

@@ -1,0 +1,47 @@
+{
+  "case_id": "case-70",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t7uo1l/i_have_the_i797b_doc_does_the_100k_fees_apply/",
+  "post_title": "I have the i-797b doc, does the 100k fees apply?",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster at an IT services company in India received an approved I-797B (petition filed July 2025). Asks whether the $100k H-1B fee still applies given they already have the approval, and requests a step-by-step list and timeline for visa stamping after receiving the I-797B given a possible immediate US opportunity.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": ["IN"],
+  "tags": [
+    "I-797B",
+    "consular-processing",
+    "visa-stamping"
+  ],
+  "concerns_or_questions_tags": [
+    "100k-fee",
+    "h1b-100k-fee",
+    "h1b-stamping",
+    "timeline"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "consulting",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-100k-fee-policy", "post-approval-stamping-steps"],
+  "key_stages_or_info": {
+    "I-797B": "approved",
+    "resident_of_country": "IN"
+  },
+  "key_dates": {
+    "h1b_filed_date": "2025-07-31"
+  },
+  "embedding_text": "I have the i-797b doc, does the 100k fees apply?. Poster at an IT services company in India received an approved I-797B (petition filed July 2025). Asks whether the $100k H-1B fee still applies given they already have the approval, and requests a step-by-step list and timeline for visa stamping after receiving the I-797B given a possible immediate US opportunity. Tags: H-1B, IN, I-797B, consular-processing, visa-stamping, 100k-fee, h1b-100k-fee, h1b-stamping, timeline. Stages: I-797B:approved, resident_of_country:IN. Dates: h1b_filed_date:2025-07-31."
+}

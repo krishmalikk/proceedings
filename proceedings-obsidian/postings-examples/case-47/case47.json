@@ -1,0 +1,46 @@
+{
+  "case_id": "case-47",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t6buxy/risk_if_visa_stamped_exceeded_more_than_6months/",
+  "post_title": "Risk if Visa stamped exceeded more than 6+months",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.9,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "H-1B visa was stamped on September 17, 2025 but travel was delayed until after the client project renewed in January 2026 and travel confirmation arrived in March 2026. The user asks whether a six-month gap between stamping and travel poses any port-of-entry risk and what documentation or precautions they should prepare.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "visa-stamping",
+    "POE",
+    "date-of-admission-DOA"
+  ],
+  "concerns_or_questions_tags": [
+    "travel-concern",
+    "gap-concern",
+    "port-of-entry",
+    "re-entry",
+    "required-documents"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "consulting",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-stamping-gap", "poe-entry-risk"],
+  "key_stages_or_info": {},
+  "key_dates": {
+    "visa_stamp_date": "2025-09-17",
+    "admission_date": "2026-03-31"
+  },
+  "embedding_text": "Risk if Visa stamped exceeded more than 6+months. H-1B visa was stamped on September 17, 2025 but travel was delayed until after the client project renewed in January 2026 and travel confirmation arrived in March 2026. The user asks whether a six-month gap between stamping and travel poses any port-of-entry risk and what documentation or precautions they should prepare. Tags: H-1B, visa-stamping, POE, date-of-admission-DOA, travel-concern, gap-concern, port-of-entry, re-entry, required-documents. Stages: (none). Dates: visa_stamp_date:2025-09-17, admission_date:2026-03-31."
+}

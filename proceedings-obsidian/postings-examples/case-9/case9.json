@@ -1,0 +1,44 @@
+{
+  "case_id": "case-9",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/USVisas",
+  "subreddit": "USVisas",
+  "full_url": "https://www.reddit.com/r/USVisas/comments/1sqzb8o/indian_citizen_living_in_maldives_on_a_work_visa/",
+  "post_title": "Indian citizen living in Maldives on a work visa",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Indian passport holder legally living and working in Maldives plans to apply for a U.S. visa in Colombo (the official processing post for Maldives residents) and has prior U.S. visa history. Asking whether Colombo accepts Indian nationals residing in Maldives, any portal/document issues, and current wait times.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["B-1", "B-2"],
+  "primary_consulate": "CMB",
+  "consulates": ["CMB", "LK", "MV"],
+  "tags": [
+    "prior-visa",
+    "third-country"
+  ],
+  "concerns_or_questions_tags": [
+    "consulate-eligibility",
+    "visa-interview-scheduling",
+    "required-documents",
+    "processing-time"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["third-country-stamping", "consulate-eligibility"],
+  "key_stages_or_info": {
+    "citizen_of_country": "IN",
+    "resident_of_country": "MV"
+  },
+  "key_dates": {},
+  "embedding_text": "Indian citizen living in Maldives on a work visa. Indian passport holder legally living and working in Maldives plans to apply for a U.S. visa in Colombo (the official processing post for Maldives residents) and has prior U.S. visa history. Asking whether Colombo accepts Indian nationals residing in Maldives, any portal/document issues, and current wait times. Tags: B-1, B-2, CMB, LK, MV, prior-visa, third-country, consulate-eligibility, visa-interview-scheduling, required-documents, processing-time. Stages: citizen_of_country:IN, resident_of_country:MV. Dates: (none)."
+}

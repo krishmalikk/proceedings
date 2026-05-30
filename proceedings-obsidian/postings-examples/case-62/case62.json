@@ -1,0 +1,40 @@
+{
+  "case_id": "case-62",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t4s219/silently_stagnating/",
+  "post_title": "Silently stagnating",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.85,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Indian H-1B consultant feels their compensation and promotion have been quietly stalled compared to colleagues with green cards or US citizenship, says no one else is hiring Indian H-1Bs, and is seeking advice and shared experiences on how to mentally cope with the stagnation.",
+  "current_visa_or_greencard_category": ["H-1B"],
+  "visa_applying_for": [],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "blog",
+    "discussion",
+    "experience-posting"
+  ],
+  "concerns_or_questions_tags": [
+    "promotion",
+    "wage-level-compliance"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "consulting",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-career-stagnation", "h1b-compensation-concerns"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Silently stagnating. Indian H-1B consultant feels their compensation and promotion have been quietly stalled compared to colleagues with green cards or US citizenship, says no one else is hiring Indian H-1Bs, and is seeking advice and shared experiences on how to mentally cope with the stagnation. Tags: H-1B, blog, discussion, experience-posting, promotion, wage-level-compliance. Stages: (none). Dates: (none)."
+}

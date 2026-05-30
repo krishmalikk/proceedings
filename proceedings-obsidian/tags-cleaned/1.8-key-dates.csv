@@ -1,0 +1,53 @@
+tag,Description
+60day_grace_period_expire_date,Expiration date of the 60-day grace period after employment ends
+240day_expiration_date,Expiration date of 240-day automatic extension of work authorization
+aos_appointment_date,Adjustment of Status interview/appointment date
+aos_approved_date,Date AOS application was approved
+biometrics_appointment_date,Date of biometrics appointment
+admission_date,Date of admission to the U.S. at a port of entry
+employment_end_date,Date employment ended
+f1_expire_date,Expiration date of F-1 status
+h1b_receipt_date,Date USCIS receipt notice was issued for an H-1B petition
+h1b_approved_date,Date the H-1B petition was approved
+h1b_filed_date,Date the H-1B petition was filed
+h1b_expire_date,Expiration date of H-1B status
+h1b_processing_start_date,Date H-1B processing began at USCIS
+i129_filed_date,Date Form I-129 was filed
+i130_filed_date,Date Form I-130 was filed
+i131_filed_date,Date Form I-131 was filed
+i140_approved_date,Date Form I-140 was approved
+i485_filed_date,Date Form I-485 was filed
+i765_filed_date,Date Form I-765 was filed
+i94_expire_date,Expiration date on Form I-94
+i94_admit_until_date,Admit-until date shown on the I-94
+i797a_receipt_date,Date Form I-797A was received
+layoff_notification_date,Date a layoff notice was received
+opt_expire_date,Expiration date of OPT employment authorization
+passport_expire_date,Expiration date of the passport
+priority_date,Priority date for an employment- or family-based immigrant petition
+rfe_date,Date a Request for Evidence was issued
+rfe_response_date,Date the RFE response was filed
+slot_booked_date,Date a visa appointment slot was booked
+lca_approved_date,Date the LCA was approved by DOL
+visa_expire_date,Expiration date of the visa stamp
+visa_interview_date,Date of the visa interview at a U.S. consulate
+visa_stamp_date,Date the visa was stamped in the passport
+visa_issued_date,Date the visa was issued by the consulate
+ead_approved_date,Date EAD application was approved
+ead_expire_date,Expiration date of EAD
+ap_approved_date,Date Advance Parole was approved
+ap_expire_date,Expiration date of Advance Parole
+221g_issued_date,Date a 221(g) refusal/administrative processing notice was issued
+221g_clearance_date,Date a 221(g) clearance was received
+nvc_received_date,Date NVC received the approved petition
+nvc_case_creation_date,Date NVC created the case
+nvc_documentarily_qualified_date,Date NVC marked the case as documentarily qualified
+ds160_submitted_date,Date the DS-160 was submitted
+biometrics_completed_date,Date biometrics were completed
+naturalization_interview_date,Date of the naturalization (N-400) interview
+oath_ceremony_date,Date of the naturalization oath ceremony
+green_card_received_date,Date the physical Green Card was received
+labor_cert_filed_date,Date the PERM labor certification was filed
+perm_approved_date,Date the PERM labor certification was approved
+cap_gap_expire_date,End date of the F-1 cap-gap extension (typically Sep 30 of the fiscal year)
+passport_renewal_date,Date the candidate's passport was renewed

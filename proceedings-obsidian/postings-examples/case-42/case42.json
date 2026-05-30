@@ -1,0 +1,47 @@
+{
+  "case_id": "case-42",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/usvisascheduling",
+  "subreddit": "usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1szx085/b1b2_visa_rejected_for_my_parents_in_delhi_they/",
+  "post_title": "B1B2 visa rejected for my parents in delhi. They did not get telugu translator.",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Telugu-speaking father and 75-year-old grandmother were refused B-1/B-2 visas at the New Delhi consulate on April 21, 2026 after requesting but not receiving a Telugu interpreter and being interviewed only in English. The user (H-1B daughter sponsoring the visit) asks whether the lack of a translator impacted the decision, how long to wait before reapplying, what to change, and whether to reapply separately or together.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["B-1", "B-2"],
+  "primary_consulate": "DEL",
+  "consulates": ["DEL", "IN"],
+  "tags": [
+    "age",
+    "family-ties"
+  ],
+  "concerns_or_questions_tags": [
+    "translator",
+    "visa-refused",
+    "re-apply",
+    "visa-interview",
+    "denial-reason"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["b1b2-refusal", "delhi-consulate-translator", "reapply-strategy"],
+  "key_stages_or_info": {
+    "outcome_status": "refused",
+    "consulate_assigned": "DEL"
+  },
+  "key_dates": {
+    "visa_interview_date": "2026-04-21"
+  },
+  "embedding_text": "B1B2 visa rejected for my parents in delhi. They did not get telugu translator.. Telugu-speaking father and 75-year-old grandmother were refused B-1/B-2 visas at the New Delhi consulate on April 21, 2026 after requesting but not receiving a Telugu interpreter and being interviewed only in English. The user (H-1B daughter sponsoring the visit) asks whether the lack of a translator impacted the decision, how long to wait before reapplying, what to change, and whether to reapply separately or together. Tags: B-1, B-2, DEL, IN, age, family-ties, translator, visa-refused, re-apply, visa-interview, denial-reason. Stages: outcome_status:refused, consulate_assigned:DEL. Dates: visa_interview_date:2026-04-21."
+}

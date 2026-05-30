@@ -1,0 +1,47 @@
+{
+  "case_id": "case-72",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1t95tyf/opt_ead_to_h4_ead/",
+  "post_title": "OPT EAD to H4 EAD",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Poster is currently on F-1 OPT EAD and plans to file a joint packet with spouse: spouse's H-1B renewal in premium processing, plus the poster's H-4 application and H-4 EAD. On Form I-765 they are unsure whether to pick \"Initial permission to accept employment\" or \"Renewal\" given they already hold an OPT EAD but this is their first H-4 EAD. Also asking for the list of documents to include with the H-4 EAD application.",
+  "current_visa_or_greencard_category": ["F-1"],
+  "visa_applying_for": ["H-4"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-765",
+    "EAD",
+    "OPT",
+    "stem-opt",
+    "premium-processing"
+  ],
+  "concerns_or_questions_tags": [
+    "h4-ead",
+    "f1-to-h4",
+    "required-documents",
+    "form-mistake"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "low",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h4-ead-filing", "i765-renewal-vs-initial"],
+  "key_stages_or_info": {
+    "spouse_status": "H-1B",
+    "I-140": "approved"
+  },
+  "key_dates": {},
+  "embedding_text": "OPT EAD to H4 EAD. Poster is currently on F-1 OPT EAD and plans to file a joint packet with spouse: spouse's H-1B renewal in premium processing, plus the poster's H-4 application and H-4 EAD. On Form I-765 they are unsure whether to pick \"Initial permission to accept employment\" or \"Renewal\" given they already hold an OPT EAD but this is their first H-4 EAD. Also asking for the list of documents to include with the H-4 EAD application. Tags: F-1, H-4, I-765, EAD, OPT, stem-opt, premium-processing, h4-ead, f1-to-h4, required-documents, form-mistake. Stages: spouse_status:H-1B, I-140:approved. Dates: (none)."
+}

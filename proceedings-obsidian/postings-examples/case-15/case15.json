@@ -1,0 +1,58 @@
+{
+  "case_id": "case-15",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssrizu/h1b_rfe_response_received_case_is_still_being/",
+  "post_title": "H1B RFE response received - case is still being processed",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "First-time, cap-exempt H-1B I-129 in California Service Center with premium processing is stuck in security check; RFE response was received Sep 12 2025 but congressional inquiries returned only 'security check, no timeframe.' Status changed on April 14 2026 to 'Case Is Still Being Processed.' Asking whether this signals an imminent decision or another RFE, or means nothing.",
+  "current_visa_or_greencard_category": [],
+  "visa_applying_for": ["H-1B"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "I-129",
+    "CSC",
+    "consular-processing",
+    "premium-processing",
+    "cap-exempt",
+    "first-time-visa",
+    "h1b-petition"
+  ],
+  "concerns_or_questions_tags": [
+    "background-check",
+    "processing-time",
+    "processing-delay",
+    "endless-wait",
+    "RFE",
+    "h1b-rfe",
+    "pp-clock"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["h1b-security-check-delay", "rfe-response-pending"],
+  "key_stages_or_info": {
+    "petition_status": "pending",
+    "rfe_status": "pending",
+    "service_center_assigned": "CSC"
+  },
+  "key_dates": {
+    "h1b_receipt_date": "2025-08-28",
+    "h1b_processing_start_date": "2025-09-01",
+    "rfe_date": "2025-09-03",
+    "rfe_response_date": "2025-09-12"
+  },
+  "embedding_text": "H1B RFE response received - case is still being processed. First-time, cap-exempt H-1B I-129 in California Service Center with premium processing is stuck in security check; RFE response was received Sep 12 2025 but congressional inquiries returned only 'security check, no timeframe.' Status changed on April 14 2026 to 'Case Is Still Being Processed.' Asking whether this signals an imminent decision or another RFE, or means nothing. Tags: H-1B, I-129, CSC, consular-processing, premium-processing, cap-exempt, first-time-visa, h1b-petition, background-check, processing-time, processing-delay, endless-wait, RFE, h1b-rfe, pp-clock. Stages: petition_status:pending, rfe_status:pending, service_center_assigned:CSC. Dates: h1b_receipt_date:2025-08-28, h1b_processing_start_date:2025-09-01, rfe_date:2025-09-03, rfe_response_date:2025-09-12."
+}

@@ -1,0 +1,42 @@
+{
+  "case_id": "case-40",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/usvisascheduling",
+  "subreddit": "usvisascheduling",
+  "full_url": "https://www.reddit.com/r/usvisascheduling/comments/1t2o7j5/need_help_with_j1_renewal_in_india/",
+  "post_title": "Need help with J1 renewal in India",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Trying to renew J-1 scholar visa in India. DS-160 filled and visa fee paid, but no OFC appointment slots available at any consulate in India. Looking for advice on what others have done in this situation.",
+  "current_visa_or_greencard_category": ["J-1"],
+  "visa_applying_for": ["J-1"],
+  "primary_consulate": "IN",
+  "consulates": ["IN"],
+  "tags": [
+    "DS-160",
+    "OFC",
+    "consulate"
+  ],
+  "concerns_or_questions_tags": [
+    "j1-renewal",
+    "visa-interview-scheduling",
+    "no-slot",
+    "visa-renewal"
+  ],
+  "principal_country_of_chargeability": "IN",
+  "employer_type": "academic",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["j1-scholar-renewal", "ofc-slot-shortage", "india-consular-delays"],
+  "key_stages_or_info": {},
+  "key_dates": {},
+  "embedding_text": "Need help with J1 renewal in India. J-1 scholar trying to renew in India; DS-160 filled, fee paid, no OFC slots available. Tags: J-1, IN, DS-160, OFC, consulate, j1-renewal, visa-interview-scheduling, no-slot, visa-renewal. Stages: (none). Dates: (none)."
+}

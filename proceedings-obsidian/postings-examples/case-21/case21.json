@@ -1,0 +1,47 @@
+{
+  "case_id": "case-21",
+  "ingestion_method": "web_crawl",
+  "source_system": "reddit",
+  "source_url": "https://reddit.com",
+  "source_uri": "r/h1b",
+  "subreddit": "h1b",
+  "full_url": "https://www.reddit.com/r/h1b/comments/1ssd4i1/is_my_understanding_correct_about_f1_h4/",
+  "post_title": "Is my understanding correct about F1 to H4?",
+  "language": "en",
+  "posting_date": "2026-04-11",
+  "ingestion_timestamp": "2026-04-13T14:30:05Z",
+  "last_updated_timestamp": "2026-05-14T00:00:00Z",
+  "tagging_confidence": 0.92,
+  "source_metadata": "<some metadata information about source url>",
+  "gcs_path": "gs://imm-ingest-firecrawl-md/2026-04-13",
+  "background_summary": "<summary_pending_llm>",
+  "concerns_or_questions_summary": "Currently on F-1 OPT; spouse is on O-1 with a cap-subject H-1B selected this year, and they plan to bundle H-1B + H-4 COS + H-4 EAD. Wants confirmation that H-4 status only activates on Oct 1 (the H-1B start date) and that F-1 OPT work can continue until Sept 30, with a work gap only if EAD is not approved by Oct 1.",
+  "current_visa_or_greencard_category": ["F-1"],
+  "visa_applying_for": ["H-4"],
+  "primary_consulate": "",
+  "consulates": [],
+  "tags": [
+    "OPT",
+    "f1-to-h4",
+    "bundled-processing",
+    "EAD",
+    "h4-ead",
+    "h4-work-auth"
+  ],
+  "concerns_or_questions_tags": [
+    "change-of-status-COS",
+    "cap-subject",
+    "gap-concern",
+    "change-status-options"
+  ],
+  "principal_country_of_chargeability": "",
+  "employer_type": "unknown",
+  "severity": "medium",
+  "resolution_status": "open",
+  "derived_topic_cluster": ["f1-to-h4-cos", "h4-ead-timing", "spouse-h1b-cap"],
+  "key_stages_or_info": {
+    "spouse_status": "O-1"
+  },
+  "key_dates": {},
+  "embedding_text": "Is my understanding correct about F1 to H4?. Currently on F-1 OPT; spouse is on O-1 with a cap-subject H-1B selected this year, and they plan to bundle H-1B + H-4 COS + H-4 EAD. Wants confirmation that H-4 status only activates on Oct 1 (the H-1B start date) and that F-1 OPT work can continue until Sept 30, with a work gap only if EAD is not approved by Oct 1. Tags: F-1, H-4, OPT, f1-to-h4, bundled-processing, EAD, h4-ead, h4-work-auth, change-of-status-COS, cap-subject, gap-concern, change-status-options. Stages: spouse_status:O-1. Dates: (none)."
+}
