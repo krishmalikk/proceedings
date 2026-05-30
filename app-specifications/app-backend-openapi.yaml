@@ -1,0 +1,807 @@
+openapi: 3.1.0
+info:
+  title: unclesamcalling — App Backend (BFF) API
+  version: "1.0.0"
+  description: >
+    Client-facing HTTP contract between the web/mobile apps and the BFF that fronts the
+    conversational Vertex AI Search backend (data store `imm-postings-datastore`).
+    Concrete realization of APP-FRONTEND-INTEGRATION.md / APP-BACKEND-ARCHITECTURE.md
+    (decisions D-034/D-035/D-036/D-038). Clients call ONLY this API + Firebase Auth;
+    never Vertex AI Search, Gemini, GCS, or BigQuery directly.
+  contact:
+    name: unclesamcalling backend
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.unclesamcalling.app/v1
+    description: Production (domain TBD)
+  - url: https://api-stage.unclesamcalling.app/v1
+    description: Staging
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: chat
+    description: The conversational turn (search, post, profile, Q&A routed by intent)
+  - name: search
+    description: Direct faceted search over the Vertex AI Search index
+  - name: posts
+    description: Conversational posting (app as an ingestion channel)
+  - name: profile
+    description: User profile & account
+  - name: alerts
+    description: Saved searches, alerts, push registration
+  - name: session
+    description: Conversation session lifecycle
+
+paths:
+  /session:
+    post:
+      tags: [session]
+      summary: Start a new conversation session (optional; /chat will also create one)
+      operationId: createSession
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                location_hint: { $ref: '#/components/schemas/LocationHint' }
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /chat:
+    post:
+      tags: [chat]
+      summary: One conversational turn (non-streaming)
+      description: >
+        The core endpoint. The BFF classifies intent and routes to search, posting,
+        profile, account, general Q&A, or an off-topic soft-reject. Returns a grounded
+        reply plus structured render objects.
+      operationId: chat
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/XClient'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChatRequest' }
+      responses:
+        '200':
+          description: Assistant turn
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /chat:stream:
+    post:
+      tags: [chat]
+      summary: One conversational turn (Server-Sent Events stream)
+      description: >
+        Same request as POST /chat, but streams the answer token-by-token via SSE.
+        The response is a `text/event-stream` of typed events, in order:
+        `meta` (session_id + intent), zero or more `token` (answer text deltas),
+        `cards`, `citations`, `followups` (suggested_followups + facet_chips + active_filter),
+        then `done` (or `error`). Event `data:` payloads are JSON objects.
+      operationId: chatStream
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/XClient'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChatRequest' }
+      responses:
+        '200':
+          description: SSE stream of chat events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: >
+                  SSE frames. Example:
+                  `event: meta\ndata: {"session_id":"sess_abc","intent":"search"}\n\n`
+                  `event: token\ndata: {"text":"Here are "}\n\n`
+                  `event: cards\ndata: {"cards":[...]}\n\n`
+                  `event: done\ndata: {"finish_reason":"stop"}\n\n`
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /search:
+    post:
+      tags: [search]
+      summary: Direct faceted search (non-conversational)
+      operationId: search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SearchRequest' }
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /posts:draft:
+    post:
+      tags: [posts]
+      summary: Create/update a posting draft from a message (entity extraction)
+      operationId: draftPost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id, message]
+              properties:
+                session_id: { type: string }
+                message: { type: string }
+      responses:
+        '200':
+          description: Updated draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DraftPreview' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /posts:publish:
+    post:
+      tags: [posts]
+      summary: Publish a confirmed draft (tag → validate → ingest into the index)
+      description: >
+        Finalizes the session's draft. Requires an explicit prior user confirmation in the UI
+        and an Idempotency-Key. The BFF runs the full tagger + master-vocabulary validator +
+        moderation, writes the GCS sidecar pair, and imports into the data store
+        (channel="app", source_system="unclesamcalling"). Idempotent on case_id.
+      operationId: publishPost
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id, consent_public]
+              properties:
+                session_id: { type: string }
+                consent_public:
+                  type: boolean
+                  description: Must be true — the user accepted the "this will be public" notice (D-038).
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublishResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /posts/{case_id}:
+    get:
+      tags: [posts]
+      summary: Fetch a single posting (own or public)
+      operationId: getPost
+      parameters:
+        - $ref: '#/components/parameters/CaseIdPath'
+      responses:
+        '200':
+          description: Posting
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Posting' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /me/posts:
+    get:
+      tags: [posts]
+      summary: The signed-in user's posting history
+      operationId: listMyPosts
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+      responses:
+        '200':
+          description: Post references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  posts:
+                    type: array
+                    items: { $ref: '#/components/schemas/PostRef' }
+                  next_page_token: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /profile:
+    get:
+      tags: [profile]
+      summary: Read the signed-in user's profile
+      operationId: getProfile
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      tags: [profile]
+      summary: Update the immigration-journey profile (canonical-aligned fields)
+      operationId: updateProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdate' }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /saved-searches:
+    get:
+      tags: [alerts]
+      summary: List saved searches
+      operationId: listSavedSearches
+      responses:
+        '200':
+          description: Saved searches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved_searches:
+                    type: array
+                    items: { $ref: '#/components/schemas/SavedSearch' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [alerts]
+      summary: Create a saved search
+      operationId: createSavedSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedSearchCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedSearch' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /saved-searches/{id}:
+    delete:
+      tags: [alerts]
+      summary: Delete a saved search
+      operationId: deleteSavedSearch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /alerts:
+    get:
+      tags: [alerts]
+      summary: List alert subscriptions
+      operationId: listAlerts
+      responses:
+        '200':
+          description: Alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items: { $ref: '#/components/schemas/Alert' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [alerts]
+      summary: Subscribe to alerts for a saved search
+      operationId: createAlert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AlertCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Alert' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /alerts/{id}:
+    delete:
+      tags: [alerts]
+      summary: Delete an alert subscription
+      operationId: deleteAlert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /alerts:device:
+    post:
+      tags: [alerts]
+      summary: Register an FCM device token for push notifications
+      operationId: registerDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceRegistration' }
+      responses:
+        '204': { description: Registered }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase Authentication ID token (email/Google/Apple or anonymous-guest).
+
+  parameters:
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    PageToken:
+      name: page_token
+      in: query
+      required: false
+      schema: { type: string }
+    CaseIdPath:
+      name: case_id
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/CaseId' }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID; safe-retry key for publish.
+      schema: { type: string, format: uuid }
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      schema: { type: string, default: en }
+    XClient:
+      name: X-Client
+      in: header
+      required: false
+      schema: { type: string, enum: [web, ios, android] }
+
+  responses:
+    Unauthorized:
+      description: Missing/invalid/expired token (refresh & retry once)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Authenticated but not permitted
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Structural or master-vocabulary validation failure (posting/profile)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unavailable:
+      description: Transient backend unavailability (backoff & retry)
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [UNAUTHENTICATED, PERMISSION_DENIED, NOT_FOUND, RATE_LIMITED,
+                     VALIDATION_FAILED, OFF_TOPIC, UNAVAILABLE, INTERNAL]
+            message: { type: string }
+            retryable: { type: boolean }
+            request_id: { type: string }
+            details:
+              type: array
+              items: { $ref: '#/components/schemas/ErrorDetail' }
+    ErrorDetail:
+      type: object
+      properties:
+        field: { type: string }
+        issue: { type: string }
+
+    CaseId:
+      type: string
+      description: Document id. Generic form `<channel>-<YYYY-MM-DD>-<container>-<native_id>` (D-036); legacy `case-N` for the seed corpus.
+      pattern: '^([a-z][a-z0-9]*-\d{4}-\d{2}-\d{2}-[A-Za-z0-9_]+-[a-z0-9]+(__c_[a-z0-9]+)?|case-\d+)$'
+      examples: ["reddit-2026-04-11-h1b-1srn4ab", "app-2026-05-29-quiet_falcon_42-7h3k9q2"]
+
+    Intent:
+      type: string
+      enum: [search, refine_filter, post, confirm_publish, profile, account, general_question, off_topic]
+
+    Channel:
+      type: string
+      description: Ingestion channel (open vocabulary).
+      examples: [reddit, app, web]
+
+    Severity:
+      type: string
+      enum: [critical, high, medium, low]
+    ResolutionStatus:
+      type: string
+      enum: [open, answered, resolved, quarantined, rejected, unknown]
+    EmployerType:
+      type: string
+      enum: [bigtech, consulting, startup, academic, healthcare, government, nonprofit, other, unknown]
+
+    LocationHint:
+      type: object
+      properties:
+        country: { type: string, description: ISO-3166-1 alpha-2, examples: ["IN", "US"] }
+        in_us: { type: boolean }
+
+    Filters:
+      type: object
+      description: Facet filters mirroring the data-store structData fields (AND across keys, ANY within a key).
+      additionalProperties: false
+      properties:
+        channel:
+          type: array
+          items: { $ref: '#/components/schemas/Channel' }
+        current_visa_or_greencard_category:
+          type: array
+          items: { type: string }
+        visa_applying_for:
+          type: array
+          items: { type: string }
+        consulates:
+          type: array
+          items: { type: string }
+        primary_consulate: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        concerns_or_questions_tags:
+          type: array
+          items: { type: string }
+        source_container:
+          type: array
+          items: { type: string }
+        source_system:
+          type: array
+          items: { type: string }
+        severity:
+          type: array
+          items: { $ref: '#/components/schemas/Severity' }
+        resolution_status:
+          type: array
+          items: { $ref: '#/components/schemas/ResolutionStatus' }
+        principal_country_of_chargeability:
+          type: array
+          items: { type: string }
+        employer_type:
+          type: array
+          items: { $ref: '#/components/schemas/EmployerType' }
+        derived_topic_cluster:
+          type: array
+          items: { type: string }
+        posting_date_from: { type: string, format: date }
+        posting_date_to: { type: string, format: date }
+
+    FacetChip:
+      type: object
+      properties:
+        field: { type: string }
+        value: { type: string }
+        count: { type: integer }
+
+    ResultCard:
+      type: object
+      required: [case_id, title, uri]
+      properties:
+        case_id: { $ref: '#/components/schemas/CaseId' }
+        title: { type: string }
+        snippet: { type: string }
+        channel: { $ref: '#/components/schemas/Channel' }
+        facets:
+          type: object
+          additionalProperties: true
+          description: Subset of facet fields for the card (consulates, visa_applying_for, tags, severity, …).
+        posting_date: { type: string, format: date }
+        uri: { type: string, description: Relative API path to fetch the full posting. }
+
+    Citation:
+      type: object
+      required: [case_id]
+      properties:
+        case_id: { $ref: '#/components/schemas/CaseId' }
+        title: { type: string }
+        snippet: { type: string }
+        uri: { type: string }
+
+    DraftPreview:
+      type: object
+      description: The growing Post Preview during the conversational posting flow.
+      properties:
+        post_title: { type: string }
+        summary: { type: string }
+        missing_fields:
+          type: array
+          items: { type: string }
+        next_question: { type: string }
+        parsed:
+          type: object
+          additionalProperties: true
+          description: Partial canonical metadata extracted so far (visa, consulate, tags, key_dates, …).
+        ready_to_publish: { type: boolean }
+
+    ChatRequest:
+      type: object
+      required: [message]
+      properties:
+        session_id:
+          type: string
+          description: Omit to start a new conversation.
+        message: { type: string }
+        location_hint: { $ref: '#/components/schemas/LocationHint' }
+        client_context:
+          type: object
+          additionalProperties: true
+          description: Optional hints (tz, etc.).
+
+    ChatResponse:
+      type: object
+      required: [session_id, intent, reply]
+      properties:
+        session_id: { type: string }
+        intent: { $ref: '#/components/schemas/Intent' }
+        reply: { type: string, description: Grounded answer / next question / notice. }
+        cards:
+          type: array
+          items: { $ref: '#/components/schemas/ResultCard' }
+        citations:
+          type: array
+          items: { $ref: '#/components/schemas/Citation' }
+        active_filter: { $ref: '#/components/schemas/Filters' }
+        facet_chips:
+          type: array
+          items: { $ref: '#/components/schemas/FacetChip' }
+        suggested_followups:
+          type: array
+          items: { type: string }
+        draft_preview:
+          oneOf:
+            - { $ref: '#/components/schemas/DraftPreview' }
+            - { type: 'null' }
+
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string }
+        filters: { $ref: '#/components/schemas/Filters' }
+        sort:
+          type: string
+          description: e.g. "relevance" (default), "posting_date desc", "tagging_confidence desc".
+          default: relevance
+        page_size: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        page_token: { type: string }
+
+    SearchResponse:
+      type: object
+      properties:
+        answer: { type: string, description: Optional grounded summary. }
+        results:
+          type: array
+          items: { $ref: '#/components/schemas/ResultCard' }
+        facet_counts:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: integer }
+          description: "Per-facet value counts, e.g. {\"channel\":{\"reddit\":60,\"app\":11}}."
+        next_page_token: { type: string }
+
+    Posting:
+      type: object
+      description: Full posting view (body + canonical metadata projection).
+      required: [case_id]
+      properties:
+        case_id: { $ref: '#/components/schemas/CaseId' }
+        channel: { $ref: '#/components/schemas/Channel' }
+        post_title: { type: string }
+        body_md: { type: string, description: Rendered Markdown body. }
+        background_summary: { type: string }
+        concerns_or_questions_summary: { type: string }
+        current_visa_or_greencard_category: { type: array, items: { type: string } }
+        visa_applying_for: { type: array, items: { type: string } }
+        consulates: { type: array, items: { type: string } }
+        primary_consulate: { type: string }
+        tags: { type: array, items: { type: string } }
+        concerns_or_questions_tags: { type: array, items: { type: string } }
+        principal_country_of_chargeability: { type: string }
+        employer_type: { $ref: '#/components/schemas/EmployerType' }
+        severity: { $ref: '#/components/schemas/Severity' }
+        resolution_status: { $ref: '#/components/schemas/ResolutionStatus' }
+        derived_topic_cluster: { type: array, items: { type: string } }
+        key_stages_or_info:
+          type: object
+          additionalProperties: true
+        key_dates:
+          type: object
+          additionalProperties: { type: string, format: date }
+        posting_date: { type: string, format: date }
+        full_url: { type: string }
+        is_owner: { type: boolean }
+
+    PostRef:
+      type: object
+      properties:
+        case_id: { $ref: '#/components/schemas/CaseId' }
+        post_title: { type: string }
+        status: { type: string, enum: [draft, published] }
+        posting_date: { type: string, format: date }
+        full_url: { type: string }
+
+    PublishResponse:
+      type: object
+      required: [case_id, status]
+      properties:
+        case_id: { $ref: '#/components/schemas/CaseId' }
+        full_url: { type: string }
+        status: { type: string, enum: [published] }
+
+    Profile:
+      type: object
+      properties:
+        synthetic_username: { type: string }
+        country: { type: string }
+        profile:
+          type: object
+          additionalProperties: true
+          description: Canonical-aligned journey fields (current_visa_or_greencard_category, principal_country_of_chargeability, …).
+        settings:
+          type: object
+          additionalProperties: true
+
+    ProfileUpdate:
+      type: object
+      properties:
+        country: { type: string }
+        profile:
+          type: object
+          additionalProperties: true
+        settings:
+          type: object
+          additionalProperties: true
+
+    SessionResponse:
+      type: object
+      required: [session_id]
+      properties:
+        session_id: { type: string }
+        in_us: { type: boolean }
+
+    SavedSearchCreate:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string }
+        filters: { $ref: '#/components/schemas/Filters' }
+        alert_enabled: { type: boolean, default: false }
+
+    SavedSearch:
+      type: object
+      required: [id, query]
+      properties:
+        id: { type: string }
+        query: { type: string }
+        filters: { $ref: '#/components/schemas/Filters' }
+        alert_enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    AlertCreate:
+      type: object
+      required: [saved_search_id]
+      properties:
+        saved_search_id: { type: string }
+        transport: { type: string, enum: [fcm], default: fcm }
+
+    Alert:
+      type: object
+      required: [id, saved_search_id]
+      properties:
+        id: { type: string }
+        saved_search_id: { type: string }
+        transport: { type: string, enum: [fcm] }
+        last_notified:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+
+    DeviceRegistration:
+      type: object
+      required: [fcm_token]
+      properties:
+        fcm_token: { type: string }
+        platform: { type: string, enum: [web, ios, android] }
