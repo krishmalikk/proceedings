@@ -45,6 +45,91 @@ To solve the "minutes-fresh" search lag for the user's own content:
 |Search API|Enable Preamble Override|Forces the Answer API to stay within ```active_filter``` bounds.|
 |Ingestion|Firestore Mirroring,"Provides ""Instant-Visible"" posts for the author before global indexing."|
 
+## Recommended Implementation Phasing (Revised)
+P1.1: Baseline search + Gemini Flash-Lite routing.
+
+P1.2: Context Caching for the 30k token Master Tag CSV (saves significant cost and ~200ms latency).
+
+P2: Posting flow + In-stream PII flagging (No DLP needed if Gemini handles it during extraction).
+
+
+# Improved Architecture
+
+## 1. Parallel-Speculative Routing
+Instead of the BFF performing a serial "Classify $\rightarrow$ Search" loop, it employs Parallel Speculation to minimize time-to-first-token (TTFT).
+### The Logic Flow
+- Incoming Turn: BFF receives a user message and a session_id.
+- Parallel Fork:
+
+**Speculative Search (Path A)**: The BFF immediately fires a Vertex AI Search request using the message. If the message turns out to be an intent like general_question, this result is ready.
+
+**Intent Intelligence (Path B)**: A concurrent call to Gemini 2.5 Flash-Lite (optimized for <200ms latency) confirms the intent.
+
+- The Reconciler: The BFF reconciles the results. If Path B confirms the intent is search, Path A's response is streamed to the user. If Path B identifies a post intent, the search result is discarded and the posting flow starts.
+
+## 2. Optimized BFF Route Structure (FastAPI)
+This structure uses Asynchronous Python (asyncio) and FastAPI Streaming Responses to deliver an "instant-reply" experience.
+
+### Core Chat Endpoint (`````/v1/chat`````)
+```python
+from fastapi import APIRouter, Header
+from fastapi.responses import StreamingResponse
+import asyncio
+
+router = APIRouter()
+
+@router.post("/v1/chat")
+async def chat_turn(
+    payload: ChatRequest, 
+    authorization: str = Header(...)
+):
+    # 1. Fetch Session & Auth concurrently
+    uid, session = await asyncio.gather(
+        verify_firebase_token(authorization),
+        firestore.get_session(payload.session_id)
+    )
+
+    # 2. Parallel Speculative Execution
+    # Speculative Search + Intent Classification
+    search_task = asyncio.create_task(vertex_search.get_answer(payload.message, session))
+    intent_task = asyncio.create_task(gemini_flash.classify_intent(payload.message))
+
+    # 3. Decision Logic (Wait for Intent)
+    intent = await intent_task
+
+    if intent == "search":
+        # Stream the speculative search result
+        return StreamingResponse(process_search_stream(await search_task))
+    
+    elif intent == "post":
+        # Cancel search_task to save costs; trigger posting logic
+        search_task.cancel()
+        return await handle_posting_turn(payload, session)
+```
+
+## 3. Key Component Improvements
+### Vertex AI Search**: 
+Multi-Turn SessionsThe answer method (formerly part of converse) now handles multi-step reasoning (ReAct paradigm) and synthesized queries.
+
+- Prompt Preamble: Use the answer method's preamble to hard-code domain guardrails (e.g., "Only answer US immigration questions") without increasing input token costs per turn.
+- Stateful Synthesis: Subsequent turns automatically synthesize context (e.g., "What about Mumbai?" $\rightarrow$ "What are the visa wait times in Mumbai?").
+
+### Prompt Caching for Tag Taxonomy
+Since the 30k-token Master Tag CSV is static, utilize Gemini Prompt Caching.
+
+- Benefit: Reduces input token costs by ~90% for repetitive "Tag this post" requests in the posting flow.
+
+- Implementation: Cache the system instruction containing the taxonomy with a 1-hour TTL (refreshed on each access).
+
+### "Shadow Buffer" Ingestion for Instant UX
+To bypass the "minutes-fresh" lag of ```documents.import```:
+
+- The Shadow Table: When a user clicks "Publish," write the final JSON to a Firestore ```active_posts``` collection alongside the GCS write.
+
+- The Hybrid Search: The BFF ```/v1/search``` endpoint queries Vertex AI Search and simultaneously queries the user's ```active_posts``` in Firestore, merging them at the top of the UI results.
+
+## 4. Summary of Architecture Benefits
+
 # Improved App Backend Architecture & Design (2026 Optimization)
 
 Status: Technical Specification (Optimized for Latency, Freshness, and Cost)Builds on: Settled decisions in [APP-BACKEND-ARCHITECTURE](APP-BACKEND-ARCHITECTURE.md)
