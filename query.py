@@ -227,8 +227,8 @@ def generate_answer(prompt: str) -> str:
         runaway generation.
     """
     try:
-        project_id = os.getenv("GCP_PROJECT_ID")
-        region = os.getenv("GCP_REGION", "us-central1")
+        project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT")
+        region = os.getenv("GCP_REGION") or os.getenv("GCP_GEMINI_LOCATION", "us-central1")
 
         client = genai.Client(
             vertexai=True,
@@ -399,9 +399,9 @@ def main():
     # Load environment variables
     load_dotenv()
 
-    project_id = os.getenv("GCP_PROJECT_ID")
-    region = os.getenv("GCP_REGION", "us-central1")
-    bucket_name = os.getenv("GCP_BUCKET_NAME", "law-firm-knowledge-base")
+    project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT")
+    region = os.getenv("GCP_REGION") or os.getenv("GCP_LOCATION", "us-central1")
+    bucket_name = (os.getenv("GCP_BUCKET_NAME") or os.getenv("GCP_BUCKET", "law-firm-knowledge-base")).replace("gs://", "")
     endpoint_id = os.getenv("VERTEX_AI_INDEX_ENDPOINT_ID")
 
     # Validate required env vars

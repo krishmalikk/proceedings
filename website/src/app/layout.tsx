@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { Inter, Source_Serif_4 } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import './globals.css'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
-import DisclaimerBanner from '@/components/DisclaimerBanner'
+import TopAppBar from '@/components/TopAppBar'
+import MobileBottomNav from '@/components/MobileBottomNav'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -11,28 +10,21 @@ const inter = Inter({
   display: 'swap',
 })
 
-const sourceSerif = Source_Serif_4({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-source-serif',
-  display: 'swap',
-})
-
 export const metadata: Metadata = {
   title: {
-    default: 'Proceedings | Intake Assistant for Law Firms',
+    default: 'Proceedings | Your Immigration Assistant',
     template: '%s | Proceedings',
   },
-  description: 'Professional intake and information assistant services for law firms. Respond to prospective clients around the clock with firm-approved information and seamless consultation booking.',
-  keywords: ['legal intake', 'law firm intake', 'client intake', 'legal answering service', 'law firm automation'],
+  description: 'AI-powered immigration guidance with official citations. Get answers to your US immigration questions with confidence.',
+  keywords: ['immigration', 'visa', 'green card', 'H-1B', 'immigration lawyer', 'USCIS', 'immigration assistant'],
   authors: [{ name: 'Proceedings' }],
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://proceedings.io',
+    url: 'https://proceedings.ai',
     siteName: 'Proceedings',
-    title: 'Proceedings | Intake Assistant for Law Firms',
-    description: 'Professional intake and information assistant services for law firms. Respond to prospective clients around the clock.',
+    title: 'Proceedings | Your Immigration Assistant',
+    description: 'AI-powered immigration guidance with official citations.',
     images: [
       {
         url: '/og-image.jpg',
@@ -44,8 +36,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Proceedings | Intake Assistant for Law Firms',
-    description: 'Professional intake and information assistant services for law firms.',
+    title: 'Proceedings | Your Immigration Assistant',
+    description: 'AI-powered immigration guidance with official citations.',
     images: ['/og-image.jpg'],
   },
   robots: {
@@ -60,14 +52,40 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`}>
-      <body className="font-sans min-h-screen flex flex-col">
-        <DisclaimerBanner />
-        <Header />
-        <main className="flex-grow">
+    <html lang="en" className={inter.variable}>
+      <head>
+        {/* Material Symbols for icons */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="font-sans min-h-screen flex flex-col bg-surface text-on-surface">
+        <TopAppBar />
+        <main className="flex-grow pb-16 md:pb-0">
           {children}
         </main>
-        <Footer />
+        <MobileBottomNav />
+        {/* Footer - shown on desktop, hidden on mobile due to bottom nav */}
+        <footer className="hidden md:block w-full py-8 px-margin-desktop bg-surface-container-low border-t border-outline-variant">
+          <div className="max-w-7xl mx-auto text-center space-y-4">
+            <div className="text-label-md font-semibold text-on-surface">Proceedings</div>
+            <p className="text-caption text-on-surface-variant max-w-lg mx-auto">
+              © 2024 Proceedings Inc. Not legal advice. Proceedings is not a law firm or government agency.
+            </p>
+            <div className="flex justify-center gap-6">
+              <a href="#" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
+                Terms of Service
+              </a>
+              <a href="#" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
+                Privacy Policy
+              </a>
+              <a href="#" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
+                Contact Support
+              </a>
+            </div>
+          </div>
+        </footer>
       </body>
     </html>
   )

@@ -1,5 +1,3 @@
-import { ExternalLink } from 'lucide-react'
-
 interface SourceCitationProps {
   source: string
   url?: string
@@ -48,13 +46,25 @@ function filenameToUrl(source: string): string | null {
   return null
 }
 
-export default function SourceCitation({ source, url }: SourceCitationProps) {
-  const displayName = source
-    .replace('.md', '')
-    .replace('.json', '')
-    .replace(/-/g, ' ')
-    .replace(/_\d+$/, '')
+function getDisplayName(source: string): string {
+  const name = source.replace('.md', '').replace('.json', '')
 
+  // Extract domain for cleaner display
+  const domainMatch = name.match(/^([a-z]+)-(?:gov|com|org|edu)-/)
+  if (domainMatch) {
+    const domain = domainMatch[1].toUpperCase()
+    if (domain === 'USCIS') return 'USCIS.gov'
+    if (domain === 'TRAVEL') return 'State.gov'
+    if (domain === 'DOL') return 'DOL.gov'
+    if (domain === 'LAW') return 'Cornell Law'
+    return `${domain}.gov`
+  }
+
+  return name.replace(/-/g, ' ').replace(/_\d+$/, '').slice(0, 20)
+}
+
+export default function SourceCitation({ source, url }: SourceCitationProps) {
+  const displayName = getDisplayName(source)
   const linkUrl = url || filenameToUrl(source)
 
   if (linkUrl) {
@@ -63,16 +73,17 @@ export default function SourceCitation({ source, url }: SourceCitationProps) {
         href={linkUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="pill text-xs inline-flex items-center gap-1.5 hover:border-ink-400 hover:text-ink-900 transition-colors cursor-pointer"
+        className="inline-flex items-center gap-1 text-caption text-secondary hover:underline transition-colors"
       >
+        <span className="material-symbols-outlined text-[14px]">link</span>
         {displayName}
-        <ExternalLink className="w-3 h-3" />
       </a>
     )
   }
 
   return (
-    <span className="pill text-xs">
+    <span className="inline-flex items-center gap-1 text-caption text-on-surface-variant">
+      <span className="material-symbols-outlined text-[14px]">description</span>
       {displayName}
     </span>
   )

@@ -47,21 +47,38 @@ async def lifespan(app: FastAPI):
 
     load_dotenv()
 
-    _project_id = os.getenv("GCP_PROJECT_ID", "")
-    _region = os.getenv("GCP_REGION", "us-central1")
-    bucket_name = os.getenv("GCP_BUCKET_NAME", "law-firm-knowledge-base")
+    # Support both old and new env var names
+    _project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT", "")
+    _region = os.getenv("GCP_REGION") or os.getenv("GCP_LOCATION", "us-central1")
+    bucket_name = os.getenv("GCP_BUCKET_NAME") or os.getenv("GCP_BUCKET", "law-firm-knowledge-base").replace("gs://", "")
     _endpoint_id = os.getenv("VERTEX_AI_INDEX_ENDPOINT_ID", "")
 
-    if not _project_id or not _endpoint_id:
-        raise RuntimeError("GCP_PROJECT_ID and VERTEX_AI_INDEX_ENDPOINT_ID must be set in .env")
+    if not _project_id:
+        raise RuntimeError("GCP_PROJECT_ID or GCP_PROJECT must be set in environment")
+
+    # If no Vector Search endpoint, we'll skip RAG and use a simpler flow
+    if not _endpoint_id:
+        print("Warning: VERTEX_AI_INDEX_ENDPOINT_ID not set. RAG retrieval disabled.")
 
     vertexai.init(project=_project_id, location=_region)
     aiplatform.init(project=_project_id, location=_region)
 
-    _chunk_mapping = load_chunk_mapping(bucket_name)
-    _db = firestore.Client(project=_project_id)
+    # Try to load chunk mapping, but don't fail if not available
+    try:
+        _chunk_mapping = load_chunk_mapping(bucket_name)
+        print(f"Loaded {len(_chunk_mapping)} chunks from {bucket_name}")
+    except Exception as e:
+        print(f"Warning: Could not load chunk mapping: {e}")
+        _chunk_mapping = {}
 
-    print(f"API ready: {len(_chunk_mapping)} chunks loaded")
+    # Initialize Firestore
+    try:
+        _db = firestore.Client(project=_project_id)
+    except Exception as e:
+        print(f"Warning: Could not initialize Firestore: {e}")
+        _db = None
+
+    print(f"API ready: {len(_chunk_mapping)} chunks loaded, RAG={'enabled' if _endpoint_id else 'disabled'}")
     yield
 
 
@@ -161,14 +178,26 @@ async def ask_question(body: AskRequest, request: Request):
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
 
-    result = query(body.question, _chunk_mapping, _endpoint_id, _project_id, _region)
+    # If no Vector Search endpoint configured, use direct Gemini (no RAG)
+    if not _endpoint_id:
+        from query import generate_answer, build_prompt, FALLBACK_MESSAGE
+        prompt = build_prompt(body.question, ["No context available - answer based on general knowledge about US immigration."])
+        answer = generate_answer(prompt)
+        result = {
+            "answer": answer,
+            "chunks": [],
+            "is_fallback": FALLBACK_MESSAGE in answer,
+        }
+    else:
+        result = query(body.question, _chunk_mapping, _endpoint_id, _project_id, _region)
 
-    # Save to Firestore
-    try:
-        doc_id = save_qa_pair(body.question, result, _db)
-    except Exception as e:
-        print(f"Warning: Could not save to Firestore: {e}")
-        doc_id = ""
+    # Save to Firestore (if available)
+    doc_id = ""
+    if _db:
+        try:
+            doc_id = save_qa_pair(body.question, result, _db)
+        except Exception as e:
+            print(f"Warning: Could not save to Firestore: {e}")
 
     return AskResponse(
         answer=result["answer"],
@@ -181,6 +210,8 @@ async def ask_question(body: AskRequest, request: Request):
 @app.get("/api/qa", response_model=QAListResponse)
 async def list_qa(limit: int = 20, offset: int = 0, category: str = ""):
     """List recent Q&A pairs, optionally filtered by category label."""
+    if not _db:
+        return QAListResponse(items=[])
     if limit > 50:
         limit = 50
     items = get_recent_qa(_db, limit=limit, offset=offset)
@@ -214,6 +245,8 @@ async def list_qa(limit: int = 20, offset: int = 0, category: str = ""):
 @app.post("/api/qa/{doc_id}/feedback")
 async def submit_feedback(doc_id: str, body: FeedbackRequest):
     """Submit feedback on a Q&A pair."""
+    if not _db:
+        return {"ok": False, "error": "Firestore not configured"}
     try:
         update_feedback(doc_id, body.helpful, _db)
         return {"ok": True}
@@ -224,6 +257,9 @@ async def submit_feedback(doc_id: str, body: FeedbackRequest):
 @app.get("/api/qa/stats")
 async def qa_stats():
     """Get Q&A quality statistics."""
+    if not _db:
+        return {"total": 0, "successful": 0, "fallbacks": 0, "fallback_rate": 0, "helpful": 0, "not_helpful": 0, "top_categories": {}, "knowledge_gaps": []}
+
     from collections import Counter
 
     items = get_recent_qa(_db, limit=200, offset=0)
