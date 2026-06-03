@@ -431,7 +431,12 @@ async def search(
     if explicit:
         data = search_postings(query, _project_id, _ds_location, _engine_id,
                                page_size=page_size, page_token=page_token, filter_expr=explicit)
-        data.setdefault("applied_filters", {"consulate": consulate, "visa": [visa] if visa else [], "outcome": outcome})
+        explicit_filters = {k: v for k, v in {
+            "consulate": [consulate] if consulate else [],
+            "visa": [visa] if visa else [],
+            "outcome": [outcome] if outcome else [],
+        }.items() if v}
+        data.setdefault("applied_filters", explicit_filters)
         data.setdefault("effective_strictness", "strict")
         data.setdefault("relaxed", False)
     else:

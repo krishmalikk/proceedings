@@ -270,7 +270,7 @@ def group_e_strictness() -> None:
     q = "Show me B1/B2 experiences in Mumbai"
     strict = search_client.search_with_strictness(q, PROJECT, LOCATION, ENGINE, page_size=20, strictness="strict")
     broad = search_client.search_with_strictness(q, PROJECT, LOCATION, ENGINE, page_size=20, strictness="broad")
-    check("E1 strict extracts consulate=BOM (Mumbai)", strict["applied_filters"].get("consulate") == "BOM",
+    check("E1 strict extracts consulate=BOM (Mumbai)", "BOM" in strict["applied_filters"].get("consulate", []),
           str(strict["applied_filters"]))
     check("E2 strict is narrower than broad", 1 <= strict["total"] <= broad["total"],
           f"strict={strict['total']} broad={broad['total']}")

@@ -61,7 +61,17 @@ export default function StrictnessSlider({
   )
 }
 
-// Small chips row showing the facets the backend actually applied.
+// Friendly labels for the generic facet keys (any tag is supported).
+const FACET_LABELS: Record<string, string> = {
+  consulate: 'Consulate',
+  visa: 'Visa',
+  category: 'Category',
+  outcome: 'Outcome',
+  tag: 'Tag',
+}
+
+// Small chips row showing the facets the backend actually applied. Generic over
+// any facet key returned by the backend (consulate, visa, category, outcome, tag…).
 export function AppliedFilters({
   filters,
   relaxed,
@@ -71,9 +81,12 @@ export function AppliedFilters({
 }) {
   if (!filters) return null
   const chips: string[] = []
-  if (filters.consulate) chips.push(`Consulate: ${String(filters.consulate)}`)
-  if (Array.isArray(filters.visa) && filters.visa.length) chips.push(`Visa: ${(filters.visa as string[]).join('/')}`)
-  if (filters.outcome) chips.push(`Outcome: ${String(filters.outcome)}`)
+  for (const [key, value] of Object.entries(filters)) {
+    const values = Array.isArray(value) ? (value as string[]) : value ? [String(value)] : []
+    if (values.length === 0) continue
+    const label = FACET_LABELS[key] || key.charAt(0).toUpperCase() + key.slice(1)
+    chips.push(`${label}: ${values.join('/')}`)
+  }
   if (chips.length === 0 && !relaxed) return null
   return (
     <div className="flex flex-wrap items-center gap-2 px-1">

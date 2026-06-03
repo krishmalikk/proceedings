@@ -264,96 +264,127 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
     }
 
 
-# --- Natural-language -> tagged facet extraction (for precision control) ----
+# --- Generic NL -> tagged-facet extraction (applies to ANY tag, not just consulate) --
+#
+# The strictness mechanism (filter / boost / semantic) is field-agnostic. This
+# registry is the SINGLE place facets are enumerated: each entry maps a controlled
+# tag vocabulary (tags-cleaned/*.csv) to the datastore field(s) it filters. Adding
+# coverage for a new tag = adding one entry here — nothing else changes.
 
-_CONSULATE_MAP: dict | None = None
-# Common informal names not in the vocabulary's official city column.
+# Informal names not in the official consulate vocabulary's City column.
 _CONSULATE_ALIASES = {"delhi": "DEL", "bombay": "BOM", "madras": "MAA", "calcutta": "CCU"}
 
+_FACET_SPECS = [
+    # key, label, datastore field(s) it filters, vocab CSV, match kind, boost, min_len
+    {"key": "consulate", "label": "Consulate", "fields": ["consulates"],
+     "csv": "1.4-consulates.csv", "kind": "name", "boost": 0.5, "min_len": 4},
+    {"key": "visa", "label": "Visa",
+     "fields": ["visa_applying_for", "current_visa_or_greencard_category"],
+     "csv": "1.1-non-immigration-visas.csv", "kind": "code", "boost": 0.4, "min_len": 2},
+    {"key": "category", "label": "Category",
+     "fields": ["current_visa_or_greencard_category", "visa_applying_for"],
+     "csv": "1.2-greencard-categories.csv", "kind": "code", "boost": 0.4, "min_len": 3},
+    {"key": "outcome", "label": "Outcome", "fields": ["key_stages_or_info.outcome_status"],
+     "csv": "1.9-outcomes.csv", "kind": "code", "boost": 0.3, "min_len": 5},
+    {"key": "tag", "label": "Tag",
+     "fields": ["tags", "concerns_or_questions_tags", "derived_topic_cluster"],
+     "csv": "1.10-common-misc.csv", "kind": "tag", "boost": 0.2, "min_len": 6},
+]
 
-def _consulate_map() -> dict:
-    """Lazy-load {city/country name -> consulate code} from 1.4-consulates.csv."""
-    global _CONSULATE_MAP
-    if _CONSULATE_MAP is None:
-        m: dict[str, str] = {}
-        path = os.path.join(os.path.dirname(__file__), "tags-cleaned", "1.4-consulates.csv")
+_REGISTRY: list | None = None
+
+
+def _csv_path(name: str) -> str:
+    return os.path.join(os.path.dirname(__file__), "tags-cleaned", name)
+
+
+def _code_variants(code: str) -> set:
+    low = code.strip().lower()
+    return {v for v in {low, low.replace("-", ""), low.replace("-", " ")} if v}
+
+
+def _facet_registry() -> list:
+    """Lazy-build the facet registry: each entry has terms {variant -> code}."""
+    global _REGISTRY
+    if _REGISTRY is not None:
+        return _REGISTRY
+    reg = []
+    for spec in _FACET_SPECS:
+        terms: dict[str, str] = {}
         try:
-            with open(path, newline="", encoding="utf-8") as f:
+            with open(_csv_path(spec["csv"]), newline="", encoding="utf-8") as f:
                 reader = csv.reader(f)
                 next(reader, None)  # header
                 for row in reader:
-                    if len(row) < 4:
+                    if not row or not row[0].strip():
                         continue
-                    code, typ, country, city = (c.strip() for c in row[:4])
-                    if city:
-                        m[city.lower()] = code
-                    elif country and typ == "country":
-                        m[country.lower()] = code
+                    code = row[0].strip()
+                    if spec["kind"] == "name":  # consulates: tag,Type,Country,City
+                        country = row[2].strip() if len(row) > 2 else ""
+                        city = row[3].strip() if len(row) > 3 else ""
+                        if city:
+                            terms[city.lower()] = code
+                        elif country and (len(row) > 1 and row[1].strip() == "country"):
+                            terms[country.lower()] = code
+                    elif spec["kind"] == "code":
+                        for v in _code_variants(code):
+                            terms[v] = code
+                    elif spec["kind"] == "tag":  # only multi-segment tags (avoid common-word FPs)
+                        if "-" in code:
+                            terms[code.lower()] = code
+                            terms[code.lower().replace("-", " ")] = code
         except Exception as e:  # noqa: BLE001
-            print(f"consulate map load failed: {e}")
-        m.update(_CONSULATE_ALIASES)
-        _CONSULATE_MAP = m
-    return _CONSULATE_MAP
-
-
-_VISA_PATTERNS = [
-    (r"\bb-?1\s*/?\s*b-?2\b", ["B-1", "B-2"]),
-    (r"\bb-?1\b", ["B-1"]),
-    (r"\bb-?2\b", ["B-2"]),
-    (r"\bh-?1b\b", ["H-1B"]),
-    (r"\bf-?1\b", ["F-1"]),
-    (r"\bl-?1\b", ["L-1"]),
-]
-_OUTCOME_PATTERNS = [
-    (r"\bapprove", "approved"),
-    (r"\bissued\b", "issued"),
-    (r"\b(reject|refus|denied|denial)", "refused"),
-    (r"\bpending\b", "pending"),
-]
+            print(f"facet vocab load failed for {spec['csv']}: {e}")
+        if spec["key"] == "consulate":
+            terms.update(_CONSULATE_ALIASES)
+        reg.append({**spec, "terms": terms})
+    _REGISTRY = reg
+    return reg
 
 
 def extract_filters(query: str) -> dict:
-    """Map a natural-language query to tagged facet values (consulate/visa/outcome)."""
+    """Map a natural-language query to tagged facet values across ALL registered
+    facets. Returns a rich dict: { key: {label, fields, codes[], boost} }."""
     q = query.lower()
     facets: dict = {}
-    cm = _consulate_map()
-    for name in sorted(cm, key=len, reverse=True):  # prefer longer (city > country) names
-        if len(name) >= 4 and re.search(r"\b" + re.escape(name) + r"\b", q):
-            facets["consulate"] = cm[name]
-            break
-    for pat, val in _VISA_PATTERNS:
-        if re.search(pat, q):
-            facets["visa"] = val
-            break
-    for pat, val in _OUTCOME_PATTERNS:
-        if re.search(pat, q):
-            facets["outcome"] = val
-            break
+    for spec in _facet_registry():
+        found: list[str] = []
+        for term in sorted(spec["terms"], key=len, reverse=True):  # specific (longer) first
+            if len(term) < spec["min_len"]:
+                continue
+            if re.search(r"\b" + re.escape(term) + r"\b", q):
+                code = spec["terms"][term]
+                if code not in found:
+                    found.append(code)
+        if found:
+            facets[spec["key"]] = {
+                "label": spec["label"], "fields": spec["fields"],
+                "codes": found, "boost": spec["boost"],
+            }
     return facets
 
 
+def applied_codes(facets: dict) -> dict:
+    """Flatten the rich facet dict to { key: [codes] } for API/UI."""
+    return {k: v["codes"] for k, v in facets.items()}
+
+
+def _facet_condition(facet: dict) -> str:
+    """OR across the facet's fields x codes — e.g. (visa_applying_for: ANY("B-1") OR ...)."""
+    ors = [f'{field}: ANY("{code}")' for field in facet["fields"] for code in facet["codes"]]
+    return "(" + " OR ".join(ors) + ")" if ors else ""
+
+
 def _filter_expr_from_facets(facets: dict) -> str:
-    clauses = []
-    if facets.get("consulate"):
-        clauses.append(f'consulates: ANY("{facets["consulate"]}")')
-    if facets.get("visa"):
-        vs = " OR ".join(f'visa_applying_for: ANY("{v}")' for v in facets["visa"])
-        clauses.append(f"({vs})")
-    if facets.get("outcome"):
-        clauses.append(f'key_stages_or_info.outcome_status: ANY("{facets["outcome"]}")')
+    """AND across facet keys (each key is an OR of its fields x codes)."""
+    clauses = [c for c in (_facet_condition(f) for f in facets.values()) if c]
     return " AND ".join(clauses)
 
 
 def _boost_from_facets(facets: dict):
     Cond = de.SearchRequest.BoostSpec.ConditionBoostSpec
-    specs = []
-    if facets.get("consulate"):
-        specs.append(Cond(condition=f'consulates: ANY("{facets["consulate"]}")', boost=0.5))
-    if facets.get("visa"):
-        cond = " OR ".join(f'visa_applying_for: ANY("{v}")' for v in facets["visa"])
-        specs.append(Cond(condition=cond, boost=0.3))
-    if facets.get("outcome"):
-        specs.append(Cond(condition=f'key_stages_or_info.outcome_status: ANY("{facets["outcome"]}")', boost=0.2))
+    specs = [Cond(condition=_facet_condition(f), boost=f["boost"])
+             for f in facets.values() if _facet_condition(f)]
     return de.SearchRequest.BoostSpec(condition_boost_specs=specs) if specs else None
 
 
@@ -424,7 +455,7 @@ def search_with_strictness(
     facets = extract_filters(query)
 
     def _wrap(data, eff, relaxed):
-        data["applied_filters"] = facets
+        data["applied_filters"] = applied_codes(facets)
         data["effective_strictness"] = eff
         data["relaxed"] = relaxed
         return data
