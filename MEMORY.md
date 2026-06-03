@@ -550,6 +550,58 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 ---
 
+## D-039 — 2026-06-03 — Public no-ingest grounding = a second managed Vertex AI Search **website data store** blended into the engine (extends D-016); self-managed Vector Search retired
+
+**Decision:** Grounding spans three priority tiers, all served by **managed Vertex AI Search (Discovery Engine)** through the Search + Answer API:
+1. **App/web postings** (highest) — `imm-postings-datastore` (DS-1), `channel="app"` (D-034/D-036/D-038).
+2. **Reddit + future ingested sources** — DS-1, `channel="reddit"` (+ future `channel` values, no schema change, D-036).
+3. **Specific public sites, NO ingestion** — a **new second data store, DS-2 = a Vertex AI Search *website* data store**, scoped to those domains' URL patterns; Google crawls/indexes them. We run no scraper/chunk/embed pipeline for this content.
+
+- **Precedence is implemented as a managed `boostSpec`**, not custom merge code: boost `channel="app"` highest, `channel="reddit"` next (both DS-1), DS-2 (public) baseline → ranks lowest. One `:answer` call returns a single grounded answer with unified citations across all three tiers (priority `app > reddit > public`).
+- **Retired:** the **self-managed Vertex AI Vector Search index** (`legal_intake_deployed_v2`, ~807 chunks, `VERTEX_AI_INDEX_*`) that the prototype `api.py`/`query.py` grounded on. It violated D-016, billed for an always-on serving node, and — being a crawl→chunk→embed artifact — contradicts the "no ingestion" requirement for public content. Its public source sites (uscis.gov, dol.gov, travel.state.gov, visaguide.world, …) become DS-2's URL patterns. The prototype's `qa_pairs` Firestore log is likewise retired in favour of the D-035 session/profile model.
+- **Firestore (D-035) carries the two non-grounding requirements:** user **profile** (`users/{uid}`) and **conversational history/state** (`sessions/{session_id}`: turns, draft, intent, geo). Firestore is never a grounding source.
+
+**Relationship to D-016:** this **extends, does not contradict, D-016.** D-016's "single sink" rejected a *parallel self-managed Vertex AI Vector Search* on cost/ops grounds (always-on node, embedding lifecycle). DS-2 keeps everything inside *managed* Vertex AI Search — no always-on Vector Search node, no embedding ownership — so D-016's cost/ops reasoning is preserved. D-016's literal "no second index" is refined: a second *managed* data store is permitted **only** to satisfy a grounding need that cannot be met by ingestion (public content we may not copy/crawl ourselves). The structured ingested corpus remains a single datastore (DS-1) across all channels.
+
+**Reasoning:** The three sources have fundamentally different ownership: tiers 1–2 are content *we* ingest and tag (belongs in DS-1 as channels, per D-036); tier 3 is third-party public content we are explicitly **not** to ingest — so the only managed way to ground on it is a Google-crawled website data store (or Grounding-with-Google-Search restricted to those domains). Keeping all three under one engine gives managed grounding + citations + a single precedence knob (`boostSpec`), avoids a custom BFF merge layer, and avoids the always-on Vector Search cost the prototype was incurring.
+
+**Alternatives rejected:**
+- **Keep the self-managed Vector Search index for public content** (the earlier two-store hybrid) — requires ingestion (against requirement 3), keeps the always-on node D-016 rejected, and forces a custom merge layer in the BFF.
+- **Ingest the public sites into DS-1** — violates the "no ingestion" requirement and risks copying third-party content we don't own.
+- **Grounding with Google Search (whole web)** — too broad for "certain public sites only"; retained only as a fallback for tier 3 if basic website indexing coverage proves insufficient.
+
+**Build-time verification (confirm against live Google docs before implementation, per D-038):**
+1. Confirm a **website data store can be blended with the structured DS-1 in one engine** and that `boostSpec` ranks across data stores. **Fallback if not supported:** a thin **two-call BFF merge** (`:answer` over DS-1 primary + a secondary query over DS-2, merged by precedence) — both halves still managed (citations, no Vector Search node).
+2. **Website indexing mode:** advanced website indexing requires domain verification (we don't own uscis.gov etc.), so third-party sites use **basic website search** (URL-pattern scoped, no verification) or Grounding-with-Google-Search restricted to those domains.
+
+**Affected docs / status:** Decision recorded; implementation pending P1.
+- [ARCHITECTURE_GAP_reddit-grounding.md](ARCHITECTURE_GAP_reddit-grounding.md) — investigation, deviation analysis, and the recommended solution this decision ratifies.
+- Supersedes the prototype `api.py`/`query.py` Vector Search RAG stack (un-logged; diverged from D-016/D-034/D-035 — see the gap doc's "Deviations" section).
+- **Open follow-ups (own `D-NNN` when settled):** the exact public domain/URL-pattern list for DS-2; the blend-vs-two-call outcome from verification item 1; decommission plan for the Vector Search index + `qa_pairs`.
+
+---
+
 # Session summaries
 
-(Newest at the bottom. Each entry follows the `S-NNN` format defined at the top of this file. There are none yet — the first will be written when the user signals the next session end.)
+(Newest at the bottom. Each entry follows the `S-NNN` format defined at the top of this file.)
+
+## S-001 — 2026-06-03 — End-of-session summary
+
+**Completed this session:**
+- Stood up the backend locally on branch `raj-test`: rebuilt `.venv` on **Python 3.11** (the prior venv was Python 3.9.6 and crashed on `api.py`'s `str | None` syntax), installed `requirements.txt`, verified all endpoints against live GCP (`/api/health` → 807 chunks, `/api/ask` full RAG, `/api/qa`, `/api/qa/stats`).
+- **Diagnosed the Reddit grounding bug.** Root cause: the prototype `api.py`/`query.py` grounds on a **self-managed Vertex AI Vector Search index** (`legal_intake_deployed_v2`, 807 chunks — all crawled gov/law-firm content, **zero Reddit**), while the **81 Reddit docs live in the `imm-postings-datastore` Discovery Engine datastore that the RAG path never queries**. The ingestion path and retrieval path point at two different stores.
+- **Identified that the prototype RAG stack is un-logged and deviates from D-016 (rejected Vector Search), D-034 (Answer API over datastore), and D-035 (Firestore app-state model — only an anonymous `qa_pairs` log exists; no auth/sessions/profiles).**
+- Confirmed Firestore's as-built role (anonymous `qa_pairs` log; **not** grounding; **no** per-user conversational state anywhere — client `useState` only, never sent to backend).
+- Captured the full investigation, deviation analysis, Firestore findings, and the recommended solution in **[ARCHITECTURE_GAP_reddit-grounding.md](ARCHITECTURE_GAP_reddit-grounding.md)**.
+- **Recorded D-039**: three-tier grounding (app > reddit > public) all under managed Vertex AI Search, with a new **website data store (DS-2)** for no-ingest public content, precedence via `boostSpec`, Firestore for profile + conversation; Vector Search index + `qa_pairs` retired.
+
+**In progress / not yet finished:**
+- D-039 is a **decision, not yet implemented**. The prototype `api.py`/`query.py` still uses the (now superseded) Vector Search path and is what runs today on `raj-test`.
+- Two build-time verifications open (see D-039): (1) can a website data store be **blended** with DS-1 in one engine with cross-store `boostSpec`, else fall back to a two-call BFF merge; (2) **basic vs advanced** website indexing for third-party domains (verification constraint).
+
+**Exact next step for next session:** Run a verification query against `imm-postings-datastore` via the Discovery Engine **Search/Answer API** (`servingConfigs/default_search:answer`) for a representative Reddit-answerable question (e.g. "B1/B2 interview experience in Mumbai") to confirm the 81 docs return relevant grounded answers + citations — proving the DS-1 half of D-039 before any BFF refactor.
+
+**Open questions / blockers:**
+- Team sign-off on **D-039** (extends D-016 — second managed data store for no-ingest public content).
+- The exact **public domain/URL-pattern list** for DS-2 (which gov/law-firm sites are in scope).
+- Outcome of the blend-vs-two-call verification gates the BFF retrieval design.
