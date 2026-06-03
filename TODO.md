@@ -18,6 +18,19 @@
 - [x] Wire env-gated tier-3 fallback in `api.py` (`GCP_VERTEX_PUBLIC_ENGINE_ID`): DS-1 fallback → query DS-2 (precedence app > reddit > public)
 - [~] **Website indexing populated** — waiting on Google's async basic crawl (all target sites currently `INDEXING_STATUS_UNSPECIFIED`)
 
+## Search/browse postings UX — Phase A ✅ DONE (dedicated Search page)
+- [x] Backend `search_client.py`: `search_postings()` (ranked cards via `:search`) + `get_posting()` (detail + GCS `.md` body); recursive struct→native fix for nested facets
+- [x] Backend `api.py`: `GET /api/search` (q + visa/consulate/outcome filters + paging) and `GET /api/postings/{case_id}` (404 if missing)
+- [x] Website proxy routes: `api/search/route.ts`, `api/postings/[id]/route.ts`
+- [x] Website `search/page.tsx`: replaced mock with `/api/search` (cards: title, description, outcome/visa/consulate badges, tags) → link to `/case/{case_id}`
+- [x] Website `case/[id]/page.tsx`: `/api/postings/{id}` detail (full Reddit body + facets + "View original on Reddit")
+- [x] Verified: cards + detail render via the website proxy (200, no type errors)
+- [ ] **Phase B (later):** conversational card-rendering inside the chat (intent routing search-vs-ask) — per user's "search page now, chat cards later"
+- [ ] Mobile: wire SearchScreen / CaseMatchCard / CaseDetailsScreen to the same endpoints
+
+## Answer-mode fix ✅ DONE
+- [x] Fixed intermittent false-fallback: disabled the Answer API's flaky adversarial/non-answer-seeking skip classifiers; ground on reference-presence instead (verified deterministic 5/5 + E2E 12/12)
+
 ## E2E verification ✅ DONE — `tests/test_grounding_e2e.py` (12/12 passed)
 - [x] **A** — Reddit-ingested content is returned (DS-1): `/api/ask` + direct client both ground on `reddit-*` docs
 - [x] **B** — App posting lands in the right place for grounding: synthetic `channel="app"` doc created in `imm-postings-datastore`, grounded via the same engine, then deleted (cleanup)

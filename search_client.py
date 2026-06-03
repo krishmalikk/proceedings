@@ -29,6 +29,7 @@ import os
 
 from google.api_core.client_options import ClientOptions
 from google.cloud import discoveryengine_v1 as de
+from google.cloud import storage
 
 # Fallback message when the datastore yields no grounded answer.
 FALLBACK_MESSAGE = "I don't have that information — please contact the firm directly."
@@ -71,22 +72,24 @@ def _boost_spec():
     )
 
 
+def _to_native(v):
+    """Recursively coerce proto-plus MapComposite/RepeatedComposite to dict/list."""
+    if hasattr(v, "items"):  # MapComposite / dict-like
+        return {k: _to_native(x) for k, x in v.items()}
+    if not isinstance(v, (str, bytes)) and hasattr(v, "__iter__"):  # RepeatedComposite / list
+        return [_to_native(x) for x in v]
+    return v
+
+
 def _struct_to_dict(struct_data) -> dict:
-    """Coerce a proto Struct (struct_data) into a plain python dict of native types."""
+    """Coerce a proto Struct (struct_data) into a plain python dict of native types,
+    recursing into nested maps/lists (e.g. key_stages_or_info)."""
     if not struct_data:
         return {}
-    # proto-plus wraps the Struct; MessageToDict on the underlying pb gives native
-    # python types (lists/strings) which dict() does not always fully unwrap.
     try:
-        from google.protobuf.json_format import MessageToDict
-
-        pb = getattr(struct_data, "_pb", struct_data)
-        return MessageToDict(pb)
+        return {k: _to_native(v) for k, v in dict(struct_data).items()}
     except Exception:
-        try:
-            return dict(struct_data)
-        except Exception:
-            return {}
+        return {}
 
 
 def _labels_from(meta: dict) -> list[str]:
@@ -164,9 +167,14 @@ def answer_query(question: str, project_id: str, location: str, engine_id: str, 
         search_spec=de.AnswerQueryRequest.SearchSpec(search_params=search_params),
         answer_generation_spec=de.AnswerQueryRequest.AnswerGenerationSpec(
             include_citations=True,
-            ignore_adversarial_query=True,
-            ignore_non_answer_seeking_query=True,
-            ignore_low_relevant_content=True,
+            # Do NOT let the API skip queries via its adversarial / non-answer-
+            # seeking / low-relevance classifiers: they are non-deterministic and
+            # intermittently drop legitimate questions (e.g. imperative phrasings
+            # like "Tell me about ...") to 0 references. We ground purely on
+            # whether the datastore returned references (see below).
+            ignore_adversarial_query=False,
+            ignore_non_answer_seeking_query=False,
+            ignore_low_relevant_content=False,
         ),
         grounding_spec=de.AnswerQueryRequest.GroundingSpec(include_grounding_supports=True),
     )
@@ -175,11 +183,7 @@ def answer_query(question: str, project_id: str, location: str, engine_id: str, 
     answer = response.answer
 
     answer_text = (answer.answer_text or "").strip()
-    skipped = list(answer.answer_skipped_reasons or [])
     succeeded = answer.state == de.Answer.State.SUCCEEDED
-
-    if not answer_text or not succeeded or skipped:
-        return fallback
 
     # The Answer API emits one reference per grounding support, so the same doc
     # recurs — dedupe by chunk_id (keep first), then cap to max_results.
@@ -193,11 +197,149 @@ def answer_query(question: str, project_id: str, location: str, engine_id: str, 
         if len(chunks) >= max_results:
             break
 
+    # Grounded iff the datastore actually returned citable references. No
+    # references (off-topic, or nothing relevant) => fallback. This is the
+    # deterministic grounding signal, replacing the flaky skip-reason check.
+    if not succeeded or not answer_text or not chunks:
+        return fallback
+
     return {
         "answer": answer_text,
         "chunks": chunks,
         "is_fallback": False,
     }
+
+
+# ---------------------------------------------------------------------------
+# Search mode — ranked posting cards (the ":search" method, not ":answer")
+# ---------------------------------------------------------------------------
+
+def _search_client(project_id: str, location: str) -> de.SearchServiceClient:
+    opts = ClientOptions(quota_project_id=project_id)
+    if location != "global":
+        opts = ClientOptions(
+            api_endpoint=f"{location}-discoveryengine.googleapis.com",
+            quota_project_id=project_id,
+        )
+    return de.SearchServiceClient(client_options=opts)
+
+
+def _as_list(val) -> list[str]:
+    if val is None:
+        return []
+    if isinstance(val, str):
+        return [val] if val else []
+    try:
+        return [str(v) for v in val if v not in (None, "")]
+    except TypeError:
+        return [str(val)]
+
+
+def _card_from_struct(case_id: str, meta: dict) -> dict:
+    """Build a result-card dict from a posting's structData."""
+    stages = meta.get("key_stages_or_info") or {}
+    if not isinstance(stages, dict):
+        stages = {}
+    visa = _as_list(meta.get("visa_applying_for")) or _as_list(meta.get("current_visa_or_greencard_category"))
+    consulates = _as_list(meta.get("consulates")) or _as_list(meta.get("primary_consulate"))
+    tags = (
+        _as_list(meta.get("concerns_or_questions_tags"))
+        or _as_list(meta.get("tags"))
+        or _as_list(meta.get("derived_topic_cluster"))
+    )
+    return {
+        "case_id": case_id,
+        "title": str(meta.get("post_title") or "").strip() or case_id,
+        "description": str(meta.get("background_summary") or meta.get("concerns_or_questions_summary") or "")[:400],
+        "visa": visa,
+        "consulates": consulates,
+        "outcome": str(meta.get("outcome_status") or stages.get("outcome_status") or ""),
+        "subreddit": str(meta.get("subreddit") or meta.get("source_container") or ""),
+        "channel": str(meta.get("channel") or ""),
+        "tags": tags[:8],
+        "url": str(meta.get("full_url") or meta.get("source_uri") or ""),
+        "date": str(meta.get("posting_date") or ""),
+    }
+
+
+def search_postings(
+    query: str,
+    project_id: str,
+    location: str,
+    engine_id: str,
+    page_size: int = 10,
+    page_token: str = "",
+    filter_expr: str = "",
+) -> dict:
+    """
+    Ranked posting search (Google-results style) via the Discovery Engine
+    :search method. Returns result cards (no synthesized answer).
+
+      { "results": [ {card}, ... ], "next_page_token": str, "total": int }
+    """
+    client = _search_client(project_id, location)
+    serving_config = _serving_config(project_id, location, engine_id)
+
+    request = de.SearchRequest(
+        serving_config=serving_config,
+        query=query,
+        page_size=page_size,
+        page_token=page_token or "",
+        filter=filter_expr or "",
+        content_search_spec=de.SearchRequest.ContentSearchSpec(
+            snippet_spec=de.SearchRequest.ContentSearchSpec.SnippetSpec(return_snippet=True),
+        ),
+    )
+    if _BOOST_ENABLED:
+        request.boost_spec = _boost_spec()
+
+    response = client.search(request)
+    results = []
+    for r in response.results:
+        meta = _struct_to_dict(r.document.struct_data)
+        results.append(_card_from_struct(r.document.id, meta))
+
+    return {
+        "results": results,
+        "next_page_token": response.next_page_token or "",
+        "total": int(getattr(response, "total_size", 0) or 0),
+    }
+
+
+def get_posting(case_id: str, project_id: str, location: str, datastore_id: str) -> dict | None:
+    """
+    Fetch one posting's full detail: structData card fields + the Markdown body
+    (read from the GCS sidecar referenced by the document's content URI).
+    Returns None if the document does not exist.
+    """
+    from google.api_core.exceptions import NotFound
+
+    doc_client = de.DocumentServiceClient(client_options=ClientOptions(quota_project_id=project_id))
+    name = (
+        f"projects/{project_id}/locations/{location}/collections/default_collection"
+        f"/dataStores/{datastore_id}/branches/default_branch/documents/{case_id}"
+    )
+    try:
+        doc = doc_client.get_document(name=name)
+    except NotFound:
+        return None
+
+    meta = _struct_to_dict(doc.struct_data)
+    card = _card_from_struct(case_id, meta)
+
+    # Body lives in the GCS sidecar (.md), referenced by content.uri / gcs_path.
+    body = ""
+    gcs_uri = doc.content.uri or meta.get("gcs_path") or ""
+    if gcs_uri.startswith("gs://"):
+        try:
+            bucket_name, blob_path = gcs_uri[len("gs://"):].split("/", 1)
+            blob = storage.Client(project=project_id).bucket(bucket_name).blob(blob_path)
+            body = blob.download_as_text()
+        except Exception as e:  # noqa: BLE001 - best-effort body fetch
+            print(f"get_posting: could not read body from {gcs_uri}: {e}")
+
+    card["body"] = body
+    return card
 
 
 if __name__ == "__main__":

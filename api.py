@@ -26,7 +26,7 @@ from query import (
     save_qa_pair,
     update_feedback,
 )
-from search_client import answer_query
+from search_client import answer_query, get_posting, search_postings
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
@@ -36,6 +36,7 @@ from search_client import answer_query
 _db: firestore.Client = None
 _engine_id: str = ""
 _public_engine_id: str = ""
+_datastore_id: str = "imm-postings-datastore"
 _ds_location: str = "global"
 _project_id: str = ""
 _region: str = ""
@@ -49,7 +50,7 @@ async def lifespan(app: FastAPI):
     `imm-postings-datastore` (D-016/D-034/D-039) — not the retired self-managed
     Vector Search index.
     """
-    global _db, _engine_id, _public_engine_id, _ds_location, _project_id, _region
+    global _db, _engine_id, _public_engine_id, _datastore_id, _ds_location, _project_id, _region
 
     load_dotenv()
 
@@ -57,6 +58,7 @@ async def lifespan(app: FastAPI):
     _project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT", "")
     _region = os.getenv("GCP_REGION") or os.getenv("GCP_LOCATION", "us-central1")
     _engine_id = os.getenv("GCP_VERTEX_SEARCH_APP_ID", "imm-postings-search-app")
+    _datastore_id = os.getenv("GCP_VERTEX_DATASTORE_ID", "imm-postings-datastore")
     # DS-2 public-reference engine (D-039 tier 3). Off until the website data
     # store finishes indexing; set GCP_VERTEX_PUBLIC_ENGINE_ID to enable.
     _public_engine_id = os.getenv("GCP_VERTEX_PUBLIC_ENGINE_ID", "")
@@ -167,6 +169,30 @@ class FeedbackRequest(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     chunks_loaded: int
+
+
+class PostingCard(BaseModel):
+    case_id: str
+    title: str
+    description: str
+    visa: list[str]
+    consulates: list[str]
+    outcome: str
+    subreddit: str
+    channel: str
+    tags: list[str]
+    url: str
+    date: str
+
+
+class SearchResponse(BaseModel):
+    results: list[PostingCard]
+    next_page_token: str
+    total: int
+
+
+class PostingDetail(PostingCard):
+    body: str
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +328,58 @@ async def qa_stats():
         "top_categories": label_counts,
         "knowledge_gaps": gaps,
     }
+
+
+def _build_filter(visa: str, consulate: str, outcome: str) -> str:
+    """Build a Discovery Engine filter expression from optional facet params."""
+    clauses = []
+    if visa:
+        clauses.append(f'visa_applying_for: ANY("{visa}")')
+    if consulate:
+        clauses.append(f'consulates: ANY("{consulate}")')
+    if outcome:
+        clauses.append(f'key_stages_or_info.outcome_status: ANY("{outcome}")')
+    return " AND ".join(clauses)
+
+
+@app.get("/api/search", response_model=SearchResponse)
+async def search(
+    request: Request,
+    q: str = "",
+    visa: str = "",
+    consulate: str = "",
+    outcome: str = "",
+    page_size: int = 10,
+    page_token: str = "",
+):
+    """Ranked posting search (result cards). Browse/search mode, not Q&A."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+    if not _engine_id:
+        return SearchResponse(results=[], next_page_token="", total=0)
+
+    page_size = max(1, min(page_size, 50))
+    filter_expr = _build_filter(visa, consulate, outcome)
+    data = search_postings(
+        q or "immigration experience",
+        _project_id, _ds_location, _engine_id,
+        page_size=page_size, page_token=page_token, filter_expr=filter_expr,
+    )
+    return SearchResponse(
+        results=[PostingCard(**c) for c in data["results"]],
+        next_page_token=data["next_page_token"],
+        total=data["total"],
+    )
+
+
+@app.get("/api/postings/{case_id}", response_model=PostingDetail)
+async def posting_detail(case_id: str):
+    """Full detail for one posting (card fields + Markdown body)."""
+    card = get_posting(case_id, _project_id, _ds_location, _datastore_id)
+    if card is None:
+        raise HTTPException(status_code=404, detail="Posting not found")
+    return PostingDetail(**card)
 
 
 @app.get("/api/health", response_model=HealthResponse)

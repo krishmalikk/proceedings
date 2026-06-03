@@ -1,0 +1,29 @@
+import { NextRequest, NextResponse } from 'next/server'
+
+const PYTHON_API_URL = process.env.PYTHON_API_URL || 'http://localhost:8000'
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const res = await fetch(
+      `${PYTHON_API_URL}/api/postings/${encodeURIComponent(params.id)}`
+    )
+    const data = await res.json()
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { detail: data.detail || 'Posting not found' },
+        { status: res.status }
+      )
+    }
+
+    return NextResponse.json(data)
+  } catch {
+    return NextResponse.json(
+      { detail: 'Unable to reach the postings service. Please try again later.' },
+      { status: 503 }
+    )
+  }
+}
