@@ -32,31 +32,55 @@ export default function SearchPage() {
   const [selectedOutcome, setSelectedOutcome] = useState('All Outcomes')
   const [results, setResults] = useState<PostingCard[]>([])
   const [total, setTotal] = useState(0)
+  const [nextPageToken, setNextPageToken] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
+
+  const buildParams = useCallback((pageToken: string) => {
+    const params = new URLSearchParams()
+    params.set('q', searchQuery.trim() || 'immigration visa experience')
+    if (selectedVisaType !== 'All Types') params.set('visa', selectedVisaType)
+    if (selectedOutcome !== 'All Outcomes') params.set('outcome', selectedOutcome)
+    params.set('page_size', '15')
+    if (pageToken) params.set('page_token', pageToken)
+    return params
+  }, [searchQuery, selectedVisaType, selectedOutcome])
 
   const runSearch = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const params = new URLSearchParams()
-      params.set('q', searchQuery.trim() || 'immigration visa experience')
-      if (selectedVisaType !== 'All Types') params.set('visa', selectedVisaType)
-      if (selectedOutcome !== 'All Outcomes') params.set('outcome', selectedOutcome)
-      params.set('page_size', '15')
-
-      const res = await fetch(`/api/search?${params.toString()}`)
+      const res = await fetch(`/api/search?${buildParams('').toString()}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Search failed')
       setResults(data.results || [])
       setTotal(data.total || 0)
+      setNextPageToken(data.next_page_token || '')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed')
       setResults([])
+      setNextPageToken('')
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, selectedVisaType, selectedOutcome])
+  }, [buildParams])
+
+  const loadMore = useCallback(async () => {
+    if (!nextPageToken || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const res = await fetch(`/api/search?${buildParams(nextPageToken).toString()}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Could not load more')
+      setResults((prev) => [...prev, ...(data.results || [])])
+      setNextPageToken(data.next_page_token || '')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load more')
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [nextPageToken, loadingMore, buildParams])
 
   // Initial load + re-run when a filter changes.
   useEffect(() => {
@@ -195,6 +219,25 @@ export default function SearchPage() {
               </Link>
             ))}
           </div>
+
+          {/* Load more */}
+          {!loading && nextPageToken && (
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="btn-secondary disabled:opacity-50"
+              >
+                {loadingMore ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
+
+          {!loading && !nextPageToken && results.length > 0 && (
+            <p className="text-center text-caption text-on-surface-variant mt-6">
+              Showing all {results.length} of {total} postings
+            </p>
+          )}
         </div>
       </div>
     </div>
