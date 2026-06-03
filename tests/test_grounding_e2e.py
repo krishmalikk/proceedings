@@ -263,6 +263,22 @@ def group_d_chat_routing() -> None:
               f"mode={r2.get('mode')}")
 
 
+def group_e_strictness() -> None:
+    print("\nGroup E — search precision (strict vs broad)")
+    import search_client
+
+    q = "Show me B1/B2 experiences in Mumbai"
+    strict = search_client.search_with_strictness(q, PROJECT, LOCATION, ENGINE, page_size=20, strictness="strict")
+    broad = search_client.search_with_strictness(q, PROJECT, LOCATION, ENGINE, page_size=20, strictness="broad")
+    check("E1 strict extracts consulate=BOM (Mumbai)", strict["applied_filters"].get("consulate") == "BOM",
+          str(strict["applied_filters"]))
+    check("E2 strict is narrower than broad", 1 <= strict["total"] <= broad["total"],
+          f"strict={strict['total']} broad={broad['total']}")
+    check("E3 strict returns only Mumbai (BOM) postings",
+          all("BOM" in c["consulates"] for c in strict["results"]),
+          str([c["consulates"] for c in strict["results"]]))
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set")
@@ -272,6 +288,7 @@ def main() -> int:
     group_b_app_posting_placement()
     group_c_public_gating()
     group_d_chat_routing()
+    group_e_strictness()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)

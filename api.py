@@ -27,7 +27,7 @@ from query import (
     save_qa_pair,
     update_feedback,
 )
-from search_client import answer_query, get_posting, search_postings
+from search_client import answer_query, get_posting, search_postings, search_with_strictness
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
@@ -190,10 +190,18 @@ class SearchResponse(BaseModel):
     results: list[PostingCard]
     next_page_token: str
     total: int
+    applied_filters: dict = {}
+    relaxed: bool = False
+    effective_strictness: str = ""
 
 
 class PostingDetail(PostingCard):
     body: str
+
+
+class ChatRequest(BaseModel):
+    question: str = Field(..., min_length=5, max_length=500)
+    strictness: str = "balanced"  # broad | balanced | strict
 
 
 class ChatResponse(BaseModel):
@@ -204,6 +212,9 @@ class ChatResponse(BaseModel):
     is_fallback: bool = False
     results: list[PostingCard] = []
     next_page_token: str = ""
+    applied_filters: dict = {}
+    relaxed: bool = False
+    effective_strictness: str = ""
     id: str = ""
 
 
@@ -254,9 +265,10 @@ async def ask_question(body: AskRequest, request: Request):
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(body: AskRequest, request: Request):
+async def chat(body: ChatRequest, request: Request):
     """Conversational turn: routes to a synthesized answer (ask) or a ranked
-    list of posting cards (search), based on classified intent."""
+    list of posting cards (search), based on classified intent. `strictness`
+    (broad|balanced|strict) controls search precision."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
@@ -264,7 +276,10 @@ async def chat(body: AskRequest, request: Request):
     intent = classify_intent(body.question)
 
     if intent == "search" and _engine_id:
-        data = search_postings(body.question, _project_id, _ds_location, _engine_id, page_size=10)
+        data = search_with_strictness(
+            body.question, _project_id, _ds_location, _engine_id,
+            page_size=10, strictness=body.strictness,
+        )
         # If search found nothing, fall through to an answer rather than an empty list.
         if data["results"]:
             return ChatResponse(
@@ -272,6 +287,9 @@ async def chat(body: AskRequest, request: Request):
                 intent=intent,
                 results=[PostingCard(**c) for c in data["results"]],
                 next_page_token=data["next_page_token"],
+                applied_filters=data.get("applied_filters", {}),
+                relaxed=data.get("relaxed", False),
+                effective_strictness=data.get("effective_strictness", ""),
             )
 
     result = _grounded_answer(body.question)
@@ -391,10 +409,15 @@ async def search(
     visa: str = "",
     consulate: str = "",
     outcome: str = "",
+    strictness: str = "balanced",
     page_size: int = 10,
     page_token: str = "",
 ):
-    """Ranked posting search (result cards). Browse/search mode, not Q&A."""
+    """Ranked posting search (result cards). Browse/search mode, not Q&A.
+
+    Explicit `visa`/`consulate`/`outcome` params apply an exact filter. Otherwise
+    `strictness` (broad|balanced|strict) controls how the NL query's extracted
+    facets are applied."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
@@ -402,16 +425,26 @@ async def search(
         return SearchResponse(results=[], next_page_token="", total=0)
 
     page_size = max(1, min(page_size, 50))
-    filter_expr = _build_filter(visa, consulate, outcome)
-    data = search_postings(
-        q or "immigration experience",
-        _project_id, _ds_location, _engine_id,
-        page_size=page_size, page_token=page_token, filter_expr=filter_expr,
-    )
+    query = q or "immigration experience"
+
+    explicit = _build_filter(visa, consulate, outcome)
+    if explicit:
+        data = search_postings(query, _project_id, _ds_location, _engine_id,
+                               page_size=page_size, page_token=page_token, filter_expr=explicit)
+        data.setdefault("applied_filters", {"consulate": consulate, "visa": [visa] if visa else [], "outcome": outcome})
+        data.setdefault("effective_strictness", "strict")
+        data.setdefault("relaxed", False)
+    else:
+        data = search_with_strictness(query, _project_id, _ds_location, _engine_id,
+                                      page_size=page_size, page_token=page_token, strictness=strictness)
+
     return SearchResponse(
         results=[PostingCard(**c) for c in data["results"]],
         next_page_token=data["next_page_token"],
         total=data["total"],
+        applied_filters=data.get("applied_filters", {}),
+        relaxed=data.get("relaxed", False),
+        effective_strictness=data.get("effective_strictness", ""),
     )
 
 

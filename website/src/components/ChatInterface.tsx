@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import SourceCitation from './SourceCitation'
 import Markdown from './Markdown'
 import PostingCard, { type PostingCardData } from './PostingCard'
+import StrictnessSlider, { useStrictness, AppliedFilters } from './StrictnessSlider'
 
 interface Source {
   chunk_id: string
@@ -21,6 +22,9 @@ interface ChatResult {
   is_fallback: boolean
   results: PostingCardData[]
   next_page_token: string
+  applied_filters: Record<string, unknown>
+  relaxed: boolean
+  effective_strictness: string
   id: string
 }
 
@@ -31,6 +35,8 @@ interface Message {
   content: string
   sources?: Source[]
   results?: PostingCardData[]
+  appliedFilters?: Record<string, unknown>
+  relaxed?: boolean
   query?: string
   resultId?: string
 }
@@ -51,6 +57,7 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
+  const [strictness, setStrictness] = useStrictness()
   const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set())
   const chatHistoryRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -92,7 +99,7 @@ export default function ChatInterface() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question.trim() }),
+        body: JSON.stringify({ question: question.trim(), strictness }),
       })
 
       if (!res.ok) {
@@ -109,6 +116,8 @@ export default function ChatInterface() {
         content: data.answer,
         sources: data.sources,
         results: data.results,
+        appliedFilters: data.applied_filters,
+        relaxed: data.relaxed,
         query: question.trim(),
         resultId: data.id,
       }
@@ -253,6 +262,7 @@ export default function ChatInterface() {
                             <p className="text-caption text-on-surface-variant px-1">
                               Here are matching experiences:
                             </p>
+                            <AppliedFilters filters={message.appliedFilters} relaxed={message.relaxed} />
                             {message.results?.map((r) => (
                               <PostingCard key={r.case_id} r={r} />
                             ))}
@@ -334,6 +344,9 @@ export default function ChatInterface() {
         {/* Input Area */}
         <div className="p-4 md:p-6 border-t border-outline-variant bg-surface">
           <div className="max-w-3xl mx-auto space-y-2">
+            <div className="bg-surface-container-low rounded-xl px-4 py-2 max-w-xs">
+              <StrictnessSlider value={strictness} onChange={setStrictness} />
+            </div>
             <div className="relative flex items-end gap-2 bg-surface-container-highest rounded-xl p-2 border-2 border-transparent focus-within:border-primary transition-all">
               <textarea
                 ref={textareaRef}

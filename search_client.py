@@ -25,7 +25,9 @@ both clients are unchanged:
   }
 """
 
+import csv
 import os
+import re
 
 from google.api_core.client_options import ClientOptions
 from google.cloud import discoveryengine_v1 as de
@@ -262,6 +264,99 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
     }
 
 
+# --- Natural-language -> tagged facet extraction (for precision control) ----
+
+_CONSULATE_MAP: dict | None = None
+# Common informal names not in the vocabulary's official city column.
+_CONSULATE_ALIASES = {"delhi": "DEL", "bombay": "BOM", "madras": "MAA", "calcutta": "CCU"}
+
+
+def _consulate_map() -> dict:
+    """Lazy-load {city/country name -> consulate code} from 1.4-consulates.csv."""
+    global _CONSULATE_MAP
+    if _CONSULATE_MAP is None:
+        m: dict[str, str] = {}
+        path = os.path.join(os.path.dirname(__file__), "tags-cleaned", "1.4-consulates.csv")
+        try:
+            with open(path, newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                next(reader, None)  # header
+                for row in reader:
+                    if len(row) < 4:
+                        continue
+                    code, typ, country, city = (c.strip() for c in row[:4])
+                    if city:
+                        m[city.lower()] = code
+                    elif country and typ == "country":
+                        m[country.lower()] = code
+        except Exception as e:  # noqa: BLE001
+            print(f"consulate map load failed: {e}")
+        m.update(_CONSULATE_ALIASES)
+        _CONSULATE_MAP = m
+    return _CONSULATE_MAP
+
+
+_VISA_PATTERNS = [
+    (r"\bb-?1\s*/?\s*b-?2\b", ["B-1", "B-2"]),
+    (r"\bb-?1\b", ["B-1"]),
+    (r"\bb-?2\b", ["B-2"]),
+    (r"\bh-?1b\b", ["H-1B"]),
+    (r"\bf-?1\b", ["F-1"]),
+    (r"\bl-?1\b", ["L-1"]),
+]
+_OUTCOME_PATTERNS = [
+    (r"\bapprove", "approved"),
+    (r"\bissued\b", "issued"),
+    (r"\b(reject|refus|denied|denial)", "refused"),
+    (r"\bpending\b", "pending"),
+]
+
+
+def extract_filters(query: str) -> dict:
+    """Map a natural-language query to tagged facet values (consulate/visa/outcome)."""
+    q = query.lower()
+    facets: dict = {}
+    cm = _consulate_map()
+    for name in sorted(cm, key=len, reverse=True):  # prefer longer (city > country) names
+        if len(name) >= 4 and re.search(r"\b" + re.escape(name) + r"\b", q):
+            facets["consulate"] = cm[name]
+            break
+    for pat, val in _VISA_PATTERNS:
+        if re.search(pat, q):
+            facets["visa"] = val
+            break
+    for pat, val in _OUTCOME_PATTERNS:
+        if re.search(pat, q):
+            facets["outcome"] = val
+            break
+    return facets
+
+
+def _filter_expr_from_facets(facets: dict) -> str:
+    clauses = []
+    if facets.get("consulate"):
+        clauses.append(f'consulates: ANY("{facets["consulate"]}")')
+    if facets.get("visa"):
+        vs = " OR ".join(f'visa_applying_for: ANY("{v}")' for v in facets["visa"])
+        clauses.append(f"({vs})")
+    if facets.get("outcome"):
+        clauses.append(f'key_stages_or_info.outcome_status: ANY("{facets["outcome"]}")')
+    return " AND ".join(clauses)
+
+
+def _boost_from_facets(facets: dict):
+    Cond = de.SearchRequest.BoostSpec.ConditionBoostSpec
+    specs = []
+    if facets.get("consulate"):
+        specs.append(Cond(condition=f'consulates: ANY("{facets["consulate"]}")', boost=0.5))
+    if facets.get("visa"):
+        cond = " OR ".join(f'visa_applying_for: ANY("{v}")' for v in facets["visa"])
+        specs.append(Cond(condition=cond, boost=0.3))
+    if facets.get("outcome"):
+        specs.append(Cond(condition=f'key_stages_or_info.outcome_status: ANY("{facets["outcome"]}")', boost=0.2))
+    return de.SearchRequest.BoostSpec(condition_boost_specs=specs) if specs else None
+
+
 def search_postings(
     query: str,
     project_id: str,
@@ -270,6 +365,7 @@ def search_postings(
     page_size: int = 10,
     page_token: str = "",
     filter_expr: str = "",
+    boost=None,
 ) -> dict:
     """
     Ranked posting search (Google-results style) via the Discovery Engine
@@ -290,7 +386,9 @@ def search_postings(
             snippet_spec=de.SearchRequest.ContentSearchSpec.SnippetSpec(return_snippet=True),
         ),
     )
-    if _BOOST_ENABLED:
+    if boost is not None:
+        request.boost_spec = boost
+    elif _BOOST_ENABLED:
         request.boost_spec = _boost_spec()
 
     response = client.search(request)
@@ -304,6 +402,51 @@ def search_postings(
         "next_page_token": response.next_page_token or "",
         "total": int(getattr(response, "total_size", 0) or 0),
     }
+
+
+def search_with_strictness(
+    query: str,
+    project_id: str,
+    location: str,
+    engine_id: str,
+    page_size: int = 10,
+    page_token: str = "",
+    strictness: str = "balanced",
+) -> dict:
+    """
+    Search with a user-chosen precision level:
+      - 'strict'   : hard filter on every extracted facet (exact matches only;
+                     relaxes to 'balanced' if that yields nothing).
+      - 'balanced' : boost matching facets (relevant ones rank first, others kept).
+      - 'broad'    : pure semantic search (no facet constraints).
+    Adds `applied_filters`, `relaxed`, and `effective_strictness` to the result.
+    """
+    facets = extract_filters(query)
+
+    def _wrap(data, eff, relaxed):
+        data["applied_filters"] = facets
+        data["effective_strictness"] = eff
+        data["relaxed"] = relaxed
+        return data
+
+    if strictness == "strict" and facets:
+        data = search_postings(query, project_id, location, engine_id, page_size, page_token,
+                               filter_expr=_filter_expr_from_facets(facets))
+        if not data["results"] and not page_token:
+            # No exact matches — fall back to a boosted (balanced) search.
+            data = search_postings(query, project_id, location, engine_id, page_size, "",
+                                   boost=_boost_from_facets(facets))
+            return _wrap(data, "balanced", True)
+        return _wrap(data, "strict", False)
+
+    if strictness == "broad":
+        data = search_postings(query, project_id, location, engine_id, page_size, page_token)
+        return _wrap(data, "broad", False)
+
+    # balanced (default)
+    data = search_postings(query, project_id, location, engine_id, page_size, page_token,
+                           boost=_boost_from_facets(facets))
+    return _wrap(data, "balanced", False)
 
 
 def get_posting(case_id: str, project_id: str, location: str, datastore_id: str) -> dict | None:

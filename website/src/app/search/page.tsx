@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import PostingCard, { type PostingCardData } from '@/components/PostingCard'
+import StrictnessSlider, { useStrictness, AppliedFilters } from '@/components/StrictnessSlider'
 
 const visaTypes = ['All Types', 'B-1', 'B-2', 'H-1B', 'F-1', 'L-1', 'B-1/B-2']
 const outcomes = ['All Outcomes', 'approved', 'issued', 'refused', 'pending']
@@ -10,9 +11,12 @@ export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedVisaType, setSelectedVisaType] = useState('All Types')
   const [selectedOutcome, setSelectedOutcome] = useState('All Outcomes')
+  const [strictness, setStrictness] = useStrictness()
   const [results, setResults] = useState<PostingCardData[]>([])
   const [total, setTotal] = useState(0)
   const [nextPageToken, setNextPageToken] = useState('')
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, unknown>>({})
+  const [relaxed, setRelaxed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
@@ -22,10 +26,11 @@ export default function SearchPage() {
     params.set('q', searchQuery.trim() || 'immigration visa experience')
     if (selectedVisaType !== 'All Types') params.set('visa', selectedVisaType)
     if (selectedOutcome !== 'All Outcomes') params.set('outcome', selectedOutcome)
+    params.set('strictness', strictness)
     params.set('page_size', '15')
     if (pageToken) params.set('page_token', pageToken)
     return params
-  }, [searchQuery, selectedVisaType, selectedOutcome])
+  }, [searchQuery, selectedVisaType, selectedOutcome, strictness])
 
   const runSearch = useCallback(async () => {
     setLoading(true)
@@ -37,6 +42,8 @@ export default function SearchPage() {
       setResults(data.results || [])
       setTotal(data.total || 0)
       setNextPageToken(data.next_page_token || '')
+      setAppliedFilters(data.applied_filters || {})
+      setRelaxed(data.relaxed || false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed')
       setResults([])
@@ -62,11 +69,11 @@ export default function SearchPage() {
     }
   }, [nextPageToken, loadingMore, buildParams])
 
-  // Initial load + re-run when a filter changes.
+  // Initial load + re-run when a filter or precision changes.
   useEffect(() => {
     runSearch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVisaType, selectedOutcome])
+  }, [selectedVisaType, selectedOutcome, strictness])
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-margin-desktop py-8">
@@ -128,12 +135,16 @@ export default function SearchPage() {
           </div>
 
           <div className="bg-surface-container-low rounded-xl p-4">
+            <StrictnessSlider value={strictness} onChange={setStrictness} />
+          </div>
+
+          <div className="bg-surface-container-low rounded-xl p-4">
             <div className="flex items-start gap-2">
               <span className="material-symbols-outlined text-secondary">lightbulb</span>
               <div>
                 <p className="text-label-md font-medium text-on-surface">Pro Tip</p>
                 <p className="text-caption text-on-surface-variant mt-1">
-                  Include the consulate or visa type for more relevant matches.
+                  Mention a consulate (e.g. &quot;Mumbai&quot;) and set precision to <strong>Strict</strong> for exact matches.
                 </p>
               </div>
             </div>
@@ -142,10 +153,14 @@ export default function SearchPage() {
 
         {/* Results */}
         <div className="flex-1">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <p className="text-label-md text-on-surface-variant">
               {loading ? 'Searching…' : `${total} postings found`}
             </p>
+          </div>
+
+          <div className="mb-4">
+            <AppliedFilters filters={appliedFilters} relaxed={relaxed} />
           </div>
 
           {error && (

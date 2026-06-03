@@ -6,6 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const question = body.question?.trim()
+    const strictness = body.strictness || 'balanced'
 
     if (!question || question.length < 5 || question.length > 500) {
       return NextResponse.json(
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     const res = await fetch(`${PYTHON_API_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, strictness }),
     })
 
     const data = await res.json()
