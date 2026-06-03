@@ -16,61 +16,60 @@ import vertexai
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from google.cloud import aiplatform, firestore
+from google.cloud import firestore
 from pydantic import BaseModel, Field
 
 from query import (
     FALLBACK_MESSAGE,
     generate_direct_answer,
     get_recent_qa,
-    load_chunk_mapping,
-    query,
     save_qa_pair,
     update_feedback,
 )
+from search_client import answer_query
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
 # ---------------------------------------------------------------------------
 
 # Module-level singletons, initialized at startup
-_chunk_mapping: dict = {}
 _db: firestore.Client = None
-_endpoint_id: str = ""
+_engine_id: str = ""
+_public_engine_id: str = ""
+_ds_location: str = "global"
 _project_id: str = ""
 _region: str = ""
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize Vertex AI, chunk mapping, and Firestore on startup."""
-    global _chunk_mapping, _db, _endpoint_id, _project_id, _region
+    """Initialize Vertex AI Search grounding + Firestore on startup.
+
+    Grounding is served by the managed Discovery Engine Search/Answer API over
+    `imm-postings-datastore` (D-016/D-034/D-039) — not the retired self-managed
+    Vector Search index.
+    """
+    global _db, _engine_id, _public_engine_id, _ds_location, _project_id, _region
 
     load_dotenv()
 
     # Support both old and new env var names
     _project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT", "")
     _region = os.getenv("GCP_REGION") or os.getenv("GCP_LOCATION", "us-central1")
-    bucket_name = os.getenv("GCP_BUCKET_NAME") or os.getenv("GCP_BUCKET", "law-firm-knowledge-base").replace("gs://", "")
-    _endpoint_id = os.getenv("VERTEX_AI_INDEX_ENDPOINT_ID", "")
+    _engine_id = os.getenv("GCP_VERTEX_SEARCH_APP_ID", "imm-postings-search-app")
+    # DS-2 public-reference engine (D-039 tier 3). Off until the website data
+    # store finishes indexing; set GCP_VERTEX_PUBLIC_ENGINE_ID to enable.
+    _public_engine_id = os.getenv("GCP_VERTEX_PUBLIC_ENGINE_ID", "")
+    _ds_location = os.getenv("GCP_VERTEX_DATASTORE_LOCATION", "global")
 
     if not _project_id:
         raise RuntimeError("GCP_PROJECT_ID or GCP_PROJECT must be set in environment")
 
-    # If no Vector Search endpoint, we'll skip RAG and use a simpler flow
-    if not _endpoint_id:
-        print("Warning: VERTEX_AI_INDEX_ENDPOINT_ID not set. RAG retrieval disabled.")
+    if not _engine_id:
+        print("Warning: GCP_VERTEX_SEARCH_APP_ID not set. Grounded search disabled; using direct Gemini.")
 
+    # Vertex AI init is still needed for the direct-Gemini fallback path.
     vertexai.init(project=_project_id, location=_region)
-    aiplatform.init(project=_project_id, location=_region)
-
-    # Try to load chunk mapping, but don't fail if not available
-    try:
-        _chunk_mapping = load_chunk_mapping(bucket_name)
-        print(f"Loaded {len(_chunk_mapping)} chunks from {bucket_name}")
-    except Exception as e:
-        print(f"Warning: Could not load chunk mapping: {e}")
-        _chunk_mapping = {}
 
     # Initialize Firestore
     try:
@@ -79,7 +78,9 @@ async def lifespan(app: FastAPI):
         print(f"Warning: Could not initialize Firestore: {e}")
         _db = None
 
-    print(f"API ready: {len(_chunk_mapping)} chunks loaded, RAG={'enabled' if _endpoint_id else 'disabled'}")
+    print(f"API ready: grounding={'enabled' if _engine_id else 'disabled'} "
+          f"(engine={_engine_id}, location={_ds_location}, "
+          f"public_tier={'on:' + _public_engine_id if _public_engine_id else 'off'})")
     yield
 
 
@@ -179,8 +180,10 @@ async def ask_question(body: AskRequest, request: Request):
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
 
-    # If no Vector Search endpoint OR no chunks loaded, use direct Gemini (no RAG)
-    if not _endpoint_id or not _chunk_mapping:
+    # Grounded answer via the managed Discovery Engine Answer API over the
+    # datastore (app + reddit content). Falls back to direct Gemini only if the
+    # search engine isn't configured.
+    if not _engine_id:
         answer = generate_direct_answer(body.question)
         result = {
             "answer": answer,
@@ -188,7 +191,16 @@ async def ask_question(body: AskRequest, request: Request):
             "is_fallback": False,  # Direct mode doesn't use fallback logic
         }
     else:
-        result = query(body.question, _chunk_mapping, _endpoint_id, _project_id, _region)
+        # Tier 1+2: ingested content (app + reddit) in imm-postings-datastore.
+        result = answer_query(body.question, _project_id, _ds_location, _engine_id)
+
+        # Tier 3 (D-039): if ingested content can't answer, fall back to the
+        # curated public-reference website store (lower precedence). Env-gated
+        # until DS-2 finishes indexing.
+        if result["is_fallback"] and _public_engine_id:
+            public = answer_query(body.question, _project_id, _ds_location, _public_engine_id)
+            if not public["is_fallback"]:
+                result = public
 
     # Save to Firestore (if available)
     doc_id = ""
@@ -294,8 +306,13 @@ async def qa_stats():
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint.
+
+    `chunks_loaded` is retained for client compatibility; it now reports
+    grounding readiness (1 = Search/Answer engine configured) since chunks are
+    no longer preloaded (grounding is served by the managed datastore).
+    """
     return HealthResponse(
         status="ok",
-        chunks_loaded=len(_chunk_mapping),
+        chunks_loaded=1 if _engine_id else 0,
     )

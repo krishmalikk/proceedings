@@ -73,6 +73,105 @@ A single Answer-API call against the blended engine with a **`boostSpec`**: boos
 
 ---
 
+## 4.1 Crawling & indexing — how content reaches each tier
+
+"Crawling" = acquiring/fetching the raw content; "indexing" = making it searchable (chunk + embed + facets). The two live grounding tiers use **two different mechanisms**, and one legacy mechanism is **retired**.
+
+### Tier 1 & 2 (DS-1) — we acquire & tag; Vertex AI Search embeds & indexes
+This is the **sidecar** pattern (D-011/D-016). We never own embeddings or run a vector index.
+
+1. **Crawl (polymorphic Scraper Tool):**
+   - **Reddit → PRAW** (official Reddit Data API) — structured post + top-comment objects with upvote counts (the ">5 upvotes" rule, D-014). *Not* Firecrawl.
+   - **Future non-API sites → Firecrawl** adapter (clean Markdown).
+   - **App/web posts → the BFF conversation itself** is the "crawl" (the user's chat becomes the content).
+   - All emit one normalized `{title, body, comments[], url, created_utc, source}` contract.
+2. **Tag + validate:** Gemini **Tagger** (`LLM-EXTRACTION-PROMPT.md`) → canonical metadata JSON (master-vocab only) → **Validator** (`schema.py` + vocab gate); failures → **quarantine**.
+3. **Write sidecar to GCS:** `gs://imm-postings-ingestion/<date>/<channel>/<case_id>.{md,json}` (`.md` body + `.json` structData incl. `embedding_text`).
+4. **Index (managed):** the `.json` `object.finalized` fires **Eventarc** → `search-importer` (Cloud Run) → **`documents.import` INCREMENTAL, `id=case_id`**. Inside Discovery Engine (we do none of this): it parses the `.md`, **chunks** it, **generates + stores embeddings itself**, and registers `structData` as **facets**. Searchable in **minutes**.
+
+### Tier 3 (DS-2) — Google crawls *and* indexes; we only name the domains
+This is the **"no ingestion"** tier (D-039). We registered **INCLUDE target sites** (`uscis.gov/*`, `travel.state.gov/*`, `dol.gov/*`, `boundless.com/*`, `immigrationdirect.com/*`). **Google's website crawler** discovers, fetches, and indexes those pages (**basic** website indexing — no domain verification needed, so third-party sites work). No scraper, no GCS, no tagging on our side. Crawl/index is **asynchronous** (hours). Provisioned by `scripts/provision_ds2_website.py`.
+
+> The same Google website crawler was deliberately **rejected for tiers 1–2** (it bypasses our tagging transform) — but that property is exactly what tier 3 wants, since public reference content is not owned or tagged.
+
+### Comparison
+
+| | DS-1 (app + reddit) | DS-2 (public reference) |
+|---|---|---|
+| Who crawls | Us — PRAW / Firecrawl / chat | **Google** (website crawler) |
+| Who tags | Us — Gemini Tagger | Nobody |
+| Who chunks / embeds | **Vertex AI Search** (managed) | **Vertex AI Search** (managed) |
+| Index trigger | Eventarc → `documents.import` | Google async crawl |
+| Freshness | Minutes | Hours |
+| Owned embeddings / serving node | None | None |
+
+### Retired (do not use)
+The original prototype's **self-managed Vertex AI Vector Search** path — `crawler.py` (Firecrawl) → `index.py` (tiktoken chunking + `text-embedding-005` + Tree-AH index on an always-on endpoint) → `query.py` `find_neighbors` — is **retired** (D-016/D-039). `index.py` and the `chunk_mapping.json` cache were removed; the dead retrieval code was stripped from `query.py`. It owned embeddings + a 24/7 serving node and held no Reddit content (the root cause of the original grounding bug).
+
+## 4.2 Pipeline file map & operational runbook (live vs legacy)
+
+**There is no local "indexing" script in the live system** — indexing is managed by Vertex AI Search (`documents.import`) and by Google's website crawler. The root `crawl*.py` / `prepare_labeled_data.py` files belong to the **retired prototype** and are kept only for reference / future reuse.
+
+### File map
+
+| File | Purpose | Live or legacy | Run mode |
+|---|---|---|---|
+| **DS-1 grounding (app + reddit)** | | | |
+| Reddit scraper (**PRAW**) — per [REDDIT-INGESTION-PIPELINE.md](../content-ingestion-specifications/REDDIT-INGESTION-PIPELINE.md) | Crawl reddit.com posts/comments | **Live (design)** | **Scheduled** — Cloud Scheduler → Agent Engine, ~30 min (pilot) |
+| `documents.import` (no local file; `search-importer` Cloud Run) | Index sidecars into the datastore | **Live (design)** | **Event-driven** — Eventarc on GCS `.json` finalize; daily auto-sync = backstop |
+| `vertexai-search-ingestion-from-examples/scripts/ingest_batch.py` *(per D-037; not in this tree)* | Manual batch tag+import (used to load the 81 reddit docs) | **Live (manual)** | **Manual** one-off |
+| **DS-2 grounding (public reference)** | | | |
+| [scripts/provision_ds2_website.py](../scripts/provision_ds2_website.py) | Create the website data store + target sites + engine | **Live** | **Manual**, one-time (idempotent) |
+| Google website crawler (no file of ours) | Crawl/index the registered public domains | **Live** | **Managed** — Google auto-crawls + periodically re-crawls |
+| **Serving** | | | |
+| [search_client.py](../search_client.py) | Grounded retrieval via the Answer API | **Live** | Imported by `api.py` |
+| [api.py](../api.py) | The HTTP API (Phase-1 stand-in for the BFF) | **Live** | Cloud Run / `uvicorn` |
+| **Retired / legacy** | | | |
+| `index.py` | Vector Search indexer (chunk+embed) | 🔴 **Deleted** | — |
+| [crawler.py](../crawler.py), [agent_crawl.py](../agent_crawl.py), [continuous_crawl.py](../continuous_crawl.py), [discover_urls.py](../discover_urls.py), [prepare_labeled_data.py](../prepare_labeled_data.py), [pipeline.py](../pipeline.py) | Old Firecrawl→label→Vector Search prototype (`crawler.py` retained as the future non-API Firecrawl adapter) | **Legacy** | Manual CLI; **not part of live ops** |
+
+### Operational runbook — what runs how, and the steps
+
+**1. DS-1 Reddit ingestion — SCHEDULED (production) / MANUAL (today).**
+- *Production design:* Cloud Scheduler triggers the Agent Engine ingestion every ~30 min (PRAW scrape → Gemini tag → validate → GCS sidecar → import). No human action per run.
+- *Current state:* the 81 reddit docs were loaded by a **manual batch** (`ingest_batch.py`, D-037). To add more manually, run that batch script with ADC. The scheduled Cloud Scheduler/Agent Engine + `search-importer`/Eventarc infra is the target design and may not be deployed in this project yet.
+
+**2. DS-1 indexing — EVENT-DRIVEN (managed), no manual step.**
+- A `.json` sidecar landing in `gs://imm-postings-ingestion/<date>/<channel>/` triggers Eventarc → `search-importer` → `documents.import`. Searchable in minutes.
+- *Manual fallback / reindex one doc:*
+  ```bash
+  # via the manual batch importer, or a documents.import call over the GCS sidecar
+  ```
+
+**3. DS-2 public reference — MANUAL one-time setup, then MANAGED.**
+- *One-time provisioning (already done):*
+  ```bash
+  .venv/bin/python scripts/provision_ds2_website.py    # idempotent; also reprints indexing status
+  ```
+- *Ongoing:* Google **auto-crawls and re-crawls** the registered domains — no schedule or action from us.
+- *Activate at query time* once indexing reads `SUCCEEDED`:
+  ```bash
+  # in .env:
+  GCP_VERTEX_PUBLIC_ENGINE_ID=imm-public-reference-search-app
+  # then restart the API
+  ```
+
+**4. The API (grounding service) — MANUAL (local) / Cloud Run (prod).**
+```bash
+.venv/bin/python -m uvicorn api:app --reload --port 8000     # local
+```
+
+**5. E2E verification — MANUAL, on demand.**
+```bash
+.venv/bin/python tests/test_grounding_e2e.py
+```
+
+**6. Legacy prototype crawl scripts — MANUAL only, not in live ops.** `crawler.py` etc. run as `python <file>` and target the retired Vector Search path; do not run them as part of the current system. `crawler.py` is retained only as the basis for a future Firecrawl non-API channel.
+
+> **Summary of cadence:** Reddit ingestion = **scheduled** (or manual batch today); DS-1 indexing = **event-driven/managed**; DS-2 crawl = **managed by Google** (manual one-time setup); API + tests = **manual**; legacy scripts = **manual, not used**.
+
+---
+
 ## 5. Orchestration — why a custom BFF (not Agent Builder)
 
 The apps talk to a **custom stateless FastAPI service on Cloud Run + Gemini** (the BFF). It owns the conversation loop — intent recognition, multi-turn context, geo-aware proactive prompting, conversational filtering, the posting draft→review→publish flow, and domain guardrails — and delegates two fixed capabilities: **grounded search** to the Vertex AI Search Search/Answer API (§4), and **posting ingestion** to the shared Tagger→Validator→GCS→`documents.import` contract.

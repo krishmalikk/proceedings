@@ -1,0 +1,67 @@
+# TODO — Grounding realignment & conversational backend
+
+**Branch:** `raj-test` · **Started:** 2026-06-03 · **Design refs:** [ARCHITECTURE_GAP_reddit-grounding.md](ARCHITECTURE_GAP_reddit-grounding.md), [app-specifications/FINAL-ARCHITECTURE.md](app-specifications/FINAL-ARCHITECTURE.md), MEMORY.md D-039
+**Convention:** `[x]` done · `[ ]` pending · `[~]` blocked/waiting. Items are crossed out as completed.
+
+---
+
+## Phase 1 — Grounding fix (datastore + Answer API) ✅ DONE
+- [x] Add `google-cloud-discoveryengine` to `requirements.txt` + install in `.venv` (Py 3.11)
+- [x] Build `search_client.py` — `answer_query()` over `imm-postings-search-app` (citations + grounding, dedupe/cap, fallback detection)
+- [x] Swap `api.py` `/api/ask` from Vector Search `find_neighbors` → managed Answer API; keep `{answer, sources, is_fallback, id}` contract unchanged
+- [x] Verify end-to-end: Reddit question grounds (Mumbai B1/B2), off-topic falls back cleanly, `/api/qa` + `/api/health` work
+
+## Phase 1.5 — DS-2 public-reference tier (no-ingest) ✅ DONE (indexing async)
+- [x] Pick curated public domains (orig. config): `uscis.gov`, `travel.state.gov`, `dol.gov`, `boundless.com`, `immigrationdirect.com`
+- [x] Write `scripts/provision_ds2_website.py` (idempotent) — basic `PUBLIC_WEBSITE` data store + INCLUDE target sites + engine
+- [x] Run provisioner → `imm-public-reference-datastore` + `imm-public-reference-search-app` created
+- [x] Wire env-gated tier-3 fallback in `api.py` (`GCP_VERTEX_PUBLIC_ENGINE_ID`): DS-1 fallback → query DS-2 (precedence app > reddit > public)
+- [~] **Website indexing populated** — waiting on Google's async basic crawl (all target sites currently `INDEXING_STATUS_UNSPECIFIED`)
+
+## E2E verification ✅ DONE — `tests/test_grounding_e2e.py` (12/12 passed)
+- [x] **A** — Reddit-ingested content is returned (DS-1): `/api/ask` + direct client both ground on `reddit-*` docs
+- [x] **B** — App posting lands in the right place for grounding: synthetic `channel="app"` doc created in `imm-postings-datastore`, grounded via the same engine, then deleted (cleanup)
+- [x] **C** — Public target sites: DS-2 has exactly the 5 registered domains, and tier-3 is consulted **only when DS-1 falls back AND the gate is on** (4 orchestration cases verified)
+- [ ] Re-run **B/C** content checks against DS-2 once its crawl indexes (C currently verifies gating/config; DS-2 *content* return is pending indexing)
+
+---
+
+## ⚠️ CAVEAT — D-039 build-time verification (MUST resolve before relying on tier-3)
+- [ ] **Confirm the Answer API serves grounded answers over a *basic* `PUBLIC_WEBSITE` data store.**
+  - DS-2 uses **basic** website indexing (no domain verification — required since we don't own uscis.gov etc.).
+  - **Risk:** the generative **Answer API may not ground over basic website stores** (generative website grounding historically needs *advanced* website indexing).
+  - **If basic does NOT support `:answer`**, fall back to one of:
+    - **Advanced website indexing** — needs Search-Console **domain verification**, which we cannot do for third-party sites → ❌ not viable for these domains.
+    - **Grounding with Google Search restricted to the curated domains** (Gemini grounding tool + site filter) — viable, no datastore/verification, honors "no ingestion"; soft domain enforcement.
+  - **Decision to record** (new `D-NNN`) once verified: keep DS-2 website store vs switch tier-3 to Google-Search grounding.
+- [ ] Verify `boostSpec` precedence across stores OR confirm the two-call tiered fallback (current impl) is the chosen pattern.
+
+---
+
+## Next steps — Activate & verify tier-3
+- [ ] Re-check DS-2 indexing: `.venv/bin/python scripts/provision_ds2_website.py` (reprints status) until sites read `SUCCEEDED`
+- [ ] Once `SUCCEEDED`: set `GCP_VERTEX_PUBLIC_ENGINE_ID=imm-public-reference-search-app` in `.env`, restart uvicorn
+- [ ] Test the public-knowledge gap: "What is the current H-1B filing fee?" → should ground on uscis.gov/dol.gov (not Reddit chatter) with citations
+- [ ] Resolve the ⚠️ caveat above based on that test result
+
+## Next steps — Cleanup / cost
+- [x] Remove retired Vector Search code: deleted `index.py` + local `chunk_mapping.json`; stripped dead retrieval funcs from `query.py` (`embed_query`, `retrieve_chunks`, `load_chunk_mapping`, `build_prompt`, `generate_answer`, `query()`, CLI)
+- [x] Document live vs retired crawl/index processes — added "4.1 Crawling & indexing" to [FINAL-ARCHITECTURE.md](app-specifications/FINAL-ARCHITECTURE.md)
+- [x] Document pipeline **file map + operational runbook** (run mode: scheduled/event-driven/manual + steps) — added "4.2" to [FINAL-ARCHITECTURE.md](app-specifications/FINAL-ARCHITECTURE.md)
+- [ ] **Decommission the self-managed Vertex AI Vector Search index endpoint** (`legal_intake_deployed_v2`, `VERTEX_AI_INDEX_*`) — the cloud resource still bills 24/7 (do after tier-3 verified)
+- [ ] Retire the `qa_pairs` Firestore log path (superseded by the D-035 session/profile model — Phase 2)
+- [ ] `crawler.py` + `urls.txt`: decide keep (future Firecrawl non-API adapter) vs remove (legacy prototype) — **awaiting confirmation**
+- [ ] Label enrichment follow-up: Answer-API references carry empty `labels`; enrich via `documents.get`/`:search` structData so `/api/qa/stats` categories repopulate
+
+## Next steps — Phase 2 (production BFF, P1 search-first)
+- [ ] New BFF skeleton: `/v1/chat` (+ stream), `/v1/search`, `/v1/profile`, `/v1/session`
+- [ ] Firebase Auth (email/Google/Apple + anonymous guest); verify ID tokens via Admin SDK
+- [ ] Firestore app-state: `users/{uid}` (profile) + `sessions/{session_id}` (turns, active_filter, draft, geo, vertex_session_name, TTL)
+- [ ] Parallel-speculative routing (`gemini-2.5-flash-lite` intent + speculative answer); guardrail preamble
+- [ ] Reuse `answer_query` for grounded search; geo state machine (US vs outside-US prompting)
+- [ ] Decide BFF home dir (`app-backend/` vs `website/`) — open per D-038
+- [ ] Posting flow + `active_posts` shadow buffer = later (P2)
+
+## Housekeeping
+- [ ] Log a `D-NNN` for the tier-3 mechanism decision + adopt IMPROVED patterns (shadow buffer, speculative routing) into MEMORY.md
+- [ ] git commit/push — **handled manually by user** (do not auto-commit)
