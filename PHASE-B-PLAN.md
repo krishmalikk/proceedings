@@ -7,8 +7,16 @@
 
 ---
 
-## 0. Already done in this branch
-- [x] **Pagination ("Load more")** on the `/search` page — appends results via `next_page_token`; shows "Showing all N of M".
+## Status — v1 SHIPPED ✅ (this branch)
+- [x] **Pagination ("Load more")** on `/search` — appends via `next_page_token`.
+- [x] **Intent classifier** (`classify_intent`, Gemini flash-lite + heuristic fallback) + **`POST /api/chat`** unified envelope (`mode`, `answer`/`sources` or `results`/`next_page_token`).
+- [x] **Shared `PostingCard`** component (reused by `/search` and chat) + **`<Markdown>`** wrapper (`react-markdown` + `remark-gfm` + `rehype-sanitize`).
+- [x] **Chat mode-branching** (`ChatInterface` → `/api/chat`): search → posting cards + "view all"; ask → Markdown answer + sources/feedback.
+- [x] **Markdown applied** to the posting detail body.
+- [x] Verified end-to-end + E2E Group D (search→cards, ask→answer); **14/14** checks pass.
+- [ ] Deferred: multi-turn session state; streaming; mobile parity (§4); refine chips.
+
+## 0. Prior groundwork
 
 ---
 

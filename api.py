@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from query import (
     FALLBACK_MESSAGE,
+    classify_intent,
     generate_direct_answer,
     get_recent_qa,
     save_qa_pair,
@@ -195,9 +196,44 @@ class PostingDetail(PostingCard):
     body: str
 
 
+class ChatResponse(BaseModel):
+    mode: str  # "answer" | "search"
+    intent: str
+    answer: str = ""
+    sources: list[SourceInfo] = []
+    is_fallback: bool = False
+    results: list[PostingCard] = []
+    next_page_token: str = ""
+    id: str = ""
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+def _grounded_answer(question: str) -> dict:
+    """Grounded answer over the datastore (tier 1+2), with the public DS-2
+    fallback (tier 3) when ingested content can't answer. Falls back to direct
+    Gemini only if no search engine is configured."""
+    if not _engine_id:
+        return {"answer": generate_direct_answer(question), "chunks": [], "is_fallback": False}
+    result = answer_query(question, _project_id, _ds_location, _engine_id)
+    if result["is_fallback"] and _public_engine_id:
+        public = answer_query(question, _project_id, _ds_location, _public_engine_id)
+        if not public["is_fallback"]:
+            result = public
+    return result
+
+
+def _save(question: str, result: dict) -> str:
+    if not _db:
+        return ""
+    try:
+        return save_qa_pair(question, result, _db)
+    except Exception as e:
+        print(f"Warning: Could not save to Firestore: {e}")
+        return ""
+
 
 @app.post("/api/ask", response_model=AskResponse)
 async def ask_question(body: AskRequest, request: Request):
@@ -206,37 +242,43 @@ async def ask_question(body: AskRequest, request: Request):
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
 
-    # Grounded answer via the managed Discovery Engine Answer API over the
-    # datastore (app + reddit content). Falls back to direct Gemini only if the
-    # search engine isn't configured.
-    if not _engine_id:
-        answer = generate_direct_answer(body.question)
-        result = {
-            "answer": answer,
-            "chunks": [],
-            "is_fallback": False,  # Direct mode doesn't use fallback logic
-        }
-    else:
-        # Tier 1+2: ingested content (app + reddit) in imm-postings-datastore.
-        result = answer_query(body.question, _project_id, _ds_location, _engine_id)
-
-        # Tier 3 (D-039): if ingested content can't answer, fall back to the
-        # curated public-reference website store (lower precedence). Env-gated
-        # until DS-2 finishes indexing.
-        if result["is_fallback"] and _public_engine_id:
-            public = answer_query(body.question, _project_id, _ds_location, _public_engine_id)
-            if not public["is_fallback"]:
-                result = public
-
-    # Save to Firestore (if available)
-    doc_id = ""
-    if _db:
-        try:
-            doc_id = save_qa_pair(body.question, result, _db)
-        except Exception as e:
-            print(f"Warning: Could not save to Firestore: {e}")
+    result = _grounded_answer(body.question)
+    doc_id = _save(body.question, result)
 
     return AskResponse(
+        answer=result["answer"],
+        sources=[SourceInfo(**c) for c in result["chunks"]],
+        is_fallback=result["is_fallback"],
+        id=doc_id,
+    )
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(body: AskRequest, request: Request):
+    """Conversational turn: routes to a synthesized answer (ask) or a ranked
+    list of posting cards (search), based on classified intent."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+
+    intent = classify_intent(body.question)
+
+    if intent == "search" and _engine_id:
+        data = search_postings(body.question, _project_id, _ds_location, _engine_id, page_size=10)
+        # If search found nothing, fall through to an answer rather than an empty list.
+        if data["results"]:
+            return ChatResponse(
+                mode="search",
+                intent=intent,
+                results=[PostingCard(**c) for c in data["results"]],
+                next_page_token=data["next_page_token"],
+            )
+
+    result = _grounded_answer(body.question)
+    doc_id = _save(body.question, result)
+    return ChatResponse(
+        mode="answer",
+        intent=intent,
         answer=result["answer"],
         sources=[SourceInfo(**c) for c in result["chunks"]],
         is_fallback=result["is_fallback"],

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import SourceCitation from './SourceCitation'
+import Markdown from './Markdown'
+import PostingCard, { type PostingCardData } from './PostingCard'
 
 interface Source {
   chunk_id: string
@@ -11,18 +13,25 @@ interface Source {
   score: number
 }
 
-interface AskResult {
+interface ChatResult {
+  mode: 'answer' | 'search'
+  intent: string
   answer: string
   sources: Source[]
   is_fallback: boolean
+  results: PostingCardData[]
+  next_page_token: string
   id: string
 }
 
 interface Message {
   id: string
   type: 'user' | 'ai'
+  mode?: 'answer' | 'search'
   content: string
   sources?: Source[]
+  results?: PostingCardData[]
+  query?: string
   resultId?: string
 }
 
@@ -80,7 +89,7 @@ export default function ChatInterface() {
     }
 
     try {
-      const res = await fetch('/api/ask', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: question.trim() }),
@@ -91,13 +100,16 @@ export default function ChatInterface() {
         throw new Error(data.detail || `Request failed (${res.status})`)
       }
 
-      const data: AskResult = await res.json()
+      const data: ChatResult = await res.json()
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
+        mode: data.mode,
         content: data.answer,
         sources: data.sources,
+        results: data.results,
+        query: question.trim(),
         resultId: data.id,
       }
 
@@ -235,12 +247,33 @@ export default function ChatInterface() {
                         <span className="material-symbols-outlined text-white text-[18px]">smart_toy</span>
                       </div>
                       <div className="flex-1 space-y-2">
+                        {message.mode === 'search' ? (
+                          /* Search mode — ranked posting cards */
+                          <div className="space-y-3">
+                            <p className="text-caption text-on-surface-variant px-1">
+                              Here are matching experiences:
+                            </p>
+                            {message.results?.map((r) => (
+                              <PostingCard key={r.case_id} r={r} />
+                            ))}
+                            {message.query && (
+                              <a
+                                href={`/search?q=${encodeURIComponent(message.query)}`}
+                                className="inline-flex items-center gap-1 text-caption text-primary px-1 hover:underline"
+                              >
+                                View all results
+                                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                              </a>
+                            )}
+                          </div>
+                        ) : (
                         <div className="bg-surface-container rounded-2xl rounded-tl-sm p-4 text-on-surface">
-                          <p className="whitespace-pre-wrap">{message.content}</p>
+                          <Markdown>{message.content}</Markdown>
                         </div>
+                        )}
 
-                        {/* Sources */}
-                        {message.sources && message.sources.length > 0 && (
+                        {/* Sources (answer mode) */}
+                        {message.mode !== 'search' && message.sources && message.sources.length > 0 && (
                           <div className="flex gap-2 items-center px-1">
                             <span className="text-caption text-outline">Sources:</span>
                             {Array.from(new Set(message.sources.map(s => s.source))).slice(0, 3).map((source) => (
