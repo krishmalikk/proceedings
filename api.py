@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from query import (
     FALLBACK_MESSAGE,
+    generate_direct_answer,
     get_recent_qa,
     load_chunk_mapping,
     query,
@@ -178,15 +179,13 @@ async def ask_question(body: AskRequest, request: Request):
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
 
-    # If no Vector Search endpoint configured, use direct Gemini (no RAG)
-    if not _endpoint_id:
-        from query import generate_answer, build_prompt, FALLBACK_MESSAGE
-        prompt = build_prompt(body.question, ["No context available - answer based on general knowledge about US immigration."])
-        answer = generate_answer(prompt)
+    # If no Vector Search endpoint OR no chunks loaded, use direct Gemini (no RAG)
+    if not _endpoint_id or not _chunk_mapping:
+        answer = generate_direct_answer(body.question)
         result = {
             "answer": answer,
             "chunks": [],
-            "is_fallback": FALLBACK_MESSAGE in answer,
+            "is_fallback": False,  # Direct mode doesn't use fallback logic
         }
     else:
         result = query(body.question, _chunk_mapping, _endpoint_id, _project_id, _region)

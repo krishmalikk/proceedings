@@ -15,19 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../../constants/theme';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import { AIResultCard } from './AIResultCard';
-import {
-  sendMessage as sendGeminiMessage,
-  classifyIntent,
-  startChat,
-  isConfigured,
-  type Message,
-} from '../../services/geminiService';
-import {
-  searchExperiences,
-  type Experience,
-  type SearchParams,
-} from '../../services/vertexSearchService';
+import { askQuestion } from '../../services/apiService';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
 
 export interface ChatModalProps {
   visible: boolean;
@@ -36,9 +30,8 @@ export interface ChatModalProps {
 
 interface ChatItem {
   id: string;
-  type: 'message' | 'results';
+  type: 'message';
   message?: Message;
-  results?: Experience[];
   isLoading?: boolean;
 }
 
@@ -108,72 +101,22 @@ export function ChatModal({ visible, onClose }: ChatModalProps) {
     scrollToBottom();
 
     try {
-      // Classify intent
-      const intent = await classifyIntent(text);
+      // Send question to backend API
+      const apiResponse = await askQuestion(text);
 
-      if (intent.type === 'search') {
-        // Search for experiences
-        const searchParams: SearchParams = {
-          query: text,
-          visaType: intent.visaType,
-          consulate: intent.consulate,
-          outcome: intent.outcome,
-        };
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: apiResponse.answer,
+        timestamp: new Date(),
+      };
 
-        const results = await searchExperiences(searchParams);
-
-        // Remove loading and add response
-        setChatItems(prev => {
-          const filtered = prev.filter(item => !item.isLoading);
-
-          if (results.experiences.length > 0) {
-            const responseMessage: Message = {
-              role: 'assistant',
-              content: `I found ${results.experiences.length} relevant experience${results.experiences.length > 1 ? 's' : ''} for you:`,
-              timestamp: new Date(),
-            };
-
-            return [
-              ...filtered,
-              { id: `resp-${Date.now()}`, type: 'message', message: responseMessage },
-              { id: `results-${Date.now()}`, type: 'results', results: results.experiences },
-            ];
-          } else {
-            const noResultsMessage: Message = {
-              role: 'assistant',
-              content: "I couldn't find any experiences matching your search. Try broadening your criteria or ask me a general question about the immigration process.",
-              timestamp: new Date(),
-            };
-            return [
-              ...filtered,
-              { id: `resp-${Date.now()}`, type: 'message', message: noResultsMessage },
-            ];
-          }
-        });
-      } else {
-        // General question or post intent - use Gemini
-        let response: string;
-
-        if (!isConfigured()) {
-          response = "I'm currently running in demo mode. To enable full AI capabilities, please configure your Gemini API key in the environment variables.";
-        } else {
-          response = await sendGeminiMessage(text);
-        }
-
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: response,
-          timestamp: new Date(),
-        };
-
-        setChatItems(prev => {
-          const filtered = prev.filter(item => !item.isLoading);
-          return [
-            ...filtered,
-            { id: `resp-${Date.now()}`, type: 'message', message: assistantMessage },
-          ];
-        });
-      }
+      setChatItems(prev => {
+        const filtered = prev.filter(item => !item.isLoading);
+        return [
+          ...filtered,
+          { id: `resp-${Date.now()}`, type: 'message', message: assistantMessage },
+        ];
+      });
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage: Message = {
@@ -198,22 +141,6 @@ export function ChatModal({ visible, onClose }: ChatModalProps) {
   const renderItem = ({ item }: { item: ChatItem }) => {
     if (item.isLoading) {
       return <ChatMessage content="" role="assistant" isLoading />;
-    }
-
-    if (item.type === 'results' && item.results) {
-      return (
-        <View>
-          {item.results.map(experience => (
-            <AIResultCard
-              key={experience.id}
-              experience={experience}
-              onPress={() => {
-                // TODO: Navigate to experience details
-              }}
-            />
-          ))}
-        </View>
-      );
     }
 
     if (item.message) {

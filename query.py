@@ -250,6 +250,54 @@ def generate_answer(prompt: str) -> str:
         return FALLBACK_MESSAGE
 
 
+def generate_direct_answer(question: str) -> str:
+    """
+    Generate an answer directly from Gemini without RAG context.
+
+    Used when no chunk_mapping is available. This prompt allows Gemini
+    to answer based on its general knowledge about US immigration,
+    without the strict "only answer from context" guardrails.
+    """
+    prompt = f"""You are a helpful assistant specializing in US immigration law and policy.
+
+Answer the following question about US immigration. Provide accurate, helpful information based on your knowledge.
+
+IMPORTANT RULES:
+- Provide factual information about eligibility requirements, application processes, fees, timelines, and legal definitions.
+- Do NOT provide case-specific legal advice or assess whether a specific person qualifies.
+- If asked about a specific situation, suggest consulting an immigration attorney while still sharing general information.
+- Use bullet points when listing steps, requirements, or multiple items.
+- Keep answers concise but thorough — aim for 2-4 paragraphs.
+- Bold key terms using **bold**.
+
+QUESTION: {question}
+
+ANSWER:"""
+
+    try:
+        project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT")
+        region = os.getenv("GCP_REGION") or os.getenv("GCP_GEMINI_LOCATION", "us-central1")
+
+        client = genai.Client(
+            vertexai=True,
+            project=project_id,
+            location=region,
+        )
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=1024,
+                top_p=0.8,
+            ),
+        )
+        return response.text
+    except Exception as e:
+        print(f"Error generating direct answer: {e}")
+        return "I'm having trouble processing your question right now. Please try again later."
+
+
 # ---------------------------------------------------------------------------
 # Full Query Pipeline
 # ---------------------------------------------------------------------------

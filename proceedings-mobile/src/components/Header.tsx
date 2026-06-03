@@ -30,7 +30,7 @@ export function Header({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       <View style={styles.content}>
         <View style={styles.left}>
