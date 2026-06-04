@@ -61,7 +61,7 @@
 - [x] Remove retired Vector Search code: deleted `index.py` + local `chunk_mapping.json`; stripped dead retrieval funcs from `query.py` (`embed_query`, `retrieve_chunks`, `load_chunk_mapping`, `build_prompt`, `generate_answer`, `query()`, CLI)
 - [x] Document live vs retired crawl/index processes — added "4.1 Crawling & indexing" to [FINAL-ARCHITECTURE.md](app-specifications/FINAL-ARCHITECTURE.md)
 - [x] Document pipeline **file map + operational runbook** (run mode: scheduled/event-driven/manual + steps) — added "4.2" to [FINAL-ARCHITECTURE.md](app-specifications/FINAL-ARCHITECTURE.md)
-- [ ] **Decommission the self-managed Vertex AI Vector Search index endpoint** (`legal_intake_deployed_v2`, `VERTEX_AI_INDEX_*`) — the cloud resource still bills 24/7 (do after tier-3 verified)
+- [x] **Decommissioned the self-managed Vertex AI Vector Search** (D-040) — undeployed both billing endpoints + deleted all 4 endpoints & 4 indexes (incl. orphans) + `chunk_mapping.json` + stale env vars. Grounding unaffected (Cloud Run 13/13). 24/7 cost recovered.
 - [ ] Retire the `qa_pairs` Firestore log path (superseded by the D-035 session/profile model — Phase 2)
 - [ ] `crawler.py` + `urls.txt`: decide keep (future Firecrawl non-API adapter) vs remove (legacy prototype) — **awaiting confirmation**
 - [ ] Label enrichment follow-up: Answer-API references carry empty `labels`; enrich via `documents.get`/`:search` structData so `/api/qa/stats` categories repopulate

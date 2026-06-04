@@ -49,7 +49,7 @@ bash gcp_setup.sh
 Copy `.env.example` to `.env`. Key variables:
 - `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_BUCKET_NAME` — GCP config
 - `FIRECRAWL_API_KEY` — for crawler.py
-- `VERTEX_AI_INDEX_ID`, `VERTEX_AI_INDEX_ENDPOINT_ID` — output by index.py, required by query.py
+- `GCP_VERTEX_SEARCH_APP_ID`, `GCP_VERTEX_DATASTORE_ID`, `GCP_VERTEX_DATASTORE_LOCATION` — managed Vertex AI Search (Discovery Engine) grounding sink used by `api.py`/`search_client.py`. (The old self-managed Vector Search `VERTEX_AI_INDEX_*` was retired/decommissioned — D-039/D-040.)
 - `LABEL_STUDIO_URL`, `LABEL_STUDIO_API_KEY` — optional, for Label Studio API automation
 
 ## Key Design Decisions
