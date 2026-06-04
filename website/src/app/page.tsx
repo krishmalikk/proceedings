@@ -19,7 +19,7 @@ const features = [
     icon: 'auto_awesome',
     title: 'AI Mode',
     description: 'Ask anything about your immigration situation and get answers grounded in real postings.',
-    href: '/search?mode=ai',
+    href: '/search',
     color: 'bg-secondary-container',
     iconColor: 'text-secondary',
   },
@@ -116,7 +116,7 @@ export default function HomePage() {
                   Get Started Free
                   <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                 </Link>
-                <Link href="/search?mode=ai" className="btn-secondary border-white/30 text-on-primary hover:bg-white/10">
+                <Link href="/search" className="btn-secondary border-white/30 text-on-primary hover:bg-white/10">
                   Try AI Assistant
                 </Link>
               </div>
@@ -341,7 +341,7 @@ export default function HomePage() {
                 Get Started Free
                 <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
               </Link>
-              <Link href="/ask" className="btn-secondary border-white/30 text-on-primary hover:bg-white/10">
+              <Link href="/search" className="btn-secondary border-white/30 text-on-primary hover:bg-white/10">
                 Try AI First
               </Link>
             </div>
