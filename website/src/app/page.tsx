@@ -8,18 +8,18 @@ export const metadata: Metadata = {
 
 const features = [
   {
-    icon: 'smart_toy',
-    title: 'AI Assistant',
-    description: 'Get instant, accurate answers to your immigration questions with citation-backed responses.',
-    href: '/ask',
+    icon: 'search',
+    title: 'Search & AI',
+    description: 'Search real immigration experiences, then switch to AI mode for grounded, citation-backed answers.',
+    href: '/search',
     color: 'bg-primary-container',
     iconColor: 'text-primary',
   },
   {
-    icon: 'search',
-    title: 'Case Search',
-    description: 'Find similar cases and learn from their outcomes to inform your own journey.',
-    href: '/search',
+    icon: 'auto_awesome',
+    title: 'AI Mode',
+    description: 'Ask anything about your immigration situation and get answers grounded in real postings.',
+    href: '/search?mode=ai',
     color: 'bg-secondary-container',
     iconColor: 'text-secondary',
   },
@@ -116,7 +116,7 @@ export default function HomePage() {
                   Get Started Free
                   <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                 </Link>
-                <Link href="/ask" className="btn-secondary border-white/30 text-on-primary hover:bg-white/10">
+                <Link href="/search?mode=ai" className="btn-secondary border-white/30 text-on-primary hover:bg-white/10">
                   Try AI Assistant
                 </Link>
               </div>
