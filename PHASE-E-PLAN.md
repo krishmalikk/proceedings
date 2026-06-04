@@ -2,8 +2,20 @@
 
 **Branch:** `phase-E` · **Status:** PLAN (review before executing) · **Date:** 2026-06-03
 
-## Why
-The original prototype grounded on a **self-managed Vertex AI Vector Search** index. It was retired in D-016/D-039 — grounding now runs entirely on the managed **Discovery Engine datastore** (`imm-postings-datastore`), live in production (Cloud Run revision `…00009`, validated 13/13). The Vector Search **index endpoint is still deployed with 2 always-on replicas**, billing 24/7 for a component nothing uses anymore (~$150–500+/mo per the D-016 estimate). This plan tears it down safely.
+## Why decommission (rationale recap)
+The Vector Search index is the **old prototype's grounding store — already replaced**:
+1. It was a **self-managed** Vertex AI Vector Search index (built by the now-deleted `crawler.py` → `index.py` → `text-embedding-005` → Tree-AH index) holding **807 crawled gov/law-firm chunks**.
+2. It **caused the original bug** — it held **zero Reddit content** (the 81 Reddit posts were in the Discovery Engine datastore the Vector Search path never queried), so "Ask AI" answered from law-firm sites, never Reddit.
+3. It **violated the approved architecture (D-016)**, which mandates a single **managed** Vertex AI Search sink and explicitly rejected self-managed Vector Search on cost/ops grounds.
+4. It **costs ~$150–500+/mo** for **2 always-on replicas**, and since the realignment (D-039) **nothing uses it** — `query.py`'s `find_neighbors` was removed, `api.py` grounds on the datastore, and the live Cloud Run service ignores its leftover env var.
+
+## Current grounding source (what replaces it)
+All grounding now runs on the **managed Vertex AI Search (Discovery Engine) datastore `imm-postings-datastore`**, queried via the **Search + Answer API** (engine `imm-postings-search-app`):
+- **DS-1 (`imm-postings-datastore`)** — the **single grounding source**, holding the **Reddit-ingested** content (channel-agnostic, ready for app/web postings). Powers `/api/ask`, `/api/chat`, `/api/search`, `/api/postings`.
+- **Live in production** (Cloud Run revision `…00009`, validated **13/13**; `/api/ask` returns `reddit-*` sources).
+- **DS-2 (`imm-public-reference-datastore`)** — optional public-reference website store; crawl never populated, so **gated off** (not active).
+
+Decommissioning removes **only** the dead prototype + its 24/7 billing; it does **not** touch `imm-postings-datastore`, which serves all answers.
 
 ## Resource inventory (to remove)
 | Resource | Name / ID | Notes |
@@ -82,13 +94,16 @@ gcloud run services update immiguide-api --region=us-central1 \
 ## Decision to record
 Add a `D-NNN` to `MEMORY.md`: "Vector Search index + endpoint decommissioned (post D-039); grounding fully on `imm-postings-datastore`; ~$150–500+/mo recovered."
 
-## Execution checklist
-- [ ] Step 0 — snapshot (optional)
-- [ ] Step 1 — undeploy `legal_intake_deployed_v2`
-- [ ] Step 2 — delete endpoint `245914571645124608`
-- [ ] Step 3 — delete index `8958040089863127040`
-- [ ] Step 4 — delete `gs://imm-postings-ingestion/chunk_mapping.json`
-- [ ] Step 5 — remove `VERTEX_AI_INDEX_ENDPOINT_ID` from Cloud Run
-- [ ] Step 6 — `.env` + `CLAUDE.md` + TODO cleanup (commit)
-- [ ] Post-verify (13/13 + endpoint gone + health ok)
-- [ ] Record `D-NNN`
+## Execution — DONE ✅ (2026-06-03, D-040)
+
+> **Discovery during execution:** the project had accumulated **4 `legal-intake` endpoints + 4 indexes** (repeated `index.py` runs since 2026-03-18), with **two** endpoints' deployed indexes billing 24/7 (`legal_intake_deployed_v2` *and* `legal_intake_deployed`). Scope expanded to remove all of them (all unreferenced by live code).
+
+- [x] Snapshots (`/tmp/vs-*-snapshot.json`)
+- [x] Undeployed **both** billing deployed-indexes (`legal_intake_deployed_v2`, `legal_intake_deployed`) — replicas/cost stopped
+- [x] Deleted **all 4 index endpoints** (incl. `245914571645124608`)
+- [x] Deleted **all 4 indexes** (incl. `8958040089863127040`)
+- [x] Deleted `gs://imm-postings-ingestion/chunk_mapping.json`
+- [x] Removed `VERTEX_AI_INDEX_ENDPOINT_ID` from Cloud Run (→ revision `…00010`)
+- [x] `.env` + `CLAUDE.md` + TODO cleanup
+- [x] Post-verify: Cloud Run E2E **13/13**; `index-endpoints list` + `indexes list` both empty; `/api/health` + `/api/ask` (reddit) ok
+- [x] Recorded **D-040** in MEMORY.md

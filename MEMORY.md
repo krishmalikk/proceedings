@@ -581,6 +581,20 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 ---
 
+## D-040 — 2026-06-03 — Self-managed Vertex AI Vector Search decommissioned (post-D-039); grounding fully on `imm-postings-datastore`
+
+**Decision / work done:** After the grounding realignment (D-039) and the new backend going live on Cloud Run (datastore + Answer API, validated 13/13), the retired self-managed **Vertex AI Vector Search** resources were torn down to stop their 24/7 cost. Discovery found the project had accumulated **4 index endpoints + 4 indexes** all named `legal-intake-*` (from repeated `index.py` runs back to 2026-03-18), of which **two endpoints had deployed indexes billing 24/7** (`legal_intake_deployed_v2` and `legal_intake_deployed`). All were unreferenced by any live code.
+
+- **Torn down:** undeployed both billing deployed-indexes, then deleted **all 4 index endpoints** (incl. `245914571645124608` from `.env`) and **all 4 indexes** (incl. `8958040089863127040`); deleted the retired `gs://imm-postings-ingestion/chunk_mapping.json`; removed the stale `VERTEX_AI_INDEX_ENDPOINT_ID` env var from the `immiguide-api` Cloud Run service (→ revision `…00010`).
+- **Config cleanup:** removed `VERTEX_AI_INDEX_*` from `.env`; updated `CLAUDE.md` env-var section.
+- **Verification:** post-teardown the Cloud Run E2E suite passed **13/13** — `/api/ask` still returns `reddit-*` sources; grounding entirely on the managed datastore. Effectively irreversible (the builder `index.py` was already deleted in D-039) — intentional, it's retired.
+
+**Reasoning:** the Vector Search index was the old prototype's store (807 crawled gov/law-firm chunks, **zero Reddit** — the original grounding bug), violated D-016 (single managed sink), and billed for always-on serving replicas nothing used. Removing it recovers the cost (the largest line item per D-016's estimate, ~$150–500+/mo per billing endpoint) with no functional impact.
+
+**Affected docs / status:** Done. [PHASE-E-PLAN.md](PHASE-E-PLAN.md) (plan + execution); TODO.md ticked; `.env` + `CLAUDE.md` cleaned. Historical decision records (ARCHITECTURE_GAP, FINAL-ARCHITECTURE) left as-is.
+
+---
+
 # Session summaries
 
 (Newest at the bottom. Each entry follows the `S-NNN` format defined at the top of this file.)
