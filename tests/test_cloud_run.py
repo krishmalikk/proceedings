@@ -1,0 +1,154 @@
+"""
+test_cloud_run.py — End-to-end validation against the DEPLOYED Cloud Run backend.
+
+Hits the live `immiguide-api` over HTTP (not TestClient), validating the real
+deployment: grounding, chat routing, search facets/filters/pagination,
+strictness, posting detail, and context-aware suggested filters.
+
+The deployed service rate-limits (10 req / 60s per IP), so every call retries
+on HTTP 429 with a wait.
+
+Run:  .venv/bin/python tests/test_cloud_run.py
+Env:  CLOUD_RUN_URL  (default: the known immiguide-api URL)
+"""
+
+import os
+import sys
+import time
+
+import requests
+
+BASE = os.getenv("CLOUD_RUN_URL", "https://immiguide-api-971592620882.us-central1.run.app").rstrip("/")
+KNOWN_CASE_ID = "reddit-2026-04-11-USVisas-1socshn"
+
+_results: list[tuple[str, bool, str]] = []
+
+
+def check(name: str, passed: bool, detail: str = "") -> None:
+    _results.append((name, passed, detail))
+    print(f"  [{'PASS' if passed else 'FAIL'}] {name}" + (f" — {detail}" if detail else ""))
+
+
+def req(method: str, path: str, **kw):
+    """HTTP call with retry-on-429 (deployed rate limit) and cold-start tolerance."""
+    kw.setdefault("timeout", 90)
+    last = None
+    for _ in range(12):
+        last = requests.request(method, BASE + path, **kw)
+        if last.status_code != 429:
+            return last
+        time.sleep(8)
+    return last
+
+
+def get(path, **kw):
+    return req("GET", path, **kw)
+
+
+def post(path, body):
+    return req("POST", path, json=body)
+
+
+def group_a_health() -> None:
+    print("\nA — Health")
+    r = get("/api/health")
+    ok = r.status_code == 200 and r.json().get("status") == "ok"
+    check("A1 /api/health ok", ok, f"status={r.status_code} body={r.text[:80]}")
+
+
+def group_b_grounding() -> None:
+    print("\nB — Reddit grounding (deployed)")
+    r = post("/api/ask", {"question": "B1/B2 visa interview experience in Mumbai"})
+    d = r.json() if r.status_code == 200 else {}
+    check("B1 /api/ask 200 + grounded", r.status_code == 200 and not d.get("is_fallback", True),
+          f"status={r.status_code} sources={len(d.get('sources', []))}")
+    srcs = [s["chunk_id"] for s in d.get("sources", [])]
+    check("B2 sources are reddit-* (new datastore, not 40_0)",
+          any(s.startswith("reddit-") for s in srcs), str(srcs[:2]))
+
+
+def group_c_chat() -> None:
+    print("\nC — Chat routing (deployed)")
+    s = post("/api/chat", {"question": "Show me B1/B2 experiences in Mumbai"}).json()
+    check("C1 search intent -> cards", s.get("mode") == "search" and len(s.get("results", [])) > 0,
+          f"mode={s.get('mode')} cards={len(s.get('results', []))}")
+    a = post("/api/chat", {"question": "What is the H-1B 60-day grace period?"}).json()
+    check("C2 ask intent -> answer", a.get("mode") == "answer" and bool(a.get("answer")),
+          f"mode={a.get('mode')}")
+
+
+def group_d_search() -> None:
+    print("\nD — Search: facets, filter precision, pagination, strictness (deployed)")
+    base = get("/api/search", params={"q": "B1/B2 interview", "strictness": "broad"}).json()
+    check("D1 suggested_filters present (Concern/Outcome/...)",
+          len(base.get("suggested_filters", [])) >= 2,
+          str([g["label"] for g in base.get("suggested_filters", [])]))
+
+    bom = get("/api/search", params={"q": "B1/B2 interview", "consulate": "BOM"}).json()
+    check("D2 explicit consulate=BOM -> only BOM postings",
+          len(bom["results"]) >= 1 and all("BOM" in c["consulates"] for c in bom["results"]),
+          f'{len(bom["results"])} results')
+
+    p1 = get("/api/search", params={"q": "visa experience", "page_size": 3, "strictness": "broad"}).json()
+    ids1 = [c["case_id"] for c in p1["results"]]
+    p2 = get("/api/search", params={"q": "visa experience", "page_size": 3, "strictness": "broad",
+                                    "page_token": p1["next_page_token"]}).json()
+    ids2 = [c["case_id"] for c in p2["results"]]
+    check("D3 pagination: page 2 disjoint from page 1", bool(ids1) and set(ids1).isdisjoint(ids2),
+          f"p1={len(ids1)} p2={len(ids2)}")
+
+    strict = get("/api/search", params={"q": "B1/B2 in Mumbai", "strictness": "strict"}).json()
+    broad = get("/api/search", params={"q": "B1/B2 in Mumbai", "strictness": "broad"}).json()
+    check("D4 strict total <= broad total", 1 <= strict["total"] <= broad["total"],
+          f'strict={strict["total"]} broad={broad["total"]}')
+
+
+def group_e_postings() -> None:
+    print("\nE — Posting detail (deployed)")
+    r = get(f"/api/postings/{KNOWN_CASE_ID}")
+    d = r.json() if r.status_code == 200 else {}
+    check("E1 known posting 200 + body", r.status_code == 200 and len(d.get("body", "")) > 100,
+          f'status={r.status_code} body={len(d.get("body", ""))}')
+    r404 = get("/api/postings/does-not-exist-xyz")
+    check("E2 missing posting -> 404", r404.status_code == 404, f"status={r404.status_code}")
+
+
+def group_f_context_filters() -> None:
+    print("\nF — Context-aware filters + exact selection (deployed)")
+    chat = post("/api/chat", {"question": "I am on H-1B applying for extension with a question on RFE"})
+    d = chat.json()
+    concern = next((g for g in d.get("suggested_filters", []) if g["key"] == "concern"), {})
+    vals = concern.get("values", [])
+    check("F1 H-1B concerns are hierarchy-related (h1b-*) + counted",
+          any(v["code"].startswith("h1b-") for v in vals) and all("count" in v for v in vals),
+          str([v["code"] for v in vals[:4]]))
+
+    base = get("/api/search", params={"q": "H-1B experiences", "strictness": "broad"}).json()
+    sel = get("/api/search", params={"q": "H-1B experiences", "strictness": "broad",
+                                     "facet": "concerns_or_questions_tags:h1b-rfe"}).json()
+    check("F2 selecting a facet chip narrows exactly",
+          0 < sel["total"] < base["total"], f'base={base["total"]} selected={sel["total"]}')
+
+
+def main() -> int:
+    print(f"Cloud Run E2E — {BASE}")
+    group_a_health()
+    group_b_grounding()
+    group_c_chat()
+    group_d_search()
+    group_e_postings()
+    group_f_context_filters()
+
+    print("\n" + "=" * 60)
+    passed = sum(1 for _, ok, _ in _results if ok)
+    failed = [n for n, ok, _ in _results if not ok]
+    print(f"SUMMARY: {passed}/{len(_results)} checks passed")
+    if failed:
+        print("FAILED: " + "; ".join(failed))
+        return 1
+    print("Deployed Cloud Run backend validated.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
