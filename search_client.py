@@ -28,10 +28,28 @@ both clients are unchanged:
 import csv
 import os
 import re
+import time
 
 from google.api_core.client_options import ClientOptions
+from google.api_core.exceptions import DeadlineExceeded, InternalServerError, ServiceUnavailable
 from google.cloud import discoveryengine_v1 as de
 from google.cloud import storage
+
+# Transient gRPC/network errors worth a quick retry (e.g. stale channel after idle).
+_RETRYABLE = (ServiceUnavailable, DeadlineExceeded, InternalServerError)
+
+
+def _retry(fn, attempts: int = 3, base_delay: float = 0.5):
+    """Call fn(), retrying transient GCP errors with exponential backoff."""
+    last = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except _RETRYABLE as e:  # noqa: PERF203
+            last = e
+            if i < attempts - 1:
+                time.sleep(base_delay * (2 ** i))
+    raise last
 
 # Fallback message when the datastore yields no grounded answer.
 FALLBACK_MESSAGE = "I don't have that information — please contact the firm directly."
@@ -181,7 +199,7 @@ def answer_query(question: str, project_id: str, location: str, engine_id: str, 
         grounding_spec=de.AnswerQueryRequest.GroundingSpec(include_grounding_supports=True),
     )
 
-    response = client.answer_query(request)
+    response = _retry(lambda: client.answer_query(request))
     answer = response.answer
 
     answer_text = (answer.answer_text or "").strip()
@@ -422,7 +440,7 @@ def search_postings(
     elif _BOOST_ENABLED:
         request.boost_spec = _boost_spec()
 
-    response = client.search(request)
+    response = _retry(lambda: client.search(request))
     results = []
     for r in response.results:
         meta = _struct_to_dict(r.document.struct_data)

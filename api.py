@@ -16,6 +16,7 @@ import vertexai
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import firestore
 from pydantic import BaseModel, Field
 
@@ -268,6 +269,19 @@ def _save(question: str, result: dict) -> str:
         return ""
 
 
+def _guard(fn):
+    """Run a grounding call; turn a persistent GCP/network error into a clean
+    503 instead of a 500 traceback (transient blips are already retried)."""
+    try:
+        return fn()
+    except GoogleAPICallError as e:
+        print(f"Grounding service error: {type(e).__name__}: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="The assistant is temporarily unavailable. Please try again in a moment.",
+        )
+
+
 @app.post("/api/ask", response_model=AskResponse)
 async def ask_question(body: AskRequest, request: Request):
     """Submit a question and get a RAG-powered answer."""
@@ -275,7 +289,7 @@ async def ask_question(body: AskRequest, request: Request):
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
 
-    result = _grounded_answer(body.question)
+    result = _guard(lambda: _grounded_answer(body.question))
     doc_id = _save(body.question, result)
 
     return AskResponse(
@@ -298,11 +312,11 @@ async def chat(body: ChatRequest, request: Request):
     intent = classify_intent(body.question)
 
     if intent == "search" and _engine_id:
-        data = search_with_strictness(
+        data = _guard(lambda: search_with_strictness(
             body.question, _project_id, _ds_location, _engine_id,
             page_size=10, strictness=body.strictness,
             extra_filter=_facets_filter(body.facets),
-        )
+        ))
         # If search found nothing, fall through to an answer rather than an empty list.
         if data["results"]:
             return ChatResponse(
@@ -316,7 +330,7 @@ async def chat(body: ChatRequest, request: Request):
                 suggested_filters=[SuggestedFilter(**g) for g in _suggest(body.question)],
             )
 
-    result = _grounded_answer(body.question)
+    result = _guard(lambda: _grounded_answer(body.question))
     doc_id = _save(body.question, result)
     return ChatResponse(
         mode="answer",
