@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import PostingCard, { type PostingCardData } from '@/components/PostingCard'
 import Markdown from '@/components/Markdown'
@@ -8,19 +8,8 @@ import SourceCitation from '@/components/SourceCitation'
 import StrictnessSlider, { useStrictness, AppliedFilters } from '@/components/StrictnessSlider'
 import SuggestedFilters, { facetId, type SuggestedFilterGroup } from '@/components/SuggestedFilters'
 
-type Mode = 'search' | 'ai'
 type Source = { chunk_id: string; text: string; source: string; labels: string[]; score: number }
-type AiMessage = {
-  id: string
-  role: 'user' | 'ai'
-  mode?: 'answer' | 'search'
-  content: string
-  sources?: Source[]
-  results?: PostingCardData[]
-  suggestedFilters?: SuggestedFilterGroup[]
-  appliedFilters?: Record<string, unknown>
-  relaxed?: boolean
-}
+type Turn = { id: string; role: 'user' | 'ai'; content: string; sources?: Source[] }
 
 const EXAMPLES = [
   'B1/B2 interview experience in Mumbai',
@@ -28,18 +17,21 @@ const EXAMPLES = [
   'How does the 60-day grace period work after a layoff?',
 ]
 
-export default function UnifiedSearch({ initialMode = 'search' as Mode }: { initialMode?: Mode }) {
+export default function UnifiedSearch() {
   const router = useRouter()
   const params = useSearchParams()
 
-  const [mode, setMode] = useState<Mode>((params.get('mode') as Mode) || initialMode)
   const [input, setInput] = useState(params.get('q') || '')
-  const [query, setQuery] = useState(params.get('q') || '') // last submitted query
+  const [query, setQuery] = useState(params.get('q') || '')
   const [strictness, setStrictness] = useStrictness()
   const [selectedFacets, setSelectedFacets] = useState<string[]>([])
-  const [error, setError] = useState('')
 
-  // search-mode state
+  // AI overview + follow-up thread (Gemini-style)
+  const [turns, setTurns] = useState<Turn[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
+  const [followup, setFollowup] = useState('')
+
+  // search results
   const [results, setResults] = useState<PostingCardData[]>([])
   const [total, setTotal] = useState(0)
   const [nextPageToken, setNextPageToken] = useState('')
@@ -49,17 +41,10 @@ export default function UnifiedSearch({ initialMode = 'search' as Mode }: { init
   const [searchLoading, setSearchLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [error, setError] = useState('')
 
-  // ai-mode state
-  const [messages, setMessages] = useState<AiMessage[]>([])
-  const [aiLoading, setAiLoading] = useState(false)
-  const threadRef = useRef<HTMLDivElement>(null)
-
-  const syncUrl = useCallback((q: string, m: Mode) => {
-    const p = new URLSearchParams()
-    if (q) p.set('q', q)
-    p.set('mode', m)
-    router.replace(`/search?${p.toString()}`, { scroll: false })
+  const syncUrl = useCallback((q: string) => {
+    router.replace(q ? `/search?q=${encodeURIComponent(q)}` : '/search', { scroll: false })
   }, [router])
 
   const searchQs = useCallback((q: string, facets: string[], pageToken: string) => {
@@ -73,7 +58,7 @@ export default function UnifiedSearch({ initialMode = 'search' as Mode }: { init
   }, [strictness])
 
   const runSearch = useCallback(async (q: string, facets: string[]) => {
-    setSearchLoading(true); setError(''); setSearched(true)
+    setSearchLoading(true); setSearched(true)
     try {
       const res = await fetch(`/api/search?${searchQs(q, facets, '')}`)
       const data = await res.json()
@@ -85,11 +70,35 @@ export default function UnifiedSearch({ initialMode = 'search' as Mode }: { init
       setRelaxed(data.relaxed || false)
       setSuggested(data.suggested_filters || [])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Search failed'); setResults([]); setNextPageToken('')
+      setError(e instanceof Error ? e.message : 'Search failed'); setResults([])
     } finally {
       setSearchLoading(false)
     }
   }, [searchQs])
+
+  const askAi = useCallback(async (q: string): Promise<Turn> => {
+    const res = await fetch('/api/ask', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`)
+    return { id: `${Date.now()}-ai`, role: 'ai', content: data.answer, sources: data.sources }
+  }, [])
+
+  // Main query: fire AI overview + search results IN PARALLEL (one consolidated response).
+  const run = useCallback(async (q: string, facets: string[]) => {
+    setError('')
+    setAiLoading(true); setTurns([])
+    runSearch(q, facets)
+    try {
+      setTurns([await askAi(q)])
+    } catch (e) {
+      setTurns([{ id: `${Date.now()}-err`, role: 'ai', content: e instanceof Error ? e.message : 'AI error' }])
+    } finally {
+      setAiLoading(false)
+    }
+  }, [runSearch, askAi])
 
   const loadMore = useCallback(async () => {
     if (!nextPageToken || loadingMore) return
@@ -107,128 +116,80 @@ export default function UnifiedSearch({ initialMode = 'search' as Mode }: { init
     }
   }, [nextPageToken, loadingMore, searchQs, query, selectedFacets])
 
-  const submitChat = useCallback(async (q: string, facets: string[]) => {
-    setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'user', content: q }])
-    setAiLoading(true); setError('')
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q, strictness, facets }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`)
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(), role: 'ai', mode: data.mode, content: data.answer,
-        sources: data.sources, results: data.results, suggestedFilters: data.suggested_filters,
-        appliedFilters: data.applied_filters, relaxed: data.relaxed,
-      }])
-    } catch (e) {
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(), role: 'ai',
-        content: e instanceof Error ? e.message : 'Something went wrong. Please try again.',
-      }])
-    } finally {
-      setAiLoading(false)
-    }
-  }, [strictness])
-
+  // run initial query from URL once
   useEffect(() => {
-    if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight
-  }, [messages])
-
-  // run the initial query (from the URL) once on mount
-  useEffect(() => {
-    if (query) { mode === 'search' ? runSearch(query, selectedFacets) : submitChat(query, selectedFacets) }
+    if (query) run(query, selectedFacets)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // re-run search when precision changes
+  // re-run search when precision changes (AI overview unaffected)
   useEffect(() => {
-    if (mode === 'search' && query) runSearch(query, selectedFacets)
+    if (query) runSearch(query, selectedFacets)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strictness])
 
   function submit(q: string) {
     const t = q.trim()
     if (t.length < 3) return
-    setQuery(t); syncUrl(t, mode)
-    mode === 'search' ? runSearch(t, selectedFacets) : submitChat(t, selectedFacets)
+    setQuery(t); syncUrl(t); run(t, selectedFacets)
   }
 
-  function switchMode(m: Mode) {
-    if (m === mode) return
-    setMode(m); syncUrl(query, m)
-    if (!query) return
-    if (m === 'search') runSearch(query, selectedFacets)
-    else if (messages.length === 0) submitChat(query, selectedFacets)
+  async function askFollowup(q: string) {
+    const t = q.trim()
+    if (t.length < 3) return
+    setFollowup('')
+    setTurns((prev) => [...prev, { id: `${Date.now()}-u`, role: 'user', content: t }])
+    setAiLoading(true)
+    try {
+      const aiTurn = await askAi(t)
+      setTurns((prev) => [...prev, aiTurn])
+    } catch (e) {
+      setTurns((prev) => [...prev, { id: `${Date.now()}-e`, role: 'ai', content: e instanceof Error ? e.message : 'AI error' }])
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   function toggleFacet(field: string, code: string) {
     const id = facetId(field, code)
     const next = selectedFacets.includes(id) ? selectedFacets.filter((x) => x !== id) : [...selectedFacets, id]
     setSelectedFacets(next)
-    if (!query) return
-    mode === 'search' ? runSearch(query, next) : submitChat(query, next)
+    if (query) runSearch(query, next)
   }
 
-  const hasActivity = mode === 'search' ? searched : messages.length > 0
+  const active = searched || turns.length > 0 || aiLoading
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      {/* Hero (collapses once you have results) */}
-      {!hasActivity && (
+      {!active && (
         <div className="text-center mb-6 mt-6">
-          <h1 className="text-display-lg md:text-headline-lg text-primary mb-2">Search experiences. Ask anything.</h1>
+          <h1 className="text-display-lg md:text-headline-lg text-primary mb-2">Ask anything. See real experiences.</h1>
           <p className="text-body-md text-on-surface-variant">
-            Find real immigration postings, or switch to AI mode for grounded answers.
+            One search gives you an AI answer and the matching immigration postings.
           </p>
         </div>
       )}
 
-      {/* Search bar */}
+      {/* Single search bar */}
       <form
         onSubmit={(e) => { e.preventDefault(); submit(input) }}
         className="relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-full focus-within:border-primary transition-all shadow-sm"
       >
-        <span className="material-symbols-outlined text-on-surface-variant ml-4">
-          {mode === 'ai' ? 'auto_awesome' : 'search'}
-        </span>
+        <span className="material-symbols-outlined text-on-surface-variant ml-4">search</span>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={mode === 'ai' ? 'Ask about your immigration situation…' : 'Search experiences, e.g. "B1/B2 in Mumbai"…'}
+          placeholder='Search or ask — e.g. "B1/B2 interview in Mumbai"'
           className="flex-1 px-4 py-4 bg-transparent border-none focus:ring-0 focus:outline-none text-body-lg text-on-surface"
         />
         <button type="submit" disabled={input.trim().length < 3} className="btn-primary rounded-full mr-2 my-2 disabled:opacity-40">
-          {mode === 'ai' ? 'Ask' : 'Search'}
+          Search
         </button>
       </form>
 
-      {/* Mode toggle + precision */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
-        <div className="inline-flex bg-surface-container rounded-full p-1">
-          <button onClick={() => switchMode('search')}
-            className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-label-md transition-colors ${mode === 'search' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>
-            <span className="material-symbols-outlined text-[18px]">search</span> Search
-          </button>
-          <button onClick={() => switchMode('ai')}
-            className={`flex items-center gap-1 px-4 py-1.5 rounded-full text-label-md transition-colors ${mode === 'ai' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>
-            <span className="material-symbols-outlined text-[18px]">auto_awesome</span> AI Mode
-          </button>
-        </div>
-        <details className="text-caption text-on-surface-variant">
-          <summary className="cursor-pointer select-none">Precision</summary>
-          <div className="mt-2 w-64 bg-surface-container-low rounded-xl p-3">
-            <StrictnessSlider value={strictness} onChange={setStrictness} />
-          </div>
-        </details>
-      </div>
-
       {error && <div className="card text-error mt-4">{error}</div>}
 
-      {/* Empty state */}
-      {!hasActivity && (
+      {!active && (
         <div className="mt-8">
           <p className="text-label-md text-on-surface-variant mb-2">Try:</p>
           <div className="flex flex-wrap gap-2">
@@ -239,20 +200,85 @@ export default function UnifiedSearch({ initialMode = 'search' as Mode }: { init
         </div>
       )}
 
-      {/* ---------------- SEARCH MODE ---------------- */}
-      {mode === 'search' && searched && (
-        <div className="mt-6">
-          <p className="text-label-md text-on-surface-variant mb-2">
-            {searchLoading ? 'Searching…' : `${total} postings found`}
-          </p>
+      {/* ===== AI OVERVIEW (top of the consolidated response) ===== */}
+      {active && (
+        <div className="mt-6 rounded-2xl border border-primary-container bg-primary-container/20 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="material-symbols-outlined text-primary">auto_awesome</span>
+            <span className="text-label-md font-semibold text-primary">AI Overview</span>
+          </div>
+
+          <div className="space-y-4">
+            {turns.map((t) => (
+              t.role === 'user' ? (
+                <div key={t.id} className="flex items-center gap-2 text-label-md text-on-surface font-medium">
+                  <span className="material-symbols-outlined text-[18px] text-on-surface-variant">subdirectory_arrow_right</span>
+                  {t.content}
+                </div>
+              ) : (
+                <div key={t.id} className="space-y-2">
+                  <div className="text-on-surface"><Markdown>{t.content}</Markdown></div>
+                  {t.sources && t.sources.length > 0 && (
+                    <div className="flex gap-2 items-center flex-wrap">
+                      <span className="text-caption text-outline">Sources:</span>
+                      {Array.from(new Set(t.sources.map((s) => s.source))).slice(0, 3).map((s) => (
+                        <SourceCitation key={s} source={s} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            ))}
+            {aiLoading && (
+              <div className="flex gap-1 py-1">
+                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            )}
+          </div>
+
+          {/* Follow-up (Gemini-style) */}
+          {turns.length > 0 && (
+            <form onSubmit={(e) => { e.preventDefault(); askFollowup(followup) }} className="mt-4 flex items-center gap-2">
+              <input
+                value={followup}
+                onChange={(e) => setFollowup(e.target.value)}
+                placeholder="Ask a follow-up…"
+                className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-full px-4 py-2 text-body-md focus:outline-none focus:border-primary"
+              />
+              <button type="submit" disabled={followup.trim().length < 3 || aiLoading}
+                className="btn-secondary rounded-full disabled:opacity-40">Ask</button>
+            </form>
+          )}
+          <p className="text-caption text-on-surface-variant mt-3">AI provides information, not legal advice.</p>
+        </div>
+      )}
+
+      {/* ===== SEARCH RESULTS (below the AI overview) ===== */}
+      {active && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-label-md text-on-surface font-semibold">
+              {searchLoading ? 'Finding postings…' : `${total} matching postings`}
+            </p>
+            <details className="text-caption text-on-surface-variant">
+              <summary className="cursor-pointer select-none">Precision</summary>
+              <div className="mt-2 w-64 bg-surface-container-low rounded-xl p-3 absolute right-4 z-10 shadow-lg">
+                <StrictnessSlider value={strictness} onChange={setStrictness} />
+              </div>
+            </details>
+          </div>
+
           <AppliedFilters filters={appliedFilters} relaxed={relaxed} />
           {suggested.length > 0 && (
-            <div className="bg-surface-container-low rounded-xl p-4 my-4">
+            <div className="bg-surface-container-low rounded-xl p-4 my-3">
               <SuggestedFilters groups={suggested} selected={new Set(selectedFacets)} onToggle={toggleFacet} />
             </div>
           )}
+
           {!searchLoading && results.length === 0 && (
-            <div className="card text-on-surface-variant">No postings matched. Try a broader query or AI Mode.</div>
+            <div className="card text-on-surface-variant">No postings matched — try a broader query.</div>
           )}
           <div className="space-y-4">
             {results.map((r) => <PostingCard key={r.case_id} r={r} />)}
@@ -264,70 +290,6 @@ export default function UnifiedSearch({ initialMode = 'search' as Mode }: { init
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ---------------- AI MODE ---------------- */}
-      {mode === 'ai' && messages.length > 0 && (
-        <div ref={threadRef} className="mt-6 space-y-6">
-          {messages.map((m, idx) => (
-            <div key={m.id}>
-              {m.role === 'user' ? (
-                <div className="flex justify-end">
-                  <div className="bg-primary-container text-on-primary-container rounded-2xl rounded-tr-sm p-3 max-w-[85%]">{m.content}</div>
-                </div>
-              ) : (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-white text-[18px]">auto_awesome</span>
-                  </div>
-                  <div className="flex-1 space-y-2 min-w-0">
-                    {m.mode === 'search' ? (
-                      <div className="space-y-3">
-                        <p className="text-caption text-on-surface-variant">Matching experiences:</p>
-                        {m.results?.map((r) => <PostingCard key={r.case_id} r={r} />)}
-                      </div>
-                    ) : (
-                      <div className="bg-surface-container rounded-2xl rounded-tl-sm p-4 text-on-surface">
-                        <Markdown>{m.content}</Markdown>
-                      </div>
-                    )}
-                    {m.mode !== 'search' && m.sources && m.sources.length > 0 && (
-                      <div className="flex gap-2 items-center flex-wrap px-1">
-                        <span className="text-caption text-outline">Sources:</span>
-                        {Array.from(new Set(m.sources.map((s) => s.source))).slice(0, 3).map((s) => (
-                          <SourceCitation key={s} source={s} />
-                        ))}
-                      </div>
-                    )}
-                    {idx === messages.length - 1 && m.suggestedFilters && m.suggestedFilters.length > 0 && (
-                      <div className="bg-surface-container-low rounded-xl p-3 mt-1">
-                        <SuggestedFilters groups={m.suggestedFilters} selected={new Set(selectedFacets)}
-                          onToggle={toggleFacet} title="Refine to related experiences" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          {aiLoading && (
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-white text-[18px]">auto_awesome</span>
-              </div>
-              <div className="bg-surface-container rounded-2xl rounded-tl-sm p-4">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-outline rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-outline rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-outline rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            </div>
-          )}
-          <p className="text-caption text-on-surface-variant text-center pt-2">
-            AI provides information, not legal advice.
-          </p>
         </div>
       )}
     </div>
