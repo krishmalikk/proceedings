@@ -7,7 +7,6 @@ const navItems = [
   { href: '/', label: 'Home', icon: 'home' },
   { href: '/search', label: 'Search', icon: 'search' },
   { href: '/community', label: 'Forum', icon: 'forum' },
-  { href: '/ask', label: 'Ask AI', icon: 'smart_toy' },
   { href: '/news', label: 'News', icon: 'newspaper' },
 ];
 

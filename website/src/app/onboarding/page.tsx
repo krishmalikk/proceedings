@@ -56,7 +56,7 @@ export default function OnboardingPage() {
       setCurrentStep(currentStep + 1)
     } else {
       // Complete onboarding
-      router.push('/ask')
+      router.push('/search')
     }
   }
 
@@ -193,7 +193,7 @@ export default function OnboardingPage() {
         {/* Actions */}
         <div className="flex items-center justify-between mt-8">
           <button
-            onClick={() => router.push('/ask')}
+            onClick={() => router.push('/search')}
             className="text-label-md text-on-surface-variant hover:text-primary transition-colors"
           >
             Skip for now
