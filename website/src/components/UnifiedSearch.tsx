@@ -25,6 +25,7 @@ export default function UnifiedSearch() {
   const [query, setQuery] = useState(params.get('q') || '')
   const [strictness, setStrictness] = useStrictness()
   const [selectedFacets, setSelectedFacets] = useState<string[]>([])
+  const [aiOverview, setAiOverviewState] = useState(true)
 
   // AI overview + follow-up thread (Gemini-style)
   const [turns, setTurns] = useState<Turn[]>([])
@@ -86,11 +87,8 @@ export default function UnifiedSearch() {
     return { id: `${Date.now()}-ai`, role: 'ai', content: data.answer, sources: data.sources }
   }, [])
 
-  // Main query: fire AI overview + search results IN PARALLEL (one consolidated response).
-  const run = useCallback(async (q: string, facets: string[]) => {
-    setError('')
+  const loadOverview = useCallback(async (q: string) => {
     setAiLoading(true); setTurns([])
-    runSearch(q, facets)
     try {
       setTurns([await askAi(q)])
     } catch (e) {
@@ -98,7 +96,22 @@ export default function UnifiedSearch() {
     } finally {
       setAiLoading(false)
     }
-  }, [runSearch, askAi])
+  }, [askAi])
+
+  // Main query: fire the posting search and (if enabled) the AI overview in parallel.
+  const run = useCallback((q: string, facets: string[]) => {
+    setError('')
+    runSearch(q, facets)
+    if (aiOverview) loadOverview(q)
+    else setTurns([])
+  }, [runSearch, loadOverview, aiOverview])
+
+  function setAiOverview(v: boolean) {
+    setAiOverviewState(v)
+    try { localStorage.setItem('ai-overview', v ? '1' : '0') } catch { /* ignore */ }
+    if (!v) setTurns([])
+    else if (query && turns.length === 0 && !aiLoading) loadOverview(query)
+  }
 
   const loadMore = useCallback(async () => {
     if (!nextPageToken || loadingMore) return
@@ -116,9 +129,15 @@ export default function UnifiedSearch() {
     }
   }, [nextPageToken, loadingMore, searchQs, query, selectedFacets])
 
-  // run initial query from URL once
+  // load the persisted AI-overview preference + run the initial URL query once
   useEffect(() => {
-    if (query) run(query, selectedFacets)
+    let ai = true
+    try { const v = localStorage.getItem('ai-overview'); if (v !== null) ai = v === '1' } catch { /* ignore */ }
+    setAiOverviewState(ai)
+    if (query) {
+      runSearch(query, selectedFacets)
+      if (ai) loadOverview(query)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -187,6 +206,21 @@ export default function UnifiedSearch() {
         </button>
       </form>
 
+      {/* AI Overview on/off */}
+      <div className="flex items-center justify-end gap-2 mt-2 px-1">
+        <span className="material-symbols-outlined text-[18px] text-secondary">auto_awesome</span>
+        <span className="text-label-md text-on-surface-variant">AI Overview</span>
+        <button
+          onClick={() => setAiOverview(!aiOverview)}
+          role="switch"
+          aria-checked={aiOverview}
+          aria-label="Toggle AI Overview"
+          className={aiOverview ? 'toggle-on' : 'toggle-off'}
+        >
+          <span className={`toggle-knob ${aiOverview ? 'translate-x-5' : 'translate-x-1'}`} />
+        </button>
+      </div>
+
       {error && <div className="card text-error mt-4">{error}</div>}
 
       {!active && (
@@ -201,7 +235,7 @@ export default function UnifiedSearch() {
       )}
 
       {/* ===== AI OVERVIEW (top of the consolidated response) ===== */}
-      {active && (
+      {active && aiOverview && (
         <div className="mt-6 rounded-2xl border border-primary-container bg-primary-container/20 p-4">
           <div className="flex items-center gap-2 mb-3">
             <span className="material-symbols-outlined text-primary">auto_awesome</span>
@@ -258,16 +292,13 @@ export default function UnifiedSearch() {
       {/* ===== SEARCH RESULTS (below the AI overview) ===== */}
       {active && (
         <div className="mt-8">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-label-md text-on-surface font-semibold">
-              {searchLoading ? 'Finding postings…' : `${total} matching postings`}
-            </p>
-            <details className="text-caption text-on-surface-variant">
-              <summary className="cursor-pointer select-none">Precision</summary>
-              <div className="mt-2 w-64 bg-surface-container-low rounded-xl p-3 absolute right-4 z-10 shadow-lg">
-                <StrictnessSlider value={strictness} onChange={setStrictness} />
-              </div>
-            </details>
+          <p className="text-label-md text-on-surface font-semibold mb-3">
+            {searchLoading ? 'Finding postings…' : `${total} matching postings`}
+          </p>
+
+          {/* Refine search precision (always visible with results) */}
+          <div className="bg-surface-container-low rounded-xl p-4 mb-3">
+            <StrictnessSlider value={strictness} onChange={setStrictness} />
           </div>
 
           <AppliedFilters filters={appliedFilters} relaxed={relaxed} />
