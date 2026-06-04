@@ -516,6 +516,132 @@ def get_posting(case_id: str, project_id: str, location: str, datastore_id: str)
     return card
 
 
+# --- Context-aware dynamic filter suggestions (tag hierarchy + live counts) --
+#
+# Driven by (a) the situation extracted from the conversation, (b) the tag
+# hierarchy (1.6 "Associated Visa/Form" links concern/action tags to a parent
+# visa), and (c) live Discovery Engine facet counts scoped to the situation.
+
+_TAG_HIERARCHY: dict | None = None
+_ACRONYMS = {
+    "rfe", "aos", "cos", "opt", "cpt", "ead", "gc", "lca", "perm", "uscis",
+    "ac21", "221g", "i-94", "i94", "stem", "h1b", "h-1b", "h4", "f1", "b1", "b2",
+    "l1", "o1", "eb", "eb1", "eb2", "eb3", "ir", "us", "usa",
+}
+
+
+def _tag_hierarchy() -> dict:
+    """Lazy-build {visa_code(upper) -> set(related action/concern tags)} from
+    1.6-visa-form-actions.csv ('tag, Associated Visa/Form, Description')."""
+    global _TAG_HIERARCHY
+    if _TAG_HIERARCHY is None:
+        h: dict[str, set] = {}
+        try:
+            with open(_csv_path("1.6-visa-form-actions.csv"), newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                next(reader, None)
+                for row in reader:
+                    if len(row) < 2 or not row[0].strip():
+                        continue
+                    tag, visa = row[0].strip(), row[1].strip().upper()
+                    if visa:
+                        h.setdefault(visa, set()).add(tag)
+        except Exception as e:  # noqa: BLE001
+            print(f"tag hierarchy load failed: {e}")
+        _TAG_HIERARCHY = h
+    return _TAG_HIERARCHY
+
+
+def _hierarchy_related(code: str) -> set:
+    return _tag_hierarchy().get((code or "").upper(), set())
+
+
+def _humanize(code: str) -> str:
+    parts = [p for p in re.split(r"[-_ ]", code) if p]
+    return " ".join(p.upper() if p.lower() in _ACRONYMS else p.capitalize() for p in parts)
+
+
+_CONSULATE_LABELS: dict | None = None
+
+
+def _consulate_label(code: str) -> str:
+    """Map a consulate code (BOM) back to a readable name (Mumbai)."""
+    global _CONSULATE_LABELS
+    if _CONSULATE_LABELS is None:
+        m: dict[str, str] = {}
+        for spec in _facet_registry():
+            if spec["key"] == "consulate":
+                for name, c in spec["terms"].items():
+                    if c not in m or len(name) > len(m[c]):  # prefer the fuller name
+                        m[c] = name
+        _CONSULATE_LABELS = {c: n.title() for c, n in m.items()}
+    return _CONSULATE_LABELS.get(code.upper(), code.upper())
+
+
+def _value_label(field: str, code: str) -> str:
+    return _consulate_label(code) if field == "consulates" else _humanize(code)
+
+
+# (key, label, datastore facet field) — the refinement dimensions to surface.
+_SUGGEST_FIELDS = [
+    ("concern", "Concern", "concerns_or_questions_tags"),
+    ("topic", "Topic", "tags"),
+    ("outcome", "Outcome", "key_stages_or_info.outcome_status"),
+    ("consulate", "Consulate", "consulates"),
+]
+
+
+def suggested_filters(
+    query: str,
+    project_id: str,
+    location: str,
+    engine_id: str,
+    max_per_facet: int = 6,
+) -> list:
+    """Return situation-relevant refinement facets with live counts:
+      [ {key, label, field, values: [{code, label, count}]}, ... ]
+    Anchored on the extracted visa/category, scoped to that subset, ranked
+    hierarchy-related-first by count, excluding already-applied values."""
+    facets = extract_filters(query)
+    anchor = facets.get("visa") or facets.get("category")
+    related: set = set()
+    if anchor:
+        for c in anchor["codes"]:
+            related |= _hierarchy_related(c)
+    applied = {c for f in facets.values() for c in f["codes"]}
+
+    client = _search_client(project_id, location)
+    serving_config = _serving_config(project_id, location, engine_id)
+    FK = de.SearchRequest.FacetSpec.FacetKey
+    specs = [de.SearchRequest.FacetSpec(facet_key=FK(key=field), limit=50)
+             for _k, _l, field in _SUGGEST_FIELDS]
+
+    def _run(filter_expr: str):
+        req = de.SearchRequest(serving_config=serving_config, query=query, page_size=1,
+                               filter=filter_expr or "", facet_specs=specs)
+        return {f.key: f for f in client.search(req).facets}
+
+    scope = _facet_condition(anchor) if anchor else ""
+    fcts = _run(scope)
+    if scope and not any(f.values for f in fcts.values()):
+        fcts = _run("")  # anchor too narrow — fall back to unscoped counts
+
+    out = []
+    for key, label, field in _SUGGEST_FIELDS:
+        fct = fcts.get(field)
+        if not fct:
+            continue
+        vals = [(v.value, int(v.count)) for v in fct.values if v.count and v.value not in applied]
+        if not vals:
+            continue
+        vals.sort(key=lambda vc: (0 if vc[0] in related else 1, -vc[1]))
+        out.append({
+            "key": key, "label": label, "field": field,
+            "values": [{"code": c, "label": _value_label(field, c), "count": n} for c, n in vals[:max_per_facet]],
+        })
+    return out
+
+
 if __name__ == "__main__":
     # Standalone smoke test: python search_client.py "your question"
     import sys

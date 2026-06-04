@@ -27,7 +27,13 @@ from query import (
     save_qa_pair,
     update_feedback,
 )
-from search_client import answer_query, get_posting, search_postings, search_with_strictness
+from search_client import (
+    answer_query,
+    get_posting,
+    search_postings,
+    search_with_strictness,
+    suggested_filters,
+)
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
@@ -186,6 +192,19 @@ class PostingCard(BaseModel):
     date: str
 
 
+class FacetValue(BaseModel):
+    code: str
+    label: str
+    count: int
+
+
+class SuggestedFilter(BaseModel):
+    key: str
+    label: str
+    field: str
+    values: list[FacetValue]
+
+
 class SearchResponse(BaseModel):
     results: list[PostingCard]
     next_page_token: str
@@ -193,6 +212,7 @@ class SearchResponse(BaseModel):
     applied_filters: dict = {}
     relaxed: bool = False
     effective_strictness: str = ""
+    suggested_filters: list[SuggestedFilter] = []
 
 
 class PostingDetail(PostingCard):
@@ -215,6 +235,7 @@ class ChatResponse(BaseModel):
     applied_filters: dict = {}
     relaxed: bool = False
     effective_strictness: str = ""
+    suggested_filters: list[SuggestedFilter] = []
     id: str = ""
 
 
@@ -290,6 +311,7 @@ async def chat(body: ChatRequest, request: Request):
                 applied_filters=data.get("applied_filters", {}),
                 relaxed=data.get("relaxed", False),
                 effective_strictness=data.get("effective_strictness", ""),
+                suggested_filters=[SuggestedFilter(**g) for g in _suggest(body.question)],
             )
 
     result = _grounded_answer(body.question)
@@ -300,6 +322,9 @@ async def chat(body: ChatRequest, request: Request):
         answer=result["answer"],
         sources=[SourceInfo(**c) for c in result["chunks"]],
         is_fallback=result["is_fallback"],
+        # Situation-relevant refinements even on an answer turn (e.g. "see related
+        # experiences: RFE / Denial / Premium processing").
+        suggested_filters=[SuggestedFilter(**g) for g in _suggest(body.question)],
         id=doc_id,
     )
 
@@ -390,6 +415,17 @@ async def qa_stats():
     }
 
 
+def _suggest(query: str) -> list:
+    """Context-aware refinement facets (best-effort; never breaks search)."""
+    if not _engine_id:
+        return []
+    try:
+        return suggested_filters(query, _project_id, _ds_location, _engine_id)
+    except Exception as e:  # noqa: BLE001
+        print(f"suggested_filters failed: {e}")
+        return []
+
+
 def _build_filter(visa: str, consulate: str, outcome: str) -> str:
     """Build a Discovery Engine filter expression from optional facet params."""
     clauses = []
@@ -450,6 +486,7 @@ async def search(
         applied_filters=data.get("applied_filters", {}),
         relaxed=data.get("relaxed", False),
         effective_strictness=data.get("effective_strictness", ""),
+        suggested_filters=[SuggestedFilter(**g) for g in _suggest(query)],
     )
 
 
