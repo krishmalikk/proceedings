@@ -25,11 +25,31 @@ both clients are unchanged:
   }
 """
 
+import csv
 import os
+import re
+import time
 
 from google.api_core.client_options import ClientOptions
+from google.api_core.exceptions import DeadlineExceeded, InternalServerError, ServiceUnavailable
 from google.cloud import discoveryengine_v1 as de
 from google.cloud import storage
+
+# Transient gRPC/network errors worth a quick retry (e.g. stale channel after idle).
+_RETRYABLE = (ServiceUnavailable, DeadlineExceeded, InternalServerError)
+
+
+def _retry(fn, attempts: int = 3, base_delay: float = 0.5):
+    """Call fn(), retrying transient GCP errors with exponential backoff."""
+    last = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except _RETRYABLE as e:  # noqa: PERF203
+            last = e
+            if i < attempts - 1:
+                time.sleep(base_delay * (2 ** i))
+    raise last
 
 # Fallback message when the datastore yields no grounded answer.
 FALLBACK_MESSAGE = "I don't have that information — please contact the firm directly."
@@ -179,7 +199,7 @@ def answer_query(question: str, project_id: str, location: str, engine_id: str, 
         grounding_spec=de.AnswerQueryRequest.GroundingSpec(include_grounding_supports=True),
     )
 
-    response = client.answer_query(request)
+    response = _retry(lambda: client.answer_query(request))
     answer = response.answer
 
     answer_text = (answer.answer_text or "").strip()
@@ -262,6 +282,130 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
     }
 
 
+# --- Generic NL -> tagged-facet extraction (applies to ANY tag, not just consulate) --
+#
+# The strictness mechanism (filter / boost / semantic) is field-agnostic. This
+# registry is the SINGLE place facets are enumerated: each entry maps a controlled
+# tag vocabulary (tags-cleaned/*.csv) to the datastore field(s) it filters. Adding
+# coverage for a new tag = adding one entry here — nothing else changes.
+
+# Informal names not in the official consulate vocabulary's City column.
+_CONSULATE_ALIASES = {"delhi": "DEL", "bombay": "BOM", "madras": "MAA", "calcutta": "CCU"}
+
+_FACET_SPECS = [
+    # key, label, datastore field(s) it filters, vocab CSV, match kind, boost, min_len
+    {"key": "consulate", "label": "Consulate", "fields": ["consulates"],
+     "csv": "1.4-consulates.csv", "kind": "name", "boost": 0.5, "min_len": 4},
+    {"key": "visa", "label": "Visa",
+     "fields": ["visa_applying_for", "current_visa_or_greencard_category"],
+     "csv": "1.1-non-immigration-visas.csv", "kind": "code", "boost": 0.4, "min_len": 2},
+    {"key": "category", "label": "Category",
+     "fields": ["current_visa_or_greencard_category", "visa_applying_for"],
+     "csv": "1.2-greencard-categories.csv", "kind": "code", "boost": 0.4, "min_len": 3},
+    {"key": "outcome", "label": "Outcome", "fields": ["key_stages_or_info.outcome_status"],
+     "csv": "1.9-outcomes.csv", "kind": "code", "boost": 0.3, "min_len": 5},
+    {"key": "tag", "label": "Tag",
+     "fields": ["tags", "concerns_or_questions_tags", "derived_topic_cluster"],
+     "csv": "1.10-common-misc.csv", "kind": "tag", "boost": 0.2, "min_len": 6},
+]
+
+_REGISTRY: list | None = None
+
+
+def _csv_path(name: str) -> str:
+    return os.path.join(os.path.dirname(__file__), "tags-cleaned", name)
+
+
+def _code_variants(code: str) -> set:
+    low = code.strip().lower()
+    return {v for v in {low, low.replace("-", ""), low.replace("-", " ")} if v}
+
+
+def _facet_registry() -> list:
+    """Lazy-build the facet registry: each entry has terms {variant -> code}."""
+    global _REGISTRY
+    if _REGISTRY is not None:
+        return _REGISTRY
+    reg = []
+    for spec in _FACET_SPECS:
+        terms: dict[str, str] = {}
+        try:
+            with open(_csv_path(spec["csv"]), newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                next(reader, None)  # header
+                for row in reader:
+                    if not row or not row[0].strip():
+                        continue
+                    code = row[0].strip()
+                    if spec["kind"] == "name":  # consulates: tag,Type,Country,City
+                        country = row[2].strip() if len(row) > 2 else ""
+                        city = row[3].strip() if len(row) > 3 else ""
+                        if city:
+                            terms[city.lower()] = code
+                        elif country and (len(row) > 1 and row[1].strip() == "country"):
+                            terms[country.lower()] = code
+                    elif spec["kind"] == "code":
+                        for v in _code_variants(code):
+                            terms[v] = code
+                    elif spec["kind"] == "tag":  # only multi-segment tags (avoid common-word FPs)
+                        if "-" in code:
+                            terms[code.lower()] = code
+                            terms[code.lower().replace("-", " ")] = code
+        except Exception as e:  # noqa: BLE001
+            print(f"facet vocab load failed for {spec['csv']}: {e}")
+        if spec["key"] == "consulate":
+            terms.update(_CONSULATE_ALIASES)
+        reg.append({**spec, "terms": terms})
+    _REGISTRY = reg
+    return reg
+
+
+def extract_filters(query: str) -> dict:
+    """Map a natural-language query to tagged facet values across ALL registered
+    facets. Returns a rich dict: { key: {label, fields, codes[], boost} }."""
+    q = query.lower()
+    facets: dict = {}
+    for spec in _facet_registry():
+        found: list[str] = []
+        for term in sorted(spec["terms"], key=len, reverse=True):  # specific (longer) first
+            if len(term) < spec["min_len"]:
+                continue
+            if re.search(r"\b" + re.escape(term) + r"\b", q):
+                code = spec["terms"][term]
+                if code not in found:
+                    found.append(code)
+        if found:
+            facets[spec["key"]] = {
+                "label": spec["label"], "fields": spec["fields"],
+                "codes": found, "boost": spec["boost"],
+            }
+    return facets
+
+
+def applied_codes(facets: dict) -> dict:
+    """Flatten the rich facet dict to { key: [codes] } for API/UI."""
+    return {k: v["codes"] for k, v in facets.items()}
+
+
+def _facet_condition(facet: dict) -> str:
+    """OR across the facet's fields x codes — e.g. (visa_applying_for: ANY("B-1") OR ...)."""
+    ors = [f'{field}: ANY("{code}")' for field in facet["fields"] for code in facet["codes"]]
+    return "(" + " OR ".join(ors) + ")" if ors else ""
+
+
+def _filter_expr_from_facets(facets: dict) -> str:
+    """AND across facet keys (each key is an OR of its fields x codes)."""
+    clauses = [c for c in (_facet_condition(f) for f in facets.values()) if c]
+    return " AND ".join(clauses)
+
+
+def _boost_from_facets(facets: dict):
+    Cond = de.SearchRequest.BoostSpec.ConditionBoostSpec
+    specs = [Cond(condition=_facet_condition(f), boost=f["boost"])
+             for f in facets.values() if _facet_condition(f)]
+    return de.SearchRequest.BoostSpec(condition_boost_specs=specs) if specs else None
+
+
 def search_postings(
     query: str,
     project_id: str,
@@ -270,6 +414,7 @@ def search_postings(
     page_size: int = 10,
     page_token: str = "",
     filter_expr: str = "",
+    boost=None,
 ) -> dict:
     """
     Ranked posting search (Google-results style) via the Discovery Engine
@@ -290,10 +435,12 @@ def search_postings(
             snippet_spec=de.SearchRequest.ContentSearchSpec.SnippetSpec(return_snippet=True),
         ),
     )
-    if _BOOST_ENABLED:
+    if boost is not None:
+        request.boost_spec = boost
+    elif _BOOST_ENABLED:
         request.boost_spec = _boost_spec()
 
-    response = client.search(request)
+    response = _retry(lambda: client.search(request))
     results = []
     for r in response.results:
         meta = _struct_to_dict(r.document.struct_data)
@@ -304,6 +451,59 @@ def search_postings(
         "next_page_token": response.next_page_token or "",
         "total": int(getattr(response, "total_size", 0) or 0),
     }
+
+
+def search_with_strictness(
+    query: str,
+    project_id: str,
+    location: str,
+    engine_id: str,
+    page_size: int = 10,
+    page_token: str = "",
+    strictness: str = "balanced",
+    extra_filter: str = "",
+) -> dict:
+    """
+    Search with a user-chosen precision level:
+      - 'strict'   : hard filter on every extracted facet (exact matches only;
+                     relaxes to 'balanced' if that yields nothing).
+      - 'balanced' : boost matching facets (relevant ones rank first, others kept).
+      - 'broad'    : pure semantic search (no facet constraints).
+    `extra_filter` (explicitly selected facet chips) is ALWAYS applied as a hard
+    filter regardless of strictness. Adds `applied_filters`, `relaxed`,
+    `effective_strictness`.
+    """
+    facets = extract_filters(query)
+
+    def _and(*exprs) -> str:
+        return " AND ".join(e for e in exprs if e)
+
+    def _wrap(data, eff, relaxed):
+        data["applied_filters"] = applied_codes(facets)
+        data["effective_strictness"] = eff
+        data["relaxed"] = relaxed
+        return data
+
+    if strictness == "strict" and facets:
+        data = search_postings(query, project_id, location, engine_id, page_size, page_token,
+                               filter_expr=_and(_filter_expr_from_facets(facets), extra_filter))
+        if not data["results"] and not page_token:
+            # No exact matches — fall back to a boosted (balanced) search (keeping
+            # any explicitly-selected facets as a hard filter).
+            data = search_postings(query, project_id, location, engine_id, page_size, "",
+                                   filter_expr=extra_filter, boost=_boost_from_facets(facets))
+            return _wrap(data, "balanced", True)
+        return _wrap(data, "strict", False)
+
+    if strictness == "broad":
+        data = search_postings(query, project_id, location, engine_id, page_size, page_token,
+                               filter_expr=extra_filter)
+        return _wrap(data, "broad", False)
+
+    # balanced (default)
+    data = search_postings(query, project_id, location, engine_id, page_size, page_token,
+                           filter_expr=extra_filter, boost=_boost_from_facets(facets))
+    return _wrap(data, "balanced", False)
 
 
 def get_posting(case_id: str, project_id: str, location: str, datastore_id: str) -> dict | None:
@@ -340,6 +540,132 @@ def get_posting(case_id: str, project_id: str, location: str, datastore_id: str)
 
     card["body"] = body
     return card
+
+
+# --- Context-aware dynamic filter suggestions (tag hierarchy + live counts) --
+#
+# Driven by (a) the situation extracted from the conversation, (b) the tag
+# hierarchy (1.6 "Associated Visa/Form" links concern/action tags to a parent
+# visa), and (c) live Discovery Engine facet counts scoped to the situation.
+
+_TAG_HIERARCHY: dict | None = None
+_ACRONYMS = {
+    "rfe", "aos", "cos", "opt", "cpt", "ead", "gc", "lca", "perm", "uscis",
+    "ac21", "221g", "i-94", "i94", "stem", "h1b", "h-1b", "h4", "f1", "b1", "b2",
+    "l1", "o1", "eb", "eb1", "eb2", "eb3", "ir", "us", "usa",
+}
+
+
+def _tag_hierarchy() -> dict:
+    """Lazy-build {visa_code(upper) -> set(related action/concern tags)} from
+    1.6-visa-form-actions.csv ('tag, Associated Visa/Form, Description')."""
+    global _TAG_HIERARCHY
+    if _TAG_HIERARCHY is None:
+        h: dict[str, set] = {}
+        try:
+            with open(_csv_path("1.6-visa-form-actions.csv"), newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                next(reader, None)
+                for row in reader:
+                    if len(row) < 2 or not row[0].strip():
+                        continue
+                    tag, visa = row[0].strip(), row[1].strip().upper()
+                    if visa:
+                        h.setdefault(visa, set()).add(tag)
+        except Exception as e:  # noqa: BLE001
+            print(f"tag hierarchy load failed: {e}")
+        _TAG_HIERARCHY = h
+    return _TAG_HIERARCHY
+
+
+def _hierarchy_related(code: str) -> set:
+    return _tag_hierarchy().get((code or "").upper(), set())
+
+
+def _humanize(code: str) -> str:
+    parts = [p for p in re.split(r"[-_ ]", code) if p]
+    return " ".join(p.upper() if p.lower() in _ACRONYMS else p.capitalize() for p in parts)
+
+
+_CONSULATE_LABELS: dict | None = None
+
+
+def _consulate_label(code: str) -> str:
+    """Map a consulate code (BOM) back to a readable name (Mumbai)."""
+    global _CONSULATE_LABELS
+    if _CONSULATE_LABELS is None:
+        m: dict[str, str] = {}
+        for spec in _facet_registry():
+            if spec["key"] == "consulate":
+                for name, c in spec["terms"].items():
+                    if c not in m or len(name) > len(m[c]):  # prefer the fuller name
+                        m[c] = name
+        _CONSULATE_LABELS = {c: n.title() for c, n in m.items()}
+    return _CONSULATE_LABELS.get(code.upper(), code.upper())
+
+
+def _value_label(field: str, code: str) -> str:
+    return _consulate_label(code) if field == "consulates" else _humanize(code)
+
+
+# (key, label, datastore facet field) — the refinement dimensions to surface.
+_SUGGEST_FIELDS = [
+    ("concern", "Concern", "concerns_or_questions_tags"),
+    ("topic", "Topic", "tags"),
+    ("outcome", "Outcome", "key_stages_or_info.outcome_status"),
+    ("consulate", "Consulate", "consulates"),
+]
+
+
+def suggested_filters(
+    query: str,
+    project_id: str,
+    location: str,
+    engine_id: str,
+    max_per_facet: int = 6,
+) -> list:
+    """Return situation-relevant refinement facets with live counts:
+      [ {key, label, field, values: [{code, label, count}]}, ... ]
+    Anchored on the extracted visa/category, scoped to that subset, ranked
+    hierarchy-related-first by count, excluding already-applied values."""
+    facets = extract_filters(query)
+    anchor = facets.get("visa") or facets.get("category")
+    related: set = set()
+    if anchor:
+        for c in anchor["codes"]:
+            related |= _hierarchy_related(c)
+    applied = {c for f in facets.values() for c in f["codes"]}
+
+    client = _search_client(project_id, location)
+    serving_config = _serving_config(project_id, location, engine_id)
+    FK = de.SearchRequest.FacetSpec.FacetKey
+    specs = [de.SearchRequest.FacetSpec(facet_key=FK(key=field), limit=50)
+             for _k, _l, field in _SUGGEST_FIELDS]
+
+    def _run(filter_expr: str):
+        req = de.SearchRequest(serving_config=serving_config, query=query, page_size=1,
+                               filter=filter_expr or "", facet_specs=specs)
+        return {f.key: f for f in client.search(req).facets}
+
+    scope = _facet_condition(anchor) if anchor else ""
+    fcts = _run(scope)
+    if scope and not any(f.values for f in fcts.values()):
+        fcts = _run("")  # anchor too narrow — fall back to unscoped counts
+
+    out = []
+    for key, label, field in _SUGGEST_FIELDS:
+        fct = fcts.get(field)
+        if not fct:
+            continue
+        vals = [(v.value, int(v.count)) for v in fct.values if v.count and v.value not in applied]
+        if not vals:
+            continue
+        vals.sort(key=lambda vc: (0 if vc[0] in related else 1, -vc[1]))
+        out.append({
+            "key": key, "label": label, "field": field,
+            "values": [{"code": c, "label": _value_label(field, c), "count": n} for c, n in vals[:max_per_facet]],
+        })
+    return out
 
 
 if __name__ == "__main__":

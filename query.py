@@ -78,6 +78,61 @@ ANSWER:"""
 
 
 # ---------------------------------------------------------------------------
+# Intent classification (chat routing: search vs ask)
+# ---------------------------------------------------------------------------
+
+# Keywords that strongly imply the user wants to browse/list postings.
+_SEARCH_HINTS = (
+    "show me", "show ", "find ", "list ", "search ", "browse", "see other",
+    "experiences", "postings", "posts", "examples", "anyone", "similar cases",
+    "results", "people who", "others who", "look for",
+)
+
+
+def _heuristic_intent(message: str) -> str:
+    m = message.lower()
+    return "search" if any(h in m for h in _SEARCH_HINTS) else "ask"
+
+
+def classify_intent(message: str) -> str:
+    """
+    Classify a chat message into 'search' (wants a list of postings) or 'ask'
+    (wants a synthesized answer). Uses a fast Gemini call with a deterministic
+    heuristic fallback so search routing never silently breaks.
+    """
+    fallback = _heuristic_intent(message)
+    model = os.getenv("GCP_GEMINI_CLASSIFIER_MODEL", "gemini-2.5-flash-lite")
+    prompt = (
+        "You are an intent classifier for a US-immigration assistant. "
+        "Classify the user's message into exactly one word:\n"
+        "- 'search' if they want to browse/list/see multiple postings or "
+        "experiences (e.g. 'show me B1/B2 experiences in Mumbai').\n"
+        "- 'ask' if they want a single explanatory answer to a question "
+        "(e.g. 'what is the H-1B grace period?').\n"
+        "Respond with only the word 'search' or 'ask'.\n\n"
+        f"Message: {message}\nIntent:"
+    )
+    try:
+        project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT")
+        region = os.getenv("GCP_REGION") or os.getenv("GCP_GEMINI_LOCATION", "us-central1")
+        client = genai.Client(vertexai=True, project=project_id, location=region)
+        resp = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(temperature=0, max_output_tokens=4),
+        )
+        out = (resp.text or "").strip().lower()
+        if "search" in out:
+            return "search"
+        if "ask" in out:
+            return "ask"
+        return fallback
+    except Exception as e:
+        print(f"classify_intent: falling back to heuristic ({e})")
+        return fallback
+
+
+# ---------------------------------------------------------------------------
 # Firestore Q&A Storage
 # ---------------------------------------------------------------------------
 

@@ -248,6 +248,37 @@ def group_c_public_gating() -> None:
         api.answer_query = original
 
 
+def group_d_chat_routing() -> None:
+    print("\nGroup D — chat intent routing (/api/chat: search vs ask)")
+    from fastapi.testclient import TestClient
+    import api
+
+    with TestClient(api.app) as client:
+        api._db = None  # no Firestore writes during the test
+        r1 = client.post("/api/chat", json={"question": "Show me B1/B2 interview experiences in Mumbai"}).json()
+        check("D1 search intent -> posting cards", r1.get("mode") == "search" and len(r1.get("results", [])) > 0,
+              f"mode={r1.get('mode')} cards={len(r1.get('results', []))}")
+        r2 = client.post("/api/chat", json={"question": "What is the H-1B 60-day grace period?"}).json()
+        check("D2 ask intent -> synthesized answer", r2.get("mode") == "answer" and bool(r2.get("answer")),
+              f"mode={r2.get('mode')}")
+
+
+def group_e_strictness() -> None:
+    print("\nGroup E — search precision (strict vs broad)")
+    import search_client
+
+    q = "Show me B1/B2 experiences in Mumbai"
+    strict = search_client.search_with_strictness(q, PROJECT, LOCATION, ENGINE, page_size=20, strictness="strict")
+    broad = search_client.search_with_strictness(q, PROJECT, LOCATION, ENGINE, page_size=20, strictness="broad")
+    check("E1 strict extracts consulate=BOM (Mumbai)", "BOM" in strict["applied_filters"].get("consulate", []),
+          str(strict["applied_filters"]))
+    check("E2 strict is narrower than broad", 1 <= strict["total"] <= broad["total"],
+          f"strict={strict['total']} broad={broad['total']}")
+    check("E3 strict returns only Mumbai (BOM) postings",
+          all("BOM" in c["consulates"] for c in strict["results"]),
+          str([c["consulates"] for c in strict["results"]]))
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set")
@@ -256,6 +287,8 @@ def main() -> int:
     group_a_reddit_grounding()
     group_b_app_posting_placement()
     group_c_public_gating()
+    group_d_chat_routing()
+    group_e_strictness()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)

@@ -14,19 +14,27 @@ from contextlib import asynccontextmanager
 
 import vertexai
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import firestore
 from pydantic import BaseModel, Field
 
 from query import (
     FALLBACK_MESSAGE,
+    classify_intent,
     generate_direct_answer,
     get_recent_qa,
     save_qa_pair,
     update_feedback,
 )
-from search_client import answer_query, get_posting, search_postings
+from search_client import (
+    answer_query,
+    get_posting,
+    search_postings,
+    search_with_strictness,
+    suggested_filters,
+)
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
@@ -185,19 +193,94 @@ class PostingCard(BaseModel):
     date: str
 
 
+class FacetValue(BaseModel):
+    code: str
+    label: str
+    count: int
+
+
+class SuggestedFilter(BaseModel):
+    key: str
+    label: str
+    field: str
+    values: list[FacetValue]
+
+
 class SearchResponse(BaseModel):
     results: list[PostingCard]
     next_page_token: str
     total: int
+    applied_filters: dict = {}
+    relaxed: bool = False
+    effective_strictness: str = ""
+    suggested_filters: list[SuggestedFilter] = []
 
 
 class PostingDetail(PostingCard):
     body: str
 
 
+class ChatRequest(BaseModel):
+    question: str = Field(..., min_length=5, max_length=500)
+    strictness: str = "balanced"  # broad | balanced | strict
+    facets: list[str] = []  # selected chips, each 'field:value' (exact filter)
+
+
+class ChatResponse(BaseModel):
+    mode: str  # "answer" | "search"
+    intent: str
+    answer: str = ""
+    sources: list[SourceInfo] = []
+    is_fallback: bool = False
+    results: list[PostingCard] = []
+    next_page_token: str = ""
+    applied_filters: dict = {}
+    relaxed: bool = False
+    effective_strictness: str = ""
+    suggested_filters: list[SuggestedFilter] = []
+    id: str = ""
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+def _grounded_answer(question: str) -> dict:
+    """Grounded answer over the datastore (tier 1+2), with the public DS-2
+    fallback (tier 3) when ingested content can't answer. Falls back to direct
+    Gemini only if no search engine is configured."""
+    if not _engine_id:
+        return {"answer": generate_direct_answer(question), "chunks": [], "is_fallback": False}
+    result = answer_query(question, _project_id, _ds_location, _engine_id)
+    if result["is_fallback"] and _public_engine_id:
+        public = answer_query(question, _project_id, _ds_location, _public_engine_id)
+        if not public["is_fallback"]:
+            result = public
+    return result
+
+
+def _save(question: str, result: dict) -> str:
+    if not _db:
+        return ""
+    try:
+        return save_qa_pair(question, result, _db)
+    except Exception as e:
+        print(f"Warning: Could not save to Firestore: {e}")
+        return ""
+
+
+def _guard(fn):
+    """Run a grounding call; turn a persistent GCP/network error into a clean
+    503 instead of a 500 traceback (transient blips are already retried)."""
+    try:
+        return fn()
+    except GoogleAPICallError as e:
+        print(f"Grounding service error: {type(e).__name__}: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="The assistant is temporarily unavailable. Please try again in a moment.",
+        )
+
 
 @app.post("/api/ask", response_model=AskResponse)
 async def ask_question(body: AskRequest, request: Request):
@@ -206,40 +289,58 @@ async def ask_question(body: AskRequest, request: Request):
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
 
-    # Grounded answer via the managed Discovery Engine Answer API over the
-    # datastore (app + reddit content). Falls back to direct Gemini only if the
-    # search engine isn't configured.
-    if not _engine_id:
-        answer = generate_direct_answer(body.question)
-        result = {
-            "answer": answer,
-            "chunks": [],
-            "is_fallback": False,  # Direct mode doesn't use fallback logic
-        }
-    else:
-        # Tier 1+2: ingested content (app + reddit) in imm-postings-datastore.
-        result = answer_query(body.question, _project_id, _ds_location, _engine_id)
-
-        # Tier 3 (D-039): if ingested content can't answer, fall back to the
-        # curated public-reference website store (lower precedence). Env-gated
-        # until DS-2 finishes indexing.
-        if result["is_fallback"] and _public_engine_id:
-            public = answer_query(body.question, _project_id, _ds_location, _public_engine_id)
-            if not public["is_fallback"]:
-                result = public
-
-    # Save to Firestore (if available)
-    doc_id = ""
-    if _db:
-        try:
-            doc_id = save_qa_pair(body.question, result, _db)
-        except Exception as e:
-            print(f"Warning: Could not save to Firestore: {e}")
+    result = _guard(lambda: _grounded_answer(body.question))
+    doc_id = _save(body.question, result)
 
     return AskResponse(
         answer=result["answer"],
         sources=[SourceInfo(**c) for c in result["chunks"]],
         is_fallback=result["is_fallback"],
+        id=doc_id,
+    )
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(body: ChatRequest, request: Request):
+    """Conversational turn: routes to a synthesized answer (ask) or a ranked
+    list of posting cards (search), based on classified intent. `strictness`
+    (broad|balanced|strict) controls search precision."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+
+    intent = classify_intent(body.question)
+
+    if intent == "search" and _engine_id:
+        data = _guard(lambda: search_with_strictness(
+            body.question, _project_id, _ds_location, _engine_id,
+            page_size=10, strictness=body.strictness,
+            extra_filter=_facets_filter(body.facets),
+        ))
+        # If search found nothing, fall through to an answer rather than an empty list.
+        if data["results"]:
+            return ChatResponse(
+                mode="search",
+                intent=intent,
+                results=[PostingCard(**c) for c in data["results"]],
+                next_page_token=data["next_page_token"],
+                applied_filters=data.get("applied_filters", {}),
+                relaxed=data.get("relaxed", False),
+                effective_strictness=data.get("effective_strictness", ""),
+                suggested_filters=[SuggestedFilter(**g) for g in _suggest(body.question)],
+            )
+
+    result = _guard(lambda: _grounded_answer(body.question))
+    doc_id = _save(body.question, result)
+    return ChatResponse(
+        mode="answer",
+        intent=intent,
+        answer=result["answer"],
+        sources=[SourceInfo(**c) for c in result["chunks"]],
+        is_fallback=result["is_fallback"],
+        # Situation-relevant refinements even on an answer turn (e.g. "see related
+        # experiences: RFE / Denial / Premium processing").
+        suggested_filters=[SuggestedFilter(**g) for g in _suggest(body.question)],
         id=doc_id,
     )
 
@@ -330,6 +431,17 @@ async def qa_stats():
     }
 
 
+def _suggest(query: str) -> list:
+    """Context-aware refinement facets (best-effort; never breaks search)."""
+    if not _engine_id:
+        return []
+    try:
+        return suggested_filters(query, _project_id, _ds_location, _engine_id)
+    except Exception as e:  # noqa: BLE001
+        print(f"suggested_filters failed: {e}")
+        return []
+
+
 def _build_filter(visa: str, consulate: str, outcome: str) -> str:
     """Build a Discovery Engine filter expression from optional facet params."""
     clauses = []
@@ -342,6 +454,27 @@ def _build_filter(visa: str, consulate: str, outcome: str) -> str:
     return " AND ".join(clauses)
 
 
+def _facets_filter(facets: list[str]) -> str:
+    """Hard filter from selected chips. Each item is 'field:value' (field from the
+    suggested_filters response). ANDed; values on the same field are ORed."""
+    by_field: dict[str, list[str]] = {}
+    for item in facets or []:
+        if ":" not in item:
+            continue
+        field, value = item.split(":", 1)
+        field, value = field.strip(), value.strip()
+        # allow only known facet fields (avoid arbitrary filter injection)
+        if field in {"consulates", "visa_applying_for", "current_visa_or_greencard_category",
+                     "key_stages_or_info.outcome_status", "tags", "concerns_or_questions_tags",
+                     "derived_topic_cluster"} and value:
+            by_field.setdefault(field, []).append(value)
+    clauses = []
+    for field, values in by_field.items():
+        ors = " OR ".join(f'{field}: ANY("{v}")' for v in values)
+        clauses.append(f"({ors})")
+    return " AND ".join(clauses)
+
+
 @app.get("/api/search", response_model=SearchResponse)
 async def search(
     request: Request,
@@ -349,10 +482,16 @@ async def search(
     visa: str = "",
     consulate: str = "",
     outcome: str = "",
+    strictness: str = "balanced",
+    facet: list[str] = Query(default=[]),
     page_size: int = 10,
     page_token: str = "",
 ):
-    """Ranked posting search (result cards). Browse/search mode, not Q&A."""
+    """Ranked posting search (result cards). Browse/search mode, not Q&A.
+
+    Explicit `visa`/`consulate`/`outcome` params and selected `facet` chips
+    ('field:value') apply exact filters. `strictness` (broad|balanced|strict)
+    controls how the NL query's extracted facets are applied."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
@@ -360,16 +499,34 @@ async def search(
         return SearchResponse(results=[], next_page_token="", total=0)
 
     page_size = max(1, min(page_size, 50))
-    filter_expr = _build_filter(visa, consulate, outcome)
-    data = search_postings(
-        q or "immigration experience",
-        _project_id, _ds_location, _engine_id,
-        page_size=page_size, page_token=page_token, filter_expr=filter_expr,
-    )
+    query = q or "immigration experience"
+    selected = _facets_filter(facet)
+
+    explicit = _build_filter(visa, consulate, outcome)
+    hard = " AND ".join(e for e in (explicit, selected) if e)
+    if hard:
+        data = search_postings(query, _project_id, _ds_location, _engine_id,
+                               page_size=page_size, page_token=page_token, filter_expr=hard)
+        explicit_filters = {k: v for k, v in {
+            "consulate": [consulate] if consulate else [],
+            "visa": [visa] if visa else [],
+            "outcome": [outcome] if outcome else [],
+        }.items() if v}
+        data.setdefault("applied_filters", explicit_filters)
+        data.setdefault("effective_strictness", "strict")
+        data.setdefault("relaxed", False)
+    else:
+        data = search_with_strictness(query, _project_id, _ds_location, _engine_id,
+                                      page_size=page_size, page_token=page_token, strictness=strictness)
+
     return SearchResponse(
         results=[PostingCard(**c) for c in data["results"]],
         next_page_token=data["next_page_token"],
         total=data["total"],
+        applied_filters=data.get("applied_filters", {}),
+        relaxed=data.get("relaxed", False),
+        effective_strictness=data.get("effective_strictness", ""),
+        suggested_filters=[SuggestedFilter(**g) for g in _suggest(query)],
     )
 
 

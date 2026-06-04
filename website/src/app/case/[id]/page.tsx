@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import Markdown from '@/components/Markdown'
 
 type PostingDetail = {
   case_id: string
@@ -85,8 +86,8 @@ export default function CaseDetailsPage() {
                 <span className="material-symbols-outlined text-secondary">forum</span>
                 <h2 className="text-headline-md text-on-surface">Full Experience</h2>
               </div>
-              <div className="text-body-md text-on-surface whitespace-pre-wrap leading-relaxed">
-                {data.body || 'No content available.'}
+              <div className="text-body-md text-on-surface leading-relaxed">
+                {data.body ? <Markdown>{data.body}</Markdown> : 'No content available.'}
               </div>
             </div>
           </div>
