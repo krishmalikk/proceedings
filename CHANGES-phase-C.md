@@ -45,11 +45,30 @@ Example: *"I'm in the USA on H-1B applying for an extension and have a question 
 ]
 ```
 
-### Status
-- ✅ **Backend done & verified** (tasks 18–19) — confirmed live for the H-1B/RFE and B1/B2 examples.
-- ⛔ **UI not started** (task 20) — render `suggested_filters` as clickable chips (with counts) in the chat + search sidebar, replacing the static `visaTypes`/`outcomes` lists; a chip click appends the facet to the query and re-searches.
-- ⛔ **Tests** (task 21) — add a suite group for `suggested_filters` (hierarchy ranking, counts, labels).
-- ⚠️ **Uncommitted** — `api.py` + `search_client.py` Phase C changes are not yet committed.
+### UI — dynamic contextual filter chips (`9392748`)
+- **`SuggestedFilters` component** — renders the facet groups (Concern/Topic/Outcome/Consulate) as clickable chips with **live counts**, ranked hierarchy-related-first.
+- **Search page** — replaced the static "Outcome" pills with the dynamic suggestions; selecting a chip applies that facet as an **exact** filter and re-searches (kept the Visa dropdown + precision slider).
+- **Chat** — refinement chips ("Refine to related experiences") appear under the latest reply; clicking re-asks the last question with the facet applied. Works on answer and search turns.
+- **Exact selection backend** — `/api/search?facet=field:value` + `/api/chat {facets:[…]}`; `_facets_filter()` (whitelisted fields) → hard AND/OR filter; `search_with_strictness(extra_filter)` applies selected chips as an exact filter regardless of the strictness slider. Chat proxy forwards `facets`.
+
+### Resilience fix (`26852e2`)
+A transient gRPC blip to Discovery Engine (`ServiceUnavailable: Handshake read failed`) had surfaced as a **500** on Ask AI. Fixed:
+- `search_client._retry()` wraps the `:search`/`:answer` gRPC calls — retries `ServiceUnavailable`/`DeadlineExceeded`/`InternalServerError` with backoff (3×), so blips self-heal.
+- `api._guard()` turns a persistent GCP error into a clean **503** ("temporarily unavailable, please try again") instead of a 500 traceback, on `/api/ask` + `/api/chat`.
+
+### Tests (`9392748`)
+- `tests/test_search_features.py` **Group K** — hierarchy ranking, counted facets, exact narrowing (71→3 on `h1b-rfe`), chat honors selected facets.
+- Suites green: **`test_grounding_e2e.py` 17/17** + **`test_search_features.py` 24/24** (41 total).
+
+### Status — ✅ Phase C COMPLETE
+All tasks (18–21) done, verified live + automated, committed and pushed.
+
+### Phase C commits
+| Commit | Summary |
+|---|---|
+| `4da306a` | Backend: tag hierarchy + `suggested_filters` (hierarchy + live counts) |
+| `9392748` | UI: dynamic contextual filter chips + exact facet selection + Group K tests |
+| `26852e2` | Resilience: retry transient Discovery Engine errors; 503 not 500 |
 
 ---
 
@@ -113,8 +132,11 @@ curl -s -X POST localhost:8000/api/chat -H 'Content-Type: application/json' \
 
 ---
 
-## Remaining work (Phase C)
-1. **UI** — dynamic filter chips from `suggested_filters` (chat + search), replacing static lists; chip click refines the query.
-2. **Tests** — `suggested_filters` group (hierarchy ranking, counts, labels).
-3. **Commit** the verified backend, then the UI.
-4. Optional: merge the facet-suggestion `FacetSpec` into the main search call to avoid the extra request; extend the hierarchy to more anchors (category/greencard via 1.2).
+## Phase C — done ✅
+Backend (hierarchy + `suggested_filters`), UI (dynamic chips + exact selection), tests (Group K), and the resilience fix are all complete, verified, committed, and pushed.
+
+### Optional future enhancements (not blocking)
+- Update chip **counts as you select** (scope `suggested_filters` to the current selection).
+- Extend the hierarchy anchor to **green-card categories** (1.2) and a **status** dimension (in-US/outside-US).
+- Merge the facet-suggestion `FacetSpec` into the main search call to avoid the extra request.
+- Frontend component tests (no JS test runner wired up yet).
