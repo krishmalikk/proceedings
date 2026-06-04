@@ -3,15 +3,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import PostingCard, { type PostingCardData } from '@/components/PostingCard'
 import StrictnessSlider, { useStrictness, AppliedFilters } from '@/components/StrictnessSlider'
+import SuggestedFilters, { facetId, type SuggestedFilterGroup } from '@/components/SuggestedFilters'
 
 const visaTypes = ['All Types', 'B-1', 'B-2', 'H-1B', 'F-1', 'L-1', 'B-1/B-2']
-const outcomes = ['All Outcomes', 'approved', 'issued', 'refused', 'pending']
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedVisaType, setSelectedVisaType] = useState('All Types')
-  const [selectedOutcome, setSelectedOutcome] = useState('All Outcomes')
   const [strictness, setStrictness] = useStrictness()
+  const [selectedFacets, setSelectedFacets] = useState<string[]>([])
+  const [suggested, setSuggested] = useState<SuggestedFilterGroup[]>([])
   const [results, setResults] = useState<PostingCardData[]>([])
   const [total, setTotal] = useState(0)
   const [nextPageToken, setNextPageToken] = useState('')
@@ -25,12 +26,17 @@ export default function SearchPage() {
     const params = new URLSearchParams()
     params.set('q', searchQuery.trim() || 'immigration visa experience')
     if (selectedVisaType !== 'All Types') params.set('visa', selectedVisaType)
-    if (selectedOutcome !== 'All Outcomes') params.set('outcome', selectedOutcome)
+    selectedFacets.forEach((f) => params.append('facet', f))
     params.set('strictness', strictness)
     params.set('page_size', '15')
     if (pageToken) params.set('page_token', pageToken)
     return params
-  }, [searchQuery, selectedVisaType, selectedOutcome, strictness])
+  }, [searchQuery, selectedVisaType, strictness, selectedFacets])
+
+  const toggleFacet = (field: string, code: string) => {
+    const id = facetId(field, code)
+    setSelectedFacets((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
 
   const runSearch = useCallback(async () => {
     setLoading(true)
@@ -44,6 +50,7 @@ export default function SearchPage() {
       setNextPageToken(data.next_page_token || '')
       setAppliedFilters(data.applied_filters || {})
       setRelaxed(data.relaxed || false)
+      setSuggested(data.suggested_filters || [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed')
       setResults([])
@@ -69,11 +76,11 @@ export default function SearchPage() {
     }
   }, [nextPageToken, loadingMore, buildParams])
 
-  // Initial load + re-run when a filter or precision changes.
+  // Initial load + re-run when a filter, precision, or facet selection changes.
   useEffect(() => {
     runSearch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVisaType, selectedOutcome, strictness])
+  }, [selectedVisaType, strictness, selectedFacets])
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-margin-desktop py-8">
@@ -119,20 +126,16 @@ export default function SearchPage() {
             </select>
           </div>
 
-          <div>
-            <label className="text-label-md text-on-surface font-medium mb-2 block">Outcome</label>
-            <div className="flex flex-wrap gap-2">
-              {outcomes.map((o) => (
-                <button
-                  key={o}
-                  onClick={() => setSelectedOutcome(o)}
-                  className={selectedOutcome === o ? 'pill-active' : 'pill'}
-                >
-                  {o === 'All Outcomes' ? o : o.charAt(0).toUpperCase() + o.slice(1)}
-                </button>
-              ))}
+          {/* Dynamic, situation-relevant filters (tag hierarchy + live counts) */}
+          {suggested.length > 0 && (
+            <div className="bg-surface-container-low rounded-xl p-4">
+              <SuggestedFilters
+                groups={suggested}
+                selected={new Set(selectedFacets)}
+                onToggle={toggleFacet}
+              />
             </div>
-          </div>
+          )}
 
           <div className="bg-surface-container-low rounded-xl p-4">
             <StrictnessSlider value={strictness} onChange={setStrictness} />

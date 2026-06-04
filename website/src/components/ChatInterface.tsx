@@ -5,6 +5,7 @@ import SourceCitation from './SourceCitation'
 import Markdown from './Markdown'
 import PostingCard, { type PostingCardData } from './PostingCard'
 import StrictnessSlider, { useStrictness, AppliedFilters } from './StrictnessSlider'
+import SuggestedFilters, { facetId, type SuggestedFilterGroup } from './SuggestedFilters'
 
 interface Source {
   chunk_id: string
@@ -25,6 +26,7 @@ interface ChatResult {
   applied_filters: Record<string, unknown>
   relaxed: boolean
   effective_strictness: string
+  suggested_filters: SuggestedFilterGroup[]
   id: string
 }
 
@@ -37,6 +39,7 @@ interface Message {
   results?: PostingCardData[]
   appliedFilters?: Record<string, unknown>
   relaxed?: boolean
+  suggestedFilters?: SuggestedFilterGroup[]
   query?: string
   resultId?: string
 }
@@ -58,6 +61,8 @@ export default function ChatInterface() {
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [strictness, setStrictness] = useStrictness()
+  const [selectedFacets, setSelectedFacets] = useState<string[]>([])
+  const [lastQuery, setLastQuery] = useState('')
   const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set())
   const chatHistoryRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -78,8 +83,9 @@ export default function ChatInterface() {
     }
   }
 
-  async function submitQuestion(question: string) {
+  async function submitQuestion(question: string, facets: string[] = selectedFacets) {
     if (!question.trim() || question.trim().length < 5) return
+    setLastQuery(question.trim())
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -99,7 +105,7 @@ export default function ChatInterface() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question.trim(), strictness }),
+        body: JSON.stringify({ question: question.trim(), strictness, facets }),
       })
 
       if (!res.ok) {
@@ -118,6 +124,7 @@ export default function ChatInterface() {
         results: data.results,
         appliedFilters: data.applied_filters,
         relaxed: data.relaxed,
+        suggestedFilters: data.suggested_filters,
         query: question.trim(),
         resultId: data.id,
       }
@@ -133,6 +140,17 @@ export default function ChatInterface() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Clicking a suggested-filter chip toggles it and re-asks the last question
+  // with the selected facets applied as exact filters.
+  function toggleFacet(field: string, code: string) {
+    const id = facetId(field, code)
+    const next = selectedFacets.includes(id)
+      ? selectedFacets.filter((x) => x !== id)
+      : [...selectedFacets, id]
+    setSelectedFacets(next)
+    if (lastQuery) submitQuestion(lastQuery, next)
   }
 
   async function handleFeedback(messageId: string, resultId: string, helpful: boolean) {
@@ -237,7 +255,7 @@ export default function ChatInterface() {
           ) : (
             /* Chat Messages */
             <div className="max-w-3xl mx-auto space-y-6">
-              {messages.map((message) => (
+              {messages.map((message, idx) => (
                 <div key={message.id}>
                   {message.type === 'user' ? (
                     /* User Message */
@@ -314,6 +332,18 @@ export default function ChatInterface() {
                                 </button>
                               </>
                             )}
+                          </div>
+                        )}
+
+                        {/* Context-aware refinements (only on the latest reply) */}
+                        {idx === messages.length - 1 && message.suggestedFilters && message.suggestedFilters.length > 0 && (
+                          <div className="bg-surface-container-low rounded-xl p-3 mt-1">
+                            <SuggestedFilters
+                              groups={message.suggestedFilters}
+                              selected={new Set(selectedFacets)}
+                              onToggle={toggleFacet}
+                              title="Refine to related experiences"
+                            />
                           </div>
                         )}
                       </div>

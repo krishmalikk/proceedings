@@ -443,6 +443,7 @@ def search_with_strictness(
     page_size: int = 10,
     page_token: str = "",
     strictness: str = "balanced",
+    extra_filter: str = "",
 ) -> dict:
     """
     Search with a user-chosen precision level:
@@ -450,9 +451,14 @@ def search_with_strictness(
                      relaxes to 'balanced' if that yields nothing).
       - 'balanced' : boost matching facets (relevant ones rank first, others kept).
       - 'broad'    : pure semantic search (no facet constraints).
-    Adds `applied_filters`, `relaxed`, and `effective_strictness` to the result.
+    `extra_filter` (explicitly selected facet chips) is ALWAYS applied as a hard
+    filter regardless of strictness. Adds `applied_filters`, `relaxed`,
+    `effective_strictness`.
     """
     facets = extract_filters(query)
+
+    def _and(*exprs) -> str:
+        return " AND ".join(e for e in exprs if e)
 
     def _wrap(data, eff, relaxed):
         data["applied_filters"] = applied_codes(facets)
@@ -462,21 +468,23 @@ def search_with_strictness(
 
     if strictness == "strict" and facets:
         data = search_postings(query, project_id, location, engine_id, page_size, page_token,
-                               filter_expr=_filter_expr_from_facets(facets))
+                               filter_expr=_and(_filter_expr_from_facets(facets), extra_filter))
         if not data["results"] and not page_token:
-            # No exact matches — fall back to a boosted (balanced) search.
+            # No exact matches — fall back to a boosted (balanced) search (keeping
+            # any explicitly-selected facets as a hard filter).
             data = search_postings(query, project_id, location, engine_id, page_size, "",
-                                   boost=_boost_from_facets(facets))
+                                   filter_expr=extra_filter, boost=_boost_from_facets(facets))
             return _wrap(data, "balanced", True)
         return _wrap(data, "strict", False)
 
     if strictness == "broad":
-        data = search_postings(query, project_id, location, engine_id, page_size, page_token)
+        data = search_postings(query, project_id, location, engine_id, page_size, page_token,
+                               filter_expr=extra_filter)
         return _wrap(data, "broad", False)
 
     # balanced (default)
     data = search_postings(query, project_id, location, engine_id, page_size, page_token,
-                           boost=_boost_from_facets(facets))
+                           filter_expr=extra_filter, boost=_boost_from_facets(facets))
     return _wrap(data, "balanced", False)
 
 

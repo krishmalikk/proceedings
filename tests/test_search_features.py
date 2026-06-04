@@ -178,16 +178,49 @@ def group_j_chat_strictness() -> None:
               f'relaxed={relaxed.get("relaxed")} eff={relaxed.get("effective_strictness")}')
 
 
+def group_k_context_filters() -> None:
+    print("\nK — Context-aware dynamic filters (hierarchy + live counts)")
+    import search_client as s
+
+    groups = s.suggested_filters("I am on H-1B applying for extension with a question on RFE",
+                                 PROJECT, LOCATION, ENGINE)
+    by_key = {g["key"]: g for g in groups}
+    check("K1 returns facet groups (concern/outcome/...)", len(groups) >= 2, str(list(by_key)))
+    concern = by_key.get("concern", {}).get("values", [])
+    check("K2 H-1B concerns are hierarchy-related (h1b-*) and counted",
+          any(v["code"].startswith("h1b-") for v in concern) and all("count" in v for v in concern),
+          str([v["code"] for v in concern[:4]]))
+
+    from fastapi.testclient import TestClient
+    import api
+    with TestClient(api.app) as client:
+        api._db = None
+        base = client.get("/api/search", params={"q": "H-1B experiences", "strictness": "broad"}).json()
+        sel = client.get("/api/search", params={"q": "H-1B experiences", "strictness": "broad",
+                                                "facet": "concerns_or_questions_tags:h1b-rfe"}).json()
+        check("K3 selecting a facet chip narrows results exactly",
+              0 < sel["total"] < base["total"], f'base={base["total"]} selected={sel["total"]}')
+        chat = client.post("/api/chat", json={"question": "Show me H-1B experiences", "strictness": "broad",
+                                              "facets": ["concerns_or_questions_tags:h1b-rfe"]}).json()
+        check("K4 /api/chat honors selected facets",
+              chat["mode"] == "search" and 0 < len(chat["results"]) <= sel["total"],
+              f'cards={len(chat["results"])}')
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set")
         return 2
+    # This suite makes many TestClient calls from one IP; lift the API rate limit.
+    import api
+    api.RATE_LIMIT_MAX = 100000
     print(f"Search-feature tests — project={PROJECT}, engine={ENGINE}")
     group_f_extraction()
     group_g_builders()
     group_h_search_endpoint()
     group_i_posting_detail()
     group_j_chat_strictness()
+    group_k_context_filters()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)

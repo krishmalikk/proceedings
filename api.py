@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 
 import vertexai
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import firestore
 from pydantic import BaseModel, Field
@@ -222,6 +222,7 @@ class PostingDetail(PostingCard):
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=5, max_length=500)
     strictness: str = "balanced"  # broad | balanced | strict
+    facets: list[str] = []  # selected chips, each 'field:value' (exact filter)
 
 
 class ChatResponse(BaseModel):
@@ -300,6 +301,7 @@ async def chat(body: ChatRequest, request: Request):
         data = search_with_strictness(
             body.question, _project_id, _ds_location, _engine_id,
             page_size=10, strictness=body.strictness,
+            extra_filter=_facets_filter(body.facets),
         )
         # If search found nothing, fall through to an answer rather than an empty list.
         if data["results"]:
@@ -438,6 +440,27 @@ def _build_filter(visa: str, consulate: str, outcome: str) -> str:
     return " AND ".join(clauses)
 
 
+def _facets_filter(facets: list[str]) -> str:
+    """Hard filter from selected chips. Each item is 'field:value' (field from the
+    suggested_filters response). ANDed; values on the same field are ORed."""
+    by_field: dict[str, list[str]] = {}
+    for item in facets or []:
+        if ":" not in item:
+            continue
+        field, value = item.split(":", 1)
+        field, value = field.strip(), value.strip()
+        # allow only known facet fields (avoid arbitrary filter injection)
+        if field in {"consulates", "visa_applying_for", "current_visa_or_greencard_category",
+                     "key_stages_or_info.outcome_status", "tags", "concerns_or_questions_tags",
+                     "derived_topic_cluster"} and value:
+            by_field.setdefault(field, []).append(value)
+    clauses = []
+    for field, values in by_field.items():
+        ors = " OR ".join(f'{field}: ANY("{v}")' for v in values)
+        clauses.append(f"({ors})")
+    return " AND ".join(clauses)
+
+
 @app.get("/api/search", response_model=SearchResponse)
 async def search(
     request: Request,
@@ -446,14 +469,15 @@ async def search(
     consulate: str = "",
     outcome: str = "",
     strictness: str = "balanced",
+    facet: list[str] = Query(default=[]),
     page_size: int = 10,
     page_token: str = "",
 ):
     """Ranked posting search (result cards). Browse/search mode, not Q&A.
 
-    Explicit `visa`/`consulate`/`outcome` params apply an exact filter. Otherwise
-    `strictness` (broad|balanced|strict) controls how the NL query's extracted
-    facets are applied."""
+    Explicit `visa`/`consulate`/`outcome` params and selected `facet` chips
+    ('field:value') apply exact filters. `strictness` (broad|balanced|strict)
+    controls how the NL query's extracted facets are applied."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
@@ -462,11 +486,13 @@ async def search(
 
     page_size = max(1, min(page_size, 50))
     query = q or "immigration experience"
+    selected = _facets_filter(facet)
 
     explicit = _build_filter(visa, consulate, outcome)
-    if explicit:
+    hard = " AND ".join(e for e in (explicit, selected) if e)
+    if hard:
         data = search_postings(query, _project_id, _ds_location, _engine_id,
-                               page_size=page_size, page_token=page_token, filter_expr=explicit)
+                               page_size=page_size, page_token=page_token, filter_expr=hard)
         explicit_filters = {k: v for k, v in {
             "consulate": [consulate] if consulate else [],
             "visa": [visa] if visa else [],
