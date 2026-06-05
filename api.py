@@ -140,6 +140,15 @@ class AskRequest(BaseModel):
     question: str = Field(..., min_length=5, max_length=500)
 
 
+class ExpertRequest(BaseModel):
+    question: str = Field(..., min_length=3, max_length=500)
+    history: list[dict] = []  # prior [{role, content}] turns for follow-ups
+
+
+class ExpertResponse(BaseModel):
+    answer: str
+
+
 class SourceInfo(BaseModel):
     chunk_id: str
     text: str
@@ -298,6 +307,26 @@ async def ask_question(body: AskRequest, request: Request):
         is_fallback=result["is_fallback"],
         id=doc_id,
     )
+
+
+@app.post("/api/expert", response_model=ExpertResponse)
+async def expert(body: ExpertRequest, request: Request):
+    """A US-immigration-expert answer from Gemini's general knowledge — NOT
+    grounded on the ingested postings (the 'AI mode' panel). Supports follow-ups
+    via the optional conversation history."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+
+    question = body.question
+    if body.history:
+        convo = "\n".join(
+            f"{str(t.get('role', 'user')).capitalize()}: {t.get('content', '')}"
+            for t in body.history[-6:]
+        )
+        question = f"Conversation so far:\n{convo}\n\nFollow-up question: {body.question}"
+
+    return ExpertResponse(answer=_guard(lambda: generate_direct_answer(question)))
 
 
 @app.post("/api/chat", response_model=ChatResponse)

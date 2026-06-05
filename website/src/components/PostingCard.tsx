@@ -45,14 +45,6 @@ export default function PostingCard({ r }: { r: PostingCardData }) {
         <p className="text-body-md text-on-surface-variant mb-3 line-clamp-2">{r.description}</p>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-3">
-        {r.tags.slice(0, 4).map((tag) => (
-          <span key={tag} className="text-caption text-on-surface-variant bg-surface-container px-2 py-1 rounded">
-            {tag}
-          </span>
-        ))}
-      </div>
-
       <div className="flex items-center justify-between text-caption text-on-surface-variant">
         <span>{r.subreddit ? `r/${r.subreddit}` : r.channel} · {r.date}</span>
         <span className="flex items-center gap-1 text-primary">
