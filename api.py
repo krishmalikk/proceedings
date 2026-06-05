@@ -149,6 +149,44 @@ class ExpertResponse(BaseModel):
     answer: str
 
 
+# --- Posting composer (phase-H) ---
+class TagSuggestRequest(BaseModel):
+    title: str = Field(..., min_length=3, max_length=300)
+    description: str = Field(..., min_length=10, max_length=8000)
+
+
+class TagGroups(BaseModel):
+    visa_applying_for: list[str] = []
+    current_visa_or_greencard_category: list[str] = []
+    primary_consulate: str = ""
+    consulates: list[str] = []
+    tags: list[str] = []
+    concerns_or_questions_tags: list[str] = []
+
+
+class TagSuggestResponse(BaseModel):
+    groups: TagGroups
+    relevant_sections: list[str] = []
+    posting_type: str = ""
+    key_stages_or_info: dict[str, str] = {}
+    key_dates: dict[str, str] = {}
+
+
+class PostingCreateRequest(BaseModel):
+    title: str = Field(..., min_length=3, max_length=300)
+    description: str = Field(..., min_length=10, max_length=8000)
+    tags: TagGroups = TagGroups()
+    key_stages_or_info: dict[str, str] = {}
+    key_dates: dict[str, str] = {}
+
+
+class PostingCreateResponse(BaseModel):
+    case_id: str
+    gcs_path: str
+    indexed: bool
+    author_handle: str
+
+
 class SourceInfo(BaseModel):
     chunk_id: str
     text: str
@@ -327,6 +365,56 @@ async def expert(body: ExpertRequest, request: Request):
         question = f"Conversation so far:\n{convo}\n\nFollow-up question: {body.question}"
 
     return ExpertResponse(answer=_guard(lambda: generate_direct_answer(question)))
+
+
+@app.post("/api/tag-suggest", response_model=TagSuggestResponse)
+async def tag_suggest(body: TagSuggestRequest, request: Request):
+    """Auto-derive controlled-vocabulary tags from the composer's title+description,
+    plus the expert-curated set of relevant sections to show. Pure read; no side effects."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+
+    import posting
+
+    out = _guard(lambda: posting.suggest_tags(body.title, body.description))
+    return TagSuggestResponse(
+        groups=TagGroups(**out["groups"]),
+        relevant_sections=out["relevant_sections"],
+        posting_type=out["posting_type"],
+        key_stages_or_info=out.get("key_stages_or_info", {}),
+        key_dates=out.get("key_dates", {}),
+    )
+
+
+@app.get("/api/tag-vocab")
+async def tag_vocab():
+    """Controlled vocabularies (visa / consulate / tag) for the composer's
+    add-tag autocomplete. Static; safe to cache on the client."""
+    import posting
+
+    return posting.vocab_lists()
+
+
+@app.post("/api/postings", response_model=PostingCreateResponse)
+async def create_posting(body: PostingCreateRequest, request: Request):
+    """Publish a new posting: build canonical sidecar JSON → write GCS sidecar →
+    documents.import into DS-1 → BigQuery row. Returns the new case_id."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+
+    import posting
+
+    try:
+        result = _guard(lambda: posting.publish_posting(
+            body.title, body.description, body.tags.model_dump(),
+            body.key_stages_or_info, body.key_dates,
+        ))
+    except ValueError as e:
+        # vocabulary / schema validation failure → 422
+        raise HTTPException(status_code=422, detail=f"Posting failed validation: {e}")
+    return PostingCreateResponse(**result)
 
 
 @app.post("/api/chat", response_model=ChatResponse)

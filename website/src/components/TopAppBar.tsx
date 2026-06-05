@@ -6,8 +6,7 @@ import { usePathname } from 'next/navigation';
 const navItems = [
   { href: '/search', label: 'Case Search', icon: 'search' },
   { href: '/news', label: 'News', icon: 'newspaper' },
-  { href: '/community', label: 'Forum', icon: 'forum' },
-  { href: '/pro', label: 'Ask a Pro', icon: 'support_agent' },
+  // Removed for now (phase-H): 'Forum' (/community) and 'Ask a Pro' (/pro).
 ];
 
 export default function TopAppBar() {
@@ -44,8 +43,16 @@ export default function TopAppBar() {
           })}
         </nav>
 
-        {/* User Menu */}
+        {/* Actions */}
         <div className="flex items-center gap-2">
+          <Link
+            href="/post"
+            className="btn-primary flex items-center gap-1.5 rounded-full text-label-md"
+          >
+            <span className="material-symbols-outlined text-[20px]">edit_square</span>
+            <span className="hidden sm:inline">Post a new message</span>
+            <span className="sm:hidden">Post</span>
+          </Link>
           <button className="p-2 rounded-full hover:bg-surface-container transition-colors">
             <span className="material-symbols-outlined text-primary text-[28px]">
               account_circle

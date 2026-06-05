@@ -75,6 +75,20 @@
 - [ ] Decide BFF home dir (`app-backend/` vs `website/`) — open per D-038
 - [ ] Posting flow + `active_posts` shadow buffer = later (P2)
 
+## Phase H — "Post a new message" composer + nav cleanup (branch `phase-H-posting`) ✅ DONE
+**Design ref:** [posting-specs.md](posting-specs.md). Decisions: direct `documents.import` (no Eventarc/auto-sync deployed); "Suggest tags" button (not live-typing); anonymous synthetic-handle author; GCS sidecar + datastore import + BigQuery row.
+- [x] UI nav: removed `Forum` (/community) + `Ask a Pro` (/pro) from `TopAppBar`; added a **Post a new message** button (top + mobile bottom-nav `Post`)
+- [x] Disabled the **AI-mode** right panel in `UnifiedSearch` behind `AI_MODE_ENABLED=false` (search is now 2-panel: refine + results)
+- [x] New `/post` composer page (`website/src/app/post/page.tsx`): 2-panel — left title+description; right tag sections grouped by schema (visa_applying_for / primary_consulate / current_visa_or_greencard_category / consulates / tags / concerns_or_questions_tags) with **Suggest tags**, add/remove chips (vocab-autocomplete datalist), Submit
+- [x] Backend `posting.py`: Gemini tagging engine (LLM-EXTRACTION-PROMPT, thinking disabled), vocab load + validate (JSON-SCHEMA-FIELD-DICTIONARY §3), cross-bucket dedup, canonical sidecar build, GCS write → `documents.import` (INCREMENTAL) → BigQuery row (self-provisions `postings.postings_metadata`)
+- [x] Backend `api.py`: `POST /api/tag-suggest`, `GET /api/tag-vocab`, `POST /api/postings`; proxy routes `api/tag-suggest`, `api/tag-vocab`, `api/postings`
+- [x] `Dockerfile` + `requirements.txt`: added `posting.py` + `google-cloud-bigquery`
+- [x] Verified E2E: published 2 test posts → appeared in GCS, datastore (`get_document` + search hit within minutes), BigQuery; then cleaned up datastore+GCS (BQ rows pending streaming-buffer window)
+- [ ] **Re-enable AI-mode panel** (spec item 2): flip `AI_MODE_ENABLED=true` in `UnifiedSearch.tsx` and (re)define its UX — grounded vs pure-expert, follow-ups, hide/collapse. Deferred per posting-specs.md.
+- [ ] Deploy `posting.py` + new endpoints to Cloud Run (`immiguide-api`) so the hosted site can post (currently localhost-verified only)
+- [ ] Purge the 2 BigQuery test rows (`case_id LIKE 'ourwebsite-%'`) once they leave the streaming buffer (~90 min)
+- [ ] Spec TBD items: measure post→searchable latency (Q13) and confirm UI freshness (Q14)
+
 ## Housekeeping
 - [ ] Log a `D-NNN` for the tier-3 mechanism decision + adopt IMPROVED patterns (shadow buffer, speculative routing) into MEMORY.md
 - [ ] git commit/push — **handled manually by user** (do not auto-commit)
