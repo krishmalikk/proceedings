@@ -9,6 +9,11 @@ import SuggestedFilters, { facetId, type SuggestedFilterGroup } from '@/componen
 
 type Turn = { id: string; role: 'user' | 'ai'; content: string }
 
+// TODO (phase-H): Re-enable the AI-mode right panel. Disabled for now per
+// posting-specs.md §2. When re-enabling, flip this to true and revisit the
+// expert/follow-up UX (see TODO list / posting-specs "Disable AI mode").
+const AI_MODE_ENABLED = false
+
 const EXAMPLES = [
   'B1/B2 interview experience in Mumbai',
   'H-1B extension with an RFE',
@@ -138,7 +143,7 @@ export default function UnifiedSearch() {
 
   // initial URL query
   useEffect(() => {
-    if (query) { runSearch(query, selectedFacets); runExpert(query) }
+    if (query) { runSearch(query, selectedFacets); if (AI_MODE_ENABLED) runExpert(query) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -153,7 +158,7 @@ export default function UnifiedSearch() {
     if (t.length < 3) return
     setQuery(t); setStarted(true); syncUrl(t)
     runSearch(t, selectedFacets)   // MIDDLE
-    runExpert(t)                   // RIGHT (independent / async)
+    if (AI_MODE_ENABLED) runExpert(t)   // RIGHT (independent / async) — disabled for now
   }
 
   function toggleFacet(field: string, code: string) {
@@ -215,7 +220,7 @@ export default function UnifiedSearch() {
 
       {error && <div className="card text-error mb-4">{error}</div>}
 
-      <div className={`grid gap-6 ${aiCollapsed ? 'lg:grid-cols-[15rem_1fr]' : 'lg:grid-cols-[15rem_1fr_24rem]'}`}>
+      <div className={`grid gap-6 ${(!AI_MODE_ENABLED || aiCollapsed) ? 'lg:grid-cols-[15rem_1fr]' : 'lg:grid-cols-[15rem_1fr_24rem]'}`}>
         {/* ===== LEFT — refine ===== */}
         <aside className="space-y-4">
           <div className="bg-surface-container-low rounded-xl p-4">
@@ -234,7 +239,7 @@ export default function UnifiedSearch() {
             <p className="text-label-md text-on-surface font-semibold">
               {searchLoading ? 'Searching…' : `${total} postings`}
             </p>
-            {aiCollapsed && (
+            {AI_MODE_ENABLED && aiCollapsed && (
               <button onClick={() => setAiCollapsed(false)} className="text-caption text-primary flex items-center gap-1 hover:underline">
                 <span className="material-symbols-outlined text-[18px]">auto_awesome</span> Show AI
               </button>
@@ -256,8 +261,8 @@ export default function UnifiedSearch() {
           )}
         </main>
 
-        {/* ===== RIGHT — AI expert ===== */}
-        {!aiCollapsed && (
+        {/* ===== RIGHT — AI expert (disabled for now; see AI_MODE_ENABLED) ===== */}
+        {AI_MODE_ENABLED && !aiCollapsed && (
           <aside className="lg:border-l lg:border-outline-variant lg:pl-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
