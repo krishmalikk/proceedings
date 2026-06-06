@@ -750,3 +750,98 @@ def publish_posting(title: str, description: str, tags: dict,
         "indexed": True,
         "author_handle": canonical["author_handle"],
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase-J: experience / connect-card documents (multi-view content; D-041)
+#
+# A consented profile experience is projected to its OWN searchable DS-1 sidecar
+# (doc_kind="experience"), carrying facets ABOUT THE EXPERIENCE (a past event) —
+# never the user's current-state tags. The live profile is NEVER imported.
+# ---------------------------------------------------------------------------
+
+# milestone label -> the 1.8 date key its date belongs under.
+_MILESTONE_DATE_KEY = {
+    "visa_interview": "visa_interview_date", "visa_stamping": "visa_stamp_date",
+    "port_of_entry": "admission_date", "h1b_filing": "h1b_filed_date",
+    "h1b_approval": "h1b_approved_date", "h1b_rfe": "rfe_date",
+    "opt_application": "i765_filed_date", "perm_filing": "labor_cert_filed_date",
+    "perm_approval": "perm_approved_date", "i140_approval": "i140_approved_date",
+    "i485_filing": "i485_filed_date", "biometrics": "biometrics_appointment_date",
+    "aos_interview": "aos_appointment_date", "ead_approval": "ead_approved_date",
+    "green_card": "green_card_received_date",
+    "naturalization_interview": "naturalization_interview_date",
+    "oath_ceremony": "oath_ceremony_date", "consular_221g": "221g_issued_date",
+}
+
+
+def _slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", (s or "").strip().lower()).strip("_")[:48]
+
+
+def _pretty_milestone(m: str) -> str:
+    return (m or "milestone").replace("_", " ").strip().title()
+
+
+def build_experience_canonical(profile: dict, entry: dict, extracted: dict | None = None) -> dict:
+    """Build a sidecar canonical for ONE profile experience (doc_kind=experience).
+    Facets are extracted from the experience TEXT (about that past event), NOT from
+    the user's current profile state."""
+    text = str(entry.get("experience") or "").strip()
+    milestone = _slug(str(entry.get("milestone") or "milestone"))
+    date = normalize_date_safe(str(entry.get("date") or ""))
+    title = f"{_pretty_milestone(milestone)} experience"
+    if extracted is None:
+        try:
+            extracted = _extract(title, text)
+        except Exception as e:  # noqa: BLE001
+            print(f"posting: experience extraction failed ({e}); minimal facets")
+            extracted = {}
+
+    tags = {f: extracted.get(f) for f in GROUP_FIELDS}
+    key_stages = extracted.get("key_stages_or_info")
+    key_dates = dict(_clean_dates(extracted.get("key_dates")))
+    dk = _MILESTONE_DATE_KEY.get(milestone)
+    if dk and date:
+        key_dates[dk] = date
+
+    c = build_canonical(title, text, tags, key_stages, key_dates, extracted)
+    # Re-key as an experience document.
+    short = secrets.token_hex(4)
+    c["doc_kind"] = "experience"
+    c["case_id"] = f"{CHANNEL}-exp-{c['posting_date']}-{short}"
+    c["full_url"] = f"https://proceedings.app/case/{c['case_id']}"
+    c["post_title"] = title
+    c["ingestion_method"] = "user_experience"
+    c["source_metadata"] = "User milestone experience (phase-J), consent-shared"
+    # Link all of an author's experiences via their synthetic handle (no PII).
+    handle = str(profile.get("username") or "").strip() or c["author_handle"]
+    c["author_handle"] = handle
+    c["parent_case_id"] = handle
+    c["derived_topic_cluster"] = list(dict.fromkeys([*(c.get("derived_topic_cluster") or []), milestone]))
+    return c
+
+
+def publish_experience(profile: dict, entry: dict) -> dict:
+    """Project one consented experience to a searchable DS-1 sidecar. Returns its id."""
+    text = str(entry.get("experience") or "").strip()
+    if not text:
+        raise ValueError("experience has no text")
+    c = build_experience_canonical(profile, entry)
+    md_uri, _ = _write_gcs(c, _markdown_body(c["post_title"], text))
+    _import_to_datastore(c, md_uri)
+    _write_bigquery(c)
+    return {"case_id": c["case_id"], "doc_kind": "experience",
+            "milestone": entry.get("milestone", ""), "gcs_path": c["gcs_path"], "indexed": True}
+
+
+def normalize_date_safe(value: str) -> str:
+    """Best-effort YYYY-MM-DD (delegates to profile.normalize_date if importable)."""
+    v = (value or "").strip()
+    if _DATE_RE.match(v):
+        return v
+    try:
+        import profile as _p
+        return _p.normalize_date(v)
+    except Exception:  # noqa: BLE001
+        return ""
