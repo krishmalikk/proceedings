@@ -110,6 +110,19 @@ def group_b() -> None:
     check("B11 clean_profile normalizes mixed date formats + drops bad",
           cn["key_dates"] == {"priority_date": "2024-11-01", "h1b_filed_date": "2024-04-01"}, str(cn["key_dates"]))
 
+    # B11b — every *_filed milestone has a date key (regression: i140_filed_date was missing,
+    # so "I-140 filed on 02/28/2026" was silently dropped).
+    import posting as _pg
+    _pg._Vocab.load()
+    filed_keys = ("i129_filed_date", "i130_filed_date", "i140_filed_date", "i485_filed_date",
+                  "h1b_filed_date", "labor_cert_filed_date")
+    check("B11b all common *_filed_date keys exist (incl. i140_filed_date)",
+          all(k in _pg._Vocab.date_keys for k in filed_keys),
+          str([k for k in filed_keys if k not in _pg._Vocab.date_keys]))
+    check("B11c clean_profile captures i140_filed_date (02/28/2026)",
+          pr.clean_profile({"key_dates": {"i140_filed_date": "02/28/2026"}})["key_dates"]
+          == {"i140_filed_date": "2026-02-28"})
+
     # B12 — PII scrub keeps dates, redacts real phones/emails/A-numbers
     s = pr.scrub_pii("Interview 2024-03-10, approved in 2 minutes. Call 555-123-4567, jane@x.com, A012345678")
     check("B12 scrub keeps dates, redacts phone/email/A-number",

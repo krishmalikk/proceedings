@@ -15,6 +15,7 @@ h1b_processing_start_date,Date H-1B processing began at USCIS
 i129_filed_date,Date Form I-129 was filed
 i130_filed_date,Date Form I-130 was filed
 i131_filed_date,Date Form I-131 was filed
+i140_filed_date,Date Form I-140 was filed
 i140_approved_date,Date Form I-140 was approved
 i485_filed_date,Date Form I-485 was filed
 i765_filed_date,Date Form I-765 was filed
