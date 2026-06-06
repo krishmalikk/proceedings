@@ -58,6 +58,9 @@ export default function OnboardingPage() {
   const [connecting, setConnecting] = useState(false)
   const [connectCardId, setConnectCardId] = useState('')
   const [error, setError] = useState('')
+  // Generated facets for each SHARED/published experience (the experience JSON), fetched from its doc.
+  type ExpFacets = { visa: string[]; consulates: string[]; outcome: string; tags: string[]; date: string }
+  const [expFacets, setExpFacets] = useState<Record<string, ExpFacets>>({})
   const threadRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -80,6 +83,22 @@ export default function OnboardingPage() {
 
   useEffect(() => { if (activeId) loadProfile() }, [activeId, loadProfile])
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [messages, loading])
+
+  // Lazily fetch the generated facets (the experience JSON) for each shared/published experience.
+  useEffect(() => {
+    const ids = draft.journey.map((e) => e.experience_case_id).filter((id): id is string => !!id && !(id in expFacets))
+    if (ids.length === 0) return
+    Promise.all(ids.map((id) =>
+      fetch(`/api/postings/${encodeURIComponent(id)}`).then((r) => (r.ok ? r.json() : null))
+        .then((d) => [id, d] as const).catch(() => [id, null] as const)))
+      .then((pairs) => setExpFacets((prev) => {
+        const next = { ...prev }
+        for (const [id, d] of pairs) {
+          if (d) next[id] = { visa: d.visa || [], consulates: d.consulates || [], outcome: d.outcome || '', tags: d.tags || [], date: d.date || '' }
+        }
+        return next
+      }))
+  }, [draft.journey, expFacets])
 
   function switchUser(id: string) { setActiveUser(id); setActiveId(id) }
 
@@ -347,6 +366,20 @@ export default function OnboardingPage() {
                           {e.shared && e.experience_case_id && <span className="text-primary"> · shared</span>}
                         </span>
                       </label>
+                      {/* generated facets (the experience JSON) — only for shared/published ones */}
+                      {e.experience_case_id && expFacets[e.experience_case_id] && (
+                        <div className="mt-1">
+                          <p className="text-caption text-on-surface-variant">Tagged for search:</p>
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {expFacets[e.experience_case_id].visa.map((v) => <span key={`v${v}`} className="badge-primary text-caption">{v}</span>)}
+                            {expFacets[e.experience_case_id].consulates.map((c) => <span key={`c${c}`} className="badge-secondary text-caption">{c}</span>)}
+                            {expFacets[e.experience_case_id].outcome && <span className="badge-success text-caption">{expFacets[e.experience_case_id].outcome}</span>}
+                            {expFacets[e.experience_case_id].tags.slice(0, 5).map((t) => (
+                              <span key={`t${t}`} className="text-caption text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ol>
