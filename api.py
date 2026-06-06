@@ -187,6 +187,43 @@ class PostingCreateResponse(BaseModel):
     author_handle: str
 
 
+# --- User profile + onboarding (phase-I) ---
+class SeedUser(BaseModel):
+    id: str
+    username: str
+    label: str = ""
+
+
+class JourneyEntry(BaseModel):
+    milestone: str = ""
+    date: str = ""
+    experience: str = ""
+
+
+class ProfilePayload(BaseModel):
+    username: str = ""
+    current_visa_or_greencard_category: list[str] = []
+    visa_applying_for: list[str] = []
+    primary_consulate: str = ""
+    consulates: list[str] = []
+    key_stages_or_info: dict[str, str] = {}
+    key_dates: dict[str, str] = {}
+    background_text: str = ""
+    journey: list[JourneyEntry] = []
+
+
+class OnboardRequest(BaseModel):
+    messages: list[dict] = []
+    draft: ProfilePayload = ProfilePayload()
+    stage: str = "basics"  # 'basics' (Stage 1) | 'experiences' (Stage 2, post-save)
+
+
+class OnboardResponse(BaseModel):
+    reply: str
+    profile: dict
+    done: bool
+
+
 class SourceInfo(BaseModel):
     chunk_id: str
     text: str
@@ -329,6 +366,24 @@ def _guard(fn):
         )
 
 
+# Dev-only user impersonation via X-User-Id. When real auth lands this is turned
+# off and the uid comes only from a verified Firebase token (same users/{id} schema).
+ALLOW_USER_IMPERSONATION = os.getenv("ALLOW_USER_IMPERSONATION", "1") == "1"
+
+
+def _active_user(request: Request) -> str:
+    """Resolve the active baked user id from the X-User-Id header (dev impersonation)."""
+    import profile
+    if not ALLOW_USER_IMPERSONATION:
+        raise HTTPException(status_code=403, detail="User impersonation is disabled.")
+    uid = request.headers.get("x-user-id", "").strip()
+    if not uid:
+        raise HTTPException(status_code=400, detail="X-User-Id header is required (pick a user).")
+    if uid not in profile.seed_ids():
+        raise HTTPException(status_code=404, detail=f"Unknown user '{uid}'.")
+    return uid
+
+
 @app.post("/api/ask", response_model=AskResponse)
 async def ask_question(body: AskRequest, request: Request):
     """Submit a question and get a RAG-powered answer."""
@@ -415,6 +470,49 @@ async def create_posting(body: PostingCreateRequest, request: Request):
         # vocabulary / schema validation failure → 422
         raise HTTPException(status_code=422, detail=f"Posting failed validation: {e}")
     return PostingCreateResponse(**result)
+
+
+# ---------------------------------------------------------------------------
+# User profile + AI onboarding (phase-I)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/users", response_model=list[SeedUser])
+async def list_users():
+    """The baked seed roster for the dev user-picker (no auth yet)."""
+    import profile
+    return [SeedUser(**u) for u in profile.seed_users()]
+
+
+@app.get("/api/profile")
+async def get_profile(request: Request):
+    """The active user's profile (empty shell if not yet set up)."""
+    import profile
+    uid = _active_user(request)
+    return _guard(lambda: profile.get_profile(_db, uid))
+
+
+@app.put("/api/profile")
+async def put_profile(body: ProfilePayload, request: Request):
+    """Validate + save the active user's profile. Returns the stored profile."""
+    import profile
+    uid = _active_user(request)
+    return _guard(lambda: profile.save_profile(_db, uid, body.model_dump()))
+
+
+@app.post("/api/onboard", response_model=OnboardResponse)
+async def onboard(body: OnboardRequest, request: Request):
+    """One AI-onboarding turn: expert bot message + updated validated draft + done flag."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+    import profile
+    uid = _active_user(request)
+    draft = body.draft.model_dump()
+    if not draft.get("username"):
+        draft["username"] = profile.username_for(uid)
+    stage = "experiences" if body.stage == "experiences" else "basics"
+    out = _guard(lambda: profile.onboard_turn(body.messages, draft, stage))
+    return OnboardResponse(**out)
 
 
 @app.post("/api/chat", response_model=ChatResponse)
