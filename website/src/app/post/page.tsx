@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { getActiveUser, userHeaders } from '@/lib/activeUser'
+
+type Conflict = { field: string; profile_value: unknown; message_value: unknown }
 
 type Groups = {
   visa_applying_for: string[]
@@ -65,6 +68,12 @@ export default function PostPage() {
   const [sKey, setSKey] = useState(''); const [sVal, setSVal] = useState('')
   const [dKey, setDKey] = useState(''); const [dVal, setDVal] = useState('')
 
+  // phase-J reconcile (profile ↔ this message)
+  const [conflicts, setConflicts] = useState<Conflict[]>([])
+  const [explainer, setExplainer] = useState('')
+  const [prefilled, setPrefilled] = useState<string[]>([])
+  const [profileUpdated, setProfileUpdated] = useState(false)
+
   useEffect(() => {
     fetch('/api/tag-vocab').then((r) => r.json()).then((d) => setVocab({
       visa: d.visa || [], consulate: d.consulate || [], consulate_options: d.consulate_options || [],
@@ -95,16 +104,67 @@ export default function PostPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Could not analyze the posting')
-      setGroups({ ...EMPTY, ...(data.groups || {}) })
+      const g: Groups = { ...EMPTY, ...(data.groups || {}) }
+      const st: KV = data.key_stages_or_info || {}
+      const dt: KV = data.key_dates || {}
       setRelevant(Array.isArray(data.relevant_sections) ? data.relevant_sections : [])
       setPostingType(data.posting_type || '')
-      setStages(data.key_stages_or_info || {})
-      setDates(data.key_dates || {})
+      setConflicts([]); setExplainer(''); setPrefilled([]); setProfileUpdated(false)
+
+      // Reconcile against the saved profile (best-effort; only with an active user).
+      let applied = false
+      if (getActiveUser()) {
+        try {
+          const rr = await fetch('/api/reconcile', {
+            method: 'POST', headers: userHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ message: { ...g, key_stages_or_info: st, key_dates: dt } }),
+          })
+          if (rr.ok) {
+            const rd = await rr.json()
+            const m = rd.merged || {}
+            setGroups({
+              ...EMPTY,
+              current_visa_or_greencard_category: m.current_visa_or_greencard_category ?? g.current_visa_or_greencard_category,
+              visa_applying_for: m.visa_applying_for ?? g.visa_applying_for,
+              primary_consulate: m.primary_consulate ?? g.primary_consulate,
+              consulates: m.consulates ?? g.consulates,
+              tags: g.tags, concerns_or_questions_tags: g.concerns_or_questions_tags,
+            })
+            setStages(m.key_stages_or_info ?? st)
+            setDates(m.key_dates ?? dt)
+            setConflicts(rd.conflicts || []); setExplainer(rd.explainer || ''); setPrefilled(rd.prefilled || [])
+            applied = true
+          }
+        } catch { /* no active user / reconcile unavailable — post without it */ }
+      }
+      if (!applied) { setGroups(g); setStages(st); setDates(dt) }
       setPreviewed(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not analyze the posting')
     } finally {
       setPreviewing(false)
+    }
+  }
+
+  async function updateProfile() {
+    try {
+      const cur = await fetch('/api/profile', { headers: userHeaders() }).then((r) => r.json())
+      const next: Record<string, unknown> = { ...cur }
+      for (const c of conflicts) {
+        if (c.field.includes('.')) {
+          const [mapF, key] = c.field.split('.')
+          next[mapF] = { ...((next[mapF] as Record<string, unknown>) || {}), [key]: c.message_value }
+        } else {
+          next[c.field] = c.message_value
+        }
+      }
+      const res = await fetch('/api/profile', {
+        method: 'PUT', headers: userHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(next),
+      })
+      if (res.ok) { setProfileUpdated(true) }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update profile')
     }
   }
 
@@ -253,6 +313,29 @@ export default function PostPage() {
                   <span className="badge-secondary text-caption">{POSTING_TYPE_LABEL[postingType] || postingType}</span>
                 )}
               </div>
+
+              {/* phase-J: profile reconciliation */}
+              {prefilled.length > 0 && conflicts.length === 0 && (
+                <p className="text-caption text-on-surface-variant flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px] text-secondary">badge</span>
+                  Pre-filled from your profile: {prefilled.map((f) => f.replace(/_/g, ' ')).join(', ')}.
+                </p>
+              )}
+              {conflicts.length > 0 && (
+                <div className="card bg-tertiary-container/40 border border-outline-variant">
+                  <p className="text-body-md text-on-surface">{explainer || 'Some details differ from your saved profile.'}</p>
+                  <ul className="text-caption text-on-surface-variant mt-1 space-y-0.5">
+                    {conflicts.map((c) => (
+                      <li key={c.field}>· {c.field.replace(/_/g, ' ').replace('.', ': ')} — profile: {String(c.profile_value)} → this post: {String(c.message_value)}</li>
+                    ))}
+                  </ul>
+                  {profileUpdated ? (
+                    <p className="text-caption text-primary mt-2">Profile updated ✓</p>
+                  ) : (
+                    <button onClick={updateProfile} className="btn-secondary text-label-md mt-2">Update my profile to match</button>
+                  )}
+                </div>
+              )}
 
               {visibleSections.map((s, i) => {
                 const showGroup = s.group && (i === 0 || visibleSections[i - 1].group !== s.group)
