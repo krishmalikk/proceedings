@@ -310,9 +310,13 @@ def save_profile(db, user_id: str, p: dict) -> dict:
     existing = doc.get()
     payload = dict(cleaned)
     payload["updated_at"] = _fs.SERVER_TIMESTAMP
-    if not (existing.exists):
-        payload["created_at"] = _fs.SERVER_TIMESTAMP
-    doc.set(payload, merge=True)
+    # Preserve the original created_at; otherwise stamp it now.
+    prior_created = (existing.to_dict() or {}).get("created_at") if existing.exists else None
+    payload["created_at"] = prior_created or _fs.SERVER_TIMESTAMP
+    # Authoritative full overwrite (NOT merge=True): Firestore deep-merges maps, so
+    # merge would leave removed key_stages_or_info / key_dates entries behind. The
+    # saved profile must exactly reflect what the user submitted.
+    doc.set(payload)
     return get_profile(db, user_id)
 
 

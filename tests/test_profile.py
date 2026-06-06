@@ -365,6 +365,22 @@ def group_d() -> None:
               onb.status_code == 200 and all(k in onb.json() for k in ("reply", "profile", "done")),
               f"status={onb.status_code}")
 
+        # D9 — save is AUTHORITATIVE: re-saving without a previously-saved key removes it
+        # (guards against Firestore map deep-merge leaving stale key_stages/key_dates).
+        client.put("/api/profile", headers=hdr, json={
+            "current_visa_or_greencard_category": ["F-1"],
+            "key_stages_or_info": {"citizen_of_country": "CN", "spouse_status": "H-1B"},
+            "key_dates": {"opt_expire_date": "2027-05-31", "f1_expire_date": "2026-01-01"}})
+        client.put("/api/profile", headers=hdr, json={
+            "current_visa_or_greencard_category": ["F-1"],
+            "key_stages_or_info": {"citizen_of_country": "CN"},  # spouse_status removed
+            "key_dates": {"opt_expire_date": "2027-05-31"}})       # f1_expire_date removed
+        re = client.get("/api/profile", headers=hdr).json()
+        check("D9 re-save is authoritative (removed keys are gone, not merged)",
+              re["key_stages_or_info"] == {"citizen_of_country": "CN"}
+              and re["key_dates"] == {"opt_expire_date": "2027-05-31"},
+              f"stages={re['key_stages_or_info']} dates={re['key_dates']}")
+
     # cleanup the test user's Firestore doc
     try:
         if api._db is not None:
