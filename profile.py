@@ -191,7 +191,14 @@ def _clean_journey(value) -> list:
             exp = scrub_pii(str(it.get("experience") or "")).strip()[:4000]
             if not ms or not exp:
                 continue
-            out.append({"milestone": ms, "date": normalize_date(str(it.get("date") or "")), "experience": exp})
+            out.append({
+                "milestone": ms,
+                "date": normalize_date(str(it.get("date") or "")),
+                "experience": exp,
+                # phase-J: per-experience consent + the published searchable doc id (if shared).
+                "shared": bool(it.get("shared", False)),
+                "experience_case_id": str(it.get("experience_case_id") or ""),
+            })
     return _sort_journey(out)
 
 
@@ -299,11 +306,38 @@ def get_profile(db, user_id: str) -> dict:
     return prof
 
 
+def project_experiences(profile: dict) -> tuple[dict, list]:
+    """Phase-J (D-041): publish newly-shared experiences as their own searchable
+    DS-1 docs and delete newly-unshared ones. Mutates each journey entry's
+    `experience_case_id` in place. The profile itself is NEVER indexed.
+    Best-effort: a projection failure does not block the save."""
+    import posting
+    notes: list = []
+    for e in profile.get("journey", []):
+        shared = bool(e.get("shared"))
+        cid = str(e.get("experience_case_id") or "")
+        try:
+            if shared and not cid:
+                res = posting.publish_experience(profile, e)
+                e["experience_case_id"] = res["case_id"]
+                notes.append(("published", res["case_id"]))
+            elif not shared and cid:
+                posting.delete_content(cid)
+                e["experience_case_id"] = ""
+                notes.append(("unpublished", cid))
+        except Exception as ex:  # noqa: BLE001
+            notes.append(("error", f"{e.get('milestone')}: {ex}"))
+    return profile, notes
+
+
 def save_profile(db, user_id: str, p: dict) -> dict:
-    """Validate + persist the profile. Returns the stored profile."""
+    """Validate + persist the profile. Returns the stored profile.
+    Consented experiences are projected to searchable DS-1 docs (D-041)."""
     from google.cloud import firestore as _fs
     cleaned = clean_profile(p)
     cleaned["username"] = cleaned["username"] or username_for(user_id)
+    # Publish/withdraw consented experiences and capture their doc ids.
+    cleaned, _proj = project_experiences(cleaned)
     if db is None:
         return cleaned
     doc = db.collection("users").document(user_id)

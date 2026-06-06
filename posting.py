@@ -835,6 +835,64 @@ def publish_experience(profile: dict, entry: dict) -> dict:
             "milestone": entry.get("milestone", ""), "gcs_path": c["gcs_path"], "indexed": True}
 
 
+def publish_connect_card(profile: dict, note: str = "") -> dict:
+    """Publish an explicit 'looking to connect' card (doc_kind=connect_card) from
+    the user's CURRENT profile state. The user publishes it deliberately, so its
+    facets are the profile's current status (this is content, not the profile doc)."""
+    handle = str(profile.get("username") or "").strip() or _synthetic_handle()
+    tags = {f: profile.get(f) for f in GROUP_FIELDS}
+    state = ", ".join(profile.get("current_visa_or_greencard_category")
+                      or profile.get("visa_applying_for") or ["immigration"])
+    title = f"Looking to connect — {state}"
+    body = str(note or "").strip() or f"{handle} is looking to connect with others on a similar journey ({state})."
+    extracted = {
+        "background_summary": str(profile.get("background_text") or "")[:400] or "User looking to connect.",
+        "concerns_or_questions_summary": "Looking to connect with others in the same situation.",
+        "key_stages_or_info": profile.get("key_stages_or_info") or {},
+        "key_dates": profile.get("key_dates") or {},
+    }
+    c = build_canonical(title, body, tags, profile.get("key_stages_or_info"),
+                        profile.get("key_dates"), extracted)
+    short = secrets.token_hex(4)
+    c["doc_kind"] = "connect_card"
+    c["case_id"] = f"{CHANNEL}-connect-{c['posting_date']}-{short}"
+    c["full_url"] = f"https://proceedings.app/case/{c['case_id']}"
+    c["post_title"] = title
+    c["ingestion_method"] = "user_connect_card"
+    c["source_metadata"] = "Connect card (phase-J), user-published"
+    c["author_handle"] = handle
+    c["parent_case_id"] = handle
+    md_uri, _ = _write_gcs(c, _markdown_body(title, body))
+    _import_to_datastore(c, md_uri)
+    _write_bigquery(c)
+    return {"case_id": c["case_id"], "doc_kind": "connect_card", "gcs_path": c["gcs_path"], "indexed": True}
+
+
+def delete_content(case_id: str) -> None:
+    """Delete a published content doc (experience/connect-card/post) from the
+    datastore + its GCS sidecars. Best-effort; safe to call if already gone."""
+    from google.api_core.exceptions import NotFound
+    project, loc, ds = _project(), _ds_location(), _datastore()
+    try:
+        doc_client = de.DocumentServiceClient(client_options=ClientOptions(quota_project_id=project))
+        name = (f"projects/{project}/locations/{loc}/collections/default_collection"
+                f"/dataStores/{ds}/branches/default_branch/documents/{case_id}")
+        doc_client.delete_document(name=name)
+    except NotFound:
+        pass
+    except Exception as e:  # noqa: BLE001
+        print(f"posting.delete_content: datastore delete failed ({e})")
+    m = re.search(r"(\d{4}-\d{2}-\d{2})", case_id)
+    if m:
+        base = f"{m.group(1)}/{CHANNEL}/{case_id}"
+        try:
+            bkt = storage.Client(project=project).bucket(_bucket_name())
+            for ext in (".md", ".json"):
+                bkt.blob(f"{base}{ext}").delete()
+        except Exception as e:  # noqa: BLE001
+            print(f"posting.delete_content: gcs delete best-effort ({e})")
+
+
 def normalize_date_safe(value: str) -> str:
     """Best-effort YYYY-MM-DD (delegates to profile.normalize_date if importable)."""
     v = (value or "").strip()

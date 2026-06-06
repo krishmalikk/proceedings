@@ -198,6 +198,31 @@ class JourneyEntry(BaseModel):
     milestone: str = ""
     date: str = ""
     experience: str = ""
+    shared: bool = False          # phase-J: consent to make this experience searchable
+    experience_case_id: str = ""  # the published searchable doc id (set by the backend)
+
+
+class ReconcileRequest(BaseModel):
+    # The in-progress message/posting being composed (canonical fields or description).
+    message: dict = {}
+
+
+class ReconcileResponse(BaseModel):
+    merged: dict
+    conflicts: list[dict] = []
+    prefilled: list[str] = []
+    explainer: str = ""
+
+
+class ConnectCardRequest(BaseModel):
+    note: str = Field("", max_length=2000)
+
+
+class ContentPublishResponse(BaseModel):
+    case_id: str
+    doc_kind: str
+    gcs_path: str
+    indexed: bool
 
 
 class ProfilePayload(BaseModel):
@@ -513,6 +538,37 @@ async def onboard(body: OnboardRequest, request: Request):
     stage = "experiences" if body.stage == "experiences" else "basics"
     out = _guard(lambda: profile.onboard_turn(body.messages, draft, stage))
     return OnboardResponse(**out)
+
+
+@app.post("/api/reconcile", response_model=ReconcileResponse)
+async def reconcile(body: ReconcileRequest, request: Request):
+    """Phase-J (D-042): merge the active user's saved profile with an in-progress
+    message → reconciled field values + conflicts + a friendly 'update profile?' prompt.
+    The profile is never indexed; this only shapes the single posting JSON."""
+    import profile
+    import reconcile as rc
+    uid = _active_user(request)
+    prof = _guard(lambda: profile.get_profile(_db, uid))
+    out = rc.reconcile_profile_message(prof, body.message or {})
+    explainer = rc.explain_conflicts(out["conflicts"]) if out["conflicts"] else ""
+    return ReconcileResponse(merged=out["merged"], conflicts=out["conflicts"],
+                             prefilled=out["prefilled"], explainer=explainer)
+
+
+@app.post("/api/connect-card", response_model=ContentPublishResponse)
+async def connect_card(body: ConnectCardRequest, request: Request):
+    """Phase-J: publish an explicit 'looking to connect' card (doc_kind=connect_card)
+    from the active user's current profile state."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+    import posting
+    import profile
+    uid = _active_user(request)
+    prof = _guard(lambda: profile.get_profile(_db, uid))
+    if not (prof.get("current_visa_or_greencard_category") or prof.get("visa_applying_for")):
+        raise HTTPException(status_code=422, detail="Set up your profile (a visa/status) before publishing a connect card.")
+    return ContentPublishResponse(**_guard(lambda: posting.publish_connect_card(prof, body.note)))
 
 
 @app.post("/api/chat", response_model=ChatResponse)

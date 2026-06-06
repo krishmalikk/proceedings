@@ -113,12 +113,42 @@ def group_b() -> None:
           all(k in p._MILESTONE_DATE_KEY for k in ("visa_interview", "port_of_entry", "h1b_approval", "i485_filing")))
 
 
+# ---------------------------------------------------------------------------
+# C — boundary + consent guards (UNIT, deterministic, no network)
+# ---------------------------------------------------------------------------
+
+def group_c() -> None:
+    print("\nC — boundary + consent guards (unit)")
+    import profile as pr
+
+    # C1 — the PROFILE record has NONE of the content-doc fields, so it can never be
+    # mistaken for / imported as an indexable document (D-041 boundary, structural).
+    prof = pr.empty_profile()
+    content_only = {"doc_kind", "case_id", "embedding_text", "gcs_path", "ingestion_method"}
+    check("C1 profile schema has no content-doc fields (never indexable)",
+          content_only.isdisjoint(prof.keys()), str(sorted(content_only & set(prof.keys()))))
+
+    # C2 — consent default OFF: a cleaned experience is shared=False with no doc id.
+    e = pr.clean_profile({"journey": [{"milestone": "visa_interview", "date": "2024-03-10",
+                                       "experience": "Mumbai interview, approved."}]})["journey"][0]
+    check("C2 experience consent defaults OFF (shared=False, no doc id)",
+          e["shared"] is False and e["experience_case_id"] == "", str(e))
+
+    # C3 — projection is a no-op when nothing is shared (no publish, no network).
+    prof2 = pr.clean_profile({"username": "x", "journey": [
+        {"milestone": "visa_interview", "date": "2024-03-10", "experience": "a", "shared": False}]})
+    out, notes = pr.project_experiences(prof2)
+    check("C3 project_experiences no-op when unshared",
+          notes == [] and out["journey"][0]["experience_case_id"] == "", str(notes))
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set"); return 2
     print(f"Reconcile/experience tests — project={PROJECT}")
     group_a()
     group_b()
+    group_c()
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok in _results if ok)
     failed = [n for n, ok in _results if not ok]
