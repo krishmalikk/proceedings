@@ -70,11 +70,19 @@ Output → the single posting sidecar JSON → existing `posting.publish_posting
 - **J5** Frontend: composer conflict prompt ("differs from your profile — update profile?"); per-experience **share** toggle in onboarding stage 2.
 - **J6** Tests: reconcile conflict matrix; experience projection + facets; **profile-never-indexed guard**; consent gating; past-experience-not-current-state still holds on experience docs.
 
-## 8. Open decisions (confirm before building)
+## 8. Decisions (locked 2026-06-06)
 
-1. **Which views indexed now?** Recommend: **experiences only** (messages already; profile NEVER; connect-card later).
-2. **Conflict default:** message-wins-for-post + offer-profile-update *(recommended)* vs block-until-resolved.
-3. **Consent model:** per-experience opt-in *(recommended)* vs whole-profile opt-in.
-4. **Experience facets:** carry milestone/visa/consulate/outcome for searchability *(recommended — about the experience, not current state)*.
-5. **Reconcile agent:** deterministic merge + LLM explainer first *(recommended)* vs full agent now.
-6. **Channel label:** standardize on `app` or keep `ourwebsite` (cosmetic; decide once).
+1. **Views indexed now:** **experiences + connect card.** Consented `doc_kind=experience` docs **and** an explicit user-published `doc_kind=connect_card` doc. Messages already searchable; **profile NEVER indexed**.
+2. **Conflict default:** **message wins for the post + offer to update the profile** ("this differs from your profile — update it?").
+3. **Consent model:** **per-experience opt-in, default OFF.** Each experience has its own "share so others can find me" toggle; nothing is indexed unless turned on. (Connect card is itself an explicit publish action = its own consent.)
+4. **Experience facets:** **yes** — each experience doc carries milestone / dated event / visa-at-time / consulate / outcome, describing the experience (not current state).
+5. **Reconcile engine:** **deterministic field merge + LLM "conflict explainer."** No full reconcile agent in v1.
+6. **Channel label:** keep **`ourwebsite`** for all in-app content (consistent with existing postings); distinguish views via `doc_kind` (`post` | `experience` | `connect_card`). (FINAL-ARCHITECTURE's conceptual `app` == implemented `ourwebsite`.)
+
+## 9. Build order (next)
+- **J1** `schema.py`: `doc_kind` += `experience`, `connect_card`; `build_experience_sidecar(profile, entry)`.
+- **J2** `reconcile.py`: deterministic `reconcile_profile_message()` + LLM conflict explainer.
+- **J3** `api.py`: `/api/reconcile` preview; per-experience consent flag; project consented experiences on `PUT /api/profile`; connect-card publish.
+- **J4** wire posting publish → reconcile (pre-fill + conflict prompt + offer profile update).
+- **J5** frontend: composer conflict prompt; per-experience share toggle (stage 2); connect-card action.
+- **J6** tests: conflict matrix; experience/connect-card projection + facets; **profile-never-indexed guard**; consent gating.
