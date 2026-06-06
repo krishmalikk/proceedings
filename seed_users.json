@@ -1,0 +1,6 @@
+[
+  { "id": "demo-arjun", "username": "arjun-h1b",  "label": "Arjun — H-1B holder (India)" },
+  { "id": "demo-mei",   "username": "mei-f1",     "label": "Mei — F-1 student (China)" },
+  { "id": "demo-sofia", "username": "sofia-eb2",  "label": "Sofia — EB-2 applicant (Mexico)" },
+  { "id": "demo-omar",  "username": "omar-b1b2",  "label": "Omar — B1/B2 applicant abroad (UAE)" }
+]

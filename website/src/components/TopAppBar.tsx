@@ -53,11 +53,11 @@ export default function TopAppBar() {
             <span className="hidden sm:inline">Post a new message</span>
             <span className="sm:hidden">Post</span>
           </Link>
-          <button className="p-2 rounded-full hover:bg-surface-container transition-colors">
+          <Link href="/onboarding" aria-label="Your profile" className="p-2 rounded-full hover:bg-surface-container transition-colors">
             <span className="material-symbols-outlined text-primary text-[28px]">
               account_circle
             </span>
-          </button>
+          </Link>
         </div>
       </div>
     </header>
