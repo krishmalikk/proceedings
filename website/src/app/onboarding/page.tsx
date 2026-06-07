@@ -362,7 +362,7 @@ export default function OnboardingPage() {
                       <label className="flex items-center gap-2 mt-1 cursor-pointer select-none">
                         <input type="checkbox" checked={!!e.shared} onChange={() => toggleShare(i)} className="accent-primary" />
                         <span className="text-caption text-on-surface-variant">
-                          Share so others on the same step can find me
+                          Share the timeline for other users
                           {e.shared && e.experience_case_id && <span className="text-primary"> · shared</span>}
                         </span>
                       </label>

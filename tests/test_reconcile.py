@@ -128,11 +128,16 @@ def group_c() -> None:
     check("C1 profile schema has no content-doc fields (never indexable)",
           content_only.isdisjoint(prof.keys()), str(sorted(content_only & set(prof.keys()))))
 
-    # C2 — consent default OFF: a cleaned experience is shared=False with no doc id.
+    # C2 — consent default ON (per product: "share the timeline" ticked by default),
+    # but with no published doc id until a save actually projects it.
     e = pr.clean_profile({"journey": [{"milestone": "visa_interview", "date": "2024-03-10",
                                        "experience": "Mumbai interview, approved."}]})["journey"][0]
-    check("C2 experience consent defaults OFF (shared=False, no doc id)",
-          e["shared"] is False and e["experience_case_id"] == "", str(e))
+    check("C2 experience consent defaults ON (shared=True, no doc id yet)",
+          e["shared"] is True and e["experience_case_id"] == "", str(e))
+    # explicit opt-out is still respected.
+    e2 = pr.clean_profile({"journey": [{"milestone": "visa_interview", "date": "2024-03-10",
+                                        "experience": "x", "shared": False}]})["journey"][0]
+    check("C2b explicit shared=False is respected", e2["shared"] is False, str(e2))
 
     # C3 — projection is a no-op when nothing is shared (no publish, no network).
     prof2 = pr.clean_profile({"username": "x", "journey": [

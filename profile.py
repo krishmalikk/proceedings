@@ -195,8 +195,8 @@ def _clean_journey(value) -> list:
                 "milestone": ms,
                 "date": normalize_date(str(it.get("date") or "")),
                 "experience": exp,
-                # phase-J: per-experience consent + the published searchable doc id (if shared).
-                "shared": bool(it.get("shared", False)),
+                # phase-J: per-experience consent (default ON) + published doc id (if shared).
+                "shared": bool(it.get("shared", True)),
                 "experience_case_id": str(it.get("experience_case_id") or ""),
             })
     return _sort_journey(out)
