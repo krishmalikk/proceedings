@@ -294,6 +294,10 @@ def _cleanup(case_id: str, gcs_path: str) -> str:
 
 def group_g_api() -> None:
     print("\nG — API endpoints + publish/cleanup (integration)")
+    # Mark every BQ row this run writes so it's identifiable + purgeable.
+    os.environ["POSTING_PIPELINE_RUN_ID"] = "test-e2e"
+    import posting as p
+    p.purge_test_bq_rows()  # sweep prior runs' markers (date < today; buffer-safe)
     from fastapi.testclient import TestClient
     import api
     api.RATE_LIMIT_MAX = 100000

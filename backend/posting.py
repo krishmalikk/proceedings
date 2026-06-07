@@ -673,6 +673,43 @@ def _ensure_bq_table(client, dataset_id: str, table_id: str):
         return client.create_table(table, exists_ok=True)
 
 
+def _pipeline_run_id() -> str:
+    """Provenance marker stamped on each BQ row. Defaults to the live web
+    composer. Integration tests set POSTING_PIPELINE_RUN_ID=test-e2e so their
+    rows are identifiable and bulk-purgeable (see purge_test_bq_rows)."""
+    return os.getenv("POSTING_PIPELINE_RUN_ID", "web-composer")
+
+
+def purge_test_bq_rows(marker_prefix: str = "test-") -> int:
+    """Delete BQ rows whose pipeline_run_id starts with `marker_prefix`.
+
+    The `posting_date < CURRENT_DATE()` guard avoids BigQuery's "UPDATE/DELETE
+    on recently streamed rows is not allowed" error (insert_rows_json lands rows
+    in a streaming buffer for up to ~90 min): same-day test rows are purged on
+    the next day's run, so the table never accrues more than one day of markers.
+    Returns the affected row count (0 if BQ is unavailable / table absent)."""
+    try:
+        from google.cloud import bigquery
+    except ImportError:
+        return 0
+    client = bigquery.Client(project=_project())
+    table_id = f"{_project()}.postings.postings_metadata"
+    sql = (f"DELETE FROM `{table_id}` "
+           f"WHERE STARTS_WITH(pipeline_run_id, @marker) "
+           f"AND posting_date < CURRENT_DATE()")
+    cfg = bigquery.QueryJobConfig(query_parameters=[
+        bigquery.ScalarQueryParameter("marker", "STRING", marker_prefix)])
+    try:
+        job = client.query(sql, job_config=cfg)
+        job.result()
+        n = job.num_dml_affected_rows or 0
+        print(f"posting.purge_test_bq_rows: deleted {n} row(s) (marker={marker_prefix!r})")
+        return n
+    except Exception as e:  # noqa: BLE001 - cleanup is best-effort
+        print(f"posting.purge_test_bq_rows: skipped ({type(e).__name__}: {e})")
+        return 0
+
+
 def _write_bigquery(canonical: dict) -> None:
     """Append a row to postings.postings_metadata (self-provisions dataset+table;
     non-blocking for the user if BQ is unavailable)."""
@@ -716,7 +753,7 @@ def _write_bigquery(canonical: dict) -> None:
         "doc_kind": canonical["doc_kind"],
         "parent_case_id": canonical["parent_case_id"],
         "reddit_post_id": canonical["reddit_post_id"],
-        "pipeline_run_id": "web-composer",
+        "pipeline_run_id": _pipeline_run_id(),
     }
     try:
         _ensure_bq_table(client, "postings", table_id)

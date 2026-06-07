@@ -379,6 +379,11 @@ def main() -> int:
         print("GCP_PROJECT_ID must be set"); return 2
     only = sys.argv[1] if len(sys.argv) > 1 else "all"
     print(f"Reconcile/experience tests — project={PROJECT}  (scope={only})")
+    # Mark every BQ row this run's live publishes write so they're purgeable.
+    os.environ["POSTING_PIPELINE_RUN_ID"] = "test-e2e"
+    if only in ("all", "integration"):
+        import posting as _p
+        _p.purge_test_bq_rows()  # sweep prior runs' markers (date < today; buffer-safe)
     group_a()
     group_b()
     group_c()

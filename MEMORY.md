@@ -693,6 +693,21 @@ The Obsidian vault **`proceedings-obsidian/`** stays a **sibling** (own tooling 
 
 **Affected docs / status:** Done on `phase-K-cleanup`. Completes phase K (K.1 archive legacy → K.2 backend package → K.3 docs consolidation).
 
+## D-049 — 2026-06-06 — BigQuery test rows marked + purgeable (test hygiene)
+
+**Problem:** `delete_content` purges the datastore + GCS sidecars but **not** BigQuery, and `_write_bigquery` hardcoded `pipeline_run_id="web-composer"` for every row. So the integration suites (`test_posting_tagging` §G, `test_e2e_journey`, `test_reconcile` §E live publishes) left orphan rows in `postings.postings_metadata` that were **indistinguishable from production** rows.
+
+**Decision:** Stamp test-originated rows with a distinct provenance marker so they're identifiable and bulk-purgeable, rather than adding a per-delete BQ purge (blocked anyway by BigQuery's streaming-buffer rule — `insert_rows_json` rows reject UPDATE/DELETE for ~90 min).
+- `posting._pipeline_run_id()` reads **`POSTING_PIPELINE_RUN_ID`** (default `web-composer`); the three integration suites set it to **`test-e2e`** before publishing.
+- `posting.purge_test_bq_rows(marker_prefix="test-")` runs `DELETE … WHERE STARTS_WITH(pipeline_run_id, @marker) AND posting_date < CURRENT_DATE()`. The **date guard sidesteps the streaming buffer** — same-day rows purge on the next run, so the table never holds more than one day of test markers. Each suite calls it at **start-of-run** (best-effort; non-blocking).
+- `backend/scripts/purge_test_bq_rows.py` exposes it for manual/scheduled cleanup.
+
+**Production path unchanged:** with the env var unset, live web postings still write `pipeline_run_id="web-composer"`.
+
+**Verification:** `test_posting_tagging all` 42/42 (G publishes a `test-e2e` row; purge ran), `test_reconcile all` 67/67 (purge ran), `test_profile` 53/53 (no publishes). Compile-clean.
+
+**Affected docs / status:** Done on `phase-K-cleanup`.
+
 ---
 
 # Session summaries

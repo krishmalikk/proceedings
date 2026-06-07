@@ -81,6 +81,9 @@ def main() -> int:
     import api, posting
     from google.cloud import firestore
     api.RATE_LIMIT_MAX = 1_000_000
+    # Mark every BQ row this run writes so it's identifiable + purgeable.
+    os.environ["POSTING_PIPELINE_RUN_ID"] = "test-e2e"
+    posting.purge_test_bq_rows()  # sweep prior runs' markers (date < today; buffer-safe)
 
     print(f"E2E journey — project={PROJECT}")
     created_docs: list[str] = []   # case_ids to delete
