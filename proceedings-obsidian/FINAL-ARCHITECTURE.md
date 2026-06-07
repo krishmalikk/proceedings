@@ -255,3 +255,29 @@ D-013 (pipeline has no Firestore) · D-016 (single **managed** Vertex AI Search 
 2. DS-2 indexing mode + the exact curated public-domain list (§4 verification 2).
 3. Decommission plan for the Vector Search index + `qa_pairs`.
 4. The `active_posts` shadow-buffer + parallel-speculative patterns from IMPROVED are adopted here but not yet logged as their own `D-NNN` — log when P1 code lands.
+
+---
+
+## 10. Addendum (phase-J) — multi-view searchable user content + profile↔message reconciliation
+
+**Status:** Addendum to §4/§6. Records **D-041** (multi-view content) and **D-042** (publish-time reconciliation). Extends, does not change, the grounding/app-state split. Plan: [PHASE-J-PLAN.md](PHASE-J-PLAN.md).
+
+### 10.1 The boundary (what may and may not be indexed)
+The user now has multiple "views": **current profile**, **past experiences**, **messages**. The §6 invariant is preserved exactly:
+
+| User view | Lives in | Searchable? | How |
+|---|---|---|---|
+| **Current profile / background** | Firestore `users/{id}` | **No — NEVER indexed** | App-state / Gemini context only (D-035, §6). `documents.import` is never pointed at the profile. |
+| **Past experiences** | Firestore `users/{id}.journey[]` (private mirror) | **Yes, consent-gated** | Projected to a **DS-1 sidecar** (`doc_kind=experience`, in-app channel); GCS sidecar = source of truth (D-031). |
+| **Messages / postings** | DS-1 sidecar (existing) | **Yes** | Tier-1 (`doc_kind=post`), unchanged. |
+
+**Rule (D-041):** *a searchable view is always published **content** in DS-1 (a sidecar doc keyed by `channel`/`doc_kind`), never the profile record.* This is exactly the D-036 generalization ("a new source = a new channel value, zero schema work") and the sidecar contract (one `.md` + one `.json` per document → **multiple views = multiple documents**, not multiple JSONs on one document). Indexing the live profile itself would reopen D-035 and is out of scope.
+
+### 10.2 Experience documents
+A consented `journey[]` entry becomes a sidecar pair: `.md` = the experience text (PII-scrubbed); `.json` = facets **about that experience** (`milestone`, the dated event in `key_dates`, visa-at-the-time, `consulates`, `outcome`) — **never the user's current-state tags** (a past refusal is an experience facet, not a current status). Default consent **OFF**; only shared experiences are projected/indexed. These feed the future "find others in the same boat" / connect feature; `boostSpec` precedence (app > reddit > public) is unaffected.
+
+### 10.3 Reconciliation (D-042)
+Because the profile and posting schemas reuse the same controlled vocabulary and **field names**, the merge is a field-level projection performed **at publish time in the backend**, emitting the **single** posting sidecar JSON (the profile contributes context; it gets no sidecar on that document). Conflict rules (from [specs-userprofile.md](specs-userprofile.md)): same value → no-op; message-empty → pre-fill from profile; differ → message wins for the post **and** offer to update the profile; background → union. Deterministic merge + an LLM "conflict explainer" first; a full reconcile agent is a later option.
+
+### 10.4 Decision-log anchors (phase-J)
+**D-041** (multi-view = DS-1 content docs; profile never indexed) · **D-042** (publish-time profile↔message reconciliation). Both extend D-035/D-036/D-031 without altering the grounding-vs-app-state split.

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Markdown from '@/components/Markdown'
 import { getActiveUser, setActiveUser, userHeaders } from '@/lib/activeUser'
 
-type JourneyEntry = { milestone: string; date: string; experience: string }
+type JourneyEntry = { milestone: string; date: string; experience: string; shared?: boolean; experience_case_id?: string }
 type Profile = {
   username: string
   current_visa_or_greencard_category: string[]
@@ -55,7 +55,12 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState('')
+  const [connecting, setConnecting] = useState(false)
+  const [connectCardId, setConnectCardId] = useState('')
   const [error, setError] = useState('')
+  // Generated facets for each SHARED/published experience (the experience JSON), fetched from its doc.
+  type ExpFacets = { visa: string[]; consulates: string[]; outcome: string; tags: string[]; date: string }
+  const [expFacets, setExpFacets] = useState<Record<string, ExpFacets>>({})
   const threadRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -78,6 +83,22 @@ export default function OnboardingPage() {
 
   useEffect(() => { if (activeId) loadProfile() }, [activeId, loadProfile])
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [messages, loading])
+
+  // Lazily fetch the generated facets (the experience JSON) for each shared/published experience.
+  useEffect(() => {
+    const ids = draft.journey.map((e) => e.experience_case_id).filter((id): id is string => !!id && !(id in expFacets))
+    if (ids.length === 0) return
+    Promise.all(ids.map((id) =>
+      fetch(`/api/postings/${encodeURIComponent(id)}`).then((r) => (r.ok ? r.json() : null))
+        .then((d) => [id, d] as const).catch(() => [id, null] as const)))
+      .then((pairs) => setExpFacets((prev) => {
+        const next = { ...prev }
+        for (const [id, d] of pairs) {
+          if (d) next[id] = { visa: d.visa || [], consulates: d.consulates || [], outcome: d.outcome || '', tags: d.tags || [], date: d.date || '' }
+        }
+        return next
+      }))
+  }, [draft.journey, expFacets])
 
   function switchUser(id: string) { setActiveUser(id); setActiveId(id) }
 
@@ -110,6 +131,9 @@ export default function OnboardingPage() {
   }
   function removeJourney(idx: number) {
     setDraft((d) => ({ ...d, journey: d.journey.filter((_, i) => i !== idx) }))
+  }
+  function toggleShare(idx: number) {
+    setDraft((d) => ({ ...d, journey: d.journey.map((e, i) => i === idx ? { ...e, shared: !e.shared } : e) }))
   }
   const prettyMilestone = (m: string) => m.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
@@ -150,6 +174,23 @@ export default function OnboardingPage() {
     setSaving(true); setError('')
     try { await persist() } catch (e) { setError(e instanceof Error ? e.message : 'Could not save') }
     finally { setSaving(false) }
+  }
+
+  async function publishConnectCard() {
+    setConnecting(true); setError('')
+    try {
+      const res = await fetch('/api/connect-card', {
+        method: 'POST', headers: userHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ note: '' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Could not publish connect card')
+      setConnectCardId(data.case_id || '')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not publish connect card')
+    } finally {
+      setConnecting(false)
+    }
   }
 
   function backToBasics() {
@@ -318,6 +359,27 @@ export default function OnboardingPage() {
                         </button>
                       </div>
                       <p className="text-body-md text-on-surface-variant mt-0.5 whitespace-pre-wrap">{e.experience}</p>
+                      <label className="flex items-center gap-2 mt-1 cursor-pointer select-none">
+                        <input type="checkbox" checked={!!e.shared} onChange={() => toggleShare(i)} className="accent-primary" />
+                        <span className="text-caption text-on-surface-variant">
+                          Share the timeline for other users
+                          {e.shared && e.experience_case_id && <span className="text-primary"> · shared</span>}
+                        </span>
+                      </label>
+                      {/* generated facets (the experience JSON) — only for shared/published ones */}
+                      {e.experience_case_id && expFacets[e.experience_case_id] && (
+                        <div className="mt-1">
+                          <p className="text-caption text-on-surface-variant">Tagged for search:</p>
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {expFacets[e.experience_case_id].visa.map((v) => <span key={`v${v}`} className="badge-primary text-caption">{v}</span>)}
+                            {expFacets[e.experience_case_id].consulates.map((c) => <span key={`c${c}`} className="badge-secondary text-caption">{c}</span>)}
+                            {expFacets[e.experience_case_id].outcome && <span className="badge-success text-caption">{expFacets[e.experience_case_id].outcome}</span>}
+                            {expFacets[e.experience_case_id].tags.slice(0, 5).map((t) => (
+                              <span key={`t${t}`} className="text-caption text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ol>
@@ -327,7 +389,17 @@ export default function OnboardingPage() {
                 {saving ? 'Saving…' : 'Save experiences'}
               </button>
               <button onClick={backToBasics} className="btn-secondary w-full">Back to basics</button>
-              <p className="text-caption text-on-surface-variant text-center">Experiences are stored as text and never tagged to your current status.</p>
+              <p className="text-caption text-on-surface-variant text-center">Experiences are stored as text and never tagged to your current status. Only the ones you tick to share become searchable by others.</p>
+
+              {/* Connect card */}
+              <div className="pt-3 border-t border-outline-variant">
+                <p className="text-caption text-on-surface-variant mb-2">
+                  Want others in the same situation to find you? Publish a “looking to connect” card from your current profile.
+                </p>
+                <button onClick={publishConnectCard} disabled={connecting} className="btn-secondary w-full disabled:opacity-40">
+                  {connecting ? 'Publishing…' : connectCardId ? 'Connect card published ✓' : 'Publish a connect card'}
+                </button>
+              </div>
             </>
           )}
         </aside>

@@ -750,3 +750,175 @@ def publish_posting(title: str, description: str, tags: dict,
         "indexed": True,
         "author_handle": canonical["author_handle"],
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase-J: experience / connect-card documents (multi-view content; D-041)
+#
+# A consented profile experience is projected to its OWN searchable DS-1 sidecar
+# (doc_kind="experience"), carrying facets ABOUT THE EXPERIENCE (a past event) —
+# never the user's current-state tags. The live profile is NEVER imported.
+# ---------------------------------------------------------------------------
+
+# milestone label -> the 1.8 date key its date belongs under.
+_MILESTONE_DATE_KEY = {
+    "visa_interview": "visa_interview_date", "visa_stamping": "visa_stamp_date",
+    "port_of_entry": "admission_date", "h1b_filing": "h1b_filed_date",
+    "h1b_approval": "h1b_approved_date", "h1b_rfe": "rfe_date",
+    "opt_application": "i765_filed_date", "perm_filing": "labor_cert_filed_date",
+    "perm_approval": "perm_approved_date", "i140_approval": "i140_approved_date",
+    "i485_filing": "i485_filed_date", "biometrics": "biometrics_appointment_date",
+    "aos_interview": "aos_appointment_date", "ead_approval": "ead_approved_date",
+    "green_card": "green_card_received_date",
+    "naturalization_interview": "naturalization_interview_date",
+    "oath_ceremony": "oath_ceremony_date", "consular_221g": "221g_issued_date",
+}
+
+
+def _slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", (s or "").strip().lower()).strip("_")[:48]
+
+
+# Interview milestones (consular OR domestic) that earn `visa-interview-experience`.
+_INTERVIEW_MILESTONES = {"visa_interview", "aos_interview", "naturalization_interview"}
+
+
+def _pretty_milestone(m: str) -> str:
+    return (m or "milestone").replace("_", " ").strip().title()
+
+
+def build_experience_canonical(profile: dict, entry: dict, extracted: dict | None = None) -> dict:
+    """Build a sidecar canonical for ONE profile experience (doc_kind=experience).
+    Facets are extracted from the experience TEXT (about that past event), NOT from
+    the user's current profile state."""
+    text = str(entry.get("experience") or "").strip()
+    milestone = _slug(str(entry.get("milestone") or "milestone"))
+    date = normalize_date_safe(str(entry.get("date") or ""))
+    title = f"{_pretty_milestone(milestone)} experience"
+    if extracted is None:
+        try:
+            extracted = _extract(title, text)
+        except Exception as e:  # noqa: BLE001
+            print(f"posting: experience extraction failed ({e}); minimal facets")
+            extracted = {}
+
+    key_stages = extracted.get("key_stages_or_info")
+    key_dates = dict(_clean_dates(extracted.get("key_dates")))
+    dk = _MILESTONE_DATE_KEY.get(milestone)
+    if dk and date:
+        key_dates[dk] = date
+
+    # Experience tagging rules (phase-J):
+    #  1) every experience is tagged `past-experience` (universal) + `experience-posting`;
+    #  2) add `timeline` when the experience has any date(s);
+    #  3) `visa-interview-experience` for an interview milestone (consular OR domestic);
+    #  4) an experience NEVER carries concerns/questions tags.
+    tags = {f: extracted.get(f) for f in GROUP_FIELDS}
+    tags["concerns_or_questions_tags"] = []                                  # rule 4
+    base_tags = list(dict.fromkeys([*(tags.get("tags") or []),
+                                    "past-experience", "experience-posting"]))  # rule 1
+    if key_dates and "timeline" not in base_tags:                            # rule 2
+        base_tags.append("timeline")
+    if milestone in _INTERVIEW_MILESTONES and "visa-interview-experience" not in base_tags:  # rule 3
+        base_tags.append("visa-interview-experience")
+    tags["tags"] = base_tags
+
+    c = build_canonical(title, text, tags, key_stages, key_dates, extracted)
+    c["concerns_or_questions_tags"] = []  # belt-and-suspenders for rule 3
+    # Re-key as an experience document.
+    short = secrets.token_hex(4)
+    c["doc_kind"] = "experience"
+    c["case_id"] = f"{CHANNEL}-exp-{c['posting_date']}-{short}"
+    c["full_url"] = f"https://proceedings.app/case/{c['case_id']}"
+    c["post_title"] = title
+    c["ingestion_method"] = "user_experience"
+    c["source_metadata"] = "User milestone experience (phase-J), consent-shared"
+    # Link all of an author's experiences via their synthetic handle (no PII).
+    handle = str(profile.get("username") or "").strip() or c["author_handle"]
+    c["author_handle"] = handle
+    c["parent_case_id"] = handle
+    c["derived_topic_cluster"] = list(dict.fromkeys([*(c.get("derived_topic_cluster") or []), milestone]))
+    return c
+
+
+def publish_experience(profile: dict, entry: dict) -> dict:
+    """Project one consented experience to a searchable DS-1 sidecar. Returns its id."""
+    text = str(entry.get("experience") or "").strip()
+    if not text:
+        raise ValueError("experience has no text")
+    c = build_experience_canonical(profile, entry)
+    md_uri, _ = _write_gcs(c, _markdown_body(c["post_title"], text))
+    _import_to_datastore(c, md_uri)
+    _write_bigquery(c)
+    return {"case_id": c["case_id"], "doc_kind": "experience",
+            "milestone": entry.get("milestone", ""), "gcs_path": c["gcs_path"], "indexed": True}
+
+
+def publish_connect_card(profile: dict, note: str = "") -> dict:
+    """Publish an explicit 'looking to connect' card (doc_kind=connect_card) from
+    the user's CURRENT profile state. The user publishes it deliberately, so its
+    facets are the profile's current status (this is content, not the profile doc)."""
+    handle = str(profile.get("username") or "").strip() or _synthetic_handle()
+    tags = {f: profile.get(f) for f in GROUP_FIELDS}
+    state = ", ".join(profile.get("current_visa_or_greencard_category")
+                      or profile.get("visa_applying_for") or ["immigration"])
+    title = f"Looking to connect — {state}"
+    body = str(note or "").strip() or f"{handle} is looking to connect with others on a similar journey ({state})."
+    extracted = {
+        "background_summary": str(profile.get("background_text") or "")[:400] or "User looking to connect.",
+        "concerns_or_questions_summary": "Looking to connect with others in the same situation.",
+        "key_stages_or_info": profile.get("key_stages_or_info") or {},
+        "key_dates": profile.get("key_dates") or {},
+    }
+    c = build_canonical(title, body, tags, profile.get("key_stages_or_info"),
+                        profile.get("key_dates"), extracted)
+    short = secrets.token_hex(4)
+    c["doc_kind"] = "connect_card"
+    c["case_id"] = f"{CHANNEL}-connect-{c['posting_date']}-{short}"
+    c["full_url"] = f"https://proceedings.app/case/{c['case_id']}"
+    c["post_title"] = title
+    c["ingestion_method"] = "user_connect_card"
+    c["source_metadata"] = "Connect card (phase-J), user-published"
+    c["author_handle"] = handle
+    c["parent_case_id"] = handle
+    md_uri, _ = _write_gcs(c, _markdown_body(title, body))
+    _import_to_datastore(c, md_uri)
+    _write_bigquery(c)
+    return {"case_id": c["case_id"], "doc_kind": "connect_card", "gcs_path": c["gcs_path"], "indexed": True}
+
+
+def delete_content(case_id: str) -> None:
+    """Delete a published content doc (experience/connect-card/post) from the
+    datastore + its GCS sidecars. Best-effort; safe to call if already gone."""
+    from google.api_core.exceptions import NotFound
+    project, loc, ds = _project(), _ds_location(), _datastore()
+    try:
+        doc_client = de.DocumentServiceClient(client_options=ClientOptions(quota_project_id=project))
+        name = (f"projects/{project}/locations/{loc}/collections/default_collection"
+                f"/dataStores/{ds}/branches/default_branch/documents/{case_id}")
+        doc_client.delete_document(name=name)
+    except NotFound:
+        pass
+    except Exception as e:  # noqa: BLE001
+        print(f"posting.delete_content: datastore delete failed ({e})")
+    m = re.search(r"(\d{4}-\d{2}-\d{2})", case_id)
+    if m:
+        base = f"{m.group(1)}/{CHANNEL}/{case_id}"
+        try:
+            bkt = storage.Client(project=project).bucket(_bucket_name())
+            for ext in (".md", ".json"):
+                bkt.blob(f"{base}{ext}").delete()
+        except Exception as e:  # noqa: BLE001
+            print(f"posting.delete_content: gcs delete best-effort ({e})")
+
+
+def normalize_date_safe(value: str) -> str:
+    """Best-effort YYYY-MM-DD (delegates to profile.normalize_date if importable)."""
+    v = (value or "").strip()
+    if _DATE_RE.match(v):
+        return v
+    try:
+        import profile as _p
+        return _p.normalize_date(v)
+    except Exception:  # noqa: BLE001
+        return ""

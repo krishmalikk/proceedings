@@ -191,7 +191,14 @@ def _clean_journey(value) -> list:
             exp = scrub_pii(str(it.get("experience") or "")).strip()[:4000]
             if not ms or not exp:
                 continue
-            out.append({"milestone": ms, "date": normalize_date(str(it.get("date") or "")), "experience": exp})
+            out.append({
+                "milestone": ms,
+                "date": normalize_date(str(it.get("date") or "")),
+                "experience": exp,
+                # phase-J: per-experience consent (default ON) + published doc id (if shared).
+                "shared": bool(it.get("shared", True)),
+                "experience_case_id": str(it.get("experience_case_id") or ""),
+            })
     return _sort_journey(out)
 
 
@@ -299,11 +306,38 @@ def get_profile(db, user_id: str) -> dict:
     return prof
 
 
+def project_experiences(profile: dict) -> tuple[dict, list]:
+    """Phase-J (D-041): publish newly-shared experiences as their own searchable
+    DS-1 docs and delete newly-unshared ones. Mutates each journey entry's
+    `experience_case_id` in place. The profile itself is NEVER indexed.
+    Best-effort: a projection failure does not block the save."""
+    import posting
+    notes: list = []
+    for e in profile.get("journey", []):
+        shared = bool(e.get("shared"))
+        cid = str(e.get("experience_case_id") or "")
+        try:
+            if shared and not cid:
+                res = posting.publish_experience(profile, e)
+                e["experience_case_id"] = res["case_id"]
+                notes.append(("published", res["case_id"]))
+            elif not shared and cid:
+                posting.delete_content(cid)
+                e["experience_case_id"] = ""
+                notes.append(("unpublished", cid))
+        except Exception as ex:  # noqa: BLE001
+            notes.append(("error", f"{e.get('milestone')}: {ex}"))
+    return profile, notes
+
+
 def save_profile(db, user_id: str, p: dict) -> dict:
-    """Validate + persist the profile. Returns the stored profile."""
+    """Validate + persist the profile. Returns the stored profile.
+    Consented experiences are projected to searchable DS-1 docs (D-041)."""
     from google.cloud import firestore as _fs
     cleaned = clean_profile(p)
     cleaned["username"] = cleaned["username"] or username_for(user_id)
+    # Publish/withdraw consented experiences and capture their doc ids.
+    cleaned, _proj = project_experiences(cleaned)
     if db is None:
         return cleaned
     doc = db.collection("users").document(user_id)
@@ -445,7 +479,10 @@ When you have offered every crossed milestone (capturing the ones they share) or
 - This stage captures EXPERIENCE TEXT ONLY. NEVER change or output the current-state tag fields; NEVER tag
   these past experiences. A past refusal or a status no longer held stays as experience text only.
 - NEVER ask for or store PII (name, DOB, address, phone, email, passport/A-number, SSN).
-- If they ask an immigration QUESTION, don't answer it — say they can post it as a message; steer back.
+- NO QUESTIONS OR CONCERNS HERE. If the user asks a question or raises a concern (e.g. about timelines,
+  eligibility, an RFE, re-entry): do NOT answer it and do NOT record it anywhere. Tell them to create a
+  SEPARATE posting for that question/concern, then steer back to collecting their experiences. An experience
+  is a past account only — it must never contain a question or concern.
 
 # OUTPUT — return ONE JSON object only (no prose, no fences):
 {{

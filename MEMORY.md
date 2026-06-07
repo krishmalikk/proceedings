@@ -593,6 +593,45 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 **Affected docs / status:** Done. [PHASE-E-PLAN.md](PHASE-E-PLAN.md) (plan + execution); TODO.md ticked; `.env` + `CLAUDE.md` cleaned. Historical decision records (ARCHITECTURE_GAP, FINAL-ARCHITECTURE) left as-is.
 
+## D-041 — 2026-06-06 — Multi-view searchable user content via DS-1 content docs; the live profile stays Firestore app-state and is NEVER indexed
+
+**Decision:** To make different "views" of a user searchable (current profile vs past experiences vs messages), each searchable view is modeled as **content in DS-1** — a sidecar (`.md` + `.json`) document distinguished by `channel` / `doc_kind` — **not** by indexing the profile. Specifically:
+- **Messages/postings** stay tier-1 (`doc_kind=post`, in-app channel). Unchanged.
+- **Past experiences** become their own searchable documents (**new `doc_kind=experience`**, in-app channel), each a sidecar pair: `.md` = the experience text; `.json` = facets **about that experience** (milestone, the dated event, visa-at-the-time, consulate, outcome) — never the user's current-state tags. Consent-gated (default OFF).
+- **The live user profile (`users/{id}`) is NEVER imported into the datastore.** It remains Firestore app-state / Gemini context (pre-fill drafts, pre-filter searches), exactly per D-035 / FINAL-ARCHITECTURE §6.
+- **Storage of record:** profile = Firestore; *published* content = GCS sidecar (D-031, source of truth) + a Firestore mirror for ownership ("my experiences"). To make a consented slice searchable, project it from Firestore → GCS sidecar → `documents.import` (Firestore is not a grounding source).
+- Multiple views = multiple **documents** (one `.json` per doc), not multiple JSONs on one document (the sidecar contract is 1 `.md` + 1 `.json` per doc).
+
+**Reasoning:** This is exactly what D-036 ("a new source = a new `channel` value, zero schema work") and the sidecar pattern were built for, so experiences/connect-cards as content add a `doc_kind`/`channel`, not a new architecture. The **only** thing that would deviate is indexing the *profile itself*, which contradicts D-035's "profile is app-state, NEVER a grounding source" — so we draw the hard line there: searchable views are always *published content*, never the profile record. Experience facets describe the experience (a past event), preserving the phase-I "past ≠ current state" rule.
+
+**Alternatives rejected:** (a) Index the live profile into DS-1 — contradicts D-035/§6; reopens the app-state-vs-grounding boundary. (b) Attach multiple JSONs to one document — impossible; `structData` is one JSON per doc. (c) Match "same boat" users purely via Firestore queries — viable but doesn't make experiences citable in grounded answers; kept as a possible complement, not the primary path.
+
+**Affected docs / status:** Open (plan). [PHASE-J-PLAN.md](PHASE-J-PLAN.md); addendum §10 added to [FINAL-ARCHITECTURE.md](FINAL-ARCHITECTURE.md). Implementation pending on `phase-J-reconcile`.
+
+## D-042 — 2026-06-06 — Profile↔message reconciliation happens at publish time in the backend (deterministic field-merge + LLM conflict explainer)
+
+**Decision:** The merge/reconcile of the two canonical sources — the saved profile (`users/{id}`) and a message/posting being composed — runs **at publish/compose time in the backend**, producing the **single** posting sidecar JSON that gets indexed (the profile contributes context; it does not get its own sidecar on that document). Field-level rules (the canonical tag fields share names across both schemas, so the merge is a projection):
+- **same value** → no-op; **message empty + profile set** → pre-fill from profile; **both set & differ** → conflict: *message wins for this posting* and the user is **offered an update to their profile** (per `specs-userprofile.md` "data conflict scenarios"); **background** → union (user never re-enters background already in the profile).
+- Start **deterministic** (field merge + conflict list) plus an **LLM "conflict explainer"** (plain-English prompt to update the profile). A fully agentic reconcile agent is a later option, not v1.
+
+**Reasoning:** Both schemas reuse the same controlled vocabulary and field names (`current_visa_or_greencard_category`, `consulates`, `key_dates`, …), so reconciliation is a mechanical field projection — no new schema, no new datastore behavior. Doing it at publish time keeps the sidecar contract intact (one JSON indexed) and matches the BFF/posting-flow design in FINAL-ARCHITECTURE §5/§7.
+
+**Alternatives rejected:** (a) Reconcile in an offline batch — loses the in-conversation "update your profile?" prompt the spec requires. (b) Index both the profile JSON and the message JSON and reconcile at query time — violates D-041 (profile never indexed) and the single-sidecar contract. (c) Lead with a full LLM reconcile agent — unnecessary cost/latency for a field-level merge; deterministic core + LLM explainer is cheaper and auditable.
+
+**Affected docs / status:** Open (plan). [PHASE-J-PLAN.md](PHASE-J-PLAN.md) §4; addendum §10 in [FINAL-ARCHITECTURE.md](FINAL-ARCHITECTURE.md). Implementation pending on `phase-J-reconcile`.
+
+## D-043 — 2026-06-06 — Experience-share consent defaults ON (supersedes the default-OFF in D-041)
+
+**Decision:** The per-experience "share the timeline for other users" consent now defaults to **ON** (the checkbox is ticked by default). On save, every experience the user has not explicitly un-ticked is projected to a searchable DS-1 `doc_kind=experience` document. This **supersedes the default-OFF stance recorded in D-041** (per-experience opt-in). The mechanism is unchanged — still per-experience, still respects an explicit opt-out (`shared=false`); only the default flips.
+
+**Reasoning:** Product call (user directive): the platform's value is letting applicants on the same step find each other, so experiences should be discoverable by default rather than requiring an opt-in most users would skip. Implemented in `profile._clean_journey` (`shared` defaults `True`) with the stage-2 label reworded to "Share the timeline for other users".
+
+**Alternatives rejected:** Keep per-experience opt-in (default OFF, D-041) — safest privacy posture but suppresses the "same boat" discovery the feature exists for. Whole-profile single toggle — coarser control than per-experience.
+
+**Caveats / residual posture:** Experiences remain PII-free (scrubbed) and tagged only about the experience (never current-state). The hard D-041 boundary is unchanged: the **live profile is still NEVER indexed** — only consented *experience documents* are. A user can still un-tick any experience (which withdraws/deletes its doc). If a stricter privacy default is ever required (e.g. regulatory), flip `_clean_journey`'s default back to `False`; no schema change.
+
+**Affected docs / status:** Done (code) on `phase-J-reconcile`: `profile.py` (`_clean_journey` default ON), `website/.../onboarding/page.tsx` (label), tests updated (`test_reconcile` C2/C2b). D-041's default-OFF line is **superseded by this entry** (D-041 otherwise stands).
+
 ---
 
 # Session summaries
