@@ -642,6 +642,14 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 **Affected docs / status:** Done on `phase-K-cleanup`. No code/doc references to update (none existed). `postings-examples/` retained.
 
+## D-045 — 2026-06-06 — Single source of truth for the tag vocabulary (`tags-cleaned/`); obsidian copy is now a symlink
+
+**Decision:** There were **two divergent copies** of `tags-cleaned/` — the root one (loaded by code: `posting.py` `_TAGS_DIR`, `search_client.py`) and a stale mirror in `proceedings-obsidian/tags-cleaned/` (5 of 10 CSVs had drifted; the mirror lacked recent root additions like `i140_filed_date`, `past-experience`, the broadened `experience-posting`, etc., and carried a stale duplicate `h1b-cap-gap` already covered by root's `cap-gap`). Made the **root `tags-cleaned/` the single source of truth** and replaced `proceedings-obsidian/tags-cleaned/` with a **symlink → `../tags-cleaned`** so the vault always reflects the live vocabulary; no possibility of future drift.
+
+**Reasoning:** Two editable copies = two sources of truth = silent drift (already happened). The code only ever reads the root copy, so root is authoritative; the obsidian vault just needs to *see* the same files for browsing — a symlink does that with zero duplication. Verified nothing was lost (root is a superset; the lone obsidian-only key was a stale duplicate) and the live vocab still loads (415 tags). Note: git stores it as a symlink (mode 120000) — Obsidian follows it on macOS; a Windows checkout without `core.symlinks` would see a text stub (acceptable for this Mac-based project).
+
+**Affected docs / status:** Done on `phase-K-cleanup`. obsidian `CLAUDE.md` reference to `tags-cleaned/` still resolves via the symlink (no change needed).
+
 ---
 
 # Session summaries
