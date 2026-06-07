@@ -300,6 +300,80 @@ def group_e() -> None:
     check("E6 connect card deleted", True)
 
 
+# ---------------------------------------------------------------------------
+# F — negative / robustness + experience tagging spec (UNIT, deterministic)
+# ---------------------------------------------------------------------------
+
+def group_f() -> None:
+    print("\nF — negative / robustness + tagging spec (unit)")
+    import reconcile as rc
+    import posting as p
+
+    # --- reconcile robustness (bad / missing inputs must not crash) ---
+    r = rc.reconcile_profile_message(None, None)
+    check("F1 reconcile(None, None) is safe (empty merged, no conflicts)",
+          isinstance(r["merged"], dict) and r["conflicts"] == [] and r["prefilled"] == [])
+
+    r2 = rc.reconcile_profile_message({}, {
+        "current_visa_or_greencard_category": "H-1B",     # scalar, not a list
+        "consulates": ["ZZZ"],                              # out-of-vocab
+        "key_dates": {"visa_interview_date": "garbage"},    # unparseable
+        "key_stages_or_info": "not-a-dict",                 # wrong type
+    })
+    check("F2 scalar visa coerced to a list", r2["merged"]["current_visa_or_greencard_category"] == ["H-1B"])
+    check("F3 out-of-vocab consulate dropped (no crash, no conflict)",
+          r2["merged"]["consulates"] == [] and r2["conflicts"] == [])
+    check("F4 unparseable date dropped from merged", r2["merged"]["key_dates"] == {})
+    check("F5 non-dict map coerced to {}", r2["merged"]["key_stages_or_info"] == {})
+
+    # an out-of-vocab key_date key (valid format, bad key) is also dropped — no false conflict.
+    r3 = rc.reconcile_profile_message({"key_dates": {"made_up_date": "2025-01-01"}},
+                                      {"key_dates": {"made_up_date": "2026-01-01"}, "description": "x"})
+    check("F6 out-of-vocab date key dropped -> no conflict",
+          r3["merged"]["key_dates"] == {} and r3["conflicts"] == [])
+
+    # --- experience builder robustness ---
+    try:
+        p.publish_experience({"username": "x"}, {"milestone": "visa_interview", "date": "", "experience": "   "})
+        check("F7 publish_experience with blank text raises", False, "no raise")
+    except ValueError:
+        check("F7 publish_experience with blank text raises ValueError", True)
+
+    ex = {"visa_applying_for": [], "current_visa_or_greencard_category": [], "consulates": [], "primary_consulate": "",
+          "tags": ["totally-made-up-tag"],                                  # out-of-vocab tag
+          "concerns_or_questions_tags": ["c1", "c2", "c3", "c4", "c5"],      # flood of concerns
+          "key_stages_or_info": {}, "key_dates": {}, "background_summary": "x",
+          "concerns_or_questions_summary": "y", "severity": "low", "employer_type": "unknown",
+          "resolution_status": "resolved", "derived_topic_cluster": []}
+    c = p.build_experience_canonical({"username": "h"}, {"milestone": "", "date": "", "experience": "some text"}, dict(ex))
+    check("F8 out-of-vocab extracted tag dropped, forced tags remain",
+          "totally-made-up-tag" not in c["tags"] and "past-experience" in c["tags"] and "experience-posting" in c["tags"],
+          str(c["tags"]))
+    check("F9 concern flood fully stripped (rule: no concerns on experience)", c["concerns_or_questions_tags"] == [])
+    check("F10 empty milestone -> no visa-interview-experience, still past-experience",
+          "visa-interview-experience" not in c["tags"] and "past-experience" in c["tags"], str(c["tags"]))
+
+    # --- forced experience tags must NOT leak onto a normal posting ---
+    cp = p.build_canonical("Title", "body", {"tags": ["RFE"]})
+    check("F11 normal posting is NOT auto-tagged past-experience / experience-posting",
+          "past-experience" not in cp["tags"] and "visa-interview-experience" not in cp["tags"], str(cp["tags"]))
+
+    # --- experience tagging spec: the full interview set + broadened experience-posting ---
+    def tags_for(milestone, date="2024-01-01"):
+        return p.build_experience_canonical({"username": "h"},
+                                            {"milestone": milestone, "date": date, "experience": "t"},
+                                            dict(ex))["tags"]
+    for ms in ("visa_interview", "aos_interview", "naturalization_interview"):
+        check(f"F12 '{ms}' earns visa-interview-experience", "visa-interview-experience" in tags_for(ms), ms)
+    for ms in ("port_of_entry", "h1b_approval", "biometrics"):
+        t = tags_for(ms)
+        check(f"F13 non-interview '{ms}': experience-posting present, no interview tag",
+              "experience-posting" in t and "visa-interview-experience" not in t, str(t))
+    check("F14 dated experience gets 'timeline'; undated does not",
+          "timeline" in tags_for("h1b_approval", "2024-06-01")
+          and "timeline" not in tags_for("h1b_approval", ""))
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set"); return 2
@@ -309,6 +383,7 @@ def main() -> int:
     group_b()
     group_c()
     group_d(run_llm=only in ("all", "llm"))
+    group_f()
     if only in ("all", "integration"):
         group_e()
     print("\n" + "=" * 60)
