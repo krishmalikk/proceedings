@@ -52,7 +52,7 @@ Output → the single posting sidecar JSON → existing `posting.publish_posting
 
 - On profile save (stage-2 experiences) **with consent**, project each consented `journey` entry → experience sidecar in GCS → `documents.import` (`doc_kind=experience`).
 - `profile.journey` stays in Firestore as the user's private copy (mirror); the GCS sidecar is the searchable source of truth.
-- **Consent:** a per-experience "share so others can find me" toggle, **default OFF**. Only consented experiences are projected/indexed.
+- **Consent:** a per-experience "Share the timeline for other users" toggle, **default ON** (D-043; was default OFF). Experiences are projected/indexed unless the user un-ticks; explicit opt-out is respected.
 - Update/delete propagate (re-import / `documents.delete`) like postings.
 
 ## 6. "Same boat" search (forward-looking, not built in J)
@@ -74,7 +74,7 @@ Output → the single posting sidecar JSON → existing `posting.publish_posting
 
 1. **Views indexed now:** **experiences + connect card.** Consented `doc_kind=experience` docs **and** an explicit user-published `doc_kind=connect_card` doc. Messages already searchable; **profile NEVER indexed**.
 2. **Conflict default:** **message wins for the post + offer to update the profile** ("this differs from your profile — update it?").
-3. **Consent model:** **per-experience opt-in, default OFF.** Each experience has its own "share so others can find me" toggle; nothing is indexed unless turned on. (Connect card is itself an explicit publish action = its own consent.)
+3. **Consent model:** **per-experience, default ON** (D-043 — updated from the original default-OFF). Each experience has its own "Share the timeline for other users" toggle; experiences are indexed unless un-ticked. Explicit opt-out is respected. (Connect card is itself an explicit publish action = its own consent.)
 4. **Experience facets:** **yes** — each experience doc carries milestone / dated event / visa-at-time / consulate / outcome, describing the experience (not current state).
 5. **Reconcile engine:** **deterministic field merge + LLM "conflict explainer."** No full reconcile agent in v1.
 6. **Channel label:** keep **`ourwebsite`** for all in-app content (consistent with existing postings); distinguish views via `doc_kind` (`post` | `experience` | `connect_card`). (FINAL-ARCHITECTURE's conceptual `app` == implemented `ourwebsite`.)

@@ -620,6 +620,18 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 **Affected docs / status:** Open (plan). [PHASE-J-PLAN.md](PHASE-J-PLAN.md) §4; addendum §10 in [FINAL-ARCHITECTURE.md](FINAL-ARCHITECTURE.md). Implementation pending on `phase-J-reconcile`.
 
+## D-043 — 2026-06-06 — Experience-share consent defaults ON (supersedes the default-OFF in D-041)
+
+**Decision:** The per-experience "share the timeline for other users" consent now defaults to **ON** (the checkbox is ticked by default). On save, every experience the user has not explicitly un-ticked is projected to a searchable DS-1 `doc_kind=experience` document. This **supersedes the default-OFF stance recorded in D-041** (per-experience opt-in). The mechanism is unchanged — still per-experience, still respects an explicit opt-out (`shared=false`); only the default flips.
+
+**Reasoning:** Product call (user directive): the platform's value is letting applicants on the same step find each other, so experiences should be discoverable by default rather than requiring an opt-in most users would skip. Implemented in `profile._clean_journey` (`shared` defaults `True`) with the stage-2 label reworded to "Share the timeline for other users".
+
+**Alternatives rejected:** Keep per-experience opt-in (default OFF, D-041) — safest privacy posture but suppresses the "same boat" discovery the feature exists for. Whole-profile single toggle — coarser control than per-experience.
+
+**Caveats / residual posture:** Experiences remain PII-free (scrubbed) and tagged only about the experience (never current-state). The hard D-041 boundary is unchanged: the **live profile is still NEVER indexed** — only consented *experience documents* are. A user can still un-tick any experience (which withdraws/deletes its doc). If a stricter privacy default is ever required (e.g. regulatory), flip `_clean_journey`'s default back to `False`; no schema change.
+
+**Affected docs / status:** Done (code) on `phase-J-reconcile`: `profile.py` (`_clean_journey` default ON), `website/.../onboarding/page.tsx` (label), tests updated (`test_reconcile` C2/C2b). D-041's default-OFF line is **superseded by this entry** (D-041 otherwise stands).
+
 ---
 
 # Session summaries
