@@ -708,6 +708,24 @@ The Obsidian vault **`proceedings-obsidian/`** stays a **sibling** (own tooling 
 
 **Affected docs / status:** Done on `phase-K-cleanup`.
 
+## D-050 — 2026-06-07 — Replies + Reddit-style voting on postings (phase-L)
+
+**Decision:** Added user **replies** to postings and **up/down voting** on both postings and replies, stored in **Firestore** (a lightweight "interactions" store) — deliberately **separate from the GCS→datastore→BigQuery posting corpus** so search/grounding are unaffected by construction. (Considered, but deferred, storing replies as `doc_kind="comment"` datastore documents — the canonical schema already models them; promotion path documented. Plan + tradeoffs: `/Users/KW98T6E/.claude/plans/giggly-stargazing-lemur.md`.)
+
+**Model (`backend/interactions.py`):** three Firestore collections —
+`replies/{auto_id}` `{parent_case_id, body, author_handle, user_id, created_at, deleted}`;
+`votes/{contentId}__{userId}` `{dir:-1|1}`; `content_meta/{contentId}` `{up,down,score}` — where `contentId` is a posting `case_id` **or** a reply id (one tally path for both, `score=up-down`). `cast_vote` runs a Firestore **transaction** (read prior vote → pure `_apply_vote` deltas → write vote + tally); the frontend decides toggling and sends the desired resulting `dir∈{-1,0,1}` (0 clears). Replies are **flat** (v1); listing is a single-equality query sorted in Python (no composite index). Soft-delete; **author-only**.
+
+**Choices (locked):** replies = Firestore; threading = flat; **replying/voting require an active user** (`X-User-Id`); reads are anonymous (`your_vote=0`). Postings stay anonymous; `author_handle` = the seed username (e.g. `arjun-h1b`), never the raw user id (which is stored only for dedup/delete and never serialized).
+
+**API (`backend/api.py`):** `GET /api/postings/{id}/replies` (anon-ok; replies+tallies + the posting's own tally), `POST /api/postings/{id}/replies`, `DELETE …/replies/{rid}` (author-only), `POST /api/votes`. Reuses `_active_user`/rate-limiter/`_guard`; new `_optional_user` for anon reads. **`Dockerfile` updated** to COPY `interactions.py` (would otherwise crash the deploy on import).
+
+**Frontend (`website/`):** proxy routes (`api/postings/[id]/replies`, `…/[replyId]`, `api/votes`) forwarding `X-User-Id`; `VoteControl` (optimistic up/down + score, reused for posting & replies), `Replies` + `ReplyItem`. `case/[id]` now renders a Reddit-style vote rail beside the posting and a **visually separate "Replies (N)" section** below the body (own composer gated on active user, Top/New sort, distinct lighter cards) — satisfying the "post and replies not inter-mingled" requirement.
+
+**Verification:** `test_interactions.py` 24/24 (pure `_apply_vote` truth table + live-Firestore add/list/vote-toggle/author-only-delete/cleanup); HTTP TestClient smoke; **full Next-proxy→backend e2e** (anon read → 400 without user → reply → vote posting+reply → per-viewer `your_vote` → 403 wrong-user delete → 200 author). Website `tsc --noEmit` + `next build` clean. Search feed unaffected (replies aren't in the datastore).
+
+**Affected docs / status:** Done on `phase-L-reply-to-postings`. Promotion path (replies → groundable datastore docs) deferred.
+
 ---
 
 # Session summaries

@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Markdown from '@/components/Markdown'
+import VoteControl from '@/components/VoteControl'
+import Replies from '@/components/Replies'
+
+type Tally = { up: number; down: number; score: number; your_vote: number }
+const ZERO_TALLY: Tally = { up: 0, down: 0, score: 0, your_vote: 0 }
 
 type PostingDetail = {
   case_id: string
@@ -32,6 +37,7 @@ export default function CaseDetailsPage() {
   const [data, setData] = useState<PostingDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [postingTally, setPostingTally] = useState<Tally>(ZERO_TALLY)
 
   useEffect(() => {
     if (!id) return
@@ -63,8 +69,12 @@ export default function CaseDetailsPage() {
       {data && (
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main */}
-          <div className="flex-1 space-y-6">
-            <div>
+          <div className="flex-1 space-y-6 min-w-0">
+            <div className="flex gap-4">
+              <div className="pt-1 shrink-0">
+                <VoteControl contentId={data.case_id} score={postingTally.score} yourVote={postingTally.your_vote} />
+              </div>
+              <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-3">
                 {data.outcome && <span className={outcomeBadge(data.outcome)}>{data.outcome}</span>}
                 {data.visa.map((v) => <span key={v} className="badge-primary">{v}</span>)}
@@ -78,6 +88,7 @@ export default function CaseDetailsPage() {
               {data.description && (
                 <p className="text-body-md text-on-surface-variant">{data.description}</p>
               )}
+              </div>
             </div>
 
             {/* Full posting body */}
@@ -90,6 +101,9 @@ export default function CaseDetailsPage() {
                 {data.body ? <Markdown>{data.body}</Markdown> : 'No content available.'}
               </div>
             </div>
+
+            {/* Replies — a clearly separate section below the posting */}
+            <Replies postingId={data.case_id} onPostingTally={setPostingTally} />
           </div>
 
           {/* Sidebar */}
