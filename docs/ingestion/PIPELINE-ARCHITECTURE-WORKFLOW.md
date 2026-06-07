@@ -337,12 +337,12 @@ Set the cap in config; raise it deliberately when the backfill runs.
 ## 10. Open items / proposed follow-ups
 
 1. **Schema doc updates needed** (not yet applied — flagging, not changing silently):
-   - `case_id` definition in [JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) must change from `case-N` to `reddit-<YYYY-MM-DD>-<subreddit>-<post_id>`.
+   - `case_id` definition in [JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) must change from `case-N` to `reddit-<YYYY-MM-DD>-<subreddit>-<post_id>`.
    - `gcs_path` definition must change to the `gs://imm-postings-ingestion/<date>/reddit/` convention.
    - Add `doc_kind`, `parent_case_id`, `reddit_post_id` fields for the comment-as-document model.
    Want me to apply these to the field dictionary + LLM prompt next?
    Answer: Yes, please apply.
-2. **Pydantic schema** (your §11.4): I can generate `schema.py` (a Pydantic v2 model) from the field dictionary so the Validator Tool and BQ-Writer share one source of truth. Confirm and I'll add it under `content-ingestion-specifications/`.
+2. **Pydantic schema** (your §11.4): I can generate `schema.py` (a Pydantic v2 model) from the field dictionary so the Validator Tool and BQ-Writer share one source of truth. Confirm and I'll add it under `ingestion/`.
 Answer: Yes, please apply_
 3. **Comment-as-document** changes the seed-corpus assumptions (72 post-only docs). Confirm comments should be fully independent searchable documents (recommended) vs. appended context to the parent.
 Answer: Top comments which has upvotes > 5 should be searchable.
@@ -391,7 +391,7 @@ Answer: posts with ≥ 50 upvotes in the last 3 months
 | 12.6 GCS → embedding dataset → Vertex AI Search & Conversation chatbot | §15 below |
 | 12.7 Vertex AI ML Metadata (MSMD) — used or not, and why | §16 below |
 
-Schema changes you approved in §10 are applied: [JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) and [LLM-EXTRACTION-PROMPT.md](../tagging-specifications/LLM-EXTRACTION-PROMPT.md) now use the `reddit-<date>-<sub>-<post_id>` `case_id`, the `gs://imm-postings-ingestion/<date>/reddit/` `gcs_path`, and the `doc_kind`/`parent_case_id`/`reddit_post_id` fields. The shared Pydantic model is [schema.py](schema.py).
+Schema changes you approved in §10 are applied: [JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) and [LLM-EXTRACTION-PROMPT.md](../tagging/LLM-EXTRACTION-PROMPT.md) now use the `reddit-<date>-<sub>-<post_id>` `case_id`, the `gs://imm-postings-ingestion/<date>/reddit/` `gcs_path`, and the `doc_kind`/`parent_case_id`/`reddit_post_id` fields. The shared Pydantic model is [schema.py](schema.py).
 
 ---
 
@@ -399,7 +399,7 @@ Schema changes you approved in §10 are applied: [JSON-SCHEMA-FIELD-DICTIONARY.m
 
 ### 14.1 Source of truth
 
-The 10 master tag CSVs live in the repository at [`tags-cleaned/1.1 … 1.10`](../tags-cleaned/). Git is the **system of record** — every tag addition is a reviewed commit (see [TAG-LIFECYCLE.md](TAG-LIFECYCLE.md)).
+The 10 master tag CSVs live in the repository at [`tags-cleaned/1.1 … 1.10`](../../backend/tags-cleaned/). Git is the **system of record** — every tag addition is a reviewed commit (see [TAG-LIFECYCLE.md](TAG-LIFECYCLE.md)).
 
 ### 14.2 How they reach runtime
 

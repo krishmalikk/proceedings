@@ -2,7 +2,7 @@
 
 Single operational runbook for running and testing the Proceedings stack **locally** — Python API backend, website, and mobile app — grounded on the managed **Vertex AI Search datastore** (`imm-postings-datastore`, which contains the Reddit ingestion).
 
-> **Architecture note (current):** grounding is served by the managed **Discovery Engine Search/Answer API** over `imm-postings-datastore` (app + reddit) with an optional public-reference website tier (DS-2). The old self-managed **Vertex AI Vector Search** path (`index.py`, `chunk_mapping.json`, `VERTEX_AI_INDEX_*`, `find_neighbors`) is **retired** — ignore any older references to it. See [FINAL-ARCHITECTURE](../app-specifications/FINAL-ARCHITECTURE.md) and MEMORY.md D-039.
+> **Architecture note (current):** grounding is served by the managed **Discovery Engine Search/Answer API** over `imm-postings-datastore` (app + reddit) with an optional public-reference website tier (DS-2). The old self-managed **Vertex AI Vector Search** path (`index.py`, `chunk_mapping.json`, `VERTEX_AI_INDEX_*`, `find_neighbors`) is **retired** — ignore any older references to it. See [FINAL-ARCHITECTURE](../docs/app/FINAL-ARCHITECTURE.md) and MEMORY.md D-039.
 
 ---
 

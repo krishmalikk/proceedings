@@ -122,7 +122,7 @@ This table is the audit trail: every master-tag addition is traceable to the pos
 ## 6. Governance rules
 
 1. **One justifying document minimum.** No tag enters PROPOSED without a real `justifying_case_id`.
-2. **Naming convention enforced.** The proposed tag must obey the target section's convention in [tagging-specifications/us_immigration_tag_specification.md](../tagging-specifications/us_immigration_tag_specification.md) (e.g. 1.1/1.2 UPPERCASE visa codes, 1.10 kebab-case). `propose-fn` runs a regex precheck and rejects malformed proposals at step 4.
+2. **Naming convention enforced.** The proposed tag must obey the target section's convention in [tagging/us_immigration_tag_specification.md](../tagging/us_immigration_tag_specification.md) (e.g. 1.1/1.2 UPPERCASE visa codes, 1.10 kebab-case). `propose-fn` runs a regex precheck and rejects malformed proposals at step 4.
 3. **Prefer composition over new tags.** Before approving, the owner asks: "can existing tags compose this?" (e.g. `RFE` + `I-140` instead of a new `i140-rfe`). This mirrors the earlier decision that the §1.6 RFE-per-form tags were unnecessary. Discard with that reason when true.
 4. **Batch approvals.** New tags are applied in reviewed git commits, not live edits, so the closed vocabulary stays auditable and the change set is reviewable.
 5. **Versioned vocabulary.** Each applied batch bumps `TAG_VOCAB_VERSION`. The Validator and the LLM prompt cache key off this version so propagation is observable and rollback-able.

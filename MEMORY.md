@@ -28,7 +28,7 @@
 
 ## D-001 — 2026-05-14 — Tag taxonomy organized into 10 master CSVs (sections 1.1–1.10)
 
-**Decision:** Replace the original ad-hoc CSVs in `csv/` with 10 cleaned master CSVs in `tags-cleaned/`, one per spec category 1.1–1.10. Apply the naming conventions and dedup/normalization rules in [us_immigration_tag_specification.md](tagging-specifications/us_immigration_tag_specification.md).
+**Decision:** Replace the original ad-hoc CSVs in `csv/` with 10 cleaned master CSVs in `tags-cleaned/`, one per spec category 1.1–1.10. Apply the naming conventions and dedup/normalization rules in [us_immigration_tag_specification.md](docs/tagging/us_immigration_tag_specification.md).
 **Reasoning:** Original inputs had duplicates, inconsistent casing, and mixed concerns. A category-keyed master is required for downstream LLM tagging, Vertex AI Search faceting, and validator vocabulary checks.
 **Alternatives rejected:** Keep one flat tag list (loses faceting); keep input CSVs as-is (duplicate noise persists).
 **Status:** Done — 10 master CSVs in [tags-cleaned/](tags-cleaned/).
@@ -45,7 +45,7 @@
 **Decision:** Each posting's metadata JSON puts every tag into exactly one of these sibling fields: `current_visa_or_greencard_category`, `visa_applying_for`, `consulates`, `tags`, `concerns_or_questions_tags`. A tag string MUST appear in at most one field (exception: `visa_applying_for` may share with `current_visa_or_greencard_category` for renewals/extensions).
 **Reasoning:** Splits tags semantically (present status vs intent vs consulate vs background context vs active question) for Vertex AI Search faceting and embedding alignment; prevents double-counting in search.
 **Alternatives rejected:** Single flat `tags` array (loses semantic split + faceting); split `tags` by spec section 1.x (over-fragmented; agents struggled with edge cases).
-**Status:** Done — schema in [JSON-SCHEMA-FIELD-DICTIONARY.md](tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) and Pydantic in [content-ingestion-specifications/schema.py](content-ingestion-specifications/schema.py).
+**Status:** Done — schema in [JSON-SCHEMA-FIELD-DICTIONARY.md](docs/tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) and Pydantic in [docs/ingestion/schema.py](docs/ingestion/schema.py).
 
 ## D-004 — 2026-05-14 — `visa_applying_for` kept distinct from `current_visa_or_greencard_category`
 
@@ -75,7 +75,7 @@
 **Alternatives rejected:** Keep stripped versions of migration docs (unnecessary; migration is complete).
 **Status:** Done.
 
-## D-008 — 2026-05-17 — Specs organized into `tagging-specifications/` and `content-ingestion-specifications/`
+## D-008 — 2026-05-17 — Specs organized into `docs/tagging/` and `docs/ingestion/`
 
 **Decision:** Two parallel spec folders separating taxonomy-of-tags from how-content-is-ingested.
 **Reasoning:** Cleaner concerns split; ingestion specs reference taxonomy specs but not vice versa.
@@ -87,7 +87,7 @@
 **Decision:** Ingestion pipeline is built as a single ADK agent on **Vertex AI Agent Engine**, with **Cloud Run** stateless tools (Scraper, Validator, GCS-Writer, BQ-Writer) invoked by the agent. Reasoner: Gemini 2.5 Flash (Pro fallback).
 **Reasoning:** Managed agent runtime, native Example Store integration for self-learning, separation of reasoning (Agent Engine) from deterministic capabilities (Cloud Run).
 **Alternatives rejected:** Plain Cloud Run **job** end-to-end (no agentic reasoning, no Example Store hook); Vertex AI Playbook (conversational-agent orientation, not batch structured extraction).
-**Status:** Done — see [PIPELINE-ARCHITECTURE-WORKFLOW.md](content-ingestion-specifications/PIPELINE-ARCHITECTURE-WORKFLOW.md).
+**Status:** Done — see [PIPELINE-ARCHITECTURE-WORKFLOW.md](docs/ingestion/PIPELINE-ARCHITECTURE-WORKFLOW.md).
 
 ## D-010 — 2026-05-17 — `case_id` is deterministic: `reddit-<YYYY-MM-DD>-<subreddit>-<post_id>`
 
@@ -126,7 +126,7 @@
 
 ## D-015 — 2026-05-18 — Phase 1 / Phase 2 phasing (no Phase 3)
 
-**Decision:** Two phases authoritative in [PIPELINE-ARCHITECTURE-WORKFLOW.md §18](content-ingestion-specifications/PIPELINE-ARCHITECTURE-WORKFLOW.md). Phase 1 = pilot (3 subreddits — `r/h1b`, `r/USVisas`, `r/usvisascheduling` — forward-only, daily auto-sync, no backfill). Phase 2 = production (event-driven import primary, broader subreddits, one-time backfill ≥50 upvotes/last 3 mo, active learning, fine-tuning, deletion propagation real-time).
+**Decision:** Two phases authoritative in [PIPELINE-ARCHITECTURE-WORKFLOW.md §18](docs/ingestion/PIPELINE-ARCHITECTURE-WORKFLOW.md). Phase 1 = pilot (3 subreddits — `r/h1b`, `r/USVisas`, `r/usvisascheduling` — forward-only, daily auto-sync, no backfill). Phase 2 = production (event-driven import primary, broader subreddits, one-time backfill ≥50 upvotes/last 3 mo, active learning, fine-tuning, deletion propagation real-time).
 **Reasoning:** Bring up the simplest viable pipeline first; gate scale on tagging-quality exit criteria (precision/recall on eval gold set, quarantine rate, cost within cap).
 **Alternatives rejected:** Big-bang Phase 1 with full scope (high risk); a separate "Phase 3" streaming (see D-016).
 **Status:** Done.
@@ -136,18 +136,18 @@
 **Decision:** One sink: Vertex AI Search (Agent Builder), fed by **event-driven import** (Eventarc on `.json` `object.finalized` → `search-importer` Cloud Run → `documents.import` INCREMENTAL with `id=case_id`). Daily auto-sync demoted to reconciliation backstop. **Streaming Vertex AI Vector Search is not adopted.**
 **Reasoning:** Minutes-of-latency is acceptable (~2–12 min via event-driven). Vector Search index endpoint is an **always-on serving node** billed 24/7 (~$48 single-node no-HA → $150–$500+/mo production HA) — would be the largest line item, buying seconds-fresh recall that is not needed. Embedding ownership + re-embed lifecycle adds operational surface for no value at our scale.
 **Alternatives rejected:** Dual sink (Vertex AI Search + streaming Vector Search) for seconds-fresh recall — rejected on cost/benefit; standalone Vector Search only — loses managed grounding/citations of Vertex AI Search.
-**Status:** Done — recorded in [PIPELINE-ARCHITECTURE-WORKFLOW.md §15.1 + Appendix A](content-ingestion-specifications/PIPELINE-ARCHITECTURE-WORKFLOW.md). Reversible (the sidecar data contract is phase-invariant).
+**Status:** Done — recorded in [PIPELINE-ARCHITECTURE-WORKFLOW.md §15.1 + Appendix A](docs/ingestion/PIPELINE-ARCHITECTURE-WORKFLOW.md). Reversible (the sidecar data contract is phase-invariant).
 
 ## D-017 — 2026-05-18 — Drop Cloud DLP / PII-Guard from the pipeline
 
 **Decision:** Remove the PII-Guard tool, `dlp.googleapis.com` API, de-identification template, and `sa-piiguard-tool`. Pipeline has 4 Cloud Run tools (Scraper, Validator, GCS-Writer, BQ-Writer), not 5.
 **Reasoning:** Reddit public postings are not treated as containing sensitive personal data. Structured fields are controlled vocabulary (cannot carry free-form PII by construction); summaries are LLM paraphrases (not verbatim); raw `.md` mirrors already-public Reddit content. Reversible — DLP can be reinserted between Scraper and Tagger later without schema/contract changes.
 **Alternatives rejected:** Keep DLP as defense-in-depth (over-engineering for a public-data corpus); custom regex scrubber in Scraper (worse than DLP; same operational cost).
-**Status:** Done — recorded in [PIPELINE-ARCHITECTURE-WORKFLOW.md §3.5](content-ingestion-specifications/PIPELINE-ARCHITECTURE-WORKFLOW.md). Supersedes the earlier "mandatory DLP de-identification" stance documented in pre-D-017 drafts.
+**Status:** Done — recorded in [PIPELINE-ARCHITECTURE-WORKFLOW.md §3.5](docs/ingestion/PIPELINE-ARCHITECTURE-WORKFLOW.md). Supersedes the earlier "mandatory DLP de-identification" stance documented in pre-D-017 drafts.
 
 ## D-018 — 2026-05-18 — IAM: one service account per workload, no key files, resource-scoped roles, custom roles where predefined are too broad
 
-**Decision:** Per [PREREQUISITES-IAM-INFRASTRUCTURE.md](content-ingestion-specifications/PREREQUISITES-IAM-INFRASTRUCTURE.md). One SA per Cloud Run tool (`sa-scraper-tool`, `sa-validator-tool`, `sa-gcs-writer-tool`, `sa-bq-writer-tool`); `sa-reddit-ingest-agent` for the agent (orchestration-only — no GCS/BQ/Secret write); `sa-search-importer` for Phase 2. Auxiliary SAs for Label Studio, promote-fn, scheduler, killswitch, CI/CD. **No SA key files** (org-policy `iam.disableServiceAccountKeyCreation` enforced). Custom roles: `discoveryEngineDocumentWriter`, `pipelinePauser`, optional `redditSecretReader`. **No API keys for Google services** — Vertex AI / Gemini / Discovery Engine / BigQuery / GCS use ADC via attached SA; only external credential is the Reddit OAuth secret.
+**Decision:** Per [PREREQUISITES-IAM-INFRASTRUCTURE.md](docs/ingestion/PREREQUISITES-IAM-INFRASTRUCTURE.md). One SA per Cloud Run tool (`sa-scraper-tool`, `sa-validator-tool`, `sa-gcs-writer-tool`, `sa-bq-writer-tool`); `sa-reddit-ingest-agent` for the agent (orchestration-only — no GCS/BQ/Secret write); `sa-search-importer` for Phase 2. Auxiliary SAs for Label Studio, promote-fn, scheduler, killswitch, CI/CD. **No SA key files** (org-policy `iam.disableServiceAccountKeyCreation` enforced). Custom roles: `discoveryEngineDocumentWriter`, `pipelinePauser`, optional `redditSecretReader`. **No API keys for Google services** — Vertex AI / Gemini / Discovery Engine / BigQuery / GCS use ADC via attached SA; only external credential is the Reddit OAuth secret.
 **Reasoning:** Least privilege, attributable audit logs, contained blast radius; the dedicated Reddit-ingest SA holds no data-plane writes by itself.
 **Alternatives rejected:** Shared "god" SA across all tools (huge blast radius); project-wide role bindings (over-broad); `GOOGLE_API_KEY` for Gemini (long-lived bearer secret with weak scoping); Firecrawl API key (not needed — PRAW path, see D-012).
 **Status:** Done.
@@ -171,14 +171,14 @@
 **Decision:** Reviewers propose new tags from quarantine; proposals land in `tag_proposals` BigQuery table; a git PR adds the row to `tags-cleaned/*.csv`; `TAG_VOCAB_VERSION` rotates and invalidates the prompt cache; validator + agent pick up the new tag on next run; deferred docs are re-opened automatically.
 **Reasoning:** Bounded human-in-the-loop expansion of vocabulary; immutable history via git; no silent vocab drift.
 **Alternatives rejected:** Free-text tags (vocab explodes); ML-driven auto-vocab discovery (untrustworthy without review).
-**Status:** Done — see [TAG-LIFECYCLE.md](content-ingestion-specifications/TAG-LIFECYCLE.md).
+**Status:** Done — see [TAG-LIFECYCLE.md](docs/ingestion/TAG-LIFECYCLE.md).
 
 ## D-022 — 2026-05-19 — Reddit API access: classic OAuth Data API (PRAW) is THE path; approval-form is critical-path; Devvit reaffirmed as non-fit
 
 **Decision:** Stay on classic OAuth2 Data API (PRAW per D-012). The Reddit **Data API access request form + Responsible Builder Policy approval** is a mandatory critical-path prerequisite (~days non-commercial; weeks for commercial). Devvit `server/reddit-api` reaffirmed as architecturally incompatible (Devvit code runs on Reddit's hosting, not GCP). Free tier: **60 req/min OAuth** (10/min unauthenticated). A dev-only unblock path using public `https://www.reddit.com/r/<sub>/new.json` is permitted for local smoke tests, **not** production.
 **Reasoning:** Reddit removed self-service access in late-2024; there is no alternative auth path for an external GCP pipeline. Devvit avoids the credential form but would mean abandoning the GCP architecture.
 **Alternatives rejected:** Devvit (incompatible runtime); commercial Data API (paid; deferred until volume warrants); third-party providers / Pushshift (no longer general-developer accessible).
-**Status:** Done — see [PREREQUISITES-IAM-INFRASTRUCTURE.md §7](content-ingestion-specifications/PREREQUISITES-IAM-INFRASTRUCTURE.md) and [PIPELINE-ARCHITECTURE-WORKFLOW.md §3.4](content-ingestion-specifications/PIPELINE-ARCHITECTURE-WORKFLOW.md). Approval pending.
+**Status:** Done — see [PREREQUISITES-IAM-INFRASTRUCTURE.md §7](docs/ingestion/PREREQUISITES-IAM-INFRASTRUCTURE.md) and [PIPELINE-ARCHITECTURE-WORKFLOW.md §3.4](docs/ingestion/PIPELINE-ARCHITECTURE-WORKFLOW.md). Approval pending.
 
 ## D-023 — 2026-05-20 — MEMORY.md instituted as the architectural decision log; auto-read on session start
 
@@ -198,9 +198,9 @@
 
 **Decision:** The project is no longer "specs only". CLAUDE.md is the authoritative scope document and now states:
 - **Master tag repository** in `tags-cleaned/` is the single source of truth for tagging vocabulary.
-- **Universal tagging rule**: every piece of content ingested — Reddit posts, future non-API channels (via Firecrawl), website-authored content, anything else — must be tagged exclusively against `tags-cleaned/`, using [JSON-SCHEMA-FIELD-DICTIONARY.md](tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) + [LLM-EXTRACTION-PROMPT.md](tagging-specifications/LLM-EXTRACTION-PROMPT.md), enforced by the Validator. New vocabulary only via [TAG-LIFECYCLE.md](content-ingestion-specifications/TAG-LIFECYCLE.md).
+- **Universal tagging rule**: every piece of content ingested — Reddit posts, future non-API channels (via Firecrawl), website-authored content, anything else — must be tagged exclusively against `tags-cleaned/`, using [JSON-SCHEMA-FIELD-DICTIONARY.md](docs/tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) + [LLM-EXTRACTION-PROMPT.md](docs/tagging/LLM-EXTRACTION-PROMPT.md), enforced by the Validator. New vocabulary only via [TAG-LIFECYCLE.md](docs/ingestion/TAG-LIFECYCLE.md).
 - **Planned directories** (not yet in repo): `ingestion-pipeline/` (Vertex AI Agent Engine agent + Cloud Run tools), `infra/` (Terraform / `gcloud` IaC for everything in DEPLOYMENT.md + PREREQUISITES-IAM-INFRASTRUCTURE.md), `ci-cd/` (Cloud Build via WIF, no keys), `website/` (candidate-facing search UI consuming Vertex AI Search), `ops/` (dashboards-as-code + alert policies).
-- CLAUDE.md now contains dedicated sections for **GCP deployment specifics** and **GCP operational & monitoring capabilities** summarising the deployment/IAM/observability decisions already in [DEPLOYMENT.md](content-ingestion-specifications/DEPLOYMENT.md), [PREREQUISITES-IAM-INFRASTRUCTURE.md](content-ingestion-specifications/PREREQUISITES-IAM-INFRASTRUCTURE.md), and [PIPELINE-ARCHITECTURE-WORKFLOW.md §17.7](content-ingestion-specifications/PIPELINE-ARCHITECTURE-WORKFLOW.md).
+- CLAUDE.md now contains dedicated sections for **GCP deployment specifics** and **GCP operational & monitoring capabilities** summarising the deployment/IAM/observability decisions already in [DEPLOYMENT.md](docs/ingestion/DEPLOYMENT.md), [PREREQUISITES-IAM-INFRASTRUCTURE.md](docs/ingestion/PREREQUISITES-IAM-INFRASTRUCTURE.md), and [PIPELINE-ARCHITECTURE-WORKFLOW.md §17.7](docs/ingestion/PIPELINE-ARCHITECTURE-WORKFLOW.md).
 **Reasoning:** The project has outgrown its "data + specs" origin; explicit scope expansion in CLAUDE.md prevents future sessions from miscategorising it as spec-only and gives planned code a pre-agreed home. Codifying the universal master-tag rule in CLAUDE.md raises it from a Reddit-specific assumption to a project-wide invariant.
 **Alternatives rejected:** Implicit scope expansion (future sessions would keep treating it as spec-only); planned code under arbitrary ad-hoc paths (would diverge); restating GCP deployment + ops in CLAUDE.md instead of pointing at the authoritative specs (drift risk).
 **Status:** Done — CLAUDE.md updated. No new directories created yet; they will be added (with their own conventions and a follow-up `D-NNN`) when code starts landing.
@@ -209,7 +209,7 @@
 
 **Decision:** Stand up a thin slice of the agentic pipeline that uses the same schema, prompt, GCS bucket, and BigQuery table but bypasses Agent Engine, Eventarc, and the Cloud Run tool fleet — so the Gemini conversational app being built next has a real Vertex AI Search index to ground against. Concretely:
 - **Runner**: a local Python script (`vertexai-search-ingestion-from-examples/scripts/ingest_batch.py`) using **`gcloud auth application-default login`** ADC. No Cloud Run image build, no service-account key.
-- **GCP resources provisioned now** (long-lived, shared with the future agentic pipeline): Vertex AI Search **data store** `imm-postings-datastore` (Discovery Engine, location `global`, unstructured + sidecar metadata, content-required) and **search app (engine)** `imm-postings-search-app`; BigQuery table `IMM.postings_metadata` (DDL from `content-ingestion-specifications/schema.py BIGQUERY_SCHEMA`, partition `posting_date`, cluster `subreddit, severity`); Discovery Engine service agent granted `roles/storage.objectViewer` on `gs://imm-postings-ingestion`. Created by `scripts/provision_gcp.py` (idempotent).
+- **GCP resources provisioned now** (long-lived, shared with the future agentic pipeline): Vertex AI Search **data store** `imm-postings-datastore` (Discovery Engine, location `global`, unstructured + sidecar metadata, content-required) and **search app (engine)** `imm-postings-search-app`; BigQuery table `IMM.postings_metadata` (DDL from `docs/ingestion/schema.py BIGQUERY_SCHEMA`, partition `posting_date`, cluster `subreddit, severity`); Discovery Engine service agent granted `roles/storage.objectViewer` on `gs://imm-postings-ingestion`. Created by `scripts/provision_gcp.py` (idempotent).
 - **Ingest delivery**: in-batch GCS sidecar write → `documents.import` (INCREMENTAL, id=`case_id`) via a JSONL manifest at `gs://<bucket>/<BATCH_DATE>/reddit/_manifest/import-*.jsonl`. Documents searchable in minutes, not waiting for the daily auto-sync.
 - **Identity synthesis for manual batch** (no Reddit URLs available in source files): `subreddit="h1b"`, `reddit_post_id` = filename stem (`posting1` … `posting10`), `posting_date` = `BATCH_DATE` from `.env` (`2026-05-21`), `full_url=""`, `ingestion_method="manual_upload"`. Yields `case_id` = `reddit-2026-05-21-h1b-posting<N>` — schema-valid per `PostingMetadata` regex in `schema.py`.
 - **Quarantine-and-continue** on validation failure (Pydantic structural or master-CSV vocabulary): write to `gs://.../_quarantine/<case_id>.{md,json,__errors.txt}`, skip BQ + import.
@@ -234,8 +234,8 @@
 
 **Decision:** Driven by `vertexai-search-ingestion-from-examples/observations-batch-1.md`. Six coordinated changes:
 
-1. **`gcs_path` semantic** — now the URI of the document's **`.md` file** (not the parent folder). Schema regex relaxed to accept both forms (legacy seed corpus keeps the folder form). [JSON-SCHEMA-FIELD-DICTIONARY.md §2.4](tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) updated; change-log v2.2.
-2. **LLM tagging rules** — added three new sections to [LLM-EXTRACTION-PROMPT.md](tagging-specifications/LLM-EXTRACTION-PROMPT.md):
+1. **`gcs_path` semantic** — now the URI of the document's **`.md` file** (not the parent folder). Schema regex relaxed to accept both forms (legacy seed corpus keeps the folder form). [JSON-SCHEMA-FIELD-DICTIONARY.md §2.4](docs/tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) updated; change-log v2.2.
+2. **LLM tagging rules** — added three new sections to [LLM-EXTRACTION-PROMPT.md](docs/tagging/LLM-EXTRACTION-PROMPT.md):
    - **WHO COUNTS AS "THE APPLICANT"** — only the applicant and (if married) their legal spouse populate per-applicant fields. Friend / boyfriend / family-member facts must NOT set `spouse_status`, `resident_of_country`, `citizen_of_country`, `born_in_country`, `travel_country`, or visa fields.
    - **WHEN A FIELD APPLIES** — `visa_applying_for` only when actively applying (not hypothetical/comparative posts); `resident_of_country` is current residence, not future; `case_status` (with underscore) is a stage key inside `key_stages_or_info`, never a tag.
    - **TAG-RELEVANCE GATE** — only emit a tag if the post materially discusses the concept; explicit examples (`passport`, `case-status`, visa codes mentioned only comparatively).
@@ -249,7 +249,7 @@
    - Post-import `index_state` UPDATE now runs as a single statement against MERGE'd rows (no streaming-buffer blocking).
 6. **Result of batch-1 re-run** — **10/10 successfully tagged + indexed in Vertex AI Search**; 1 stale BQ table truncated; 10 GCS sidecar pairs in the live prefix; quarantine empty; `index_state='indexed'` on all 10 rows. Sample search `"layoff grace period"` returns posting10 (the attorney-tagged post).
 
-**Reasoning:** Observation #1 (`gcs_path` should be file URI, not folder) reflects a clearer downstream convention — the JSON now self-identifies its source `.md` URI without needing the caller to know the basename convention. Observations #2/#1.1/#4.2 (ignore third-party facts) match the immigration-tagging principle that a posting represents the *applicant's* case; friend/boyfriend mentions are noise for similarity search. The dedup + vocab-repair safety nets give the manual batch a higher pass rate without weakening the production pipeline (which still uses the strict quarantine path defined by [QUARANTINE-PROCESS.md](content-ingestion-specifications/QUARANTINE-PROCESS.md)). Switching BQ to SQL MERGE eliminates the duplication that the streaming-insert API allowed once retries occurred outside the ~1-minute window.
+**Reasoning:** Observation #1 (`gcs_path` should be file URI, not folder) reflects a clearer downstream convention — the JSON now self-identifies its source `.md` URI without needing the caller to know the basename convention. Observations #2/#1.1/#4.2 (ignore third-party facts) match the immigration-tagging principle that a posting represents the *applicant's* case; friend/boyfriend mentions are noise for similarity search. The dedup + vocab-repair safety nets give the manual batch a higher pass rate without weakening the production pipeline (which still uses the strict quarantine path defined by [QUARANTINE-PROCESS.md](docs/ingestion/QUARANTINE-PROCESS.md)). Switching BQ to SQL MERGE eliminates the duplication that the streaming-insert API allowed once retries occurred outside the ~1-minute window.
 
 **Alternatives rejected:**
 - *Keep `gcs_path` as a folder for both legacy and new*: forces every consumer to reconstruct the filename, brittle and prone to drift.
@@ -259,9 +259,9 @@
 - *Strictly quarantine on any out-of-vocab tag* (no repair): correct for the production pipeline but blocks the manual one-time batch on a single bad tag; the user just wants 10/10 indexed for testing the conversational app.
 
 **Affected docs / status:** Done.
-- [tagging-specifications/LLM-EXTRACTION-PROMPT.md](tagging-specifications/LLM-EXTRACTION-PROMPT.md), [tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md](tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md).
+- [docs/tagging/LLM-EXTRACTION-PROMPT.md](docs/tagging/LLM-EXTRACTION-PROMPT.md), [docs/tagging/JSON-SCHEMA-FIELD-DICTIONARY.md](docs/tagging/JSON-SCHEMA-FIELD-DICTIONARY.md).
 - [tags-cleaned/1.3-abbreviations.csv](tags-cleaned/1.3-abbreviations.csv), [tags-cleaned/1.8-key-dates.csv](tags-cleaned/1.8-key-dates.csv), [tags-cleaned/1.10-common-misc.csv](tags-cleaned/1.10-common-misc.csv).
-- [content-ingestion-specifications/schema.py](content-ingestion-specifications/schema.py) (`GCS_PREFIX_RE`, `key_stages_or_info` type).
+- [docs/ingestion/schema.py](docs/ingestion/schema.py) (`GCS_PREFIX_RE`, `key_stages_or_info` type).
 - [vertexai-search-ingestion-from-examples/scripts/ingest_batch.py](vertexai-search-ingestion-from-examples/scripts/ingest_batch.py) (`dedup_tag_fields`, `repair_invalid_tags`, MERGE-based BQ writer, single-statement post-import UPDATE, `gcs_path` synthesis).
 - Vertex AI Search data store `imm-postings-datastore` now has all **10 documents**; BQ has 10 deduplicated rows with `index_state='indexed'`.
 
@@ -271,7 +271,7 @@
 
 The manual one-off batch script `vertexai-search-ingestion-from-examples/scripts/ingest_batch.py` is an **explicit exception**: it does per-doc SQL MERGE via the Jobs API directly against the live table. Acceptable at ~10 docs/run where DML quotas don't matter; explicitly NOT the production pattern. A long-form NOTE was added to `bq_merge_row()` calling this out.
 
-A new service account `sa-bq-scheduled-merge` was added to [PREREQUISITES-IAM-INFRASTRUCTURE.md §3.2 / §4](content-ingestion-specifications/PREREQUISITES-IAM-INFRASTRUCTURE.md) to own the scheduled query (separates write-path identity from MERGE-path identity). `sa-bq-writer-tool` no longer needs `bigquery.jobUser` — Storage Write is not a query job.
+A new service account `sa-bq-scheduled-merge` was added to [PREREQUISITES-IAM-INFRASTRUCTURE.md §3.2 / §4](docs/ingestion/PREREQUISITES-IAM-INFRASTRUCTURE.md) to own the scheduled query (separates write-path identity from MERGE-path identity). `sa-bq-writer-tool` no longer needs `bigquery.jobUser` — Storage Write is not a query job.
 
 **Reasoning:**
 - **Legacy streaming insert (`tabledata.insertAll` / `insert_rows_json`)**: only a ~1-minute weak dedup window via `insertId`; rows held in a separate streaming buffer for ~30–90 min that blocks DML on those rows; ~80% more expensive than Storage Write. Already removed from the manual script in D-027 once we observed 35 duplicate rows for 10 case_ids after retries.
@@ -285,10 +285,10 @@ A new service account `sa-bq-scheduled-merge` was added to [PREREQUISITES-IAM-IN
 - *Continue with per-doc SQL MERGE in production*: would not scale past pilot — DML quotas hit, plus DML is more expensive than Storage Write at volume.
 
 **Affected docs / status:** Done.
-- [PIPELINE-ARCHITECTURE-WORKFLOW.md §5.1](content-ingestion-specifications/PIPELINE-ARCHITECTURE-WORKFLOW.md) (new subsection mandating the pattern; staging table + MERGE SQL example; explicit exception for the manual batch script). §2.1 BQ-Writer failure-handling row updated. §8.1 cost line updated.
-- [DEPLOYMENT.md](content-ingestion-specifications/DEPLOYMENT.md) component row 8 (BQ now includes staging table + scheduled MERGE); §3 provisioning order step 5 updated.
-- [PREREQUISITES-IAM-INFRASTRUCTURE.md](content-ingestion-specifications/PREREQUISITES-IAM-INFRASTRUCTURE.md) §3.2 (new `sa-bq-scheduled-merge`; `sa-bq-writer-tool` jobUser dropped); §4 IAM matrix.
-- [REDDIT-INGESTION-PIPELINE.md §7.6](content-ingestion-specifications/REDDIT-INGESTION-PIPELINE.md) cost line updated.
+- [PIPELINE-ARCHITECTURE-WORKFLOW.md §5.1](docs/ingestion/PIPELINE-ARCHITECTURE-WORKFLOW.md) (new subsection mandating the pattern; staging table + MERGE SQL example; explicit exception for the manual batch script). §2.1 BQ-Writer failure-handling row updated. §8.1 cost line updated.
+- [DEPLOYMENT.md](docs/ingestion/DEPLOYMENT.md) component row 8 (BQ now includes staging table + scheduled MERGE); §3 provisioning order step 5 updated.
+- [PREREQUISITES-IAM-INFRASTRUCTURE.md](docs/ingestion/PREREQUISITES-IAM-INFRASTRUCTURE.md) §3.2 (new `sa-bq-scheduled-merge`; `sa-bq-writer-tool` jobUser dropped); §4 IAM matrix.
+- [REDDIT-INGESTION-PIPELINE.md §7.6](docs/ingestion/REDDIT-INGESTION-PIPELINE.md) cost line updated.
 - `ingest_batch.py` `bq_merge_row()` docstring expanded with the manual-batch-exception note + cross-ref to §5.1 and D-028.
 
 **Not yet built / next step when production code starts landing:** the actual `sa-bq-writer-tool` Cloud Run service using Storage Write API + the `postings_metadata_staging` DDL + the scheduled MERGE config. These are designs only; no production code exists yet.
@@ -300,7 +300,7 @@ A new service account `sa-bq-scheduled-merge` was added to [PREREQUISITES-IAM-IN
 Tag placement: `tags` (background — describes the post *type*), not `concerns_or_questions_tags`.
 
 **Mechanism:**
-- A new section `REQUIRED TAGS (auto-emit rules)` was added to [LLM-EXTRACTION-PROMPT.md](tagging-specifications/LLM-EXTRACTION-PROMPT.md) immediately after the `TAG-RELEVANCE GATE`. `experience-posting` is the first entry; future required tags follow the same pattern.
+- A new section `REQUIRED TAGS (auto-emit rules)` was added to [LLM-EXTRACTION-PROMPT.md](docs/tagging/LLM-EXTRACTION-PROMPT.md) immediately after the `TAG-RELEVANCE GATE`. `experience-posting` is the first entry; future required tags follow the same pattern.
 - The description of `experience-posting` in [tags-cleaned/1.10-common-misc.csv](tags-cleaned/1.10-common-misc.csv) was tightened from the generic "Sharing personal immigration experience" to the consulate-visit-specific definition. The description now matches the prompt rule exactly so the LLM's CSV-grounded interpretation aligns with the auto-emit semantics.
 
 **Reasoning:** Consulate-visit experience posts are a *post-type* discrimination that is high-signal for the downstream search use case — applicants searching "what happened at my Hyderabad interview" want to filter to other experience accounts, not to "asking what to expect" posts. Without an explicit rule the LLM was inconsistent: it tagged posting10 (an attorney post) and missed posting6 (the Hyderabad H-1B refusal walkthrough). An explicit auto-emit rule eliminates this variance.
@@ -311,7 +311,7 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 - *Apply the rule programmatically in `ingest_batch.py`* (post-LLM heuristic that scans the .md for trigger phrases): brittle, and pushes content interpretation into the writer. LLM is the right layer for "is this an experience post?".
 
 **Affected docs / status:** Done.
-- [tagging-specifications/LLM-EXTRACTION-PROMPT.md](tagging-specifications/LLM-EXTRACTION-PROMPT.md) — new `REQUIRED TAGS (auto-emit rules)` section with `experience-posting` rule.
+- [docs/tagging/LLM-EXTRACTION-PROMPT.md](docs/tagging/LLM-EXTRACTION-PROMPT.md) — new `REQUIRED TAGS (auto-emit rules)` section with `experience-posting` rule.
 - [tags-cleaned/1.10-common-misc.csv](tags-cleaned/1.10-common-misc.csv) — `experience-posting` description tightened.
 - Batch-1 re-tagged: **posting6** now has `experience-posting` (Hyderabad H-1B refusal walkthrough, the user's example). **posting3** also auto-tagged (B-2 interview that resulted in a same-day refusal). Both confirmed in the indexed documents in Vertex AI Search `imm-postings-datastore`. 10/10 docs still indexed; no quarantines.
 
@@ -344,15 +344,15 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 ## D-031 — 2026-05-21 — GCS sidecar pair is the single source of truth; BigQuery + Vertex AI Search are derived projections
 
-**Decision:** Keep the per-document GCS `.json` metadata sidecar (alongside the `.md` body), and formalize **the GCS sidecar pair (`.md` + `.json`) as the single source of truth (SoT)**. BigQuery `postings.postings_metadata` and the Vertex AI Search data-store `structData` are **derived projections**, rebuildable from GCS at any time with no LLM calls. Corrections are made to the GCS sidecar (or re-emitted by the pipeline) and flow outward (GCS → re-import into the data store; GCS → re-load into BigQuery); operators do not hand-edit the data store or BigQuery independently. `index_state` in BigQuery is derived bookkeeping, **not** authoritative — the authoritative "is it indexed?" check is `get_document`/`list_documents` against the data store. The full rationale, Phase-1-vs-Phase-2 consumption, and rejected alternatives are written up in [content-ingestion-specifications/SIDECAR-METADATA-DESIGN.md](../content-ingestion-specifications/SIDECAR-METADATA-DESIGN.md).
+**Decision:** Keep the per-document GCS `.json` metadata sidecar (alongside the `.md` body), and formalize **the GCS sidecar pair (`.md` + `.json`) as the single source of truth (SoT)**. BigQuery `postings.postings_metadata` and the Vertex AI Search data-store `structData` are **derived projections**, rebuildable from GCS at any time with no LLM calls. Corrections are made to the GCS sidecar (or re-emitted by the pipeline) and flow outward (GCS → re-import into the data store; GCS → re-load into BigQuery); operators do not hand-edit the data store or BigQuery independently. `index_state` in BigQuery is derived bookkeeping, **not** authoritative — the authoritative "is it indexed?" check is `get_document`/`list_documents` against the data store. The full rationale, Phase-1-vs-Phase-2 consumption, and rejected alternatives are written up in [docs/ingestion/SIDECAR-METADATA-DESIGN.md](docs/ingestion/SIDECAR-METADATA-DESIGN.md).
 
 **Reasoning:** The sidecar `.json` is not redundant — it is (1) the cheap, deterministic, LLM-free replay/rebuild source (tagging is the expensive non-deterministic step); (2) the production sink's native contract — Phase-2 runs the data store in **sidecar mode** (`gs://.../*.json`) and the `.json` finalize is the Eventarc trigger (§4/§17 of PIPELINE-ARCHITECTURE-WORKFLOW.md), supplying search facets + chatbot grounding citations; (3) the immutable audit/lineage record and gold-training artifact for the eval harness / Example Store. The only real cost is three-way consistency (GCS json + BQ row + data-store structData) — felt directly in the batch-2 invalid-date repair, which had to be applied in three places. The SoT model fixes that as a governance/process rule rather than by deleting the file.
 
 **Alternatives rejected:** (a) **Front-matter inside the `.md`** — pollutes the indexed `content.uri` body, breaks native sidecar-mode + facets. (b) **BigQuery-only, drop the GCS `.json`** — forces the event-driven importer to join BQ on every GCS event, makes an analytics store a hard operational dependency, loses cheap replay. (c) **Manifest/NDJSON only, no per-doc json** — manifests are transient, no per-object replay, doesn't fit the Phase-2 one-event-per-`.json` trigger. (d) **One combined JSON with body inline (no `.md`)** — loses the renderable body, bloats manifests.
 
 **Affected docs / status:** Done.
-- [content-ingestion-specifications/SIDECAR-METADATA-DESIGN.md](../content-ingestion-specifications/SIDECAR-METADATA-DESIGN.md) — new spec doc.
-- [CLAUDE.md](CLAUDE.md) — `content-ingestion-specifications/` doc table updated to list it.
+- [docs/ingestion/SIDECAR-METADATA-DESIGN.md](docs/ingestion/SIDECAR-METADATA-DESIGN.md) — new spec doc.
+- [CLAUDE.md](CLAUDE.md) — `docs/ingestion/` doc table updated to list it.
 - **Open follow-up (not yet decided):** Phase-1 batch import currently uses inline `structData`, so the GCS sidecar is not exercised on the import path. Optionally switch Phase-1 import to consume the GCS `.json` in sidecar mode to rehearse the production path (recorded in §8 of the new doc).
 
 ---
@@ -372,7 +372,7 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 - **`tagging_confidence`** must be a genuine per-post value via a subtract-from-1.0 rubric; no constant (obs G4).
 
 **Mechanism:** enforced in BOTH layers — the LLM prompt (primary) and the writer (safety net):
-- [LLM-EXTRACTION-PROMPT.md](../tagging-specifications/LLM-EXTRACTION-PROMPT.md) v1.1 — new `VOCABULARY ROLES` section, expanded `TAG-RELEVANCE GATE` + `TAG SEMANTICS`, confidence rubric, `WHAT NOT TO DO` additions, few-shot now shows outcome-as-value (`{"I-94":"expired"}`).
+- [LLM-EXTRACTION-PROMPT.md](docs/tagging/LLM-EXTRACTION-PROMPT.md) v1.1 — new `VOCABULARY ROLES` section, expanded `TAG-RELEVANCE GATE` + `TAG SEMANTICS`, confidence rubric, `WHAT NOT TO DO` additions, few-shot now shows outcome-as-value (`{"I-94":"expired"}`).
 - [ingest_batch.py](../vertexai-search-ingestion-from-examples/scripts/ingest_batch.py) — `Vocab` now has `outcome` (1.9) and `stage_key` (1.7) sets; 1.9 removed from the `tags` vocabulary; `repair_invalid_tags` strips any `stage_key | date_key | (outcome − tags)` token from tags/concerns (RFE/NOID/221g survive); `vocab_errors` messages updated.
 
 **Reasoning:** Outcomes-as-values removes the dominant ambiguity in the tag set and makes status filterable by subject in search; keys-only for 1.7/1.8 keeps the schema bag clean; the content-loss fix was the larger issue (nearly half the corpus had its lead paragraph truncated, which is also why many "missing tag" observations occurred — the source text wasn't reaching the tagger). Dual-layer enforcement matches the project's "prompt does it right, repair is the safety net" pattern (cf. D-027/D-029).
@@ -386,7 +386,7 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 **Affected docs / status:** Code + prompt done; full 72-doc re-tag run `batch-2-seed-retag-v2` executed and diff report regenerated for user verification. Data store remains 82 docs (case_ids unchanged → in-place upsert).
 
-**Follow-up tweaks (prompt v1.2, 2026-05-22 — NOT yet re-run; awaiting user's further verification):** From spot-checking the v2 output, three LLM-adherence gaps were addressed in [LLM-EXTRACTION-PROMPT.md](../tagging-specifications/LLM-EXTRACTION-PROMPT.md): (1) require the SPECIFIC `<from>-to-<to>` transition tag (e.g. `f1-to-h1b` — it IS in 1.6; case-4 missed it) in addition to generic `change-of-status-COS`; (2) `open-for-attorney` only when an attorney/lawyer is explicitly sought, not generic "advice" (case-10); (3) `form-mistake` only for an actual error on a filed form, not confusion/delays (case-8). These will take effect on the NEXT re-run, which the user has deferred pending more verification.
+**Follow-up tweaks (prompt v1.2, 2026-05-22 — NOT yet re-run; awaiting user's further verification):** From spot-checking the v2 output, three LLM-adherence gaps were addressed in [LLM-EXTRACTION-PROMPT.md](docs/tagging/LLM-EXTRACTION-PROMPT.md): (1) require the SPECIFIC `<from>-to-<to>` transition tag (e.g. `f1-to-h1b` — it IS in 1.6; case-4 missed it) in addition to generic `change-of-status-COS`; (2) `open-for-attorney` only when an attorney/lawyer is explicitly sought, not generic "advice" (case-10); (3) `form-mistake` only for an actual error on a filed form, not confusion/delays (case-8). These will take effect on the NEXT re-run, which the user has deferred pending more verification.
 
 **Second verification round (prompt v1.3 + code, 2026-05-22 — STILL NOT re-run; user verified ~20 cases in `Obervations-diff-batch-2-1.md`):**
 - **New domain auto-emit rules** (prompt REQUIRED TAGS + deterministic code safety-net `enforce_cooccurrence_tags` in [ingest_batch.py](../vertexai-search-ingestion-from-examples/scripts/ingest_batch.py)): `I-140` present (in tags or as a key_stages key, any outcome) → `employment-based-immigration` (case-7.1, G1); `day1-cpt` → also `CPT` (case-17.1, G5). Code adds the implied tag to `tags` only if absent from tags+concerns (preserves dedup).
@@ -399,7 +399,7 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 ## D-033 — 2026-05-22 — Obs-2-2 corrections: applicant-vs-poster rule, consulate-visit requires outcome+consulate, visa_status key takes outcome value, tighter visa-refused / consular-processing / discussion / tips, new `visa-scheduling-portal-issue` vocab, case-28 dropped
 
-**Decision:** From the user's batch-2 v2 verification (`Obervations-diff-batch-2-2.md`, remaining cases 20–69), encode the following as canonical rules in [LLM-EXTRACTION-PROMPT.md](../tagging-specifications/LLM-EXTRACTION-PROMPT.md) (prompt v1.3) and corresponding 1.10 vocabulary descriptions. Re-run deferred per user instruction; rules apply on the next batch.
+**Decision:** From the user's batch-2 v2 verification (`Obervations-diff-batch-2-2.md`, remaining cases 20–69), encode the following as canonical rules in [LLM-EXTRACTION-PROMPT.md](docs/tagging/LLM-EXTRACTION-PROMPT.md) (prompt v1.3) and corresponding 1.10 vocabulary descriptions. Re-run deferred per user instruction; rules apply on the next batch.
 
 **Rules added / tightened:**
 - **Applicant ≠ poster (strengthened).** When a poster files on behalf of an immediate-family member (parent, child, fiancé, legal spouse), THE APPLICANT IS THE FAMILY MEMBER. All structured fields (`current_visa_or_greencard_category`, `visa_applying_for`, `resident_of_country`, `citizen_of_country`, `born_in_country`, `primary_consulate`, etc.) must reflect the actual applicant, not the poster. A poster who is just sharing tips with no own case must leave applicant-only fields empty.
@@ -429,7 +429,7 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 - *Auto-add `outcome_status: pending` for every consulate visa post* — would over-emit on policy/news posts that incidentally mention a consulate. The rule is scoped to posts that already emit `experience-posting` or `visa-interview` for an actual appointment.
 
 **Affected docs / status:** Done (rules + vocab + corpus drop). Re-run deferred per user.
-- [tagging-specifications/LLM-EXTRACTION-PROMPT.md](../tagging-specifications/LLM-EXTRACTION-PROMPT.md) — v1.3 (WHO-IS-APPLICANT expanded; new REQUIRED rules for consulate-visit `outcome_status`+`primary_consulate`, `visa_status`-takes-outcome, `combined-appointment`, `visa-renewal`, current-vs-intended-visa; relevance gate strengthened for `visa-refused`/`prior-visa-rejection`/`consular-processing`/`discussion`/`tips`).
+- [docs/tagging/LLM-EXTRACTION-PROMPT.md](docs/tagging/LLM-EXTRACTION-PROMPT.md) — v1.3 (WHO-IS-APPLICANT expanded; new REQUIRED rules for consulate-visit `outcome_status`+`primary_consulate`, `visa_status`-takes-outcome, `combined-appointment`, `visa-renewal`, current-vs-intended-visa; relevance gate strengthened for `visa-refused`/`prior-visa-rejection`/`consular-processing`/`discussion`/`tips`).
 - [tags-cleaned/1.10-common-misc.csv](../tags-cleaned/1.10-common-misc.csv) — descriptions tightened (`consular-processing`, `prior-visa-rejection`, `visa-refused`, `discussion`, `tips`); new entry `visa-scheduling-portal-issue`.
 - Corpus drop of case-28 across `postings-examples/`, `postings-batch-2-tagged/`, GCS sidecar pair, BigQuery row, Vertex AI Search data store.
 
@@ -448,8 +448,8 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 - **Option C — ADK + Gemini agent on Vertex AI Agent Engine: deferred, not rejected.** Loses to A for this app's profile because: (1) Agent Engine was chosen in D-009 for a **30-min batch** workload, not high-QPS interactive chat; (2) the agent reasoning loop (plan→tool→observe→respond) adds **per-turn latency** vs A's 1–2 direct calls; (3) runtime + variable reasoning tokens per turn are **pricier and less predictable** at consumer concurrency, cutting against D-016/D-020; (4) the scripted, confirm-before-publish flows are easier to **guarantee in explicit code** than to **steer** an autonomous agent toward; (5) **higher build/ops overhead** (ADK + Agent Engine deploy/versioning/loop-debugging); (6) **reuse is partial** — a new conversational agent would still be authored (shared concepts, not code), and the posting path is reused identically by A and C anyway; (7) C's advantages (managed sessions/tracing, D-009 consistency) are **replicable in A** (Firestore + Cloud Trace) whereas A's latency/cost/determinism advantages are not retrofittable onto C. **C remains a clean future swap** if the conversation ever needs genuinely open-ended, autonomous, many-tool reasoning — the fixed data tier + ingestion contract make the orchestration layer replaceable behind the app's API.
 
 **Affected docs / status:** Done (decision recorded).
-- [app-specifications/orchestration-options-tradeoffs.md](app-specifications/orchestration-options-tradeoffs.md) — status set to DECIDED; new §8 consolidates the choice + the 7-point "why not C" rationale; §2.1 documents session/state handling.
-- [app-specifications/app-backend-specs.MD](app-specifications/app-backend-specs.MD) — orchestration layer named as Option A (pointer to this entry + the tradeoffs doc).
+- [docs/app/orchestration-options-tradeoffs.md](docs/app/orchestration-options-tradeoffs.md) — status set to DECIDED; new §8 consolidates the choice + the 7-point "why not C" rationale; §2.1 documents session/state handling.
+- [docs/app/app-backend-specs.MD](docs/app/app-backend-specs.MD) — orchestration layer named as Option A (pointer to this entry + the tradeoffs doc).
 - **Open follow-ups:** (a) app-state-store + auth choice (Firebase Auth + Firestore vs Identity Platform + Cloud SQL) → **resolved in D-035**; (b) app-channel posting/`case_id` scheme (extending `CASE_ID_RE`/`source_uri` in `schema.py`); (c) fleshing out the full backend spec (API surface, search/answer contract, posting path, geo-routing, security/IAM, cost). These will each get their own `D-NNN` when settled.
 
 ---
@@ -477,15 +477,15 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 **D-013 note:** this does **not** reintroduce the *ingestion pipeline's* Firestore — D-013 was scoped to the pipeline; app state is a separate concern, so D-013 stands.
 
 **Affected docs / status:** Done (decision recorded).
-- [app-specifications/app-state-store-auth-options.md](app-specifications/app-state-store-auth-options.md) — status set to DECIDED; new §8 consolidates the choice + adopted defaults.
-- [app-specifications/app-backend-specs.MD](app-specifications/app-backend-specs.MD) — app-state + auth named.
+- [docs/app/app-state-store-auth-options.md](docs/app/app-state-store-auth-options.md) — status set to DECIDED; new §8 consolidates the choice + adopted defaults.
+- [docs/app/app-backend-specs.MD](docs/app/app-backend-specs.MD) — app-state + auth named.
 - **Open follow-ups** (still pending their own `D-NNN`): app-channel posting/`case_id` scheme (`schema.py` `CASE_ID_RE`/`source_uri`) → **resolved in D-036**; full backend spec build-out (API surface, search/answer contract, posting path, geo-routing, security/IAM, cost); alert-matching + push-transport design.
 
 ---
 
 ## D-036 — 2026-05-29 — Canonical schema generalized to be channel-agnostic (multi-channel identity/provenance); app is the first non-Reddit channel; backward-compatible via aliases
 
-**Decision:** The canonical posting-metadata schema is made **generic across all ingestion channels and websites** (not Reddit-specific), per the user's directive. The app (posting-via-chat, D-034) is the first new channel; future website channels (Firecrawl, D-012) drop in with no further schema change. Adopted the recommended coherent model from [generic-channel-identity-options.md](app-specifications/generic-channel-identity-options.md) (Opt 1-A + 2-A + 3-A):
+**Decision:** The canonical posting-metadata schema is made **generic across all ingestion channels and websites** (not Reddit-specific), per the user's directive. The app (posting-via-chat, D-034) is the first new channel; future website channels (Firecrawl, D-012) drop in with no further schema change. Adopted the recommended coherent model from [generic-channel-identity-options.md](docs/app/generic-channel-identity-options.md) (Opt 1-A + 2-A + 3-A):
 - **`case_id` prefix generalized** from the literal `reddit-` to `<channel>-`: `case_id = <channel>-<YYYY-MM-DD>-<container>-<native_id>[__c_<comment_id>]`, regex `^[a-z][a-z0-9]*-\d{4}-\d{2}-\d{2}-[A-Za-z0-9_]+-[a-z0-9]+(__c_[a-z0-9]+)?$`. All existing `reddit-…` ids and legacy `case-N` ids stay valid; D-010's deterministic/human-readable/idempotency-key properties are preserved.
 - **New `channel` field** (lowercase token `reddit|app|web|…`) == the case_id prefix == the GCS `<channel>` segment. Derived from the prefix when omitted (legacy `case-N` → `reddit`); a supplied value must match the prefix. New first-class search facet.
 - **Channel-agnostic provenance field names**: `subreddit` → **`source_container`** (community/board/section/topic), `reddit_post_id` → **`source_native_id`** (source-native or app-minted id; dedup key). `channel` (coarse pathway) is deliberately distinct from `source_system` (precise origin: `reddit` / app name / site domain). `source_uri` relaxed to accept `r/<sub>`, any `<scheme>://…` URI, or `""`. `ingestion_method` re-documented (`api_crawl`/`firecrawl`/`app_conversational_post`/`manual_upload`).
@@ -500,9 +500,9 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 **Verification:** `schema.py` smoke test passes; **all 71 batch-2 sidecars + batch-1 sidecars (carrying the old `subreddit`/`reddit_post_id` keys) validate unchanged**; legacy `case-N` derives `channel=reddit`; a synthesized app-channel post validates; a `channel`-vs-prefix mismatch is correctly rejected. (The one nonconforming seed `postings-examples/case-1/*.json` fails on a pre-existing wrong-bucket `gcs_path`, unrelated to this change.)
 
 **Affected docs / status:** Schema + dictionary done & verified.
-- [content-ingestion-specifications/schema.py](content-ingestion-specifications/schema.py) — `CASE_ID_RE`, `CHANNEL_RE`, `SOURCE_URI_RE`, `channel` field + derivation validator, `source_container`/`source_native_id` (+ aliases + back-compat properties), `populate_by_name`, updated smoke sample, `BIGQUERY_SCHEMA`.
-- [tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md](tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) — v2.3.
-- [app-specifications/generic-channel-identity-options.md](app-specifications/generic-channel-identity-options.md) — DECIDED + §9; [app-backend-specs.MD](app-specifications/app-backend-specs.MD) — app-channel identity named.
+- [docs/ingestion/schema.py](docs/ingestion/schema.py) — `CASE_ID_RE`, `CHANNEL_RE`, `SOURCE_URI_RE`, `channel` field + derivation validator, `source_container`/`source_native_id` (+ aliases + back-compat properties), `populate_by_name`, updated smoke sample, `BIGQUERY_SCHEMA`.
+- [docs/tagging/JSON-SCHEMA-FIELD-DICTIONARY.md](docs/tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) — v2.3.
+- [docs/app/generic-channel-identity-options.md](docs/app/generic-channel-identity-options.md) — DECIDED + §9; [app-backend-specs.MD](docs/app/app-backend-specs.MD) — app-channel identity named.
 - **Deferred follow-ups (NOT done — must precede the next pipeline run):** (a) **app-content PII posture** (§8.1 — separate open decision; D-017 dropped DLP for *public Reddit*, but first-person app posts may carry more PII); (b) **live-pipeline code sync** — `ingest_batch.py`, `gen_diff_report.py`, and the live BigQuery table columns + clustering (`subreddit,severity`→`channel,severity`) to the generic names (aliases/accessors cover reads, but writers emit field names) → **done in D-037 (code); live BQ table recreate is the one remaining ops step**; (c) optional deterministic key-rename migration of the 81 live sidecars for on-disk uniformity.
 
 ---
@@ -521,13 +521,13 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 **Still open:** D-036 follow-up (a) app-content PII posture; (c) optional on-disk key-rename migration of the already-committed sidecars in `postings-batch-1/2-tagged/` (they still validate via aliases, so this is cosmetic/uniformity only).
 
-**Affected docs / status:** Done (code) — `vertexai-search-ingestion-from-examples/scripts/{ingest_batch,provision_gcp,decommission_gcp}.py`; [generic-channel-identity-options.md](app-specifications/generic-channel-identity-options.md) §9 updated.
+**Affected docs / status:** Done (code) — `vertexai-search-ingestion-from-examples/scripts/{ingest_batch,provision_gcp,decommission_gcp}.py`; [generic-channel-identity-options.md](docs/app/generic-channel-identity-options.md) §9 updated.
 
 ---
 
 ## D-038 — 2026-05-29 — App-backend open decisions resolved (PII, moderation, app name, alerts transport, + adopted technical defaults)
 
-**Decision:** Resolved the [APP-BACKEND-ARCHITECTURE.md](app-specifications/APP-BACKEND-ARCHITECTURE.md) §18 open items.
+**Decision:** Resolved the [APP-BACKEND-ARCHITECTURE.md](docs/app/APP-BACKEND-ARCHITECTURE.md) §18 open items.
 
 **Product/policy:**
 - **App-content PII (resolves D-036 §8.1):** **explicit pre-publish consent + a "this will be public" notice on the draft-review card**. **No Cloud DLP / scrub for now** — reversible (DLP can be inserted before `documents.import` later, consistent with D-017's reversibility note). Applies to the `app` channel only.
@@ -545,8 +545,8 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 **Still open (non-blocking):** BFF home directory (`app-backend/` vs `website/`); the exact enumerated profile field set (reuses canonical vocab per D-035). These get decided when P1 code lands (own `D-NNN`).
 
 **Affected docs / status:** Done.
-- [APP-BACKEND-ARCHITECTURE.md](app-specifications/APP-BACKEND-ARCHITECTURE.md) — §10 (PII + moderation + identity), §11/§12 (FCM), §18 (open items → resolved).
-- [app-backend-specs.MD](app-specifications/app-backend-specs.MD) + [generic-channel-identity-options.md](app-specifications/generic-channel-identity-options.md) — `source_system` TBD → `unclesamcalling`.
+- [APP-BACKEND-ARCHITECTURE.md](docs/app/APP-BACKEND-ARCHITECTURE.md) — §10 (PII + moderation + identity), §11/§12 (FCM), §18 (open items → resolved).
+- [app-backend-specs.MD](docs/app/app-backend-specs.MD) + [generic-channel-identity-options.md](docs/app/generic-channel-identity-options.md) — `source_system` TBD → `unclesamcalling`.
 
 ---
 
@@ -662,7 +662,7 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 ## D-047 — 2026-06-06 — Backend moved into `backend/` package (project-structure cleanup K.2)
 
-**Decision:** Moved the live FastAPI service out of the repo root into **`backend/`**: the 6 modules (`api.py`, `query.py`, `search_client.py`, `posting.py`, `profile.py`, `reconcile.py`) + `seed_users.json` + `tags-cleaned/` + `tests/` + `scripts/` + `Dockerfile` + `requirements.txt` + `.dockerignore`. The repo root now has **no loose `.py` files** — the three apps (`backend/`, `website/`, `proceedings-mobile/`) are each in their own dir.
+**Decision:** Moved the live FastAPI service out of the repo root into **`backend/`**: the 6 modules (`api.py`, `query.py`, `search_client.py`, `posting.py`, `profile.py`, `reconcile.py`) + `seed_users.json` + `tags-cleaned/` + `tests/` + `scripts/` + `Dockerfile` + `requirements.txt` + `.dockerignore`. The repo root now has **no loose `.py` files** — the three apps (`backend/`, `website/`, `mobile/`) are each in their own dir.
 
 **Why it needed no code changes:** every data load is `__file__`-relative (`posting._TAGS_DIR`, `profile._HERE`, `search_client._csv_path`), so moving code+data together kept all paths valid. `load_dotenv()` walks up to the root `.env` (verified). The `Dockerfile` COPY paths are relative to its own dir, so with the build context = `backend/` they still resolve unchanged.
 
@@ -670,7 +670,28 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 **Verification:** local — vocab loads (415 tags), `test_reconcile` 67/67, `test_posting_tagging` 42/42, `test_profile` 53/53. Deployed — `--source backend` → revision `immiguide-api-00017-2hn`, health/users/search 200, tag-vocab 415. Non-breaking.
 
-**Affected docs / status:** Done on `phase-K-cleanup`. K.3 (docs consolidation) pending.
+**Affected docs / status:** Done on `phase-K-cleanup`. K.3 (docs consolidation) follows.
+
+## D-048 — 2026-06-06 — Docs consolidated under `docs/`, mobile renamed, references fixed (cleanup K.3)
+
+**Decision:** Consolidated the scattered root spec dirs into a single **`docs/`** home and tidied the remaining top-level layout:
+- `app-specifications/` → **`docs/app/`**
+- `content-ingestion-specifications/` → **`docs/ingestion/`**
+- `tagging-specifications/` → **`docs/tagging/`** (incl. `tagging-examples/`)
+- `documents/` (business/legal) → **`docs/business/`**
+- `proceedings-mobile/` → **`mobile/`**
+
+The Obsidian vault **`proceedings-obsidian/`** stays a **sibling** (own tooling + `tags-cleaned` symlink), per the chosen "docs/ + vault sibling" option — authored engineering specs live in `docs/`, the knowledge/analysis vault stays separate.
+
+**Cleanups bundled in:** deleted **`proceedings-mobile/docs/`** — a stale, divergent older copy of the three spec dirs plus macOS `__MACOSX/._*` junk (the canonical specs are the root ones). Untracked a stray `proceedings-mobile/.claude/settings.json` that had been committed earlier (kept on disk, removed from VCS). Added `.gitignore` guards (`.claude/`, `*.tsbuildinfo`, `.env.local`) so that noise stops recurring. Removed a leftover root `__pycache__` (post-K.2 artifact).
+
+**Cross-references fixed (depth-aware):** every relative link to the renamed dirs was rewritten by location — inside `docs/` siblings now use `../ingestion|tagging|app` and `../../backend/tags-cleaned` (the latter was already broken by K.2's backend move); the vault uses `../docs/<sub>`; root files (`MEMORY.md`, `CLAUDE.md`) use `docs/<sub>`; the `search_client.py` docstring pointer → `docs/app/`. `git grep` for the old names returns **none** (outside `legacy/` history). Sampled link targets all resolve.
+
+**Why low-risk:** docs-only + one docstring comment; no runtime code changed and the `backend/` Docker build context excludes `docs/`, so **no redeploy needed**. Dir moves done via `git mv` (history preserved; 98 renames + R100 clean `package-lock.json` rename with no content drift).
+
+**Verification:** `test_reconcile` 67/67, `test_posting_tagging` 42/42, `test_profile` 53/53; `search_client` imports clean. Non-breaking.
+
+**Affected docs / status:** Done on `phase-K-cleanup`. Completes phase K (K.1 archive legacy → K.2 backend package → K.3 docs consolidation).
 
 ---
 

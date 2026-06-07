@@ -16,7 +16,7 @@ This document specifies the original requirements and prerequisites for an autom
 
 1. **Crawls** new posts from a configured Reddit subreddit (e.g. `r/h1b`).
 2. **Converts** each post's raw content into a Markdown file (`caseN.md`).
-3. **Tags** the post using the [tagging specifications](../tagging-specifications/) in this repo, producing a canonical JSON metadata file (`caseN.json`).
+3. **Tags** the post using the [tagging specifications](../tagging/) in this repo, producing a canonical JSON metadata file (`caseN.json`).
 4. **Uploads** both files to a Google Cloud Storage bucket.
 5. **Triggers** Vertex AI Search ingestion into a data store that already follows the canonical schema.
 
@@ -118,7 +118,7 @@ Cloud Scheduler → Agent Engine (Scraper → Tagger → Validator
 
 ### 3.3 Vertex AI Search data store
 - Type: **Unstructured data + Structured metadata** ("media + metadata" data store).
-- Schema: matches the JSON in [JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md).
+- Schema: matches the JSON in [JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging/JSON-SCHEMA-FIELD-DICTIONARY.md).
 - Document ID field: `case_id`.
 - Embedding source: `embedding_text` field of the JSON.
 - Facet fields: `current_visa_or_greencard_category`, `visa_applying_for`, `consulates`, `tags`, `concerns_or_questions_tags`, `subreddit`, `severity`, `resolution_status`, `principal_country_of_chargeability`, `employer_type`, `derived_topic_cluster`.
@@ -168,9 +168,9 @@ The pipeline reads these files from the repo at build time (baked into the conta
 
 | File | Used by |
 |---|---|
-| [tagging-specifications/LLM-EXTRACTION-PROMPT.md](../tagging-specifications/LLM-EXTRACTION-PROMPT.md) | Tagger module |
-| [tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) | Validator module |
-| [tags-cleaned/*.csv](../tags-cleaned/) | Tagger (vocabulary), Validator |
+| [tagging/LLM-EXTRACTION-PROMPT.md](../tagging/LLM-EXTRACTION-PROMPT.md) | Tagger module |
+| [tagging/JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) | Validator module |
+| [tags-cleaned/*.csv](../../backend/tags-cleaned/) | Tagger (vocabulary), Validator |
 
 ---
 
@@ -209,7 +209,7 @@ That matches the existing 72-case corpus convention exactly.
 
 Implementation notes:
 - Use Vertex AI's Gemini API (`google-cloud-aiplatform` SDK or the newer `google-genai` package).
-- System prompt: full content of [LLM-EXTRACTION-PROMPT.md](../tagging-specifications/LLM-EXTRACTION-PROMPT.md).
+- System prompt: full content of [LLM-EXTRACTION-PROMPT.md](../tagging/LLM-EXTRACTION-PROMPT.md).
 - Temperature: 0.1, top_p: 0.9.
 - Response MIME type: `application/json`.
 - Max output tokens: 2,000.
@@ -220,7 +220,7 @@ Implementation notes:
 **Input**: A JSON object claiming to be canonical metadata.
 **Output**: `valid=True` / `valid=False, errors=[...]`.
 
-Rules (full list in [JSON-SCHEMA-FIELD-DICTIONARY.md §3](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md)):
+Rules (full list in [JSON-SCHEMA-FIELD-DICTIONARY.md §3](../tagging/JSON-SCHEMA-FIELD-DICTIONARY.md)):
 - Required fields present.
 - Every visa/GC tag ∈ sections 1.1/1.2 vocab.
 - Every consulate code ∈ section 1.4 vocab.
@@ -472,11 +472,11 @@ RESOLVED: Firestore is **not used**. BigQuery is the single dedup/watermark/anal
 
 ## 13. References
 
-- [tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) — canonical metadata schema
-- [tagging-specifications/LLM-EXTRACTION-PROMPT.md](../tagging-specifications/LLM-EXTRACTION-PROMPT.md) — tagger prompt
-- [tagging-specifications/us_immigration_tag_specification.md](../tagging-specifications/us_immigration_tag_specification.md) — tag taxonomy authority
-- [tagging-specifications/specs3.MD](../tagging-specifications/specs3.MD) — Vertex AI Search integration overview
-- [tags-cleaned/](../tags-cleaned/) — master tag vocabularies
+- [tagging/JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) — canonical metadata schema
+- [tagging/LLM-EXTRACTION-PROMPT.md](../tagging/LLM-EXTRACTION-PROMPT.md) — tagger prompt
+- [tagging/us_immigration_tag_specification.md](../tagging/us_immigration_tag_specification.md) — tag taxonomy authority
+- [tagging/specs3.MD](../tagging/specs3.MD) — Vertex AI Search integration overview
+- [tags-cleaned/](../../backend/tags-cleaned/) — master tag vocabularies
 - Reddit Data API Terms: https://www.redditinc.com/policies/data-api-terms
 - PRAW docs: https://praw.readthedocs.io/
 - Vertex AI Search docs: https://cloud.google.com/generative-ai-app-builder/docs

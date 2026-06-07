@@ -27,7 +27,7 @@ answers. Core live modules (all under `backend/`):
 
 Supporting files:
 - `gcp_setup.sh` — Creates/configures the GCS bucket.
-- `documents/` — Business/legal documents (intake checklist, launch requirements, pilot offer).
+- `docs/business/` — Business/legal documents (intake checklist, launch requirements, pilot offer).
 - `website/` — Next.js 14 app (marketing + search/onboarding/posting UI).
 
 ## Commands

@@ -1,6 +1,6 @@
 # Generic Multi-Channel Identity & Provenance — Options & Trade-offs
 
-**Status:** ✅ **DECIDED — recommended model adopted (Opt 1-A + 2-A + 3-A), 2026-05-29.** Recorded as **D-036** in [MEMORY.md](../MEMORY.md); the canonical schema ([schema.py](../content-ingestion-specifications/schema.py)) and the field dictionary ([JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) v2.3) have been updated and verified backward-compatible (all 71 batch-2 + batch-1 sidecars validate unchanged). See [§9](#9-decision-2026-05-29) for the decision + adopted defaults + the deferred follow-ups. Goal: **the canonical schema is generic across all channels and ingestion websites, not just reddit.com**, with the **app** as the first new channel (D-034).
+**Status:** ✅ **DECIDED — recommended model adopted (Opt 1-A + 2-A + 3-A), 2026-05-29.** Recorded as **D-036** in [MEMORY.md](../MEMORY.md); the canonical schema ([schema.py](../ingestion/schema.py)) and the field dictionary ([JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) v2.3) have been updated and verified backward-compatible (all 71 batch-2 + batch-1 sidecars validate unchanged). See [§9](#9-decision-2026-05-29) for the decision + adopted defaults + the deferred follow-ups. Goal: **the canonical schema is generic across all channels and ingestion websites, not just reddit.com**, with the **app** as the first new channel (D-034).
 
 ---
 
@@ -160,8 +160,8 @@ When these are settled (or accepted as defaults), I'll record the choice as a `D
 **Adopted: the recommended coherent model (Opt 1-A + 2-A + 3-A).** Recorded as **D-036** in [MEMORY.md](../MEMORY.md).
 
 **Implemented this session (verified):**
-- [schema.py](../content-ingestion-specifications/schema.py): `CASE_ID_RE` generalized to `^[a-z][a-z0-9]*-…` (any channel prefix); new `channel` field (derived from the `case_id` prefix when omitted; cross-checked against it; legacy `case-N` → `reddit`); `subreddit`→`source_container` and `reddit_post_id`→`source_native_id` with `AliasChoices` so the old keys still parse + read-only back-compat properties; `source_uri` relaxed (`r/<sub>` | `<scheme>://…` | `""`); `BIGQUERY_SCHEMA` adds `channel`/`source_container`/`source_native_id`.
-- [JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) → v2.3 (identifier convention, JSON example, field table, validation rules, change log).
+- [schema.py](../ingestion/schema.py): `CASE_ID_RE` generalized to `^[a-z][a-z0-9]*-…` (any channel prefix); new `channel` field (derived from the `case_id` prefix when omitted; cross-checked against it; legacy `case-N` → `reddit`); `subreddit`→`source_container` and `reddit_post_id`→`source_native_id` with `AliasChoices` so the old keys still parse + read-only back-compat properties; `source_uri` relaxed (`r/<sub>` | `<scheme>://…` | `""`); `BIGQUERY_SCHEMA` adds `channel`/`source_container`/`source_native_id`.
+- [JSON-SCHEMA-FIELD-DICTIONARY.md](../tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) → v2.3 (identifier convention, JSON example, field table, validation rules, change log).
 - **Verified:** smoke test passes; **all 71 batch-2 + the batch-1 sidecars (old `subreddit`/`reddit_post_id` keys) validate unchanged**; an app-channel post validates; a channel/prefix mismatch is correctly rejected.
 
 **Adopted defaults for the §8 sub-questions:** (2) app `source_container` = **synthetic username**; (3) app `source_native_id` = **Firestore posting doc id**; (4) `channel` = **permissive lowercase token** (not a closed enum); (5) keep read-only back-compat accessors, generic names are canonical on output; (8) app `source_system` name = **`unclesamcalling`** (set in D-038).

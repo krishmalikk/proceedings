@@ -1,6 +1,6 @@
 # App Backend Architecture & Design — Vertex AI Search backend for the mobile / web apps
 
-**Status:** Design spec (architecture + API + data model + flows + NFRs). Builds on the settled decisions D-034 (orchestration = Cloud Run BFF + Gemini), D-035 (Firebase Auth + Firestore), D-036 (generic channel-agnostic schema), D-037 (pipeline code synced), and the ingestion architecture in [content-ingestion-specifications/](../content-ingestion-specifications/). This document is the authoritative backend design the mobile + web apps integrate against.
+**Status:** Design spec (architecture + API + data model + flows + NFRs). Builds on the settled decisions D-034 (orchestration = Cloud Run BFF + Gemini), D-035 (Firebase Auth + Firestore), D-036 (generic channel-agnostic schema), D-037 (pipeline code synced), and the ingestion architecture in [ingestion/](../ingestion/). This document is the authoritative backend design the mobile + web apps integrate against.
 
 ---
 
@@ -13,7 +13,7 @@ The apps are **chatbot-first**: a single conversational surface drives **search*
 3. Delegates the two fixed capabilities: **grounded search** to the Vertex AI Search "Search + Answer" API, and **posting ingestion** to the existing Tagger→Validator→GCS-Writer→`documents.import` contract.
 4. Persists app state (auth, profile, sessions, saved searches, alerts) in **Firebase Auth + Firestore**.
 
-**Out of scope (settled elsewhere):** the tag taxonomy ([tags-cleaned/](../tags-cleaned/)), the canonical schema ([schema.py](../content-ingestion-specifications/schema.py)), and the Reddit ingestion pipeline. This backend *reuses* them; it does not redefine them.
+**Out of scope (settled elsewhere):** the tag taxonomy ([tags-cleaned/](../../backend/tags-cleaned/)), the canonical schema ([schema.py](../ingestion/schema.py)), and the Reddit ingestion pipeline. This backend *reuses* them; it does not redefine them.
 
 ---
 
@@ -270,7 +270,7 @@ The app is **another ingestion channel** — a confirmed post becomes a first-cl
 - **BFF:** container on **Cloud Run**, region `us-central1`, min instances 0 (scale-to-zero), `sa-app-bff`. Config via env; secrets via Secret Manager.
 - **Regions:** Gemini + Firestore + GCS + BigQuery in `us-central1`; the Vertex AI Search data store is location `global` (existing).
 - **CI/CD:** Cloud Build via Workload Identity Federation, image in Artifact Registry — consistent with the pipeline's `ci-cd/` model (no SA keys).
-- **IaC:** the BFF service, `sa-app-bff` + IAM, Firestore database, and Firebase project belong in `infra/` alongside the existing inventory ([DEPLOYMENT.md](../content-ingestion-specifications/DEPLOYMENT.md), [PREREQUISITES-IAM-INFRASTRUCTURE.md](../content-ingestion-specifications/PREREQUISITES-IAM-INFRASTRUCTURE.md)).
+- **IaC:** the BFF service, `sa-app-bff` + IAM, Firestore database, and Firebase project belong in `infra/` alongside the existing inventory ([DEPLOYMENT.md](../ingestion/DEPLOYMENT.md), [PREREQUISITES-IAM-INFRASTRUCTURE.md](../ingestion/PREREQUISITES-IAM-INFRASTRUCTURE.md)).
 
 ---
 

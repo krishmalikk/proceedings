@@ -13,7 +13,7 @@ Engine datastore. This module grounds on that datastore via the managed Answer
 API, returning a grounded answer + citations.
 
 Decision basis: D-016 (single managed Vertex AI Search sink), D-034 (BFF uses
-the Search/Answer API), D-039 (3-tier grounding). See app-specifications/
+the Search/Answer API), D-039 (3-tier grounding). See docs/app/
 FINAL-ARCHITECTURE.md.
 
 The returned dict matches the existing `query()` contract exactly so api.py and

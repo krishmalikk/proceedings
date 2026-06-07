@@ -18,7 +18,7 @@ This contains US Immigration Non-Immigration visas. Tags of this category will f
 `H-1B1`
 `H-2A`
 `H-2B`
-Refer to file [Non-Immigration Visas](../tags-cleaned/1.1-non-immigration-visas.csv) for the master tag list.
+Refer to file [Non-Immigration Visas](../../backend/tags-cleaned/1.1-non-immigration-visas.csv) for the master tag list.
 
 
 ### 1.2 Immigration (Green Card) categories
@@ -28,7 +28,7 @@ This contains US Immigration Green Card categories. Tags of this category will f
 `EB-1B`
 `IR-1`
 
-Refer to file [Green Card Categories](../tags-cleaned/1.2-greencard-categories.csv) for the master tag list.
+Refer to file [Green Card Categories](../../backend/tags-cleaned/1.2-greencard-categories.csv) for the master tag list.
 
 
 ### 1.3 Immigration related Abbreviations
@@ -44,7 +44,7 @@ This contains common abbreviations related to US Immigration. Tags of this categ
 `EAD`
 `CPT`
 
-Refer to file [Abbreviations](../tags-cleaned/1.3-abbreviations.csv) for the master tag list.
+Refer to file [Abbreviations](../../backend/tags-cleaned/1.3-abbreviations.csv) for the master tag list.
 
 ### 1.4 Consulate codes along with City and Country codes
 This contains the code related to US Embassy/Consulates all around the worlsd. Naming convention of tags in this category is UPPERCASE. The tag can be a specific code given to a consulate or a city that consulate is located or even broadly in the COuntry where conslate is in.  For example if following is list of consulates in Australia:
@@ -63,7 +63,7 @@ Then the valid tags for Australia can be a or `City Code` or `Country Code`. `Po
 `PER`
 `SYD`
 
-Refer to file [Consulates](../tags-cleaned/1.4-consulates.csv) for the master tag list.
+Refer to file [Consulates](../../backend/tags-cleaned/1.4-consulates.csv) for the master tag list.
 
 ### 1.5 Immigration related Forms as specified by United States Government agencies like USCIS and/or US State Department
 This contains all immigration/ non-immigration forms. Any legal forms related to the processing etc. Naming convention of tags in this category is UPPERCASE and can contain hyphen `-` in it. While the comprehensive list of these forms is not provided. Please lookup US given agencies (USCIS/ State Govt etc.) for a list of such forms. Some example are provided below:
@@ -79,7 +79,7 @@ This contains all immigration/ non-immigration forms. Any legal forms related to
 `I-539`
 `DS-160`
 
-Refer to file [Forms](../tags-cleaned/1.5-forms.csv) for the master tag list.
+Refer to file [Forms](../../backend/tags-cleaned/1.5-forms.csv) for the master tag list.
 
 
 ### 1.6 Tags in the category of an action or an attribute associated with a form or a visa. 
@@ -92,7 +92,7 @@ Any action or attrubute related to a form or visa. For Example
 | `h1b-petition`  | `H-1B`                       |
 | `i212-waiver` | `I-212`                      |
 
-Refer to file [Visa/Form Actions](../tags-cleaned/1.6-visa-form-actions.csv) for the master tag list.
+Refer to file [Visa/Form Actions](../../backend/tags-cleaned/1.6-visa-form-actions.csv) for the master tag list.
 
 The naming convention rules to follow in this cateegory is as follows:
 - **visa-action format** or **formname-action format**
@@ -119,7 +119,7 @@ The only difference for this category is the usage of these tags (when the tags 
 `ceac_status_approved`
 `ceac_status_issued`
 
-Refer to file [Key Stages](../tags-cleaned/1.7-key-stages.csv) for the master tag list.
+Refer to file [Key Stages](../../backend/tags-cleaned/1.7-key-stages.csv) for the master tag list.
 
 ### 1.8 Key Dates attributes names in processing of an application or key information where the information needs to be stored as dates
 When we want to tag or label content and the information is a date (stored as a value in key-value pair) then the attribute name that key belong to this category.
@@ -155,7 +155,7 @@ The naming convention rules format to follow in this cateegory is as follows:
 `h1b_processing_start_date`
 `rfe_date`
 
-Refer to file [Key Dates](../tags-cleaned/1.8-key-dates.csv) for the master tag list.
+Refer to file [Key Dates](../../backend/tags-cleaned/1.8-key-dates.csv) for the master tag list.
 
 ### 1.9 Key outcomes as a result of a processing of an application
 The tags in the category are the outcomes of a processing of application. The usage of these tags in actual labelling of content will be in a key-value pair where this tag will be a value in key-value pair. Some examples of the tags of this category are:
@@ -172,7 +172,7 @@ The tags in the category are the outcomes of a processing of application. The us
 
 The naming convention of the tags of thie category are that it needs to lowercase and use hyphen `-`, if required as shown in example above.
 
-Refer to file [Outcomes](../tags-cleaned/1.9-outcomes.csv) for the master tag list.
+Refer to file [Outcomes](../../backend/tags-cleaned/1.9-outcomes.csv) for the master tag list.
 
 ### 1.10 Common or miscelanneaous terms, issues, concerns associated with processing of applications. 
 -These contain common layman terms as reported by candidates
@@ -200,7 +200,7 @@ l`lawyer-recommendation`
 `first-time-visa`
 `visa-stamping`
 
-Refer to file [Common / Misc](../tags-cleaned/1.10-common-misc.csv) for the master tag list.
+Refer to file [Common / Misc](../../backend/tags-cleaned/1.10-common-misc.csv) for the master tag list.
 
 ## 2. Tag List Principles
 

@@ -7,7 +7,7 @@ The user's situation can change from time to time, so provide option to change /
 
 # Basic Information to be captured
 The static information of the user which needs to be captured and the user's current and journey into USA immigration system
-Some of the attributes to be captured here overlap with metadata as specified in [JSON-SCHEMA-FIELD-DICTIONARY](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md) which are:
+Some of the attributes to be captured here overlap with metadata as specified in [JSON-SCHEMA-FIELD-DICTIONARY](../docs/tagging/JSON-SCHEMA-FIELD-DICTIONARY.md) which are:
 ## When user already has a status in USA
 - `current_visa_or_greencard_category`
 ## When user is applying for a visa from abroad
@@ -23,7 +23,7 @@ Depending upon the situation of the applicant the conversational BOT can ask rel
 - [key-stages](../tags-cleaned/1.7-key-stages.csv) -- to fill up the section under json attribute `key_stages_or_info`
 - [key-dates](../tags-cleaned/1.8-key-dates.csv) -- to fill up the section under json attribute `key_dates`
 
-Make sure every key/value pair values under `key_stages_or_info` or `key_dates` entered by user are valid tag as per rules specified in [TAGGING-EVALUATION](../tagging-specifications/TAGGING-EVALUATION.md)
+Make sure every key/value pair values under `key_stages_or_info` or `key_dates` entered by user are valid tag as per rules specified in [TAGGING-EVALUATION](../docs/tagging/TAGGING-EVALUATION.md)
 
 ## Profile setup methods
 There are two ways to setup a user-profile in the app. The AI way and the traditional form-based way.
@@ -34,7 +34,7 @@ In This method :
 - the app will converse as a bot with user to capture user's current status, situation and future intent 
 - will capture the basic information as specified in section above
 - Prompt user to enter dates under `key_dates`  which are relevant to his case/situation. The dates help other applicants a lot when a user is trying to find other folks who are in same boat (functionality coming next)
-- Assuming the user is somewhere in the journey as specified in [f1-to-h1-gc](../app-specifications/imm-flows-example/f1-to-h1-gc.png), the BOT should ask for relevant stages and dates on his journey to capture every step, if possible
+- Assuming the user is somewhere in the journey as specified in [f1-to-h1-gc](../docs/app/imm-flows-example/f1-to-h1-gc.png), the BOT should ask for relevant stages and dates on his journey to capture every step, if possible
 - This was just one of journeys but most common, I presume. There are other journeys as well and the questions should be relevant to the journey the user is in
 - Do not force users to enter every step or every date. But more prominent dates  where most users are  likely stuck in journey and/or waiting and/or where waiting is huge, those dates matters a lot. BOT. being a immigration expert should know what those dates are. Example is priority_date, h1b_filing_date etc`
 - The date entered by user may not follow the data format the system stores date. The system in backend should be able to convert into appropriate standard format for the data across, no matter what date format user has entered the date in

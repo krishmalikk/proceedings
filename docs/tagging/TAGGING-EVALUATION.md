@@ -8,9 +8,9 @@ Known gaps and forward-looking recommendations for the tagging system and the Ve
 
 A validator MUST run between the tagger LLM and Vertex AI Search ingestion. It enforces:
 
-1. Every element of `current_visa_or_greencard_category` ∈ [tags-cleaned/1.1-non-immigration-visas.csv](../tags-cleaned/1.1-non-immigration-visas.csv) ∪ [1.2-greencard-categories.csv](../tags-cleaned/1.2-greencard-categories.csv).
+1. Every element of `current_visa_or_greencard_category` ∈ [tags-cleaned/1.1-non-immigration-visas.csv](../../backend/tags-cleaned/1.1-non-immigration-visas.csv) ∪ [1.2-greencard-categories.csv](../../backend/tags-cleaned/1.2-greencard-categories.csv).
 2. Every element of `visa_applying_for` ∈ same as above.
-3. Every element of `consulates` ∈ [1.4-consulates.csv](../tags-cleaned/1.4-consulates.csv).
+3. Every element of `consulates` ∈ [1.4-consulates.csv](../../backend/tags-cleaned/1.4-consulates.csv).
 4. `primary_consulate` ∈ `consulates` (or empty).
 5. Every element of `tags` ∈ union of 1.3, 1.5, 1.6, 1.9, 1.10 (plus 1.1/1.2 only when historical/prior context).
 6. Every element of `concerns_or_questions_tags` ∈ same union as `tags`.

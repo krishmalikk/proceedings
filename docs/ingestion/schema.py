@@ -1,7 +1,7 @@
 """Canonical posting-metadata schema (Pydantic v2).
 
 Single source of truth shared by the Validator Tool and the BigQuery Writer Tool.
-Mirrors tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md (schema v2.0).
+Mirrors tagging/JSON-SCHEMA-FIELD-DICTIONARY.md (schema v2.0).
 
 Vocabulary validation (tags must exist in tags-cleaned/*.csv) is enforced by the
 Validator Tool at runtime by loading the master CSVs; this module enforces
@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Optional, Union
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
     ConfigDict,
     Field,
@@ -64,10 +65,14 @@ class ResolutionStatus(str, Enum):
 # Regex / constants
 # --------------------------------------------------------------------------- #
 
+# case_id is generic across channels (D-036): <channel>-<YYYY-MM-DD>-<container>-<native_id>
+# The leading token is the ingestion channel (reddit | app | web | …); the old
+# reddit-prefixed ids remain valid under this superset pattern.
 CASE_ID_RE = re.compile(
-    r"^reddit-\d{4}-\d{2}-\d{2}-[A-Za-z0-9_]+-[a-z0-9]+(__c_[a-z0-9]+)?$"
+    r"^[a-z][a-z0-9]*-\d{4}-\d{2}-\d{2}-[A-Za-z0-9_]+-[a-z0-9]+(__c_[a-z0-9]+)?$"
 )
 LEGACY_CASE_ID_RE = re.compile(r"^case-\d+$")  # seed corpus exemption
+CHANNEL_RE = re.compile(r"^[a-z][a-z0-9]*$")  # ingestion-channel token
 # gcs_path is the canonical URI of the post's `.md` file (D-027). The seed
 # corpus and any legacy doc may still use the folder form ending in '/'.
 GCS_PREFIX_RE = re.compile(
@@ -76,7 +81,10 @@ GCS_PREFIX_RE = re.compile(
 )
 ISO_TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-SOURCE_URI_RE = re.compile(r"^r/[A-Za-z0-9_]+$")
+# source_uri is a channel-native locator (D-036): reddit subreddit path `r/<sub>`,
+# OR any scheme URI (e.g. `app://post/<id>`, `https://…`). Empty is allowed for
+# channels that have no native locator.
+SOURCE_URI_RE = re.compile(r"^(r/[A-Za-z0-9_]+|[a-z][a-z0-9+.\-]*://\S+)$")
 ISO2_RE = re.compile(r"^[A-Z]{2}$")
 
 
@@ -88,20 +96,35 @@ ISO2_RE = re.compile(r"^[A-Z]{2}$")
 class PostingMetadata(BaseModel):
     """Canonical metadata document (schema v2.0)."""
 
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(
+        extra="forbid", use_enum_values=True, populate_by_name=True
+    )
 
     # ---- Identity ----
     case_id: str
+    # ingestion channel (reddit | app | web | …); == case_id prefix == GCS path
+    # segment. Derived from the case_id prefix when omitted (see validator).
+    channel: str = ""
     doc_kind: DocKind = DocKind.post
     parent_case_id: str = ""
-    reddit_post_id: str = ""
+    # source-native (or app-minted) item id; the dedup / idempotency key.
+    # Accepts the legacy key `reddit_post_id` for back-compat (D-036).
+    source_native_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("source_native_id", "reddit_post_id"),
+    )
 
     # ---- Source / provenance ----
     ingestion_method: str
     source_system: str
     source_url: str
     source_uri: str
-    subreddit: str
+    # source community / board / section / topic. Accepts the legacy key
+    # `subreddit` for back-compat (D-036).
+    source_container: str = Field(
+        default="",
+        validation_alias=AliasChoices("source_container", "subreddit"),
+    )
     full_url: str
     post_title: str
     language: str = "en"
@@ -188,8 +211,10 @@ class PostingMetadata(BaseModel):
     @field_validator("source_uri")
     @classmethod
     def _source_uri(cls, v: str) -> str:
-        if not SOURCE_URI_RE.match(v):
-            raise ValueError(f"source_uri {v!r} must be r/<subreddit>")
+        if v != "" and not SOURCE_URI_RE.match(v):
+            raise ValueError(
+                f"source_uri {v!r} must be r/<subreddit>, a <scheme>://… URI, or ''"
+            )
         return v
 
     @field_validator("principal_country_of_chargeability")
@@ -210,6 +235,34 @@ class PostingMetadata(BaseModel):
     # ------------------------------------------------------------------ #
     # Cross-field validators
     # ------------------------------------------------------------------ #
+
+    @model_validator(mode="after")
+    def _derive_and_check_channel(self) -> "PostingMetadata":
+        """Derive `channel` from the case_id prefix when omitted, and ensure a
+        supplied channel matches the prefix. Legacy `case-<int>` ids default to
+        the `reddit` channel (the seed corpus origin)."""
+        prefix = (
+            "" if LEGACY_CASE_ID_RE.match(self.case_id) else self.case_id.split("-", 1)[0]
+        )
+        if not self.channel:
+            self.channel = prefix or "reddit"
+        if prefix and self.channel != prefix:
+            raise ValueError(
+                f"channel {self.channel!r} must match case_id prefix {prefix!r}"
+            )
+        if not CHANNEL_RE.match(self.channel):
+            raise ValueError(f"channel {self.channel!r} must be a lowercase token")
+        return self
+
+    # ---- Back-compat read accessors (D-036): old code/consumers that read the
+    #      Reddit-named fields keep working against the generic fields. ----
+    @property
+    def subreddit(self) -> str:
+        return self.source_container
+
+    @property
+    def reddit_post_id(self) -> str:
+        return self.source_native_id
 
     @model_validator(mode="after")
     def _comment_parent_consistency(self) -> "PostingMetadata":
@@ -251,12 +304,13 @@ class PostingMetadata(BaseModel):
 BIGQUERY_SCHEMA = [
     # (name, type, mode)  — mirrors postings.postings_metadata DDL
     ("case_id", "STRING", "REQUIRED"),
+    ("channel", "STRING", "NULLABLE"),
     ("doc_kind", "STRING", "NULLABLE"),
     ("parent_case_id", "STRING", "NULLABLE"),
-    ("reddit_post_id", "STRING", "NULLABLE"),
+    ("source_native_id", "STRING", "NULLABLE"),
     ("source_system", "STRING", "NULLABLE"),
     ("source_uri", "STRING", "NULLABLE"),
-    ("subreddit", "STRING", "NULLABLE"),
+    ("source_container", "STRING", "NULLABLE"),
     ("full_url", "STRING", "NULLABLE"),
     ("post_title", "STRING", "NULLABLE"),
     ("language", "STRING", "NULLABLE"),
@@ -293,12 +347,12 @@ if __name__ == "__main__":
         case_id="reddit-2026-05-17-h1b-1srn4ab",
         doc_kind="post",
         parent_case_id="",
-        reddit_post_id="1srn4ab",
+        source_native_id="1srn4ab",
         ingestion_method="api_crawl",
         source_system="reddit",
         source_url="https://reddit.com",
         source_uri="r/h1b",
-        subreddit="h1b",
+        source_container="h1b",
         full_url="https://www.reddit.com/r/h1b/comments/1srn4ab/x/",
         post_title="Example",
         language="en",

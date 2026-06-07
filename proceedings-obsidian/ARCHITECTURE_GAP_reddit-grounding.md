@@ -127,11 +127,11 @@ The two approved design specs settle what the *intended* architecture is, and th
 
 ### Both specs target Vertex AI **Search (Discovery Engine)**, not Vector Search
 
-- `app-specifications/APP-BACKEND-ARCHITECTURE.md`:
+- `docs/app/APP-BACKEND-ARCHITECTURE.md`:
   - §2 diagram + §3 component table (line 60): grounding = Vertex AI **Search** `imm-postings-search-app` / `imm-postings-datastore` (location `global`) via the **Search + Answer API**.
   - §8 "Vertex AI Search query contract" → `:search` (ranked results + facets) and `:answer` (grounded NL answer + citations + multi-turn session).
   - §17: "single sink (D-016)… No second index, no schema fork."
-- `app-specifications/APP-FRONTEND-INTEGRATION.md`:
+- `docs/app/APP-FRONTEND-INTEGRATION.md`:
   - Line 5: "against the `imm-postings-datastore` index"; citations resolve to `case_id` (e.g. `reddit-…`).
 
 Neither spec mentions Vertex AI **Vector Search**, `find_neighbors`, `chunk_mapping.json`, or `text-embedding-005`. **The implemented RAG stack is a parallel design that was never in the specs** — this is the root of the gap.

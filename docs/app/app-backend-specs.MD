@@ -4,9 +4,9 @@ This project is an end-2-end of tagging content on US Immigration and its search
 # Project Structure
 
 This project structure consist of following parts:
-- Tag specifications [Tagging specification rules](../tagging-specifications) rules which forms the basis of how the content posted via mobile or web app) or ingested from reddit.com are tagged and its metadata of tags is created in json file
+- Tag specifications [Tagging specification rules](../tagging) rules which forms the basis of how the content posted via mobile or web app) or ingested from reddit.com are tagged and its metadata of tags is created in json file
 - Examples of some tagging on how tagging works [vertexai-search-ingestion-from-examples](../vertexai-search-ingestion-from-examples) 
-- Architecture of pipeline when ingested from website like reddit.com [content-ingestion-spcifications](../content-ingestion-specifications)
+- Architecture of pipeline when ingested from website like reddit.com [content-ingestion-spcifications](../ingestion)
 
 
 # 
@@ -54,7 +54,7 @@ Full options/rationale: [generic-channel-identity-options.md](generic-channel-id
 
 | Component | File / Path |
 |---|---|
-| Master tag vocabularies | [tags-cleaned/](../tags-cleaned/) (10 CSVs) |
+| Master tag vocabularies | [tags-cleaned/](../../backend/tags-cleaned/) (10 CSVs) |
 | Canonical JSON schema | [JSON-SCHEMA-FIELD-DICTIONARY.md](JSON-SCHEMA-FIELD-DICTIONARY.md) |
 | Tagger system prompt | [LLM-EXTRACTION-PROMPT.md](LLM-EXTRACTION-PROMPT.md) |
 | Existing corpus | [postings-examples/](../postings-examples/) (72 cases) |
