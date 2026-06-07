@@ -742,6 +742,24 @@ The Obsidian vault **`proceedings-obsidian/`** stays a **sibling** (own tooling 
 
 **Affected docs / status:** Done on `phase-M-find-users-in-same-boat`. Phase-N (connect/communicate within a group) deferred. Demoability note: matchable peers require **saved** `users/{id}` profiles.
 
+## D-052 — 2026-06-07 — Phase-M enhancements: merge-on-decline, criteria-defined joinable groups (same branch)
+
+Five spec refinements on top of D-051 (`phase-M-find-users-in-same-boat`):
+
+1. **Merge-on-decline (two-step reconcile offer):** when criteria differ from the profile and the user **declines** to update the profile, a **second** offer asks whether to **fold the saved profile context into the search**. Yes ⇒ match on the reconcile `merged` tags (profile ∪ criteria); No ⇒ match on entered criteria only. (Accepting the profile update keeps the original behavior — match on entered criteria.) Reuses the existing `/api/reconcile` `merged` output.
+2. **Join existing instead of duplicate:** groups are **criteria-defined**. `find_or_create_group` computes a **signature** of the distinctive facets — `_signature` = sorted(visa/category ∪) + sorted(consulates ∪) + citizen/resident country; **dates & free-text excluded** — and **joins** the existing group with that signature (else creates). Same boat ⇒ one group.
+3. **Group metadata stored:** each `groups/{id}` carries `name`, `signature`, `criteria_text`, `criteria_tags`, `members[]`, `created_by`, `status`, timestamps.
+4. **Browse & join:** new `GET /api/groups/all` (browse, flagged `is_member`) + `POST /api/groups/{id}/join`; `GET /api/groups` now returns **groups the user is a member of** (`my_groups`). UI: a **"Browse groups" tab** on `/find` lists all groups with Join / "Joined ✓".
+5. **Generated name:** `_group_name` builds a readable label from the criteria (e.g. `H-1B → EB-2 at BOM (IN)`).
+
+**Membership = acting user + selected peers** (chosen via AskUserQuestion). Group model changed: dropped `owner_id`/per-member score; `GroupCard` now `{name, members, is_member, joined}`. `POST /api/groups` is now **find-or-create** (422 only when the criteria aren't distinctive enough to form a group).
+
+**Backend:** `matching.py` group section rewritten (`_signature`/`_group_name`/`find_or_create_group`/`join_group`/`list_all_groups`/`my_groups`); `api.py` 2 new routes + updated models. **Frontend:** `find/page.tsx` (two-step reconcile offer + create/join result with name + Browse tab + join), 2 new proxy routes.
+
+**Verification:** `test_matching.py` **31/31** (signature order-independence + dates-ignored join, browse `is_member`, direct join, non-distinctive→422, full TestClient incl. same-signature join + `/all` + `/{id}/join` + 404); website Vitest 16/16 + `next build` clean; `test_cloud_run.py` group H updated (create→same-signature-join→browse→join). MEMORY D-052.
+
+**Affected docs / status:** Done on `phase-M-find-users-in-same-boat`.
+
 ---
 
 # Session summaries

@@ -423,11 +423,13 @@ class GroupCreate(BaseModel):
 
 class GroupCard(BaseModel):
     group_id: str
-    owner_username: str = ""
+    name: str = ""
     criteria_text: str = ""
     members: list[GroupMember] = []
     status: str = "formed"
     created_at: str = ""
+    is_member: bool = False
+    joined: bool = False  # true when an existing group was joined (vs. created)
 
 
 class GroupsResponse(BaseModel):
@@ -1019,11 +1021,12 @@ async def find_matches_route(body: MatchesRequest, request: Request):
 
 @app.post("/api/groups", response_model=GroupCard)
 async def create_group_route(body: GroupCreate, request: Request):
-    """Form a group from the user-selected matches (requires an active user)."""
+    """Join the existing group for this criteria signature, or create it. The
+    acting user (+ any selected peers) become members. `joined`=true on join."""
     import matching
     uid = _active_user(request)
     try:
-        g = _guard(lambda: matching.create_group(
+        g = _guard(lambda: matching.find_or_create_group(
             _db, uid, body.criteria_text, body.criteria.model_dump(),
             [m.model_dump() for m in body.members]))
     except ValueError as e:
@@ -1033,11 +1036,32 @@ async def create_group_route(body: GroupCreate, request: Request):
 
 @app.get("/api/groups", response_model=GroupsResponse)
 async def list_groups_route(request: Request):
-    """The active user's formed groups (newest first)."""
+    """The groups the active user is a member of (newest first)."""
     import matching
     uid = _active_user(request)
-    groups = _guard(lambda: matching.list_groups(_db, uid))
+    groups = _guard(lambda: matching.my_groups(_db, uid))
     return GroupsResponse(groups=[GroupCard(**g) for g in groups])
+
+
+@app.get("/api/groups/all", response_model=GroupsResponse)
+async def list_all_groups_route(request: Request):
+    """All groups (browse), flagged with the viewer's membership."""
+    import matching
+    uid = _active_user(request)
+    groups = _guard(lambda: matching.list_all_groups(_db, uid))
+    return GroupsResponse(groups=[GroupCard(**g) for g in groups])
+
+
+@app.post("/api/groups/{group_id}/join", response_model=GroupCard)
+async def join_group_route(group_id: str, request: Request):
+    """Join an existing group directly (browse → join)."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.join_group(_db, group_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return GroupCard(**g)
 
 
 @app.get("/api/health", response_model=HealthResponse)

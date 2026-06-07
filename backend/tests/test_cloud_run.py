@@ -241,19 +241,29 @@ def group_h_matching() -> None:
               f"status={r.status_code} strong={by.get(strong, {}).get('score')} weak={by.get(weak, {}).get('score')}")
 
         empty = post("/api/groups", {"criteria_text": "x", "criteria": {}, "members": []}, headers=hdr("demo-arjun"))
-        check("H3 create group empty members → 422", empty.status_code == 422, f"status={empty.status_code}")
+        check("H3 non-distinctive criteria → 422", empty.status_code == 422, f"status={empty.status_code}")
 
-        g = post("/api/groups", {
-            "criteria_text": "H-1B at Mumbai", "criteria": {"current_visa_or_greencard_category": ["H-1B"]},
-            "members": [{"user_id": strong, "username": "strong-peer", "score": by.get(strong, {}).get("score", 0)}],
-        }, headers=hdr("demo-arjun"))
+        crit_g = {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"]}
+        g = post("/api/groups", {"criteria_text": "H-1B at Mumbai", "criteria": crit_g,
+                                 "members": [{"user_id": strong, "username": "strong-peer"}]}, headers=hdr("demo-arjun"))
         gj = g.json()
         group_id = gj.get("group_id", "")
-        check("H4 create group 200 + owner + members", g.status_code == 200 and group_id
-              and gj.get("owner_username") == "arjun-h1b" and len(gj.get("members", [])) == 1, f"status={g.status_code}")
+        mids = {m["user_id"] for m in gj.get("members", [])}
+        check("H4 create 200 + generated name + me & peer members + not joined",
+              g.status_code == 200 and group_id and gj.get("name")
+              and {"demo-arjun", strong} <= mids and gj.get("joined") is False, f"status={g.status_code}")
 
-        lst = get("/api/groups", headers=hdr("demo-arjun")).json().get("groups", [])
-        check("H5 list groups includes the new one", any(x.get("group_id") == group_id for x in lst))
+        # same signature as another user → joins the same group
+        g2 = post("/api/groups", {"criteria_text": "same boat", "criteria": crit_g, "members": []}, headers=hdr("demo-mei"))
+        check("H5 same-signature → joins existing group",
+              g2.json().get("group_id") == group_id and g2.json().get("joined") is True, str(g2.json().get("joined")))
+
+        allg = get("/api/groups/all", headers=hdr("demo-sofia")).json().get("groups", [])
+        mine = next((x for x in allg if x.get("group_id") == group_id), {})
+        check("H6 browse /api/groups/all + is_member False for non-member",
+              bool(mine) and mine.get("is_member") is False)
+        j = post("/api/groups/%s/join" % group_id, {}, headers=hdr("demo-sofia"))
+        check("H7 join 200 + joined", j.status_code == 200 and j.json().get("joined") is True, f"status={j.status_code}")
     finally:
         for u in (strong, weak):
             db.collection("users").document(u).delete()

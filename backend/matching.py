@@ -221,40 +221,138 @@ def find_matches(db, user_id: str, criteria: dict, top_n: int = 20, min_score: f
 
 
 # ---------------------------------------------------------------------------
-# Groups
+# Groups — criteria-defined, joinable communities
 # ---------------------------------------------------------------------------
+# A group is identified by the SIGNATURE of its distinctive criteria facets
+# (visa/category ∪, consulates ∪, citizen/resident country). Same signature ⇒
+# same group, so users in the same boat converge into one group (join existing
+# rather than duplicate). Members accumulate; a generated `name` + the criteria
+# metadata are stored. Users can also browse all groups and join directly.
 
-def create_group(db, owner_id: str, criteria_text: str, criteria: dict, members: list[dict]) -> dict:
-    """Persist a formed group of selected matches. Phase-N adds communication."""
+_COUNTRY_KEYS = profile._COUNTRY_STAGE_KEYS
+
+
+def _signature(criteria: dict) -> str:
+    """Stable identity from the distinctive facets (dates/free-text excluded)."""
+    c = _clean_criteria(criteria)
+    visa = sorted(_as_set(c["current_visa_or_greencard_category"]) | _as_set(c["visa_applying_for"]))
+    cons = sorted(_as_set(c["consulates"]) | _as_set(c["primary_consulate"]))
+    country = sorted({v for k, v in (c["key_stages_or_info"] or {}).items() if k in _COUNTRY_KEYS})
+    return f"v:{','.join(visa)}|c:{','.join(cons)}|n:{','.join(country)}"
+
+
+def _is_distinctive(sig: str) -> bool:
+    return sig != "v:|c:|n:"
+
+
+def _group_name(criteria: dict) -> str:
+    """A human-readable name generated from the criteria, e.g. 'H-1B → EB-2 at BOM (IN)'."""
+    c = _clean_criteria(criteria)
+    cur, nxt = ", ".join(c["current_visa_or_greencard_category"]), ", ".join(c["visa_applying_for"])
+    name = " → ".join([p for p in (cur, nxt) if p]) or "Immigration"
+    cons = c["consulates"] or ([c["primary_consulate"]] if c["primary_consulate"] else [])
+    if cons:
+        name += " at " + "/".join(cons[:2])
+    country = [v for k, v in (c["key_stages_or_info"] or {}).items() if k == "citizen_of_country"]
+    if country:
+        name += f" ({country[0]})"
+    return name
+
+
+def _member(user_id: str, username: str = "") -> dict:
+    return {"user_id": str(user_id), "username": username or profile.username_for(user_id)}
+
+
+def _dedupe_members(members: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    out: list[dict] = []
+    for m in members:
+        uid = str(m.get("user_id") or "")
+        if uid and uid not in seen:
+            seen.add(uid)
+            out.append({"user_id": uid, "username": str(m.get("username") or profile.username_for(uid))})
+    return out
+
+
+def _find_by_signature(db, sig: str):
+    from google.cloud.firestore_v1.base_query import FieldFilter
+    docs = list(db.collection("groups").where(filter=FieldFilter("signature", "==", sig)).limit(1).stream())
+    return docs[0] if docs else None
+
+
+def _group_view(doc_id: str, data: dict, viewer_id: str, joined: bool = False) -> dict:
+    members = data.get("members") or []
+    return {
+        "group_id": doc_id,
+        "name": data.get("name") or "",
+        "criteria_text": data.get("criteria_text") or "",
+        "criteria_tags": data.get("criteria_tags") or {},
+        "members": members,
+        "status": data.get("status") or "formed",
+        "created_at": data.get("created_at") or "",
+        "is_member": any(m.get("user_id") == viewer_id for m in members),
+        "joined": joined,
+    }
+
+
+def find_or_create_group(db, user_id: str, criteria_text: str, criteria: dict,
+                         members: list[dict] | None = None) -> dict:
+    """Join the existing group for this criteria signature, or create it. The
+    acting user is always added; provided peers are added too. `joined`=True when
+    an existing group was joined rather than created."""
     if db is None:
         raise RuntimeError("Firestore unavailable")
-    clean_members = [
-        {"user_id": str(m.get("user_id") or ""), "username": str(m.get("username") or ""),
-         "score": float(m.get("score") or 0)}
-        for m in (members or []) if m.get("user_id")
-    ]
-    if not clean_members:
-        raise ValueError("Select at least one member to form a group.")
+    sig = _signature(criteria)
+    if not _is_distinctive(sig):
+        raise ValueError("Add at least a visa or consulate to form a group.")
+    to_add = _dedupe_members([_member(user_id), *(members or [])])
+
+    existing = _find_by_signature(db, sig)
+    if existing is not None:
+        data = existing.to_dict() or {}
+        merged = _dedupe_members([*(data.get("members") or []), *to_add])
+        existing.reference.update({"members": merged, "updated_at": _now_iso()})
+        return _group_view(existing.id, {**data, "members": merged}, user_id, joined=True)
+
     doc = {
-        "owner_id": owner_id,
-        "owner_username": profile.username_for(owner_id),
+        "name": _group_name(criteria),
+        "signature": sig,
         "criteria_text": str(criteria_text or "")[:2000],
         "criteria_tags": _clean_criteria(criteria),
-        "members": clean_members,
+        "members": to_add,
+        "created_by": user_id,
         "status": "formed",
         "created_at": _now_iso(),
+        "updated_at": _now_iso(),
     }
     ref = db.collection("groups").document()
     ref.set(doc)
-    return {"group_id": ref.id, **doc}
+    return _group_view(ref.id, doc, user_id, joined=False)
 
 
-def list_groups(db, owner_id: str) -> list[dict]:
-    """The owner's groups, newest first."""
+def join_group(db, group_id: str, user_id: str) -> dict:
+    """Add the user to an existing group (browse → join)."""
+    if db is None:
+        raise RuntimeError("Firestore unavailable")
+    ref = db.collection("groups").document(group_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise KeyError("Group not found.")
+    data = snap.to_dict() or {}
+    members = _dedupe_members([*(data.get("members") or []), _member(user_id)])
+    ref.update({"members": members, "updated_at": _now_iso()})
+    return _group_view(group_id, {**data, "members": members}, user_id, joined=True)
+
+
+def list_all_groups(db, viewer_id: str = "") -> list[dict]:
+    """All groups (for browsing), newest first, flagged with the viewer's membership."""
     if db is None:
         return []
-    from google.cloud.firestore_v1.base_query import FieldFilter
-    q = db.collection("groups").where(filter=FieldFilter("owner_id", "==", owner_id))
-    out = [{"group_id": d.id, **(d.to_dict() or {})} for d in q.stream()]
+    out = [_group_view(d.id, d.to_dict() or {}, viewer_id) for d in db.collection("groups").stream()]
     out.sort(key=lambda g: g.get("created_at", ""), reverse=True)
     return out
+
+
+def my_groups(db, user_id: str) -> list[dict]:
+    """Groups the user is a member of, newest first."""
+    return [g for g in list_all_groups(db, user_id) if g["is_member"]]

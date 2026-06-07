@@ -114,20 +114,36 @@ def group_b_firestore() -> None:
         check("B4 strong peer ranks 5.5", ids["a"] in m2 and abs(m2[ids["a"]]["score"] - 5.5) < 0.01,
               str(m2.get(ids["a"])))
 
-        # group round-trip
-        g = M.create_group(db, "demo-arjun", "looking for H-1B folks at Mumbai", criteria,
-                           [{"user_id": ids["a"], "username": "alpha", "score": 5.5}])
+        # group: create (me + selected peer), with a generated name
+        g = M.find_or_create_group(db, "demo-arjun", "looking for H-1B folks at Mumbai", criteria,
+                                   [{"user_id": ids["a"], "username": "alpha"}])
         gid = g["group_id"]
-        check("B5 create_group returns id + members + owner",
-              bool(gid) and len(g["members"]) == 1 and g["owner_username"] == "arjun-h1b")
-        groups = {x["group_id"]: x for x in M.list_groups(db, "demo-arjun")}
-        check("B6 list_groups round-trip", gid in groups)
+        member_ids = {m["user_id"] for m in g["members"]}
+        check("B5 create: id + generated name + me & peer as members + not joined",
+              bool(gid) and g["name"] and {"demo-arjun", ids["a"]} <= member_ids and g["joined"] is False,
+              f"name={g['name']} members={member_ids}")
+
+        # same signature (extra dates ignored) → JOIN the same group, add new member
+        g2 = M.find_or_create_group(db, ids["b"], "same boat, different words",
+                                    {**criteria, "key_dates": {"priority_date": "2022-05-01"}}, [])
+        check("B6 same-signature → joins existing group + adds member",
+              g2["group_id"] == gid and g2["joined"] is True and ids["b"] in {m["user_id"] for m in g2["members"]},
+              f"gid={g2['group_id']} joined={g2['joined']}")
+
+        # browse all + my membership + direct join
+        allg = {x["group_id"]: x for x in M.list_all_groups(db, ids["c"])}
+        check("B7 list_all_groups includes it, is_member False for non-member",
+              gid in allg and allg[gid]["is_member"] is False)
+        jg = M.join_group(db, gid, ids["c"])
+        check("B8 join_group adds the user", ids["c"] in {m["user_id"] for m in jg["members"]} and jg["joined"] is True)
+        mine = {x["group_id"] for x in M.my_groups(db, ids["c"])}
+        check("B9 my_groups reflects membership after join", gid in mine)
 
         try:
-            M.create_group(db, "demo-arjun", "x", criteria, [])
-            check("B7 empty group rejected", False, "no raise")
+            M.find_or_create_group(db, "demo-arjun", "x", {}, [])
+            check("B10 non-distinctive criteria rejected", False, "no raise")
         except ValueError:
-            check("B7 empty group rejected (ValueError)", True)
+            check("B10 non-distinctive criteria rejected (ValueError)", True)
     finally:
         for uid in ids.values():
             db.collection("users").document(uid).delete()
@@ -169,24 +185,49 @@ def group_c_api() -> None:
             check("C4 matches 200 + excludes self + finds the test peer",
                   r.status_code == 200 and "demo-arjun" not in by and test_uid in by, f"status={r.status_code}")
 
-            check("C5 create group with empty members → 422",
+            check("C5 create group with non-distinctive criteria → 422",
                   c.post("/api/groups", json={"criteria_text": "x", "criteria": {}, "members": []},
                          headers=A).status_code == 422)
 
             g = c.post("/api/groups", json={
                 "criteria_text": "H-1B at Mumbai",
-                "criteria": {"current_visa_or_greencard_category": ["H-1B"]},
-                "members": [{"user_id": test_uid, "username": "apitest", "score": by[test_uid]["score"]}],
+                "criteria": {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"]},
+                "members": [{"user_id": test_uid, "username": "apitest"}],
             }, headers=A)
             gj = g.json()
             if gj.get("group_id"):
                 created_groups.append(gj["group_id"])
-            check("C6 create group 200 + shape (id, members, owner_username)",
-                  g.status_code == 200 and gj.get("group_id") and len(gj["members"]) == 1
-                  and gj["owner_username"] == "arjun-h1b", f"status={g.status_code}")
+            mids = {m["user_id"] for m in gj.get("members", [])}
+            check("C6 create 200 + name + me & peer members + not joined",
+                  g.status_code == 200 and gj.get("group_id") and gj.get("name")
+                  and {"demo-arjun", test_uid} <= mids and gj.get("joined") is False, f"status={g.status_code}")
 
-            lst = c.get("/api/groups", headers=A).json().get("groups", [])
-            check("C7 list groups includes the new one", any(x["group_id"] == gj.get("group_id") for x in lst))
+            # same signature again as mei → JOINs the existing group
+            g2 = c.post("/api/groups", json={
+                "criteria_text": "same boat",
+                "criteria": {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"]},
+                "members": [],
+            }, headers={"X-User-Id": "demo-mei"})
+            g2j = g2.json()
+            check("C7 same-signature create → joined existing (same id, joined=true)",
+                  g2j.get("group_id") == gj.get("group_id") and g2j.get("joined") is True, str(g2j.get("joined")))
+
+            mine = c.get("/api/groups", headers=A).json().get("groups", [])
+            check("C8 GET /api/groups returns groups I'm a member of",
+                  any(x["group_id"] == gj.get("group_id") for x in mine))
+
+            allg = c.get("/api/groups/all", headers={"X-User-Id": "demo-sofia"}).json().get("groups", [])
+            mine_in_all = next((x for x in allg if x["group_id"] == gj.get("group_id")), {})
+            check("C9 GET /api/groups/all browse + is_member False for sofia",
+                  bool(mine_in_all) and mine_in_all.get("is_member") is False)
+
+            j = c.post(f"/api/groups/{gj.get('group_id')}/join", headers={"X-User-Id": "demo-sofia"})
+            jj = j.json()
+            check("C10 POST /{id}/join adds the user (joined=true, is_member)",
+                  j.status_code == 200 and jj.get("joined") is True
+                  and "demo-sofia" in {m["user_id"] for m in jj.get("members", [])}, f"status={j.status_code}")
+            check("C11 join unknown group → 404",
+                  c.post("/api/groups/no-such-group/join", headers=A).status_code == 404)
     finally:
         db.collection("users").document(test_uid).delete()
         for gid in created_groups:
