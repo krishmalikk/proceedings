@@ -3,8 +3,11 @@ test_matching.py — phase-M "Find users in same boat" (matching + groups).
 
 Groups:
   A  pure scoring + criteria cleaning/merge (no network) — always runs
+  D  pure DATE matching: exact, approximate windows, parsing care — always runs
   B  live Firestore: find_turn shape, find_matches ranking, group round-trip — INTEGRATION
   C  HTTP API via FastAPI TestClient (auth gating, matches, groups) — INTEGRATION
+  E  live Firestore: merge profile+criteria, positive/negative matching — INTEGRATION
+  F  live Firestore: date matching end-to-end via find_matches — INTEGRATION
 
 Run:  .venv/bin/python tests/test_matching.py [unit|integration|all]
 """
@@ -235,6 +238,132 @@ def group_c_api() -> None:
         print("  cleaned up API test docs")
 
 
+def group_d_dates() -> None:
+    print("\nD — date matching (pure): exact, approximate windows, parsing care")
+    base = "2022-01-01"
+
+    # proximity buckets (scenario 4 — what closeness makes a match)
+    check("D1 exact date proximity = 1.5", M._date_proximity(base, "2022-01-01") == M._DATE_EXACT)
+    check("D2 ±20d within 30 → 1.0", M._date_proximity(base, "2022-01-21") == 1.0)
+    check("D3 ±75d within 90 → 0.6", M._date_proximity(base, "2022-03-17") == 0.6)
+    check("D4 ±150d within 180 → 0.3", M._date_proximity(base, "2022-05-31") == 0.3)
+    check("D5 ±400d beyond window → 0.0", M._date_proximity(base, "2023-02-05") == 0.0)
+    check("D6 proximity is symmetric",
+          M._date_proximity(base, "2022-02-10") == M._date_proximity("2022-02-10", base))
+
+    # scenario 5 — careful parsing: blank/None/malformed/other-format never crash
+    for bad in ("", "not-a-date", None, "2022-13-40", "02/01/2022"):
+        check(f"D7 malformed date {bad!r} → 0 proximity (no crash)", M._date_proximity(base, bad) == 0.0)
+
+    sc = lambda pd: M._score({"key_dates": {"priority_date": base}}, {"key_dates": {"priority_date": pd}})["score"]
+    check("D8 exact date-only reaches MIN_SCORE (a match)", sc("2022-01-01") >= M.MIN_SCORE)
+    check("D9 ±20d date-only reaches MIN_SCORE (APPROXIMATE match)", sc("2022-01-21") >= M.MIN_SCORE)
+    check("D10 ±60d date-only below MIN_SCORE (not a match alone)", sc("2022-03-02") < M.MIN_SCORE)
+    check("D11 far shared key keeps a floor (same milestone, different timing)", sc("2025-01-01") == M._DATE_FLOOR)
+
+    # scenario 3 — dates must be the SAME milestone key
+    diffkey = M._score({"key_dates": {"priority_date": base}}, {"key_dates": {"visa_interview_date": base}})
+    check("D12 different date key → no credit + not shared", diffkey["score"] == 0.0 and diffkey["shared"] == [])
+
+    multi = M._score({"key_dates": {"priority_date": base, "i140_approved_date": "2023-01-01"}},
+                     {"key_dates": {"priority_date": base, "i140_approved_date": "2023-01-20"}})
+    check("D13 multiple shared dates sum (exact 1.5 + approx 1.0 = 2.5)", abs(multi["score"] - 2.5) < 0.01, str(multi["score"]))
+    check("D14 labels mark exact vs approximate",
+          "priority_date(exact)" in multi["shared"] and "i140_approved_date(~)" in multi["shared"], str(multi["shared"]))
+
+    near = M._score({"current_visa_or_greencard_category": ["H-1B"], "key_dates": {"priority_date": base}},
+                    {"current_visa_or_greencard_category": ["H-1B"], "key_dates": {"priority_date": "2022-01-10"}})["score"]
+    far = M._score({"current_visa_or_greencard_category": ["H-1B"], "key_dates": {"priority_date": base}},
+                   {"current_visa_or_greencard_category": ["H-1B"], "key_dates": {"priority_date": "2025-01-10"}})["score"]
+    check("D15 date proximity is a bonus on top of visa; closer ranks higher",
+          abs(near - 4.0) < 0.01 and abs(far - 3.1) < 0.01 and near > far, f"near={near} far={far}")
+
+
+def group_e_merge_match() -> None:
+    print("\nE — merge profile+criteria, positive/negative matching (integration)")
+    from google.cloud import firestore
+    import reconcile as rc
+    db = firestore.Client(project=PROJECT)
+
+    ids = {k: f"test-mm-{k}-{secrets.token_hex(3)}" for k in ("eb2", "h1b", "both", "none")}
+    seeds = {
+        ids["eb2"]:  {"username": "eb2only", "visa_applying_for": ["EB-2"], "consulates": ["BOM"]},
+        ids["h1b"]:  {"username": "h1bonly", "current_visa_or_greencard_category": ["H-1B"]},
+        ids["both"]: {"username": "bothvisa", "current_visa_or_greencard_category": ["H-1B"],
+                      "visa_applying_for": ["EB-2"], "consulates": ["BOM"]},
+        ids["none"]: {"username": "unrelated", "current_visa_or_greencard_category": ["F-1"], "consulates": ["LON"]},
+    }
+    saved_profile = {"current_visa_or_greencard_category": ["H-1B"]}   # what's in the profile
+    criteria = {"visa_applying_for": ["EB-2"], "consulates": ["BOM"]}  # different — what they typed here
+    try:
+        for uid, p in seeds.items():
+            db.collection("users").document(uid).set(p)
+
+        # scenario 2 — positive / negative on the ENTERED criteria
+        by_crit = {m["user_id"]: m for m in M.find_matches(db, "demo-arjun", criteria)}
+        check("E1 positive: EB-2/BOM peers matched", ids["eb2"] in by_crit and ids["both"] in by_crit)
+        check("E2 negative: unrelated (F-1/LON) NOT matched", ids["none"] not in by_crit)
+        check("E3 negative: H-1B-only NOT matched by EB-2/BOM criteria", ids["h1b"] not in by_crit)
+        check("E4 only criteria∩profile counts: extra H-1B (not in criteria) doesn't inflate; both ties eb2-only at 4.5",
+              abs(by_crit[ids["both"]]["score"] - by_crit[ids["eb2"]]["score"]) < 0.01
+              and abs(by_crit[ids["eb2"]]["score"] - 4.5) < 0.01,
+              f'both={by_crit[ids["both"]]["score"]} eb2={by_crit[ids["eb2"]]["score"]}')
+
+        # scenario 1 — profile differs; MERGE profile+criteria, then match on merged
+        merged = rc.reconcile_profile_message(saved_profile, criteria)["merged"]
+        check("E5 merged = profile H-1B ∪ criteria EB-2/BOM",
+              "H-1B" in (merged.get("current_visa_or_greencard_category") or [])
+              and "EB-2" in (merged.get("visa_applying_for") or [])
+              and "BOM" in (merged.get("consulates") or []))
+        by_merged = {m["user_id"]: m for m in M.find_matches(db, "demo-arjun", merged)}
+        check("E6 merge brings in the profile-only (H-1B) peer", ids["h1b"] in by_merged)
+        check("E7 merged matches ⊇ criteria-only matches, and add H-1B peer",
+              set(by_crit) <= set(by_merged) and ids["h1b"] in (set(by_merged) - set(by_crit)))
+    finally:
+        for uid in ids.values():
+            db.collection("users").document(uid).delete()
+        print("  cleaned up merge-match test docs")
+
+
+def group_f_dates_match() -> None:
+    print("\nF — date matching end-to-end via find_matches (integration)")
+    from google.cloud import firestore
+    db = firestore.Client(project=PROJECT)
+
+    pd = "2022-01-01"
+    ids = {k: f"test-dt-{k}-{secrets.token_hex(3)}" for k in ("exact", "near", "far", "key2", "dateonly")}
+    seeds = {
+        ids["exact"]: {"username": "exactpd", "current_visa_or_greencard_category": ["H-1B"], "key_dates": {"priority_date": pd}},
+        ids["near"]:  {"username": "nearpd", "current_visa_or_greencard_category": ["H-1B"], "key_dates": {"priority_date": "2022-01-20"}},
+        ids["far"]:   {"username": "farpd", "current_visa_or_greencard_category": ["H-1B"], "key_dates": {"priority_date": "2024-06-01"}},
+        ids["key2"]:  {"username": "otherdate", "current_visa_or_greencard_category": ["H-1B"], "key_dates": {"visa_interview_date": pd}},
+        ids["dateonly"]: {"username": "dateonly", "key_dates": {"priority_date": "2022-01-15"}},  # no visa, +14d
+    }
+    crit = {"current_visa_or_greencard_category": ["H-1B"], "key_dates": {"priority_date": pd}}
+    try:
+        for uid, p in seeds.items():
+            db.collection("users").document(uid).set(p)
+
+        by = {m["user_id"]: m for m in M.find_matches(db, "demo-arjun", crit)}
+        check("F1 exact > near > far by date proximity (all share H-1B)",
+              by[ids["exact"]]["score"] > by[ids["near"]]["score"] > by[ids["far"]]["score"],
+              f'exact={by[ids["exact"]]["score"]} near={by[ids["near"]]["score"]} far={by[ids["far"]]["score"]}')
+        check("F2 exact priority_date labeled (exact)", "priority_date(exact)" in by[ids["exact"]]["shared"])
+        check("F3 near priority_date labeled (~) approximate", "priority_date(~)" in by[ids["near"]]["shared"])
+        check("F4 different date key → matches on visa only, no date credit",
+              ids["key2"] in by and abs(by[ids["key2"]]["score"] - 3.0) < 0.01
+              and not any("priority_date" in s for s in by[ids["key2"]]["shared"]))
+
+        # scenario 4 — date-only criteria: which approximate date alone qualifies
+        by2 = {m["user_id"]: m for m in M.find_matches(db, "demo-arjun", {"key_dates": {"priority_date": pd}})}
+        check("F5 date-only: within-30d peer IS a match (no shared visa needed)", ids["dateonly"] in by2)
+        check("F6 date-only: far peer is NOT a match", ids["far"] not in by2)
+    finally:
+        for uid in ids.values():
+            db.collection("users").document(uid).delete()
+        print("  cleaned up date-match test docs")
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set")
@@ -243,9 +372,12 @@ def main() -> int:
     print(f"Matching tests — project={PROJECT}  (scope={only})")
 
     group_a_pure()
+    group_d_dates()
     if only in ("all", "integration"):
         group_b_firestore()
         group_c_api()
+        group_e_merge_match()
+        group_f_dates_match()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok in _results if ok)

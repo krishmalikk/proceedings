@@ -760,6 +760,21 @@ Five spec refinements on top of D-051 (`phase-M-find-users-in-same-boat`):
 
 **Affected docs / status:** Done on `phase-M-find-users-in-same-boat`.
 
+## D-053 — 2026-06-07 — Date-proximity matching ("same place in line", same branch)
+
+**Decision:** `matching._score` now matches `key_dates` by **value proximity**, not just a shared key. For the SAME milestone key, two YYYY-MM-DD values score by closeness: **exact = 1.5**, **≤30 days = 1.0** (the "approximate match" boundary — equals `MIN_SCORE`, so two users whose milestone dates are within a month are a match even with no other shared facet), **≤90d = 0.6**, **≤180d = 0.3**, and a shared key with far/blank dates keeps a **0.1 floor** (same milestone, different timing). Different date keys never match. Helpers: `_parse_ymd` (robust — blank/None/malformed/other-format → no credit, never raises), `_date_proximity`, `_date_key_score`, `_date_label` (chips show `key(exact)` / `key(~)`). Replaces the old flat `W_DATE=0.25` per shared key; visa 3.0 / consulate 1.5 / status-fact 1.0 unchanged.
+
+**Why:** immigration "same boat" is largely about *place in line* — people who filed/were-scheduled around the same time are genuinely similar, so date closeness (within ~a month) is a first-class match signal, and an approximately-equal milestone date alone can qualify.
+
+**Test cases added (`test_matching.py`, covering the 5 requested scenarios):**
+- **D (pure)** — exact/approx buckets, symmetry, malformed-date parsing care, date-only match thresholds, far-key floor, different-key no-match, multi-date sum, exact-vs-approx labels, proximity-as-bonus ranking.
+- **E (Firestore)** — profile≠criteria **merge-both** (reconcile `merged` then match brings in the profile-only peer; criteria-only ⊆ merged) + **positive/negative** matching (and "facets outside the criteria don't inflate score").
+- **F (Firestore)** — date matching end-to-end via `find_matches`: exact > near > far ranking, exact/approx labels, different-key matches on visa only, and date-only criteria where a within-30-day peer matches but a far peer doesn't.
+
+**Verification:** `test_matching.py` **63/63** (A+D pure, B/C/E/F live Firestore). Deployed unchanged-endpoint behavior; Cloud Run group H still green.
+
+**Affected docs / status:** Done on `phase-M-find-users-in-same-boat`.
+
 ---
 
 # Session summaries

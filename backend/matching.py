@@ -42,9 +42,19 @@ CRITERIA_FIELDS = [
 ]
 
 # Similarity weights — visa/category dominates "same boat", then consulate, then
-# a shared status fact (same key AND value), then a shared milestone date key.
-W_VISA, W_CONSULATE, W_STAGE, W_DATE = 3.0, 1.5, 1.0, 0.25
-MIN_SCORE = 1.0  # at least one shared visa | consulate | status fact
+# a shared status fact (same key AND value), then a shared milestone date.
+W_VISA, W_CONSULATE, W_STAGE = 3.0, 1.5, 1.0
+MIN_SCORE = 1.0  # at least one shared visa | consulate | status fact | exact date
+
+# Date proximity ("same place in line"): for the SAME milestone key, credit by
+# how close the two YYYY-MM-DD values are. The **±30-day** bucket is the
+# "approximate match" boundary — it scores exactly MIN_SCORE, so two users whose
+# milestone dates are within a month count as a match even with no other shared
+# facet. Exact scores higher; wider windows give graduated bonus; a shared key
+# with far/blank dates keeps a small floor (same milestone, different timing).
+_DATE_EXACT = 1.5
+_DATE_BUCKETS = [(30, 1.0), (90, 0.6), (180, 0.3)]  # (max_days_inclusive, weight)
+_DATE_FLOOR = 0.1
 
 
 def _now_iso() -> str:
@@ -55,6 +65,42 @@ def _as_set(v) -> set[str]:
     if isinstance(v, list):
         return {str(x) for x in v if x}
     return {str(v)} if v else set()
+
+
+def _parse_ymd(s):
+    """Parse a YYYY-MM-DD string to a datetime, or None if blank/malformed.
+    Criteria/profile dates are normalized to YYYY-MM-DD upstream (clean_profile)."""
+    try:
+        return datetime.strptime(str(s), "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return None
+
+
+def _date_proximity(a, b) -> float:
+    """0..1 closeness of two YYYY-MM-DD dates: exact ⇒ 1.0; within a bucket ⇒
+    graduated; far apart or unparseable ⇒ 0.0 (the 'approximate match' rule)."""
+    da, db = _parse_ymd(a), _parse_ymd(b)
+    if da is None or db is None:
+        return 0.0
+    days = abs((da - db).days)
+    if days == 0:
+        return _DATE_EXACT
+    for max_days, weight in _DATE_BUCKETS:
+        if days <= max_days:
+            return weight
+    return 0.0
+
+
+def _date_key_score(a, b) -> float:
+    """Score for a shared milestone key: proximity if close, else a small floor
+    (the two users track the same milestone, just at different times)."""
+    return max(_date_proximity(a, b), _DATE_FLOOR)
+
+
+def _date_label(key: str, a, b) -> str:
+    p = _date_proximity(a, b)
+    tag = "exact" if p >= _DATE_EXACT else ("~" if p > 0 else "≠")
+    return f"{key}({tag})"
 
 
 # ---------------------------------------------------------------------------
@@ -170,14 +216,16 @@ def _score(criteria: dict, prof: dict) -> dict:
 
     c_dt = criteria.get("key_dates") or {}
     p_dt = prof.get("key_dates") or {}
-    dates = sorted(set(c_dt) & set(p_dt))
+    dt_keys = sorted(set(c_dt) & set(p_dt))
+    date_score = sum(_date_key_score(c_dt[k], p_dt[k]) for k in dt_keys)
 
-    score = W_VISA * len(visa) + W_CONSULATE * len(cons) + W_STAGE * len(stages) + W_DATE * len(dates)
-    shared = [*visa, *cons, *[f"{k}={c_st[k]}" for k in stages], *dates]
+    score = W_VISA * len(visa) + W_CONSULATE * len(cons) + W_STAGE * len(stages) + date_score
+    shared = [*visa, *cons, *[f"{k}={c_st[k]}" for k in stages],
+              *[_date_label(k, c_dt[k], p_dt[k]) for k in dt_keys]]
     return {
         "score": round(score, 2),
         "shared": shared,
-        "shared_detail": {"visa": visa, "consulates": cons, "stages": stages, "dates": dates},
+        "shared_detail": {"visa": visa, "consulates": cons, "stages": stages, "dates": dt_keys},
     }
 
 
