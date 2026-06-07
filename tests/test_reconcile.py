@@ -112,6 +112,18 @@ def group_b() -> None:
     check("B8 milestone->date map covers the common milestones",
           all(k in p._MILESTONE_DATE_KEY for k in ("visa_interview", "port_of_entry", "h1b_approval", "i485_filing")))
 
+    # Experience tagging rules: 1) always experience-posting; 2) timeline iff dates; 3) no concerns.
+    ex_concern = dict(extracted, concerns_or_questions_tags=["visa-interview", "consular-processing"])
+    cd = p.build_experience_canonical(profile, entry, ex_concern)  # entry has a date
+    check("B9 rule1: every experience tagged experience-posting", "experience-posting" in cd["tags"], str(cd["tags"]))
+    check("B10 rule2: 'timeline' tag added when the experience has a date", "timeline" in cd["tags"], str(cd["tags"]))
+    check("B11 rule3: experience never carries concerns/questions tags", cd["concerns_or_questions_tags"] == [], str(cd["concerns_or_questions_tags"]))
+
+    cn = p.build_experience_canonical(profile, {"milestone": "general", "date": "", "experience": "no dates here"},
+                                      dict(extracted, key_dates={}))
+    check("B12 rule2: no 'timeline' tag when the experience has no dates",
+          "timeline" not in cn["tags"] and "experience-posting" in cn["tags"], str(cn["tags"]))
+
 
 # ---------------------------------------------------------------------------
 # C — boundary + consent guards (UNIT, deterministic, no network)

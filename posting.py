@@ -798,14 +798,25 @@ def build_experience_canonical(profile: dict, entry: dict, extracted: dict | Non
             print(f"posting: experience extraction failed ({e}); minimal facets")
             extracted = {}
 
-    tags = {f: extracted.get(f) for f in GROUP_FIELDS}
     key_stages = extracted.get("key_stages_or_info")
     key_dates = dict(_clean_dates(extracted.get("key_dates")))
     dk = _MILESTONE_DATE_KEY.get(milestone)
     if dk and date:
         key_dates[dk] = date
 
+    # Experience tagging rules (phase-J):
+    #  1) every experience is tagged `experience-posting`;
+    #  2) add `timeline` when the experience has any date(s);
+    #  3) an experience NEVER carries concerns/questions tags.
+    tags = {f: extracted.get(f) for f in GROUP_FIELDS}
+    tags["concerns_or_questions_tags"] = []                                  # rule 3
+    base_tags = list(dict.fromkeys([*(tags.get("tags") or []), "experience-posting"]))  # rule 1
+    if key_dates and "timeline" not in base_tags:                            # rule 2
+        base_tags.append("timeline")
+    tags["tags"] = base_tags
+
     c = build_canonical(title, text, tags, key_stages, key_dates, extracted)
+    c["concerns_or_questions_tags"] = []  # belt-and-suspenders for rule 3
     # Re-key as an experience document.
     short = secrets.token_hex(4)
     c["doc_kind"] = "experience"
