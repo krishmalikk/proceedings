@@ -779,6 +779,10 @@ def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", (s or "").strip().lower()).strip("_")[:48]
 
 
+# Interview milestones (consular OR domestic) that earn `visa-interview-experience`.
+_INTERVIEW_MILESTONES = {"visa_interview", "aos_interview", "naturalization_interview"}
+
+
 def _pretty_milestone(m: str) -> str:
     return (m or "milestone").replace("_", " ").strip().title()
 
@@ -805,14 +809,18 @@ def build_experience_canonical(profile: dict, entry: dict, extracted: dict | Non
         key_dates[dk] = date
 
     # Experience tagging rules (phase-J):
-    #  1) every experience is tagged `experience-posting`;
+    #  1) every experience is tagged `past-experience` (universal) + `experience-posting`;
     #  2) add `timeline` when the experience has any date(s);
-    #  3) an experience NEVER carries concerns/questions tags.
+    #  3) `visa-interview-experience` for an interview milestone (consular OR domestic);
+    #  4) an experience NEVER carries concerns/questions tags.
     tags = {f: extracted.get(f) for f in GROUP_FIELDS}
-    tags["concerns_or_questions_tags"] = []                                  # rule 3
-    base_tags = list(dict.fromkeys([*(tags.get("tags") or []), "experience-posting"]))  # rule 1
+    tags["concerns_or_questions_tags"] = []                                  # rule 4
+    base_tags = list(dict.fromkeys([*(tags.get("tags") or []),
+                                    "past-experience", "experience-posting"]))  # rule 1
     if key_dates and "timeline" not in base_tags:                            # rule 2
         base_tags.append("timeline")
+    if milestone in _INTERVIEW_MILESTONES and "visa-interview-experience" not in base_tags:  # rule 3
+        base_tags.append("visa-interview-experience")
     tags["tags"] = base_tags
 
     c = build_canonical(title, text, tags, key_stages, key_dates, extracted)

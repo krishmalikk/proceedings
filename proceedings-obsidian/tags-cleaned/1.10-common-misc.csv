@@ -127,7 +127,9 @@ backlog,Visa bulletin / processing backlog
 bill,Pending or new immigration legislation
 lost-document,Lost immigration document (passport/EAD/I-94)
 timeline,Case timeline sharing/inquiry
-experience-posting,Sharing personal immigration experience
+experience-posting,"First-hand account of ANY U.S. immigration milestone/process the applicant personally went through (visa interview, OFC biometrics, stamping pickup, port-of-entry/CBP, H-1B filing/approval, RFE, biometrics, AOS interview, etc.), regardless of where it happened or the outcome."
+past-experience,"Umbrella tag for a PAST lived experience (any milestone). Marks content as a historical first-hand account, not a current question/concern/plan. Applied to every experience on the profile experiences page."
+visa-interview-experience,"First-hand account of an immigration INTERVIEW — at a U.S. consulate/embassy abroad or a USCIS office (AOS / naturalization interview). Any interview experience, consular or domestic."
 open-for-attorney,Question intended for an attorney to answer
 blog,Blog post link/reference
 news-update,News update related to immigration
