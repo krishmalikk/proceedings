@@ -4,10 +4,12 @@ test_matching.py — phase-M "Find users in same boat" (matching + groups).
 Groups:
   A  pure scoring + criteria cleaning/merge (no network) — always runs
   D  pure DATE matching: exact, approximate windows, parsing care — always runs
+  G  pure positive/negative matching across every criteria dimension — always runs
   B  live Firestore: find_turn shape, find_matches ranking, group round-trip — INTEGRATION
   C  HTTP API via FastAPI TestClient (auth gating, matches, groups) — INTEGRATION
   E  live Firestore: merge profile+criteria, positive/negative matching — INTEGRATION
   F  live Firestore: date matching end-to-end via find_matches — INTEGRATION
+  H  live Firestore: positive/negative matches + ranking/top_n/min_score — INTEGRATION
 
 Run:  .venv/bin/python tests/test_matching.py [unit|integration|all]
 """
@@ -364,6 +366,114 @@ def group_f_dates_match() -> None:
         print("  cleaned up date-match test docs")
 
 
+def group_g_match_criteria() -> None:
+    print("\nG — positive / negative matching across every criteria dimension (pure)")
+    S = lambda c, p: M._score(c, p)["score"]
+
+    # --- visa / category ---
+    crit = {"current_visa_or_greencard_category": ["H-1B", "L-1"]}
+    check("G1 one of two visas shared → 3.0 (partial positive)",
+          S(crit, {"current_visa_or_greencard_category": ["H-1B"]}) == 3.0)
+    check("G2 both visas shared → 6.0 (full positive)",
+          S(crit, {"current_visa_or_greencard_category": ["H-1B", "L-1"]}) == 6.0)
+    check("G3 no visa overlap → 0.0 (negative)",
+          S(crit, {"current_visa_or_greencard_category": ["F-1"]}) == 0.0)
+    check("G4 cross-field current↔applying matches the same code (same journey stage)",
+          S({"current_visa_or_greencard_category": ["H-1B"]}, {"visa_applying_for": ["H-1B"]}) == 3.0)
+
+    # --- consulates ---
+    check("G5 primary_consulate ↔ consulates cross-field matches",
+          S({"primary_consulate": "BOM"}, {"consulates": ["BOM"]}) == 1.5)
+    check("G6 partial consulate overlap [BOM,DEL] vs [DEL,MAA] → 1.5 (shares DEL)",
+          S({"consulates": ["BOM", "DEL"]}, {"consulates": ["DEL", "MAA"]}) == 1.5)
+    check("G7 no consulate overlap → 0.0 (negative)",
+          S({"consulates": ["BOM"]}, {"consulates": ["LON"]}) == 0.0)
+
+    # --- status facts (key_stages_or_info) ---
+    check("G8 same status fact (visa_status=approved) → 1.0 (positive)",
+          S({"key_stages_or_info": {"visa_status": "approved"}}, {"key_stages_or_info": {"visa_status": "approved"}}) == 1.0)
+    check("G9 same key, different value → 0.0 (negative)",
+          S({"key_stages_or_info": {"visa_status": "approved"}}, {"key_stages_or_info": {"visa_status": "pending"}}) == 0.0)
+    check("G10 different status key → 0.0 (negative)",
+          S({"key_stages_or_info": {"visa_status": "approved"}}, {"key_stages_or_info": {"case_status": "approved"}}) == 0.0)
+    check("G11 same citizen_of_country → 1.0 (positive); different → 0.0 (negative)",
+          S({"key_stages_or_info": {"citizen_of_country": "IN"}}, {"key_stages_or_info": {"citizen_of_country": "IN"}}) == 1.0
+          and S({"key_stages_or_info": {"citizen_of_country": "IN"}}, {"key_stages_or_info": {"citizen_of_country": "CN"}}) == 0.0)
+
+    # --- thresholds / edges ---
+    check("G12 a single status fact reaches MIN_SCORE (1.0)", 1.0 >= M.MIN_SCORE)
+    check("G13 empty criteria vs anything → 0.0 (no match)",
+          S({}, {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"]}) == 0.0)
+    check("G14 anything vs empty profile → 0.0 (no match)",
+          S({"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"]}, {}) == 0.0)
+
+    # --- combined ---
+    full = M._score(
+        {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"],
+         "key_stages_or_info": {"citizen_of_country": "IN"}, "key_dates": {"priority_date": "2022-01-01"}},
+        {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"],
+         "key_stages_or_info": {"citizen_of_country": "IN"}, "key_dates": {"priority_date": "2022-01-01"}})
+    check("G15 full overlap sums all signals (3+1.5+1+1.5 = 7.0)", abs(full["score"] - 7.0) < 0.01, str(full["score"]))
+    check("G16 shared lists every matched facet",
+          set(full["shared"]) == {"H-1B", "BOM", "citizen_of_country=IN", "priority_date(exact)"}, str(full["shared"]))
+
+
+def group_h_match_integration() -> None:
+    print("\nH — positive / negative matching via find_matches (integration)")
+    from google.cloud import firestore
+    db = firestore.Client(project=PROJECT)
+
+    ids = {k: f"test-mc-{k}-{secrets.token_hex(3)}" for k in
+           ("clone", "strong", "visa", "consulate", "stage", "diffvisa", "diffcons", "empty")}
+    crit = {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"],
+            "key_stages_or_info": {"citizen_of_country": "IN"}}
+    seeds = {
+        ids["clone"]:     {"username": "clone", "current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"], "key_stages_or_info": {"citizen_of_country": "IN"}},   # 5.5
+        ids["strong"]:    {"username": "strong", "current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"]},  # 4.5
+        ids["visa"]:      {"username": "visaonly", "current_visa_or_greencard_category": ["H-1B"]},  # 3.0
+        ids["consulate"]: {"username": "consonly", "current_visa_or_greencard_category": ["F-1"], "consulates": ["BOM"]},  # 1.5
+        ids["stage"]:     {"username": "stageonly", "current_visa_or_greencard_category": ["O-1"], "key_stages_or_info": {"citizen_of_country": "IN"}},  # 1.0
+        ids["diffvisa"]:  {"username": "diffvisa", "current_visa_or_greencard_category": ["F-1"]},  # 0 (negative)
+        ids["diffcons"]:  {"username": "diffcons", "current_visa_or_greencard_category": ["B-1"], "consulates": ["LON"]},  # 0 (negative)
+        ids["empty"]:     {"username": "emptyprof"},  # 0 (negative)
+    }
+    try:
+        for uid, p in seeds.items():
+            db.collection("users").document(uid).set(p)
+        ms = M.find_matches(db, "demo-arjun", crit)
+        by = {m["user_id"]: m for m in ms}
+
+        # positives present with the expected scores
+        check("H1 clone (visa+consulate+status) = 5.5", ids["clone"] in by and abs(by[ids["clone"]]["score"] - 5.5) < 0.01)
+        check("H2 strong (visa+consulate) = 4.5", ids["strong"] in by and abs(by[ids["strong"]]["score"] - 4.5) < 0.01)
+        check("H3 visa-only = 3.0", ids["visa"] in by and abs(by[ids["visa"]]["score"] - 3.0) < 0.01)
+        check("H4 consulate-only = 1.5", ids["consulate"] in by and abs(by[ids["consulate"]]["score"] - 1.5) < 0.01)
+        check("H5 status-fact-only = 1.0 (== MIN_SCORE, still a match)", ids["stage"] in by and abs(by[ids["stage"]]["score"] - 1.0) < 0.01)
+
+        # negatives excluded
+        check("H6 disjoint-visa peer excluded", ids["diffvisa"] not in by)
+        check("H7 disjoint-consulate peer excluded", ids["diffcons"] not in by)
+        check("H8 empty profile excluded", ids["empty"] not in by)
+        check("H9 caller is never in their own matches", "demo-arjun" not in by)
+
+        # ranking among our seeds is strictly by score desc
+        ours = [m["user_id"] for m in ms if m["user_id"] in ids.values()]
+        expected = [ids["clone"], ids["strong"], ids["visa"], ids["consulate"], ids["stage"]]
+        check("H10 ranked by score desc", ours == expected, str([(by[i]["username"], by[i]["score"]) for i in ours]))
+
+        # top_n cap + min_score override
+        top2 = M.find_matches(db, "demo-arjun", crit, top_n=2)
+        check("H11 top_n caps the result + stays sorted",
+              len(top2) == 2 and top2[0]["score"] >= top2[1]["score"], str(len(top2)))
+        strict = {m["user_id"] for m in M.find_matches(db, "demo-arjun", crit, min_score=2.0)}
+        check("H12 min_score raises the bar (keeps ≥3.0, drops ≤1.5)",
+              ids["visa"] in strict and ids["consulate"] not in strict and ids["stage"] not in strict)
+    finally:
+        for uid in ids.values():
+            db.collection("users").document(uid).delete()
+        print("  cleaned up match-criteria test docs")
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set")
@@ -373,11 +483,13 @@ def main() -> int:
 
     group_a_pure()
     group_d_dates()
+    group_g_match_criteria()
     if only in ("all", "integration"):
         group_b_firestore()
         group_c_api()
         group_e_merge_match()
         group_f_dates_match()
+        group_h_match_integration()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok in _results if ok)
