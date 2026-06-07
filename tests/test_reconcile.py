@@ -72,6 +72,72 @@ def group_a() -> None:
     check("A8 out-of-vocab dropped, no false conflict",
           r3["conflicts"] == [] and r3["merged"]["current_visa_or_greencard_category"] == ["H-1B"])
 
+    # A9 — visa_applying_for is reconciled too (not just current status).
+    r9 = rc.reconcile_profile_message({"visa_applying_for": ["EB-2"]},
+                                      {"visa_applying_for": ["EB-3"], "description": "x"})
+    check("A9 visa_applying_for conflict: message wins + logged",
+          r9["merged"]["visa_applying_for"] == ["EB-3"]
+          and any(c["field"] == "visa_applying_for" for c in r9["conflicts"]))
+
+    # A10 — consulates conflict (both set, differ).
+    r10 = rc.reconcile_profile_message({"consulates": ["BOM"]},
+                                       {"consulates": ["DEL"], "description": "x"})
+    check("A10 consulates conflict: message wins + logged",
+          r10["merged"]["consulates"] == ["DEL"] and any(c["field"] == "consulates" for c in r10["conflicts"]))
+
+    # A11 — primary_consulate conflict.
+    r11 = rc.reconcile_profile_message({"primary_consulate": "BOM", "consulates": ["BOM"]},
+                                       {"primary_consulate": "DEL", "consulates": ["DEL"], "description": "x"})
+    check("A11 primary_consulate conflict: message wins + logged",
+          r11["merged"]["primary_consulate"] == "DEL"
+          and any(c["field"] == "primary_consulate" for c in r11["conflicts"]))
+
+    # A12 — primary_consulate prefilled from profile when message omits it.
+    r12 = rc.reconcile_profile_message({"primary_consulate": "BOM", "consulates": ["BOM"]},
+                                       {"description": "x"})
+    check("A12 primary_consulate prefilled from profile",
+          r12["merged"]["primary_consulate"] == "BOM" and "primary_consulate" in r12["prefilled"])
+
+    # A13 — primary_consulate derived from consulates[0] when neither side sets it.
+    r13 = rc.reconcile_profile_message({}, {"consulates": ["MAA", "BOM"], "description": "x"})
+    check("A13 primary_consulate derived from consulates[0]", r13["merged"]["primary_consulate"] == "MAA")
+
+    # A14 — key_stages map: additive from the message; overlap-with-diff is a conflict.
+    r14 = rc.reconcile_profile_message(
+        {"key_stages_or_info": {"citizen_of_country": "IN", "spouse_status": "H-1B"}},
+        {"key_stages_or_info": {"spouse_status": "H-4", "visa_status": "approved"}, "description": "x"})
+    ks = r14["merged"]["key_stages_or_info"]
+    check("A14 key_stages: union + message wins on overlap + conflict logged",
+          ks.get("citizen_of_country") == "IN" and ks.get("spouse_status") == "H-4"
+          and ks.get("visa_status") == "approved"
+          and any(c["field"] == "key_stages_or_info.spouse_status" for c in r14["conflicts"]))
+
+    # A15 — empty profile: merged == message values, no conflicts, no prefill.
+    r15 = rc.reconcile_profile_message({}, {"current_visa_or_greencard_category": ["F-1"], "consulates": ["BOM"],
+                                            "description": "y"})
+    check("A15 empty profile -> message only, no conflicts/prefill",
+          r15["merged"]["current_visa_or_greencard_category"] == ["F-1"]
+          and r15["conflicts"] == [] and r15["prefilled"] == [], str(r15["prefilled"]))
+
+    # A16 — empty message: everything prefilled from profile, no conflicts.
+    r16 = rc.reconcile_profile_message(
+        {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"], "visa_applying_for": ["EB-2"]},
+        {"description": ""})
+    check("A16 empty message -> all prefilled, no conflicts",
+          r16["conflicts"] == [] and set(["current_visa_or_greencard_category", "consulates", "visa_applying_for"]).issubset(set(r16["prefilled"])),
+          str(r16["prefilled"]))
+
+    # A17 — background: uses profile when the message has none.
+    r17 = rc.reconcile_profile_message({"background_text": "My background."}, {"description": ""})
+    check("A17 background falls back to profile when message empty",
+          r17["merged"]["background_text"] == "My background.")
+
+    # A18 — background: no duplication when message already contains the profile text.
+    r18 = rc.reconcile_profile_message({"background_text": "India"},
+                                       {"description": "I am from India and on H-1B."})
+    check("A18 background not duplicated when already present",
+          r18["merged"]["background_text"].count("India") == 1, r18["merged"]["background_text"])
+
 
 # ---------------------------------------------------------------------------
 # B — build_experience_canonical (UNIT; extraction injected)
@@ -167,13 +233,84 @@ def group_c() -> None:
           notes == [] and out["journey"][0]["experience_case_id"] == "", str(notes))
 
 
+# ---------------------------------------------------------------------------
+# D — explainer + helpers (UNIT deterministic; one INTEGRATION check)
+# ---------------------------------------------------------------------------
+
+def group_d(run_llm: bool) -> None:
+    print("\nD — explainer + date helper")
+    import reconcile as rc
+    import posting as p
+
+    check("D1 explain_conflicts('') -> '' (no conflicts, no LLM call)", rc.explain_conflicts([]) == "")
+
+    # normalize_date_safe delegates to profile.normalize_date.
+    check("D2 normalize_date_safe handles formats + drops junk",
+          p.normalize_date_safe("03/15/2027") == "2027-03-15"
+          and p.normalize_date_safe("2026-08-12") == "2026-08-12"
+          and p.normalize_date_safe("nope") == "")
+
+    if run_llm:
+        text = rc.explain_conflicts([{"field": "current_visa_or_greencard_category",
+                                      "profile_value": ["H-1B"], "message_value": ["H-4"]}])
+        check("D3 explain_conflicts(conflict) -> non-empty offer to update profile (LLM/fallback)",
+              isinstance(text, str) and len(text) > 0 and "profile" in text.lower(), text[:80])
+
+
+# ---------------------------------------------------------------------------
+# E — projection / connect-card / delete (INTEGRATION: real GCS+datastore+BQ)
+# ---------------------------------------------------------------------------
+
+def group_e() -> None:
+    print("\nE — projection / connect-card / delete (integration)")
+    import posting as p
+    import profile as pr
+
+    # E1 — project a SHARED experience: publishes a real doc, sets the case_id; then withdraw.
+    prof = pr.clean_profile({"username": "eager-delta-7277",
+                             "journey": [{"milestone": "visa_interview", "date": "2024-03-10",
+                                          "experience": "Mumbai H-1B stamping, approved in 2 minutes.",
+                                          "shared": True}]})
+    prof, notes = pr.project_experiences(prof)
+    cid = prof["journey"][0]["experience_case_id"]
+    check("E1 shared experience published (case_id set)", bool(cid) and any(n[0] == "published" for n in notes), str(notes))
+
+    if cid:
+        proj, loc, ds = p._project(), p._ds_location(), p._datastore()
+        import search_client as sc
+        doc = sc.get_posting(cid, proj, loc, ds) or {}
+        check("E2 published experience carries the rule tags",
+              "past-experience" in (doc.get("tags") or []) and "experience-posting" in (doc.get("tags") or []),
+              str(doc.get("tags")))
+
+        # withdraw consent -> delete_content removes it
+        prof["journey"][0]["shared"] = False
+        prof, notes2 = pr.project_experiences(prof)
+        check("E3 un-sharing withdraws the doc (case_id cleared)",
+              prof["journey"][0]["experience_case_id"] == "" and any(n[0] == "unpublished" for n in notes2), str(notes2))
+        check("E4 withdrawn doc is gone from the datastore",
+              sc.get_posting(cid, proj, loc, ds) is None)
+
+    # E5 — connect card publishes a doc_kind=connect_card; then delete_content cleans it.
+    cc = p.publish_connect_card({"username": "eager-delta-7277", "current_visa_or_greencard_category": ["H-1B"],
+                                 "consulates": ["BOM"]}, note="Happy to connect.")
+    check("E5 connect card published (doc_kind=connect_card)",
+          cc["doc_kind"] == "connect_card" and cc["case_id"].startswith("ourwebsite-connect-"), str(cc))
+    p.delete_content(cc["case_id"])
+    check("E6 connect card deleted", True)
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set"); return 2
-    print(f"Reconcile/experience tests — project={PROJECT}")
+    only = sys.argv[1] if len(sys.argv) > 1 else "all"
+    print(f"Reconcile/experience tests — project={PROJECT}  (scope={only})")
     group_a()
     group_b()
     group_c()
+    group_d(run_llm=only in ("all", "llm"))
+    if only in ("all", "integration"):
+        group_e()
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok in _results if ok)
     failed = [n for n, ok in _results if not ok]
