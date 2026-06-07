@@ -632,6 +632,16 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 **Affected docs / status:** Done (code) on `phase-J-reconcile`: `profile.py` (`_clean_journey` default ON), `website/.../onboarding/page.tsx` (label), tests updated (`test_reconcile` C2/C2b). D-041's default-OFF line is **superseded by this entry** (D-041 otherwise stands).
 
+## D-044 — 2026-06-06 — Deleted the legacy `examples/` corpus (stale, redundant, unused)
+
+**Decision:** Removed the top-level `examples/` folder (74 `case-N/` dirs with `caseN.txt` + `caseN.json`, plus a `DS-160/` guide; 147 files, ~1.2 MB) on `phase-K-cleanup`.
+
+**Reasoning:** It was the **legacy predecessor** of `proceedings-obsidian/postings-examples/` and was (a) loaded by **no runtime code** — the only `.py` hit was the word "examples" in `query.py`'s intent-classifier keyword list, not the folder; (b) **not used by Reddit ingestion** (no live ingestion code; legacy crawl/label scripts don't reference it); (c) on an **obsolete schema** — old field names like `concerns_or_questions_tag_list` / `confidence_score`, missing most of the current canonical (`case_id`, `consulates`, `primary_consulate`, `embedding_text`, `severity`, `subreddit`, …). The only reference anywhere was a path entry in local `.claude/settings.local.json` (gitignored tooling, not app code).
+
+**Kept (NOT deleted):** `proceedings-obsidian/postings-examples/` — the **current** canonical-schema corpus (72 cases, `.md` + `.json`), which the schema dictionary / tagging specs are documented against and which is the intended seed for static few-shot exemplars and the Phase-2 fine-tuning gold set (PIPELINE-ARCHITECTURE-WORKFLOW §6). Few-shot prompting is **designed but not implemented** in live code (all tagging is currently zero-shot: instructions + controlled vocabulary + user text).
+
+**Affected docs / status:** Done on `phase-K-cleanup`. No code/doc references to update (none existed). `postings-examples/` retained.
+
 ---
 
 # Session summaries
