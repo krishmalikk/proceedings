@@ -2,7 +2,7 @@
 
 **Status:** Authoritative consolidation. Supersedes/reconciles the baseline [APP-BACKEND-ARCHITECTURE.md](APP-BACKEND-ARCHITECTURE.md) + [IMPROVED-BACKEND-ARCHITECTURE.md](IMPROVED-BACKEND-ARCHITECTURE.md), traces to the product requirements [app-specs.MD](app-specs.MD), and ratifies the grounding model recorded as **D-039** in [MEMORY.md](../MEMORY.md).
 **Date:** 2026-06-03
-**Scope:** the server-side backend the web SPA and mobile app integrate against — grounding sources, conversation/state model, why each choice was made. Client wire-contract stays in [APP-FRONTEND-INTEGRATION.md](APP-FRONTEND-INTEGRATION.md); ingestion pipeline stays in [content-ingestion-specifications/](../content-ingestion-specifications/).
+**Scope:** the server-side backend the web SPA and mobile app integrate against — grounding sources, conversation/state model, why each choice was made. Client wire-contract stays in [APP-FRONTEND-INTEGRATION.md](APP-FRONTEND-INTEGRATION.md); ingestion pipeline stays in [docs/ingestion/](../docs/ingestion/).
 
 ---
 
@@ -117,7 +117,7 @@ The original prototype's **self-managed Vertex AI Vector Search** path — `craw
 | File | Purpose | Live or legacy | Run mode |
 |---|---|---|---|
 | **DS-1 grounding (app + reddit)** | | | |
-| Reddit scraper (**PRAW**) — per [REDDIT-INGESTION-PIPELINE.md](../content-ingestion-specifications/REDDIT-INGESTION-PIPELINE.md) | Crawl reddit.com posts/comments | **Live (design)** | **Scheduled** — Cloud Scheduler → Agent Engine, ~30 min (pilot) |
+| Reddit scraper (**PRAW**) — per [REDDIT-INGESTION-PIPELINE.md](../docs/ingestion/REDDIT-INGESTION-PIPELINE.md) | Crawl reddit.com posts/comments | **Live (design)** | **Scheduled** — Cloud Scheduler → Agent Engine, ~30 min (pilot) |
 | `documents.import` (no local file; `search-importer` Cloud Run) | Index sidecars into the datastore | **Live (design)** | **Event-driven** — Eventarc on GCS `.json` finalize; daily auto-sync = backstop |
 | `vertexai-search-ingestion-from-examples/scripts/ingest_batch.py` *(per D-037; not in this tree)* | Manual batch tag+import (used to load the 81 reddit docs) | **Live (manual)** | **Manual** one-off |
 | **DS-2 grounding (public reference)** | | | |

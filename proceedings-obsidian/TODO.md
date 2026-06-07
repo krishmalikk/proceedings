@@ -1,6 +1,6 @@
 # TODO — Grounding realignment & conversational backend
 
-**Branch:** `raj-test` · **Started:** 2026-06-03 · **Design refs:** [ARCHITECTURE_GAP_reddit-grounding.md](ARCHITECTURE_GAP_reddit-grounding.md), [app-specifications/FINAL-ARCHITECTURE.md](app-specifications/FINAL-ARCHITECTURE.md), MEMORY.md D-039
+**Branch:** `raj-test` · **Started:** 2026-06-03 · **Design refs:** [ARCHITECTURE_GAP_reddit-grounding.md](ARCHITECTURE_GAP_reddit-grounding.md), [docs/app/FINAL-ARCHITECTURE.md](docs/app/FINAL-ARCHITECTURE.md), MEMORY.md D-039
 **Convention:** `[x]` done · `[ ]` pending · `[~]` blocked/waiting. Items are crossed out as completed.
 
 ---
@@ -59,11 +59,11 @@
 
 ## Next steps — Cleanup / cost
 - [x] Remove retired Vector Search code: deleted `index.py` + local `chunk_mapping.json`; stripped dead retrieval funcs from `query.py` (`embed_query`, `retrieve_chunks`, `load_chunk_mapping`, `build_prompt`, `generate_answer`, `query()`, CLI)
-- [x] Document live vs retired crawl/index processes — added "4.1 Crawling & indexing" to [FINAL-ARCHITECTURE.md](app-specifications/FINAL-ARCHITECTURE.md)
-- [x] Document pipeline **file map + operational runbook** (run mode: scheduled/event-driven/manual + steps) — added "4.2" to [FINAL-ARCHITECTURE.md](app-specifications/FINAL-ARCHITECTURE.md)
+- [x] Document live vs retired crawl/index processes — added "4.1 Crawling & indexing" to [FINAL-ARCHITECTURE.md](docs/app/FINAL-ARCHITECTURE.md)
+- [x] Document pipeline **file map + operational runbook** (run mode: scheduled/event-driven/manual + steps) — added "4.2" to [FINAL-ARCHITECTURE.md](docs/app/FINAL-ARCHITECTURE.md)
 - [x] **Decommissioned the self-managed Vertex AI Vector Search** (D-040) — undeployed both billing endpoints + deleted all 4 endpoints & 4 indexes (incl. orphans) + `chunk_mapping.json` + stale env vars. Grounding unaffected (Cloud Run 13/13). 24/7 cost recovered.
 - [ ] Retire the `qa_pairs` Firestore log path (superseded by the D-035 session/profile model — Phase 2)
-- [ ] `crawler.py` + `urls.txt`: decide keep (future Firecrawl non-API adapter) vs remove (legacy prototype) — **awaiting confirmation**
+- [x] `crawler.py` + `urls.txt`: **archived to `legacy/`** (D-046); `crawler.py` retained as the future Firecrawl non-API adapter. (Deleting the other dead legacy scripts → see "Phase K cleanup follow-ups #2".)
 - [ ] Label enrichment follow-up: Answer-API references carry empty `labels`; enrich via `documents.get`/`:search` structData so `/api/qa/stats` categories repopulate
 
 ## Next steps — Phase 2 (production BFF, P1 search-first)
@@ -86,8 +86,22 @@
 - [x] Verified E2E: published 2 test posts → appeared in GCS, datastore (`get_document` + search hit within minutes), BigQuery; then cleaned up datastore+GCS (BQ rows pending streaming-buffer window)
 - [ ] **Re-enable AI-mode panel** (spec item 2): flip `AI_MODE_ENABLED=true` in `UnifiedSearch.tsx` and (re)define its UX — grounded vs pure-expert, follow-ups, hide/collapse. Deferred per posting-specs.md.
 - [ ] Deploy `posting.py` + new endpoints to Cloud Run (`immiguide-api`) so the hosted site can post (currently localhost-verified only)
-- [ ] Purge the 2 BigQuery test rows (`case_id LIKE 'ourwebsite-%'`) once they leave the streaming buffer (~90 min)
+- [x] BigQuery test-row hygiene: integration test rows now stamped `pipeline_run_id="test-e2e"` + auto-purged (date-guarded) — `posting.purge_test_bq_rows()` / `scripts/purge_test_bq_rows.py` (D-049). *(The original 2 pre-marker `ourwebsite-%` rows can be deleted manually once out of the streaming buffer.)*
 - [ ] Spec TBD items: measure post→searchable latency (Q13) and confirm UI freshness (Q14)
+
+## Phase K — cleanup follow-ups (deferred from the cleanup evaluation, branch `phase-K-cleanup`)
+**Context:** evaluated 3 cleanup items; **#1 (BQ test-row markers) DONE** → MEMORY.md **D-049**. The two below were deferred by the user. See MEMORY.md D-036/D-038 (channel canon) and D-046 (legacy archive).
+
+- [ ] **#3 — Channel label consistency `ourwebsite` → `app` (latent correctness bug).**
+  - **Problem:** the live composer `backend/posting.py` (`CHANNEL = "ourwebsite"`, line ~40) tags every website-authored posting `channel/source_system/source_uri = "ourwebsite"`, case_id prefix `ourwebsite-`. But the canonical decision (**D-036/D-038**) is `channel="app"`, `source_system="unclesamcalling"`, and the search boost (`backend/search_client.py` `_boost_spec` → `channel: ANY("app")`), the frontend filter chips (`channel:["reddit","app"]`), and all `docs/app/*` specs use `"app"`. So first-party posts land in a **phantom third channel**.
+  - **Impact (currently dormant):** when `VERTEX_SEARCH_BOOST=1`, `ourwebsite` posts get **no precedence boost** (rank below reddit); they won't match the `app` channel filter/facet; `source_system` contradicts `unclesamcalling`. Dormant only because the boost is off and the corpus is ~all-reddit → **fix now, before first-party content accrues and forces a data migration.**
+  - **Fix:** `backend/posting.py` → `CHANNEL = "app"`, `source_system = "unclesamcalling"`, `source_uri` → `"app://post/<id>"` or `""` (not the channel token). Update the **8 hardcoded `ourwebsite` assertions**: `tests/test_posting_tagging.py` (E2/E3/G4/G5), `tests/test_reconcile.py` (B2, connect-card), `tests/test_e2e_journey.py` (×2: read_sidecar prefix + the two `assert_subset` blocks).
+  - **Note:** web-vs-mobile is **not** a `channel` distinction in this design (channel = coarse pathway); surface differences belong in `source_system`/`source_container`. Any docs already tagged `ourwebsite` keep that value unless re-tagged (blast radius ≈ test data only).
+
+- [ ] **#2 — (optional) Delete the 7 dead legacy scripts.**
+  - All under `legacy/` (D-046), **not deployed, zero live references**: `agent_crawl.py`, `continuous_crawl.py`, `pipeline.py`, `auto_label.py`, `agent_label.py`, `prepare_labeled_data.py`, `discover_urls.py`. Git history preserves them regardless.
+  - **Keep `crawler.py`** — documented forward use as the future Firecrawl non-API adapter (`legacy/README.md`, supersedes the old line-66 "decide keep vs remove" item).
+  - **Recommendation: low value** — the archive already costs nothing (isolated, not built/imported). Do only if a maximally lean tree is wanted.
 
 ## Housekeeping
 - [ ] Log a `D-NNN` for the tier-3 mechanism decision + adopt IMPROVED patterns (shadow buffer, speculative routing) into MEMORY.md

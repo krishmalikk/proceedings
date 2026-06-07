@@ -15,18 +15,18 @@ Abilty for user to post a new posting
 4. The UI should have the capability to determine and match the title and description entered to the right valid tags as specified in [tags](../tags-cleaned)
 5. If possible, derive the tags automatically from the `title` and `description` text, as and when user enters it
 6. Allow the users to manage (add/remove) the tags in right panel which is derived in previous step
-7. The tags on right panel should have sections based upon json schema as defined in [JSON-SCHEMA-FIELD-DICTIONARY](../tagging-specifications/JSON-SCHEMA-FIELD-DICTIONARY.md)
+7. The tags on right panel should have sections based upon json schema as defined in [JSON-SCHEMA-FIELD-DICTIONARY](../docs/tagging/JSON-SCHEMA-FIELD-DICTIONARY.md)
 For example, it should have tags under sections:
 If applying for a visa from a consulate abroad:
 - `visa_applying_for`
 - `primary_consulate`
 If already in USA:
 - `current_visa_or_greencard_category` 
-8. The tags under section - `concerns_or_questions_tags` and `tags` should be derived based upon rules already defined in [tagging-specifications](../tagging-specifications) 
+8. The tags under section - `concerns_or_questions_tags` and `tags` should be derived based upon rules already defined in [docs/tagging](../docs/tagging) 
 9. Click on submit button
 
 ### Backend
-9. On `submit` button the metadata side json should be created as per - in [PIPELINE-ARCHITECTURE-WORKFLOW](../content-ingestion-specifications/PIPELINE-ARCHITECTURE-WORKFLOW.md) similar to posts when ingested from extarnal sources like reddit.com
+9. On `submit` button the metadata side json should be created as per - in [PIPELINE-ARCHITECTURE-WORKFLOW](../docs/ingestion/PIPELINE-ARCHITECTURE-WORKFLOW.md) similar to posts when ingested from extarnal sources like reddit.com
 10. The storage of the grounding of this posting should follow the flow/architecture as defined in [FINAL-ARCHITECTURE](../proceedings-obsidian/FINAL-ARCHITECTURE.md)
 11. The GCS bucket location of the content and sidecar json to be used would be same `imm-postings-ingestion`. A folder under the date folder should be created with name 'ourwebsite', similar to another folder already existing for `reddit' for postings ingested from reddit.com
 12. After persistence of this content and sidecar json in GCS, it should automatically gets persisted in Vertex AI Search (Discovery Engine) datastore as well

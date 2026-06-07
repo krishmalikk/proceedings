@@ -36,3 +36,8 @@ proceedings-obsidian/.obsidian/
 
 # Local env files
 website/.env.local
+.env.local
+
+# Editor / tooling local state (never commit)
+.claude/
+*.tsbuildinfo

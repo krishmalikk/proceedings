@@ -4,30 +4,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Proceedings is a RAG (Retrieval-Augmented Generation) pipeline for a legal intake assistant focused on immigration law. It crawls government/law firm websites, labels the content, indexes it into Vertex AI Vector Search, and serves answers via Gemini Pro — with strict guardrails against providing legal advice.
+Proceedings is a RAG (Retrieval-Augmented Generation) immigration-intake assistant. It grounds answers on user/Reddit postings indexed in the managed **Vertex AI Search (Discovery Engine) datastore**, and serves answers + auto-tagged postings + AI onboarding via Gemini — with strict guardrails against providing legal advice. (The retired Firecrawl→Vector-Search prototype is archived under `legacy/`.)
 
 ## Architecture
 
-The pipeline has three sequential stages, each a standalone Python script:
+The live backend is a **FastAPI service** in **`backend/`** (`backend/api.py`),
+grounded on the **managed Vertex AI Search (Discovery Engine) datastore**
+`imm-postings-datastore` via the Search/Answer API, with Gemini for tagging and
+answers. Core live modules (all under `backend/`):
 
-1. **`crawler.py`** — Crawls URLs from `urls.txt` using the Firecrawl API, converts pages to Markdown, saves locally to `crawled_pages/`, and uploads to a GCS bucket.
-2. **`index.py`** — Downloads labeled Markdown from `gs://<bucket>/labeled/`, chunks text into ~512-token pieces (50-token overlap, tiktoken cl100k_base), generates embeddings via Vertex AI `text-embedding-005` (768-dim), creates a Vertex AI Vector Search index (Tree-AH, DOT_PRODUCT), and uploads a `chunk_mapping.json` to GCS.
-3. **`query.py`** — Interactive CLI that embeds a user question, retrieves top-5 chunks from Vector Search, and passes them as context to `gemini-2.0-pro` with guardrails. The prompt explicitly forbids legal advice and uses a fallback message when context is insufficient.
+- **`api.py`** — the HTTP API (search, postings, profile, onboarding, reconcile, expert).
+- **`search_client.py`** — grounded retrieval (Answer/Search API) + facets/strictness.
+- **`posting.py`** — user-posting + experience tagging → GCS sidecar → `documents.import`.
+- **`profile.py`** — user profile + two-stage AI onboarding (Firestore `users/{id}`).
+- **`reconcile.py`** — profile↔message reconciliation at publish time.
+- **`query.py`** — Gemini helpers (direct answer, intent) + Firestore Q&A log.
+- **`tags-cleaned/`** — the controlled tag vocabulary (single source of truth).
+
+> The original prototype (Firecrawl crawl → label → self-managed Vertex AI
+> Vector Search) is **retired** and archived under [`legacy/`](legacy/README.md)
+> (MEMORY.md D-016/D-039/D-040/D-046). It is not deployed.
 
 Supporting files:
-- `gcp_setup.sh` — Creates and configures the GCS bucket (public access blocked, versioning enabled, `labeled/` subfolder).
-- `label_studio_setup.md` — Instructions for the labeling step between crawling and indexing.
-- `documents/` — Business/legal documents (intake checklist, launch requirements, pilot offer).
-- `website/` — Next.js 14 marketing site (React 18, Tailwind CSS, TypeScript).
+- `gcp_setup.sh` — Creates/configures the GCS bucket.
+- `docs/business/` — Business/legal documents (intake checklist, launch requirements, pilot offer).
+- `website/` — Next.js 14 app (marketing + search/onboarding/posting UI).
 
 ## Commands
 
-### Python pipeline (from project root)
+### Backend (from `backend/`)
 ```bash
-pip install -r requirements.txt
-python crawler.py    # Stage 1: crawl URLs
-python index.py      # Stage 2: chunk, embed, index
-python query.py      # Stage 3: interactive Q&A
+pip install -r backend/requirements.txt
+cd backend && uvicorn api:app --reload --port 8000     # run the API locally
+python backend/tests/test_reconcile.py                 # a suite (also test_profile.py / test_posting_tagging.py)
+gcloud run deploy immiguide-api --source backend --region us-central1   # deploy
 ```
 
 ### Website (from `website/`)
