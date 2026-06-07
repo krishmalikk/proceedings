@@ -4,10 +4,11 @@ test_interactions.py — phase-L replies + votes (Firestore interactions store).
 Groups:
   A  pure vote math + serialization (no network) — always runs
   B  live Firestore: add/list/delete replies + vote toggling — INTEGRATION
+  C  HTTP API via FastAPI TestClient (auth gating, validation, shapes) — INTEGRATION
 
 Run:  .venv/bin/python tests/test_interactions.py [unit|integration|all]
       unit         → group A only (no GCP)
-      integration  → group A + B (needs Firestore ADC)
+      integration  → group A + B + C (needs Firestore ADC)
       all (default)→ same as integration
 """
 
@@ -97,7 +98,7 @@ def _hard_cleanup(db, parent_case_id: str, reply_ids: list[str]) -> None:
         db.collection("content_meta").document(parent_case_id).delete()
         # votes created during the run (posting + replies, both test users)
         for cid in set([parent_case_id, *reply_ids]):
-            for uid in ("test-user-a", "test-user-b"):
+            for uid in ("test-user-a", "test-user-b", "demo-arjun", "demo-mei"):
                 db.collection("votes").document(I._vote_id(cid, uid)).delete()
     except Exception as e:  # noqa: BLE001
         print(f"  cleanup note: {e}")
@@ -185,9 +186,118 @@ def group_b_firestore() -> None:
         except KeyError:
             check("B14 deleting missing reply raises (KeyError)", True)
 
+        # --- validation edges ---
+        try:
+            I.add_reply(db, parent, "x" * (I.MAX_BODY + 1), user_a, "arjun-h1b")
+            check("B15 over-long reply rejected", False, "no raise")
+        except ValueError:
+            check("B15 over-long reply rejected (ValueError)", True)
+        try:
+            I.add_reply(db, "", "orphan", user_a, "arjun-h1b")
+            check("B16 missing parent rejected", False, "no raise")
+        except ValueError:
+            check("B16 missing parent rejected (ValueError)", True)
+
+        # --- downvote drives score negative ---
+        r3 = I.add_reply(db, parent, "third reply", user_a, "arjun-h1b")
+        created.append(r3["id"])
+        dn = I.cast_vote(db, r3["id"], user_b, -1)
+        check("B17 downvote → score -1", dn["score"] == -1 and dn["down"] == 1, str(dn))
+
+        # --- sort=new orders by recency (r3 is newest) ---
+        newest = I.list_replies(db, parent, viewer_id=user_a, sort="new")
+        check("B18 sort=new puts newest first", newest and newest[0]["id"] == r3["id"],
+              str([r["id"] for r in newest]))
+
+        # --- anonymous viewer never carries a your_vote ---
+        anon = I.list_replies(db, parent, viewer_id="", sort="top")
+        check("B19 anonymous list → your_vote all 0", all(r["your_vote"] == 0 for r in anon))
+
+        # --- vote_state batch hydrates posting + reply together, per viewer ---
+        st = I.vote_state(db, [parent, r3["id"]], viewer_id=user_b)
+        check("B20 vote_state batch per-id", st[parent]["up"] == 2 and st[r3["id"]]["your_vote"] == -1, str(st))
+
     finally:
         _hard_cleanup(db, parent, created)
         print("  cleaned up test docs")
+
+
+def group_c_api() -> None:
+    print("\nC — HTTP API via TestClient (integration)")
+    from fastapi.testclient import TestClient
+    from google.cloud import firestore
+    import api
+    api.RATE_LIMIT_MAX = 100000  # don't trip the limiter during the run
+
+    db = firestore.Client(project=PROJECT)
+    parent = f"test-posting-api-{secrets.token_hex(4)}"
+    created: list[str] = []
+    A = {"X-User-Id": "demo-arjun"}
+    M = {"X-User-Id": "demo-mei"}
+    try:
+        with TestClient(api.app) as c:
+            # anonymous read works + response shape
+            g = c.get(f"/api/postings/{parent}/replies")
+            gj = g.json()
+            check("C1 GET replies anon 200 + {replies,posting,total}",
+                  g.status_code == 200 and {"replies", "posting", "total"} <= set(gj) and gj["total"] == 0,
+                  f"status={g.status_code}")
+
+            # auth gating
+            check("C2 POST reply without user → 400",
+                  c.post(f"/api/postings/{parent}/replies", json={"body": "x"}).status_code == 400)
+            check("C3 POST vote without user → 400",
+                  c.post("/api/votes", json={"content_id": parent, "dir": 1}).status_code == 400)
+            check("C4 DELETE reply without user → 400",
+                  c.delete(f"/api/postings/{parent}/replies/whatever").status_code == 400)
+            check("C5 unknown user → 404",
+                  c.post(f"/api/postings/{parent}/replies", json={"body": "x"},
+                         headers={"X-User-Id": "ghost"}).status_code == 404)
+
+            # body / payload validation → 422
+            check("C6 empty body → 422",
+                  c.post(f"/api/postings/{parent}/replies", json={"body": ""}, headers=A).status_code == 422)
+            check("C7 whitespace-only body → 422",
+                  c.post(f"/api/postings/{parent}/replies", json={"body": "   "}, headers=A).status_code == 422)
+            check("C8 over-long body → 422",
+                  c.post(f"/api/postings/{parent}/replies", json={"body": "x" * 5001}, headers=A).status_code == 422)
+            check("C9 vote empty content_id → 422",
+                  c.post("/api/votes", json={"content_id": "", "dir": 1}, headers=A).status_code == 422)
+
+            # happy path: reply create + shape (and no user_id leak)
+            rp = c.post(f"/api/postings/{parent}/replies", json={"body": "API reply"}, headers=A)
+            rj = rp.json()
+            rid = rj.get("id", "")
+            if rid:
+                created.append(rid)
+            check("C10 POST reply 200 + ReplyCard (handle/is_author/score, no user_id)",
+                  rp.status_code == 200 and rj.get("author_handle") == "arjun-h1b"
+                  and rj.get("is_author") is True and rj.get("score") == 0 and "user_id" not in rj,
+                  f"status={rp.status_code}")
+
+            # vote shape + value
+            v = c.post("/api/votes", json={"content_id": rid, "dir": 1}, headers=M)
+            vj = v.json()
+            check("C11 POST vote 200 + VoteResponse (score/your_vote/content_id)",
+                  v.status_code == 200 and vj.get("score") == 1 and vj.get("your_vote") == 1
+                  and vj.get("content_id") == rid, str(vj))
+
+            # per-viewer your_vote
+            mine = c.get(f"/api/postings/{parent}/replies", headers=M).json()["replies"][0]
+            anon = c.get(f"/api/postings/{parent}/replies").json()["replies"][0]
+            check("C12 your_vote per viewer (mei=1, anon=0)",
+                  mine["your_vote"] == 1 and anon["your_vote"] == 0)
+
+            # delete authorization
+            check("C13 DELETE wrong user → 403",
+                  c.delete(f"/api/postings/{parent}/replies/{rid}", headers=M).status_code == 403)
+            check("C14 DELETE missing reply → 404",
+                  c.delete(f"/api/postings/{parent}/replies/no-such-id", headers=A).status_code == 404)
+            check("C15 DELETE author → 200",
+                  c.delete(f"/api/postings/{parent}/replies/{rid}", headers=A).status_code == 200)
+    finally:
+        _hard_cleanup(db, parent, created)
+        print("  cleaned up API test docs")
 
 
 def main() -> int:
@@ -200,6 +310,7 @@ def main() -> int:
     group_a_pure()
     if only in ("all", "integration"):
         group_b_firestore()
+        group_c_api()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok in _results if ok)
