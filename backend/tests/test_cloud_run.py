@@ -13,6 +13,7 @@ Env:  CLOUD_RUN_URL  (default: the known immiguide-api URL)
 """
 
 import os
+import secrets
 import sys
 import time
 
@@ -45,8 +46,16 @@ def get(path, **kw):
     return req("GET", path, **kw)
 
 
-def post(path, body):
-    return req("POST", path, json=body)
+def post(path, body, **kw):
+    return req("POST", path, json=body, **kw)
+
+
+def delete(path, **kw):
+    return req("DELETE", path, **kw)
+
+
+def hdr(uid: str) -> dict:
+    return {"X-User-Id": uid}
 
 
 def group_a_health() -> None:
@@ -130,6 +139,79 @@ def group_f_context_filters() -> None:
           0 < sel["total"] < base["total"], f'base={base["total"]} selected={sel["total"]}')
 
 
+def _cleanup_interactions(parent: str, reply_ids: list[str]) -> None:
+    """Best-effort hard delete of Firestore docs a run created (keeps the
+    deployed service clean). No-op if ADC/Firestore is unavailable."""
+    try:
+        from google.cloud import firestore
+        db = firestore.Client(project=os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT"))
+        for rid in set(reply_ids):
+            db.collection("replies").document(rid).delete()
+            db.collection("content_meta").document(rid).delete()
+        db.collection("content_meta").document(parent).delete()
+        for cid in set([parent, *reply_ids]):
+            for uid in ("demo-arjun", "demo-mei"):
+                db.collection("votes").document(f"{cid}__{uid}").delete()
+    except Exception as e:  # noqa: BLE001
+        print(f"  cleanup note: {e}")
+
+
+def group_g_interactions() -> None:
+    print("\nG — Replies + voting (deployed, phase-L)")
+    parent = f"test-posting-cr-{secrets.token_hex(4)}"  # synthetic; not a real case_id
+    created: list[str] = []
+    try:
+        # anonymous read works; gating blocks writes
+        g0 = get(f"/api/postings/{parent}/replies")
+        d0 = g0.json() if g0.status_code == 200 else {}
+        check("G1 anon list replies 200 + empty + zero tally",
+              g0.status_code == 200 and d0.get("total") == 0 and d0.get("posting", {}).get("score") == 0,
+              f"status={g0.status_code}")
+
+        noauth = post(f"/api/postings/{parent}/replies", {"body": "nope"})
+        check("G2 reply without user -> 400", noauth.status_code == 400, f"status={noauth.status_code}")
+
+        rp = post(f"/api/postings/{parent}/replies", {"body": "Cloud Run e2e reply"}, headers=hdr("demo-arjun"))
+        rj = rp.json() if rp.status_code == 200 else {}
+        rid = rj.get("id", "")
+        if rid:
+            created.append(rid)
+        check("G3 reply as arjun -> 200 (handle + is_author)",
+              rp.status_code == 200 and rj.get("author_handle") == "arjun-h1b" and rj.get("is_author") is True,
+              f"status={rp.status_code}")
+
+        v = post("/api/votes", {"content_id": rid, "dir": 1}, headers=hdr("demo-mei")).json()
+        check("G4 upvote reply -> score 1, your_vote 1", v.get("score") == 1 and v.get("your_vote") == 1, str(v))
+
+        vswitch = post("/api/votes", {"content_id": rid, "dir": -1}, headers=hdr("demo-mei")).json()
+        vclear = post("/api/votes", {"content_id": rid, "dir": 0}, headers=hdr("demo-mei")).json()
+        check("G5 switch to down (-1) then clear (0)",
+              vswitch.get("score") == -1 and vclear.get("score") == 0 and vclear.get("your_vote") == 0,
+              f"switch={vswitch.get('score')} clear={vclear.get('score')}")
+
+        post("/api/votes", {"content_id": parent, "dir": 1}, headers=hdr("demo-arjun"))
+        pv = post("/api/votes", {"content_id": parent, "dir": 1}, headers=hdr("demo-mei")).json()
+        check("G6 two users upvote posting -> score 2", pv.get("score") == 2, str(pv))
+
+        listed = get(f"/api/postings/{parent}/replies", headers=hdr("demo-arjun")).json()
+        r0 = (listed.get("replies") or [{}])[0]
+        check("G7 list reflects state (reply visible, posting your_vote=1)",
+              r0.get("id") == rid and r0.get("is_author") is True and listed.get("posting", {}).get("your_vote") == 1,
+              f"posting={listed.get('posting')}")
+
+        dwrong = delete(f"/api/postings/{parent}/replies/{rid}", headers=hdr("demo-mei"))
+        dauthor = delete(f"/api/postings/{parent}/replies/{rid}", headers=hdr("demo-arjun"))
+        check("G8 delete: wrong-user 403, author 200",
+              dwrong.status_code == 403 and dauthor.status_code == 200,
+              f"wrong={dwrong.status_code} author={dauthor.status_code}")
+
+        after = get(f"/api/postings/{parent}/replies").json()
+        check("G9 soft-deleted reply hidden from list", rid not in {r["id"] for r in after.get("replies", [])})
+    finally:
+        _cleanup_interactions(parent, created)
+        print("  cleaned up interactions test docs")
+
+
 def main() -> int:
     print(f"Cloud Run E2E — {BASE}")
     group_a_health()
@@ -138,6 +220,7 @@ def main() -> int:
     group_d_search()
     group_e_postings()
     group_f_context_filters()
+    group_g_interactions()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)

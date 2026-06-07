@@ -329,6 +329,47 @@ class PostingDetail(PostingCard):
     body: str
 
 
+# --- Replies + voting (phase-L) ---
+class ReplyCreate(BaseModel):
+    body: str = Field(..., min_length=1, max_length=5000)
+
+
+class VoteTally(BaseModel):
+    up: int = 0
+    down: int = 0
+    score: int = 0
+    your_vote: int = 0  # the viewer's current vote on this content: -1 | 0 | 1
+
+
+class ReplyCard(BaseModel):
+    id: str
+    parent_case_id: str
+    body: str
+    author_handle: str
+    created_at: str
+    deleted: bool = False
+    up: int = 0
+    down: int = 0
+    score: int = 0
+    your_vote: int = 0
+    is_author: bool = False
+
+
+class RepliesResponse(BaseModel):
+    replies: list[ReplyCard]
+    posting: VoteTally  # the parent posting's own tally + the viewer's vote on it
+    total: int
+
+
+class VoteRequest(BaseModel):
+    content_id: str = Field(..., min_length=1, max_length=300)  # posting case_id OR reply id
+    dir: int = 0  # -1 | 0 | 1  (0 clears the vote)
+
+
+class VoteResponse(VoteTally):
+    content_id: str
+
+
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=5, max_length=500)
     strictness: str = "balanced"  # broad | balanced | strict
@@ -407,6 +448,15 @@ def _active_user(request: Request) -> str:
     if uid not in profile.seed_ids():
         raise HTTPException(status_code=404, detail=f"Unknown user '{uid}'.")
     return uid
+
+
+def _optional_user(request: Request) -> str:
+    """Like `_active_user` but never raises — returns '' when no/unknown user.
+    Used by read endpoints that personalize (e.g. the viewer's own votes) but
+    are still usable anonymously."""
+    import profile
+    uid = request.headers.get("x-user-id", "").strip()
+    return uid if uid and uid in profile.seed_ids() else ""
 
 
 @app.post("/api/ask", response_model=AskResponse)
@@ -808,6 +858,71 @@ async def posting_detail(case_id: str):
     if card is None:
         raise HTTPException(status_code=404, detail="Posting not found")
     return PostingDetail(**card)
+
+
+# ---------------------------------------------------------------------------
+# Replies + voting (phase-L). Replies/votes live in Firestore (interactions
+# store), separate from the datastore-backed posting corpus, so the search feed
+# is unaffected. Replying/voting require an active user; reads are anonymous.
+# ---------------------------------------------------------------------------
+
+@app.get("/api/postings/{case_id}/replies", response_model=RepliesResponse)
+async def list_replies_route(case_id: str, request: Request, sort: str = "top"):
+    """Flat replies on a posting (each with its vote tally + the viewer's vote),
+    plus the posting's own tally. Anonymous-safe (your_vote = 0 with no user)."""
+    import interactions
+    viewer = _optional_user(request)
+    replies = _guard(lambda: interactions.list_replies(_db, case_id, viewer, sort))
+    posting_tally = _guard(lambda: interactions.vote_state(_db, [case_id], viewer))[case_id]
+    return RepliesResponse(
+        replies=[ReplyCard(**r) for r in replies],
+        posting=VoteTally(**posting_tally),
+        total=len(replies),
+    )
+
+
+@app.post("/api/postings/{case_id}/replies", response_model=ReplyCard)
+async def create_reply_route(case_id: str, body: ReplyCreate, request: Request):
+    """Post a reply to a posting (requires an active user)."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+    import interactions
+    import profile
+    uid = _active_user(request)
+    handle = profile.username_for(uid)
+    try:
+        reply = _guard(lambda: interactions.add_reply(_db, case_id, body.body, uid, handle))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return ReplyCard(**reply)
+
+
+@app.delete("/api/postings/{case_id}/replies/{reply_id}")
+async def delete_reply_route(case_id: str, reply_id: str, request: Request):
+    """Soft-delete one of your own replies (author-only)."""
+    import interactions
+    uid = _active_user(request)
+    try:
+        _guard(lambda: interactions.delete_reply(_db, reply_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Reply not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return {"ok": True}
+
+
+@app.post("/api/votes", response_model=VoteResponse)
+async def cast_vote_route(body: VoteRequest, request: Request):
+    """Up/down/clear a vote on a posting or reply (requires an active user).
+    `dir` is the desired resulting direction (-1 | 0 | 1); the client toggles."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+    import interactions
+    uid = _active_user(request)
+    res = _guard(lambda: interactions.cast_vote(_db, body.content_id, uid, body.dir))
+    return VoteResponse(**res)
 
 
 @app.get("/api/health", response_model=HealthResponse)
