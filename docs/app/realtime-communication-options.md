@@ -104,7 +104,39 @@ Not a transport. On a new message, notify **offline/backgrounded** members (esp.
 
 ---
 
-## 6. Recommendation
+## 6. Cost comparison
+
+> Approximate, `us-central1`, 2025 list prices — **verify current pricing**. The point is the *cost shape* (idle **floor** vs. **pay-per-use**), not exact cents.
+
+### Pricing model per option
+| Option | Charged on | Free tier (daily/monthly) | Monthly floor when idle |
+|---|---|---|---|
+| **A. Firestore listeners** | doc reads + writes + deletes + storage | ~50k reads / 20k writes / 1 GiB | **$0 — scale-to-zero** |
+| **B. RTDB** (presence only) | GB stored (~$5/GB‑mo) + GB downloaded (~$1/GB) + concurrent conns | 1 GB stored, 10 GB/mo egress, 100 conns | ~$0 at small scale |
+| **C. Cloud Run WebSockets** | vCPU/mem‑seconds **while connected** → needs **min‑instances ≥ 1** + **Memorystore (Redis)** + Pub/Sub | — | **~$70–110/mo floor** (always‑on instance ~$35–50 + Redis ~$35) |
+| **D. BFF SSE + Pub/Sub** | Cloud Run connection time + Pub/Sub (~$40/TiB) | Pub/Sub 10 GB/mo | **min‑instances cost** while connections are held |
+| **E. Third‑party** (Pusher/Ably/Stream) | concurrent connections / messages / **MAU** | Pusher ~100 conn+200k msg/day · Ably ~6M msg/mo · Stream dev‑only | **~$29–$499+/mo** once past free tier |
+| **FCM** (notifications, every option) | — | — | **Free** (APNs + web push included; Apple Dev acct $99/yr) |
+
+### Cost ≈ messages × delivery — Firestore worked example
+With listeners, each message is **1 write**, and each delivery to an **online** member is **1 read**. So `writes ≈ #messages`, `reads ≈ #messages × avg online members`.
+
+*Scenario:* 1,000 active users · 200 groups · ~50 messages/group/day · ~4 members online per message.
+- Writes ≈ 200 × 50 = **10,000/day** · Reads ≈ 10,000 × 4 = **40,000/day**.
+- Both **inside the Firestore daily free tier** (20k writes / 50k reads); text storage ≈ cents/mo.
+- **Effective ≈ $0/mo**, FCM **free**. Even **10×** this volume ≈ a few **dollars/month**, with **no floor**.
+
+### Take-away
+- **A + FCM** — near‑zero at pilot scale, **linear & cheap** at scale, **no idle floor**, no new resources. Cost grows with *online fan‑out* (mitigate big rooms with pagination/debounced writes).
+- **C / D** — carry a **fixed monthly floor** (always‑warm instance + Redis) regardless of traffic — the opposite of the project's scale‑to‑zero posture.
+- **E** — a **per‑MAU/connection floor** that grows with the user base, plus off‑GCP egress — hardest to justify vs. A.
+- **B** — only a **thin presence island**, not the message store.
+
+This reinforces §7: **A (Firestore listeners) + FCM** is both the on‑architecture *and* the lowest‑cost / lowest‑floor choice.
+
+---
+
+## 7. Recommendation
 
 **Option A — Firestore real-time listeners — for the live message stream, + FCM for notifications, + Firebase Auth as the gating prerequisite, with writes BFF-mediated (PII pre-flight) and reads client-direct (security-rules-guarded).**
 
@@ -119,7 +151,7 @@ Why it's the on-architecture answer:
 
 ---
 
-## 7. What we must provision (for the recommended path)
+## 8. What we must provision (for the recommended path)
 
 | Resource | Purpose | New? |
 |---|---|---|
@@ -136,7 +168,7 @@ No new datastore, no broker, no always-on serving node, no third-party contract.
 
 ---
 
-## 8. Open questions for the spec (next step)
+## 9. Open questions for the spec (next step)
 
 1. **Auth timing** — land Firebase Auth now (enables Option A) vs. interim BFF-SSE (Option D)? *(Recommend: land auth now.)*
 2. **Presence/typing in v1?** (defer, or add the RTDB presence island.)
@@ -144,3 +176,32 @@ No new datastore, no broker, no always-on serving node, no third-party contract.
 4. **PII handling** — block-and-ask vs. silent redact on the pre-flight flag.
 5. **Notification policy** — per-message vs. batched; mute; unread badges.
 6. **Group lifecycle** — leave/remove members, who can post, archived groups.
+
+---
+
+## 10. FAQ — how Option A behaves (for review)
+
+**Two layers cover every state, on web and mobile:**
+- **Live** — a Firestore `onSnapshot` listener pushes messages to anyone with the group **open** (foreground/focused): **sub‑second, no polling**.
+- **Notify** — **FCM** pushes to members who are **closed/backgrounded** (no active listener). The listener resyncs instantly when they reopen.
+
+**1) Is it real-time?** **Yes** for anyone with the group open — each message arrives in well under a second, automatically. Not‑connected members get the FCM push and resync on reopen. (Live‑chat‑grade, not sub‑100 ms gaming, which isn't needed here.)
+
+**2) How are users notified of a new message?** In‑app (foreground) the listener renders it + an unread badge/sound. Out‑of‑app a server trigger (the **BFF on write**, or a **Cloud Function / Eventarc** on the message doc) sends **FCM** to the other members — excluding the author, respecting mutes.
+
+**3) Can all users write & communicate?** **Yes** — every member (`uid ∈ groups/{id}.members`) reads and posts by default. Security rules grant member‑only reads; writes go through the BFF (membership check + PII pre‑flight). Non‑members are excluded. (Roles / read‑only / per‑user mute are later options.)
+
+**4) Per-group notifications on/off?** **Yes** — a per‑user, per‑group **mute** preference (e.g. `users/{uid}/group_prefs/{groupId}`). The FCM fan‑out skips muted members, so they get **no push per message**. Muting silences only the **push** — they still see messages in‑app via the live listener. ("Mentions only" is a future middle setting.)
+
+**5) Are notification prerequisites different mobile vs web?** **Yes — the push transport differs, but both go through FCM:**
+
+| | Mobile (Expo / React Native) | Web |
+|---|---|---|
+| Push transport | **APNs** (iOS) / FCM (Android) | **Web Push** (VAPID + **Service Worker**) |
+| Needs | Apple Dev acct + **APNs auth key**, native notification permission, device token | Service worker + **VAPID key**, browser notification permission |
+| Caveat | iOS push entitlement | **Safari / iOS‑web** require the site be **installed as a PWA**; Chrome/Edge/Firefox work directly |
+| Common to both | Firebase Auth · per‑`uid` device‑token store · the new‑message → FCM fan‑out trigger | same |
+
+**6) How do *web* users get real-time?** Tab **open** (foreground): the browser's **Firestore listener** pushes the message instantly — needs only the Firestore JS SDK + a logged‑in session (this is the true real‑time path for web). Tab **closed/backgrounded**: **FCM Web Push** via a registered **Service Worker** shows an OS‑level browser notification (permission required).
+
+**Underpinning all of it:** real **Firebase Auth** — client‑direct listeners need a verified `uid` for the security rules, and FCM tokens bind to that `uid`. Landing Firebase Auth (today it's `X‑User‑Id` dev impersonation) is the gating prerequisite for both layers, web and mobile.
