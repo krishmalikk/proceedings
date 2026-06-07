@@ -370,6 +370,72 @@ class VoteResponse(VoteTally):
     content_id: str
 
 
+# --- Find users in same boat + groups (phase-M) ---
+class Criteria(BaseModel):
+    current_visa_or_greencard_category: list[str] = []
+    visa_applying_for: list[str] = []
+    primary_consulate: str = ""
+    consulates: list[str] = []
+    key_stages_or_info: dict[str, str] = {}
+    key_dates: dict[str, str] = {}
+    background_text: str = ""
+
+
+class FindChatRequest(BaseModel):
+    messages: list[dict] = []
+    draft: Criteria = Criteria()
+
+
+class FindChatResponse(BaseModel):
+    reply: str
+    criteria: dict
+    done: bool
+
+
+class MatchesRequest(BaseModel):
+    criteria: Criteria = Criteria()
+
+
+class MatchCard(BaseModel):
+    user_id: str
+    username: str
+    score: float
+    shared: list[str] = []
+    summary: str = ""
+
+
+class MatchesResponse(BaseModel):
+    matches: list[MatchCard]
+    total: int
+
+
+class GroupMember(BaseModel):
+    user_id: str
+    username: str = ""
+    score: float = 0
+
+
+class GroupCreate(BaseModel):
+    criteria_text: str = ""
+    criteria: Criteria = Criteria()
+    members: list[GroupMember] = []
+
+
+class GroupCard(BaseModel):
+    group_id: str
+    name: str = ""
+    criteria_text: str = ""
+    members: list[GroupMember] = []
+    status: str = "formed"
+    created_at: str = ""
+    is_member: bool = False
+    joined: bool = False  # true when an existing group was joined (vs. created)
+
+
+class GroupsResponse(BaseModel):
+    groups: list[GroupCard]
+
+
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=5, max_length=500)
     strictness: str = "balanced"  # broad | balanced | strict
@@ -923,6 +989,79 @@ async def cast_vote_route(body: VoteRequest, request: Request):
     uid = _active_user(request)
     res = _guard(lambda: interactions.cast_vote(_db, body.content_id, uid, body.dir))
     return VoteResponse(**res)
+
+
+# ---------------------------------------------------------------------------
+# Find users in same boat + groups (phase-M). The expert chat builds match
+# criteria; criteria are validated against the profile via the existing
+# /api/reconcile (and applied via PUT /api/profile). Matching ranks other users'
+# Firestore profiles by tag overlap; a group of selected matches is persisted.
+# ---------------------------------------------------------------------------
+
+@app.post("/api/find/chat", response_model=FindChatResponse)
+async def find_chat_route(body: FindChatRequest, request: Request):
+    """One expert-chat turn that captures the user's match criteria."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+    import matching
+    _active_user(request)
+    out = _guard(lambda: matching.find_turn(body.messages, body.draft.model_dump()))
+    return FindChatResponse(**out)
+
+
+@app.post("/api/find/matches", response_model=MatchesResponse)
+async def find_matches_route(body: MatchesRequest, request: Request):
+    """Rank other users by similarity to the criteria (excludes the caller)."""
+    import matching
+    uid = _active_user(request)
+    matches = _guard(lambda: matching.find_matches(_db, uid, body.criteria.model_dump()))
+    return MatchesResponse(matches=[MatchCard(**m) for m in matches], total=len(matches))
+
+
+@app.post("/api/groups", response_model=GroupCard)
+async def create_group_route(body: GroupCreate, request: Request):
+    """Join the existing group for this criteria signature, or create it. The
+    acting user (+ any selected peers) become members. `joined`=true on join."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.find_or_create_group(
+            _db, uid, body.criteria_text, body.criteria.model_dump(),
+            [m.model_dump() for m in body.members]))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return GroupCard(**g)
+
+
+@app.get("/api/groups", response_model=GroupsResponse)
+async def list_groups_route(request: Request):
+    """The groups the active user is a member of (newest first)."""
+    import matching
+    uid = _active_user(request)
+    groups = _guard(lambda: matching.my_groups(_db, uid))
+    return GroupsResponse(groups=[GroupCard(**g) for g in groups])
+
+
+@app.get("/api/groups/all", response_model=GroupsResponse)
+async def list_all_groups_route(request: Request):
+    """All groups (browse), flagged with the viewer's membership."""
+    import matching
+    uid = _active_user(request)
+    groups = _guard(lambda: matching.list_all_groups(_db, uid))
+    return GroupsResponse(groups=[GroupCard(**g) for g in groups])
+
+
+@app.post("/api/groups/{group_id}/join", response_model=GroupCard)
+async def join_group_route(group_id: str, request: Request):
+    """Join an existing group directly (browse → join)."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.join_group(_db, group_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return GroupCard(**g)
 
 
 @app.get("/api/health", response_model=HealthResponse)

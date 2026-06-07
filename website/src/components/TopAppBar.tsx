@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 const navItems = [
   { href: '/search', label: 'Case Search', icon: 'search' },
+  { href: '/find', label: 'Find Peers', icon: 'diversity_3' },
   { href: '/news', label: 'News', icon: 'newspaper' },
   // Removed for now (phase-H): 'Forum' (/community) and 'Ask a Pro' (/pro).
 ];

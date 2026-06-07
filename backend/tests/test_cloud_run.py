@@ -212,6 +212,66 @@ def group_g_interactions() -> None:
         print("  cleaned up interactions test docs")
 
 
+def group_h_matching() -> None:
+    print("\nH — Find users in same boat + groups (deployed, phase-M)")
+    try:
+        from google.cloud import firestore
+        db = firestore.Client(project=os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT"))
+    except Exception as e:  # noqa: BLE001
+        check("H0 Firestore available for seeding", False, str(e))
+        return
+    strong, weak = f"test-peer-strong-{secrets.token_hex(3)}", f"test-peer-weak-{secrets.token_hex(3)}"
+    group_id = ""
+    try:
+        db.collection("users").document(strong).set(
+            {"username": "strong-peer", "current_visa_or_greencard_category": ["H-1B"],
+             "consulates": ["BOM"], "key_stages_or_info": {"citizen_of_country": "IN"}})
+        db.collection("users").document(weak).set(
+            {"username": "weak-peer", "current_visa_or_greencard_category": ["H-1B"]})
+
+        check("H1 matches without user → 400", post("/api/find/matches", {"criteria": {}}).status_code == 400)
+
+        crit = {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"],
+                "key_stages_or_info": {"citizen_of_country": "IN"}}
+        r = post("/api/find/matches", {"criteria": crit}, headers=hdr("demo-arjun"))
+        by = {m["user_id"]: m for m in r.json().get("matches", [])}
+        check("H2 matches 200 + excludes self + ranks strong>weak",
+              r.status_code == 200 and "demo-arjun" not in by and strong in by and weak in by
+              and by[strong]["score"] > by[weak]["score"],
+              f"status={r.status_code} strong={by.get(strong, {}).get('score')} weak={by.get(weak, {}).get('score')}")
+
+        empty = post("/api/groups", {"criteria_text": "x", "criteria": {}, "members": []}, headers=hdr("demo-arjun"))
+        check("H3 non-distinctive criteria → 422", empty.status_code == 422, f"status={empty.status_code}")
+
+        crit_g = {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"]}
+        g = post("/api/groups", {"criteria_text": "H-1B at Mumbai", "criteria": crit_g,
+                                 "members": [{"user_id": strong, "username": "strong-peer"}]}, headers=hdr("demo-arjun"))
+        gj = g.json()
+        group_id = gj.get("group_id", "")
+        mids = {m["user_id"] for m in gj.get("members", [])}
+        check("H4 create 200 + generated name + me & peer members + not joined",
+              g.status_code == 200 and group_id and gj.get("name")
+              and {"demo-arjun", strong} <= mids and gj.get("joined") is False, f"status={g.status_code}")
+
+        # same signature as another user → joins the same group
+        g2 = post("/api/groups", {"criteria_text": "same boat", "criteria": crit_g, "members": []}, headers=hdr("demo-mei"))
+        check("H5 same-signature → joins existing group",
+              g2.json().get("group_id") == group_id and g2.json().get("joined") is True, str(g2.json().get("joined")))
+
+        allg = get("/api/groups/all", headers=hdr("demo-sofia")).json().get("groups", [])
+        mine = next((x for x in allg if x.get("group_id") == group_id), {})
+        check("H6 browse /api/groups/all + is_member False for non-member",
+              bool(mine) and mine.get("is_member") is False)
+        j = post("/api/groups/%s/join" % group_id, {}, headers=hdr("demo-sofia"))
+        check("H7 join 200 + joined", j.status_code == 200 and j.json().get("joined") is True, f"status={j.status_code}")
+    finally:
+        for u in (strong, weak):
+            db.collection("users").document(u).delete()
+        if group_id:
+            db.collection("groups").document(group_id).delete()
+        print("  cleaned up matching test docs")
+
+
 def main() -> int:
     print(f"Cloud Run E2E — {BASE}")
     group_a_health()
@@ -221,6 +281,7 @@ def main() -> int:
     group_e_postings()
     group_f_context_filters()
     group_g_interactions()
+    group_h_matching()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)
