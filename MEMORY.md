@@ -660,6 +660,18 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 **Affected docs / status:** Done on `phase-K-cleanup`. K.2/K.3 pending.
 
+## D-047 — 2026-06-06 — Backend moved into `backend/` package (project-structure cleanup K.2)
+
+**Decision:** Moved the live FastAPI service out of the repo root into **`backend/`**: the 6 modules (`api.py`, `query.py`, `search_client.py`, `posting.py`, `profile.py`, `reconcile.py`) + `seed_users.json` + `tags-cleaned/` + `tests/` + `scripts/` + `Dockerfile` + `requirements.txt` + `.dockerignore`. The repo root now has **no loose `.py` files** — the three apps (`backend/`, `website/`, `proceedings-mobile/`) are each in their own dir.
+
+**Why it needed no code changes:** every data load is `__file__`-relative (`posting._TAGS_DIR`, `profile._HERE`, `search_client._csv_path`), so moving code+data together kept all paths valid. `load_dotenv()` walks up to the root `.env` (verified). The `Dockerfile` COPY paths are relative to its own dir, so with the build context = `backend/` they still resolve unchanged.
+
+**Operational changes:** deploy command is now **`gcloud run deploy immiguide-api --source backend`** (build context = `backend/`). Tests run as `backend/tests/...` (their `sys.path.insert(parent)` auto-resolves to `backend/`). The obsidian docs symlink was retargeted `tags-cleaned -> ../backend/tags-cleaned`. `CLAUDE.md` commands updated.
+
+**Verification:** local — vocab loads (415 tags), `test_reconcile` 67/67, `test_posting_tagging` 42/42, `test_profile` 53/53. Deployed — `--source backend` → revision `immiguide-api-00017-2hn`, health/users/search 200, tag-vocab 415. Non-breaking.
+
+**Affected docs / status:** Done on `phase-K-cleanup`. K.3 (docs consolidation) pending.
+
 ---
 
 # Session summaries

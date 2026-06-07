@@ -8,9 +8,10 @@ Proceedings is a RAG (Retrieval-Augmented Generation) immigration-intake assista
 
 ## Architecture
 
-The live backend is a **FastAPI service** (`api.py`) grounded on the **managed
-Vertex AI Search (Discovery Engine) datastore** `imm-postings-datastore` via the
-Search/Answer API, with Gemini for tagging and answers. Core live modules:
+The live backend is a **FastAPI service** in **`backend/`** (`backend/api.py`),
+grounded on the **managed Vertex AI Search (Discovery Engine) datastore**
+`imm-postings-datastore` via the Search/Answer API, with Gemini for tagging and
+answers. Core live modules (all under `backend/`):
 
 - **`api.py`** — the HTTP API (search, postings, profile, onboarding, reconcile, expert).
 - **`search_client.py`** — grounded retrieval (Answer/Search API) + facets/strictness.
@@ -31,11 +32,12 @@ Supporting files:
 
 ## Commands
 
-### Backend (from project root)
+### Backend (from `backend/`)
 ```bash
-pip install -r requirements.txt
-uvicorn api:app --reload --port 8000     # run the API locally
-python tests/test_reconcile.py           # a test suite (also test_profile.py / test_posting_tagging.py)
+pip install -r backend/requirements.txt
+cd backend && uvicorn api:app --reload --port 8000     # run the API locally
+python backend/tests/test_reconcile.py                 # a suite (also test_profile.py / test_posting_tagging.py)
+gcloud run deploy immiguide-api --source backend --region us-central1   # deploy
 ```
 
 ### Website (from `website/`)
