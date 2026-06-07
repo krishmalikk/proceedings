@@ -212,6 +212,56 @@ def group_g_interactions() -> None:
         print("  cleaned up interactions test docs")
 
 
+def group_h_matching() -> None:
+    print("\nH — Find users in same boat + groups (deployed, phase-M)")
+    try:
+        from google.cloud import firestore
+        db = firestore.Client(project=os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT"))
+    except Exception as e:  # noqa: BLE001
+        check("H0 Firestore available for seeding", False, str(e))
+        return
+    strong, weak = f"test-peer-strong-{secrets.token_hex(3)}", f"test-peer-weak-{secrets.token_hex(3)}"
+    group_id = ""
+    try:
+        db.collection("users").document(strong).set(
+            {"username": "strong-peer", "current_visa_or_greencard_category": ["H-1B"],
+             "consulates": ["BOM"], "key_stages_or_info": {"citizen_of_country": "IN"}})
+        db.collection("users").document(weak).set(
+            {"username": "weak-peer", "current_visa_or_greencard_category": ["H-1B"]})
+
+        check("H1 matches without user → 400", post("/api/find/matches", {"criteria": {}}).status_code == 400)
+
+        crit = {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"],
+                "key_stages_or_info": {"citizen_of_country": "IN"}}
+        r = post("/api/find/matches", {"criteria": crit}, headers=hdr("demo-arjun"))
+        by = {m["user_id"]: m for m in r.json().get("matches", [])}
+        check("H2 matches 200 + excludes self + ranks strong>weak",
+              r.status_code == 200 and "demo-arjun" not in by and strong in by and weak in by
+              and by[strong]["score"] > by[weak]["score"],
+              f"status={r.status_code} strong={by.get(strong, {}).get('score')} weak={by.get(weak, {}).get('score')}")
+
+        empty = post("/api/groups", {"criteria_text": "x", "criteria": {}, "members": []}, headers=hdr("demo-arjun"))
+        check("H3 create group empty members → 422", empty.status_code == 422, f"status={empty.status_code}")
+
+        g = post("/api/groups", {
+            "criteria_text": "H-1B at Mumbai", "criteria": {"current_visa_or_greencard_category": ["H-1B"]},
+            "members": [{"user_id": strong, "username": "strong-peer", "score": by.get(strong, {}).get("score", 0)}],
+        }, headers=hdr("demo-arjun"))
+        gj = g.json()
+        group_id = gj.get("group_id", "")
+        check("H4 create group 200 + owner + members", g.status_code == 200 and group_id
+              and gj.get("owner_username") == "arjun-h1b" and len(gj.get("members", [])) == 1, f"status={g.status_code}")
+
+        lst = get("/api/groups", headers=hdr("demo-arjun")).json().get("groups", [])
+        check("H5 list groups includes the new one", any(x.get("group_id") == group_id for x in lst))
+    finally:
+        for u in (strong, weak):
+            db.collection("users").document(u).delete()
+        if group_id:
+            db.collection("groups").document(group_id).delete()
+        print("  cleaned up matching test docs")
+
+
 def main() -> int:
     print(f"Cloud Run E2E — {BASE}")
     group_a_health()
@@ -221,6 +271,7 @@ def main() -> int:
     group_e_postings()
     group_f_context_filters()
     group_g_interactions()
+    group_h_matching()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)
