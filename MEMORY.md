@@ -650,6 +650,16 @@ Tag placement: `tags` (background — describes the post *type*), not `concerns_
 
 **Affected docs / status:** Done on `phase-K-cleanup`. obsidian `CLAUDE.md` reference to `tags-cleaned/` still resolves via the symlink (no change needed).
 
+## D-046 — 2026-06-06 — Archived the retired prototype to `legacy/` (project-structure cleanup K.1)
+
+**Decision:** Moved the first-generation prototype out of the repo root into `legacy/` (kept, not deleted): the 11 orphan modules `agent_crawl.py`, `agent_label.py`, `auto_label.py`, `continuous_crawl.py`, `crawler.py`, `deploy_agent.py`, `discover_urls.py`, `json_pydantic_schema.py`, `monitor_qa.py`, `pipeline.py`, `prepare_labeled_data.py`; the `labeling_agent/` package + `tests/test_labeling.py`; and `urls.txt` / `url_registry.json`. Added `legacy/README.md`. After this, the repo root holds **only the 6 live backend modules** (`api.py`, `query.py`, `search_client.py`, `posting.py`, `profile.py`, `reconcile.py`) + `seed_users.json` + `tags-cleaned/`.
+
+**Reasoning:** None of the moved files is imported by the live service or shipped in the `Dockerfile` — they're the retired Firecrawl→label→Vector-Search pipeline (D-016/D-039/D-040). Keeping them at root obscured "what actually runs." Archived (not deleted) because some are flagged for possible reuse (e.g. `crawler.py` as a future Firecrawl non-API adapter) and they cost nothing in `legacy/`. This is **K.1** of the phased project-restructure plan (evaluation in this session): K.1 archive legacy → K.2 `backend/` package → K.3 docs consolidation.
+
+**Verification:** live modules import; `test_reconcile` 60/60, `test_posting_tagging` 29/29, `test_profile` 25/25; `Dockerfile` unchanged (copies only live files). Updated `CLAUDE.md` (Architecture/Commands now describe the live service; old crawler pipeline marked retired/archived).
+
+**Affected docs / status:** Done on `phase-K-cleanup`. K.2/K.3 pending.
+
 ---
 
 # Session summaries
