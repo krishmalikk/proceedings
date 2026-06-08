@@ -112,7 +112,50 @@ Using phase-N as the example:
 
 ---
 
-## 5. Local development
+## 5. Post-merge verification (UAT) — confirm the live feature works
+
+After a merge ships (Vercel Production rebuilt + Cloud Run live), verify in two layers: **automated API smoke** + a **manual UI walkthrough** on the live site.
+
+### 5.1 Automated — deployed API smoke
+```bash
+# Full e2e suite against the DEPLOYED backend (defaults to the prod Cloud Run URL).
+.venv/bin/python backend/tests/test_cloud_run.py            # 35/35 expected
+# Target a specific deployment explicitly:
+CLOUD_RUN_URL=https://immiguide-api-fbtmilucfq-uc.a.run.app .venv/bin/python backend/tests/test_cloud_run.py
+```
+- Needs **ADC** (`gcloud auth application-default login`); the suite **seeds + cleans prod Firestore** test docs (synthetic ids, auto-removed) and retries through the per-IP rate limit.
+- **Group I** is the phase-N group-chat coverage: 400/403 gating · PII-scrubbed post · member-only reads · author-only delete. (Group G = replies/votes, H = find-peers/groups.)
+
+### 5.2 Manual — group chat on the live site (Vercel Production)
+Identity in production is still the **dev user-picker** (`X-User-Id`, `ALLOW_USER_IMPERSONATION=1`) until Firebase Auth lands — pick a seed user (top-right).
+
+**Set up a group with two members** (chat needs ≥1 member; a 2-person test needs both):
+1. As **User A** → `/find` → chat to build criteria → **Find matches** → tick a peer → **Create / join group** → **Open chat**. *(Matched peers need saved profiles; if there are none, use the **Browse groups** tab and **Join** an existing group instead.)*
+2. As **User B** → switch the user-picker → `/find` → **Browse groups** → **Join** that group → **Open**.
+
+**Happy path (single user):**
+- [ ] Send a message → it appears in the thread immediately.
+- [ ] **Reload the page** → the message is still there (persisted in Firestore).
+- [ ] Send a message containing `me@example.com` and `415-555-1234` → both are **redacted** in the displayed text (PII scrub).
+- [ ] **Delete** your own message → it shows **"message deleted"**; other members' messages have **no** delete control.
+
+**Two-user delivery (polling, ~4 s):**
+- [ ] Two browsers/windows — A and B both on the same `/groups/{id}` chat.
+- [ ] A sends → **B sees it within ~4 seconds**, labeled with A's handle; B's own messages render right-aligned.
+
+**Negative / authorization:**
+- [ ] A **non-member** (seed user not in the group) opening `/groups/{id}` → sees the group name/members but the chat panel reads **"You're not a member of this group."**
+- [ ] **No user selected** → the chat shows the **"Select a user"** gate.
+
+**If something's off — where to look:** browser **Network tab** (the page calls the Vercel proxy `…/api/groups/{id}/messages` → 200/403) · **Vercel → Functions logs** (proxy errors) · **Cloud Run logs** (backend errors).
+
+### 5.3 Quick health
+- Backend: `curl https://immiguide-api-fbtmilucfq-uc.a.run.app/api/health` → `{"status":"ok",…}`.
+- Frontend: the Production URL loads; `/find` and `/groups/[id]` render.
+
+---
+
+## 6. Local development
 ```bash
 # backend
 cd backend && ../.venv/bin/python -m uvicorn api:app --reload --port 8000   # reads ../.env via dotenv + ADC
@@ -125,7 +168,7 @@ cd website && PYTHON_API_URL=http://localhost:8000 npm run dev               # h
 
 ---
 
-## 6. Config & secrets inventory
+## 7. Config & secrets inventory
 
 | What | Where | Committed? |
 |---|---|---|
@@ -138,18 +181,18 @@ cd website && PYTHON_API_URL=http://localhost:8000 npm run dev               # h
 
 ---
 
-## 7. CI / automation status & gaps
+## 8. CI / automation status & gaps
 - **No CI pipeline today** (`.github/workflows` is absent). Tests + the backend deploy are **run manually**. Vercel provides the only automation (git-triggered frontend builds + previews).
 - **Future hardening** (when desired): a GitHub Actions workflow to (a) run `backend/tests` + `website` `npm test`/`build` on PRs, and (b) `gcloud run deploy` the backend on merge to `main` (via Workload Identity Federation — no SA keys), so backend + frontend ship together from git.
 
 ---
 
-## 8. Mobile (Expo / React Native, `mobile/`) — not deployed yet
+## 9. Mobile (Expo / React Native, `mobile/`) — not deployed yet
 Future path: **EAS Build** (`eas build`) for iOS/Android binaries → TestFlight / Play internal → store release; it will point at the same Cloud Run `PYTHON_API_URL` and (per the realtime roadmap) add Firebase Auth + FCM. See [docs/app/realtime-communication-options.md](app/realtime-communication-options.md) §11.
 
 ---
 
-## 9. Quick reference
+## 10. Quick reference
 ```bash
 # Deploy backend
 gcloud run deploy immiguide-api --source backend --region us-central1 --quiet
