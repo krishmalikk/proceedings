@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import Markdown from '@/components/Markdown'
 import MatchCard, { MatchData } from '@/components/MatchCard'
 import { getActiveUser, setActiveUser, userHeaders } from '@/lib/activeUser'
@@ -385,7 +386,9 @@ export default function FindPage() {
                   {group.joined ? 'Joined existing group' : 'Group created'}: <span className="font-semibold">{group.name}</span>
                 </p>
                 <p className="text-caption text-on-surface-variant mt-1">{group.members.length} member{group.members.length === 1 ? '' : 's'}: {group.members.map((m) => m.username).join(', ')}</p>
-                <p className="text-caption text-on-surface-variant mt-2">You&apos;ll be able to connect with this group in an upcoming release.</p>
+                <Link href={`/groups/${encodeURIComponent(group.group_id)}`} className="btn-secondary text-label-md mt-3 inline-flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[18px]">chat</span> Open chat
+                </Link>
               </div>
             )}
           </aside>
@@ -408,13 +411,20 @@ export default function FindPage() {
                       {g.members.length} member{g.members.length === 1 ? '' : 's'}: {g.members.map((m) => m.username).join(', ')}
                     </p>
                   </div>
-                  {g.is_member ? (
-                    <span className="text-label-md text-secondary whitespace-nowrap flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[18px]">check</span>Joined
-                    </span>
-                  ) : (
-                    <button onClick={() => joinGroup(g.group_id)} className="btn-secondary text-label-md whitespace-nowrap">Join</button>
-                  )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {g.is_member ? (
+                      <span className="text-label-md text-secondary whitespace-nowrap flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[18px]">check</span>Joined
+                      </span>
+                    ) : (
+                      <button onClick={() => joinGroup(g.group_id)} className="btn-secondary text-label-md whitespace-nowrap">Join</button>
+                    )}
+                    {g.is_member && (
+                      <Link href={`/groups/${encodeURIComponent(g.group_id)}`} className="btn-primary text-label-md whitespace-nowrap inline-flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[18px]">chat</span> Open
+                      </Link>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
