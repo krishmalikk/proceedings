@@ -8,17 +8,19 @@ How the Proceedings app ships. Two independent deploy targets today, plus mobile
 ## 1. Topology — who deploys where
 
 ```
-  Browser ──HTTPS──▶  Vercel (Next.js site, website/)  ──server-side fetch (PYTHON_API_URL)──▶  Cloud Run (FastAPI, backend/)
-                      • static pages + /api/* proxy routes                                       • Firestore · Vertex AI Search · GCS · BigQuery · Gemini
+  Browser ──HTTPS──▶  Cloud Run (Next.js site, immiguide-web)  ──server-side fetch (PYTHON_API_URL)──▶  Cloud Run (FastAPI, immiguide-api)
+                      • static pages + /api/* proxy routes                                               • Firestore · Vertex AI Search · GCS · BigQuery · Gemini
 ```
 
 | Component | Source dir | Platform | Deploy trigger | Today |
 |---|---|---|---|---|
 | **Backend (BFF)** | `backend/` | **GCP Cloud Run** (`immiguide-api`, `us-central1`) | **Manual** `gcloud run deploy` (no CI) | Live |
-| **Frontend** | `website/` | **Vercel** (Next.js) | **Git** — push/PR → Preview, merge to `main` → Production | Live (via main) |
+| **Frontend** | `website/` | **GCP Cloud Run** (`immiguide-web`, `us-central1`) | **Manual** `gcloud run deploy --source website` (no CI) | Live |
 | **Mobile** | `mobile/` | Expo / EAS → App Store / Play | Not set up | Not deployed |
 
-**Key asymmetry:** the **backend deploy is manual and git-independent** (it builds from your *local* `backend/` working tree); the **frontend deploy is git-driven** (Vercel builds from the branch). They are decoupled — the backend can lead the frontend (new endpoints are additive; nothing calls them until the site ships).
+> **Frontend host change:** the site was previously on **Vercel** (git-driven). We moved it to **Cloud Run** (`immiguide-web`) after losing admin access to the Vercel project — see §3. The old `proceedings.vercel.app` is orphaned.
+
+**Both deploys are now manual + git-independent** — each builds from your *local* working tree (`gcloud run deploy --source <dir>`), not from git. They're decoupled: the backend can lead the frontend (new endpoints are additive; nothing calls them until the site ships).
 
 GCP project: **`proceedings-490601`** (number `971592620882`) · region **`us-central1`** (Vertex datastore location `global`).
 
@@ -82,9 +84,46 @@ gcloud run services update-traffic immiguide-api --region us-central1 --to-revis
 
 ---
 
-## 3. Frontend — Vercel (Next.js, `website/`)
+## 3. Frontend — Next.js (`website/`)
 
-### 3.1 One-time project setup (in the Vercel dashboard)
+### 3.0 Hosting: Cloud Run (`immiguide-web`) — CURRENT production
+
+The site runs on **GCP Cloud Run** (service `immiguide-web`, `us-central1`),
+deployed from the local `website/` working tree — same model as the backend, and
+fully under our own GCP account.
+
+**Live URL:** `https://immiguide-web-971592620882.us-central1.run.app`
+
+**Deploy** (manual, git-independent):
+```bash
+gcloud run deploy immiguide-web --source website \
+  --project proceedings-490601 --region us-central1 --allow-unauthenticated \
+  --port 8080 --memory 512Mi \
+  --set-env-vars PYTHON_API_URL=https://immiguide-api-fbtmilucfq-uc.a.run.app
+```
+- Builds `website/Dockerfile` (Next.js `output: 'standalone'`) via Cloud Build.
+- **`PYTHON_API_URL` = the bare backend origin** (no trailing `/api`). It's also
+  baked at build time in the Dockerfile so prerendered ISR routes (e.g.
+  `/api/users`) cache the correct response; `apiBase()` normalizes a stray
+  `/api`/slash regardless.
+- **No CORS change needed** — the browser only talks to `immiguide-web`; the
+  `/api/*` → `immiguide-api` proxy hop is server-side.
+
+**Verify:**
+```bash
+FE=https://immiguide-web-971592620882.us-central1.run.app
+curl -s "$FE/api/users" | python3 -c "import sys,json;print(len(json.load(sys.stdin)),'users')"
+curl -s -o /dev/null -w "/find -> %{http_code}\n" "$FE/find"
+```
+
+**Rollback:** `gcloud run services update-traffic immiguide-web --to-revisions <REV>=100`.
+**CI / custom domain (later):** Cloud Build trigger + domain mapping — see
+[`docs/app/frontend-hosting-options.md`](app/frontend-hosting-options.md).
+
+### 3.1 (Previous host) One-time project setup — Vercel dashboard
+
+> ⚠️ Retained for reference. The frontend is **no longer served from Vercel** (no
+> admin access to the project). `proceedings.vercel.app` is orphaned.
 1. **Import the GitHub repo** into a Vercel project (Vercel ↔ GitHub app).
 2. **Root Directory = `website/`** (the Next app is in a subfolder of the monorepo).
 3. Framework **Next.js** is auto-detected → Build `next build`, Output handled by Vercel, Install `npm install`. (No `vercel.json` needed; there is none.)
