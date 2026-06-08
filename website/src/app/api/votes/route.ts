@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PYTHON_API_URL = process.env.PYTHON_API_URL || 'http://localhost:8000'
+import { apiBase } from '@/lib/apiBase'
+const PYTHON_API_URL = apiBase()
 
 function userHeader(request: NextRequest): Record<string, string> {
   const uid = request.headers.get('x-user-id') || ''

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PYTHON_API_URL = process.env.PYTHON_API_URL || 'http://localhost:8000'
+import { apiBase } from '@/lib/apiBase'
+const PYTHON_API_URL = apiBase()
 
 // POST /api/onboard — one AI-onboarding turn for the active user.
 export async function POST(request: NextRequest) {

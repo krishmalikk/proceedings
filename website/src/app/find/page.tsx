@@ -77,10 +77,14 @@ export default function FindPage() {
   const threadRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/users').then((r) => r.json()).then((list: SeedUser[]) => {
-      setUsers(list)
+    fetch('/api/users').then((r) => r.json()).then((list: unknown) => {
+      // Defensive: a backend/proxy error returns an object ({detail:…}), not an
+      // array. Never feed a non-array to setUsers — users.map() in render would
+      // throw a client-side exception (white-screen) instead of degrading.
+      const arr: SeedUser[] = Array.isArray(list) ? list : []
+      setUsers(arr)
       const saved = getActiveUser()
-      const id = saved && list.some((u) => u.id === saved) ? saved : (list[0]?.id || '')
+      const id = saved && arr.some((u) => u.id === saved) ? saved : (arr[0]?.id || '')
       if (id) { setActiveUser(id); setActiveId(id) }
     }).catch(() => {})
   }, [])
