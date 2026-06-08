@@ -39,6 +39,11 @@ const GREETING_EXPERIENCES =
   "Your basic profile is saved ✓. Now let's capture your **experiences** at the milestones you've already " +
   "crossed — these help others going through the same steps (and aren't tagged to your current status)."
 
+const GREETING_RETURNING =
+  "Welcome back! Your **current profile** is on the right. Update it any way you like: edit the tags and " +
+  "fields directly, change your **background** text and hit *Re-generate tags*, or just tell me what changed " +
+  "(e.g. \"my I-140 was approved on March 1\") and I'll update the tags for you."
+
 const TAG_CHIPS: { field: keyof Profile; label: string }[] = [
   { field: 'current_visa_or_greencard_category', label: 'Current status' },
   { field: 'visa_applying_for', label: 'Applying for' },
@@ -58,6 +63,8 @@ export default function OnboardingPage() {
   const [connecting, setConnecting] = useState(false)
   const [connectCardId, setConnectCardId] = useState('')
   const [error, setError] = useState('')
+  const [regen, setRegen] = useState(false)
+  const [regenNote, setRegenNote] = useState('')
   // Generated facets for each SHARED/published experience (the experience JSON), fetched from its doc.
   type ExpFacets = { visa: string[]; consulates: string[]; outcome: string; tags: string[]; date: string }
   const [expFacets, setExpFacets] = useState<Record<string, ExpFacets>>({})
@@ -80,7 +87,8 @@ export default function OnboardingPage() {
       setDraft({ ...EMPTY, ...p })
       setSavedAt(p.updated_at || '')
       setStage('basics')
-      setMessages([{ id: 'greet', role: 'ai', content: GREETING_BASICS }])
+      // Already-onboarded users get a "review/update" greeting; new users get setup.
+      setMessages([{ id: 'greet', role: 'ai', content: p.updated_at ? GREETING_RETURNING : GREETING_BASICS }])
     }).catch(() => {})
   }, [])
 
@@ -151,6 +159,27 @@ export default function OnboardingPage() {
     return data
   }
 
+  // Re-derive the structured tags from the free-text background, using the same
+  // AI extraction engine as the chat (one-shot). Lets users edit the background
+  // box and refresh tags without conversing.
+  async function regenTags() {
+    const text = draft.background_text.trim()
+    if (text.length < 10) { setError('Add a sentence or two of background first.'); return }
+    setRegen(true); setError(''); setRegenNote('')
+    try {
+      const res = await fetch('/api/onboard', {
+        method: 'POST', headers: userHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ stage: 'basics', messages: [{ role: 'user', content: text }], draft }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Could not re-generate tags')
+      if (data.profile) setDraft({ ...EMPTY, ...data.profile, background_text: data.profile.background_text || text })
+      setRegenNote('Tags updated from your background ✓')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not re-generate tags')
+    } finally { setRegen(false) }
+  }
+
   // Stage 1 → save basics, then move to Stage 2 and have the bot open the experiences pass.
   async function saveAndContinue() {
     setSaving(true); setError('')
@@ -217,7 +246,7 @@ export default function OnboardingPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
-        <h1 className="text-headline-md text-on-surface">Set up your profile</h1>
+        <h1 className="text-headline-md text-on-surface">{savedAt ? 'Your profile' : 'Set up your profile'}</h1>
         <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
           <span className="material-symbols-outlined text-[20px]">switch_account</span>
           Demo user:
@@ -325,9 +354,17 @@ export default function OnboardingPage() {
               )}
               <div>
                 <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">Background</p>
-                <textarea value={draft.background_text} onChange={(e) => setDraft((d) => ({ ...d, background_text: e.target.value }))}
+                <textarea value={draft.background_text} onChange={(e) => { setRegenNote(''); setDraft((d) => ({ ...d, background_text: e.target.value })) }}
                   rows={4} placeholder="Your situation/intent (no personal identifiers)…"
                   className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-body-md focus:outline-none focus:border-primary resize-y" />
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <button onClick={regenTags} disabled={regen || draft.background_text.trim().length < 10}
+                    className="btn-secondary text-label-md disabled:opacity-40 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[18px]">auto_fix_high</span>
+                    {regen ? 'Analyzing…' : 'Re-generate tags from this text'}
+                  </button>
+                  {regenNote && <span className="text-caption text-primary">{regenNote}</span>}
+                </div>
               </div>
 
               <button onClick={saveAndContinue} disabled={saving || !hasBasics} className="btn-primary w-full disabled:opacity-40">
