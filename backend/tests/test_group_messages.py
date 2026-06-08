@@ -2,9 +2,10 @@
 test_group_messages.py — phase-N group chat messages.
 
 Groups:
-  A  pure: text cleaning + PII scrub + message view (no network) — always runs
+  A  pure: text cleaning + PII scrub (redact + don't over-redact) + view — always runs
   B  live Firestore: post/list/since-delta/membership/author-delete — INTEGRATION
-  C  HTTP API via FastAPI TestClient (gating, 403, PII, delete authz) — INTEGRATION
+  C  HTTP API via FastAPI TestClient (gating, 403, PII, delete authz, GET group) — INTEGRATION
+  D  live Firestore edges: ordering/limit/since-boundary/join/idempotent delete — INTEGRATION
 
 Run:  .venv/bin/python tests/test_group_messages.py [unit|integration|all]
 """
@@ -71,6 +72,26 @@ def group_a_pure() -> None:
     check("A5 is_author reflects the viewer", v_self["is_author"] is True and v_other["is_author"] is False)
     v_del = G._message_view({**doc, "deleted": True}, "x")
     check("A6 soft-deleted message hides text", v_del["deleted"] is True and v_del["text"] == "")
+
+    # PII scrub — positive (redact) and negative (don't over-redact)
+    multi = G._clean_text("call 415-555-1234 or 408-555-9999, A12345678, a@b.com")
+    check("A7 multiple PII items all redacted",
+          all(s not in multi for s in ("415-555-1234", "408-555-9999", "A12345678", "a@b.com")), multi)
+    keep_date = G._clean_text("My priority date is 2022-01-01 and I filed on 2026-06-07")
+    check("A8 dates are NOT treated as phone numbers (kept)",
+          "2022-01-01" in keep_date and "2026-06-07" in keep_date, keep_date)
+    keep_short = G._clean_text("Form I-140 receipt WAC2190 — visa H-1B")
+    check("A9 short codes / visa tags preserved (no false redaction)",
+          "I-140" in keep_short and "H-1B" in keep_short, keep_short)
+
+    # length boundary + whitespace
+    exact = G._clean_text("x" * G.MAX_TEXT)
+    check("A10 exactly MAX_TEXT chars allowed", len(exact) == G.MAX_TEXT)
+    try:
+        G._clean_text("x" * (G.MAX_TEXT + 1)); check("A11 MAX_TEXT+1 rejected", False, "no raise")
+    except ValueError:
+        check("A11 MAX_TEXT+1 rejected (ValueError)", True)
+    check("A12 surrounding whitespace trimmed", G._clean_text("   hello team   ") == "hello team")
 
 
 # ---------------------------------------------------------------------------
@@ -190,9 +211,67 @@ def group_c_api() -> None:
                   c.delete(f"/api/groups/{gid}/messages/{mid}", headers=A).status_code == 200)
             check("C11 DELETE missing message → 404",
                   c.delete(f"/api/groups/{gid}/messages/no-such", headers=A).status_code == 404)
+
+            # GET /api/groups/{id} — browse-style: non-member sees metadata with is_member=false
+            ng = c.get(f"/api/groups/{gid}", headers=S)
+            check("C12 GET group as non-member → 200 + is_member=false",
+                  ng.status_code == 200 and ng.json().get("is_member") is False, f"status={ng.status_code}")
+            check("C13 GET unknown group → 404", c.get("/api/groups/no-such-group", headers=A).status_code == 404)
+            check("C14 GET group without user → 400", c.get(f"/api/groups/{gid}").status_code == 400)
+            check("C15 over-long message → 422",
+                  c.post(f"/api/groups/{gid}/messages", json={"text": "x" * 4001}, headers=A).status_code == 422)
     finally:
         _cleanup_group(db, gid)
         print("  cleaned up API test docs")
+
+
+def group_d_edges() -> None:
+    print("\nD — ordering / limit / since-boundary / join / idempotent delete (integration)")
+    from google.cloud import firestore
+    db = firestore.Client(project=PROJECT)
+    gid = f"test-group-edge-{secrets.token_hex(4)}"
+    a, b = "test-user-a", "test-user-b"
+    try:
+        # empty group lists nothing
+        _seed_group(db, gid, [(a, "alpha")])
+        check("D1 empty group → no messages", G.list_messages(db, gid, viewer_id=a) == [])
+
+        m1 = G.post_message(db, gid, a, "one")
+        m2 = G.post_message(db, gid, a, "two")
+        m3 = G.post_message(db, gid, a, "three")
+
+        # chronological order
+        full = [m["text"] for m in G.list_messages(db, gid, viewer_id=a)]
+        check("D2 messages returned oldest→newest", full == ["one", "two", "three"], str(full))
+
+        # limit returns the NEWEST n (still chronological)
+        last2 = [m["text"] for m in G.list_messages(db, gid, viewer_id=a, limit=2)]
+        check("D3 limit caps to the newest n (chronological)", last2 == ["two", "three"], str(last2))
+
+        # since cursor is STRICTLY greater (excludes the boundary message)
+        delta = [m["id"] for m in G.list_messages(db, gid, viewer_id=a, since=m2["created_at"])]
+        check("D4 since is strictly-greater (boundary excluded)", delta == [m3["id"]], str(delta))
+        check("D5 since == latest → empty delta", G.list_messages(db, gid, viewer_id=a, since=m3["created_at"]) == [])
+
+        # a user added to the group later gains access
+        try:
+            G.list_messages(db, gid, viewer_id=b); check("D6 pre-join non-member denied", False, "no raise")
+        except PermissionError:
+            check("D6 pre-join non-member denied (PermissionError)", True)
+        db.collection("groups").document(gid).update(
+            {"members": [{"user_id": a, "username": "alpha"}, {"user_id": b, "username": "bravo"}]})
+        joined = G.list_messages(db, gid, viewer_id=b)
+        check("D7 after being added, the new member can read", len(joined) == 3)
+
+        # idempotent author delete (deleting twice doesn't raise; stays hidden)
+        G.delete_message(db, gid, m1["id"], a)
+        G.delete_message(db, gid, m1["id"], a)
+        m1_after = next((m for m in G.list_messages(db, gid, viewer_id=a) if m["id"] == m1["id"]), None)
+        check("D8 double delete is idempotent; message stays soft-deleted",
+              m1_after is not None and m1_after["deleted"] is True and m1_after["text"] == "")
+    finally:
+        _cleanup_group(db, gid)
+        print("  cleaned up edge test docs")
 
 
 def main() -> int:
@@ -206,6 +285,7 @@ def main() -> int:
     if only in ("all", "integration"):
         group_b_firestore()
         group_c_api()
+        group_d_edges()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok in _results if ok)

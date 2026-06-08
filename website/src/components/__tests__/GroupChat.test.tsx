@@ -67,4 +67,51 @@ describe('GroupChat', () => {
     const body = JSON.parse((global.fetch as unknown as Mock).mock.calls.find((c) => (c[1]?.method) === 'POST')![1].body)
     expect(body).toEqual({ text: 'brand new' })
   })
+
+  it('shows a not-a-member notice when the list returns 403', async () => {
+    global.fetch = vi.fn(async () => ({ ok: false, status: 403, json: async () => ({ detail: 'denied' }) }) as Response) as unknown as typeof fetch
+    render(<GroupChat groupId="g1" />)
+    expect(await screen.findByText(/not a member/i)).toBeInTheDocument()
+  })
+
+  it('shows an empty state when there are no messages', async () => {
+    mockGet([])
+    render(<GroupChat groupId="g1" />)
+    expect(await screen.findByText(/No messages yet/i)).toBeInTheDocument()
+  })
+
+  it('lets the author delete their own message (no delete control on others)', async () => {
+    let deleted = false
+    global.fetch = vi.fn(async (url: string, opts?: { method?: string }) => {
+      const method = opts?.method || 'GET'
+      if (method === 'DELETE') { deleted = true; return { ok: true, status: 200, json: async () => ({ ok: true }) } as Response }
+      if (String(url).includes('/messages') && method === 'GET') {
+        return { ok: true, status: 200, json: async () => ({ messages: MSGS, total: MSGS.length }) } as Response
+      }
+      return { ok: true, status: 200, json: async () => ({ messages: [], total: 0 }) } as Response
+    }) as unknown as typeof fetch
+
+    render(<GroupChat groupId="g1" />)
+    await screen.findByText('hi from me')
+    const delButtons = screen.getAllByLabelText('Delete message') // only the author's own message
+    expect(delButtons).toHaveLength(1)
+    fireEvent.click(delButtons[0])
+    await waitFor(() => expect(deleted).toBe(true))
+    expect(await screen.findByText('message deleted')).toBeInTheDocument()
+  })
+
+  it('surfaces a send error and does not append the message', async () => {
+    global.fetch = vi.fn(async (url: string, opts?: { method?: string }) => {
+      const method = opts?.method || 'GET'
+      if (method === 'POST') return { ok: false, status: 503, json: async () => ({ detail: 'Unable to reach the chat service.' }) } as Response
+      return { ok: true, status: 200, json: async () => ({ messages: [], total: 0 }) } as Response
+    }) as unknown as typeof fetch
+
+    render(<GroupChat groupId="g1" />)
+    const input = await screen.findByPlaceholderText(/Message your group/i)
+    fireEvent.change(input, { target: { value: 'will fail' } })
+    fireEvent.click(screen.getByRole('button', { name: /send/i }))
+    expect(await screen.findByText(/Unable to reach the chat service/i)).toBeInTheDocument()
+    expect(screen.queryByText('will fail')).toBeNull()
+  })
 })
