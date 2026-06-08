@@ -250,3 +250,70 @@ No new datastore, broker, always-on node, or third-party contract. The work is: 
 **6) How do *web* users get real-time?** Tab **open** (foreground): the browser's **Firestore listener** pushes the message instantly — needs only the Firestore JS SDK + a logged‑in session (this is the true real‑time path for web). Tab **closed/backgrounded**: **FCM Web Push** via a registered **Service Worker** shows an OS‑level browser notification (permission required).
 
 **Underpinning all of it:** real **Firebase Auth** — client‑direct listeners need a verified `uid` for the security rules, and FCM tokens bind to that `uid`. Landing Firebase Auth (today it's `X‑User‑Id` dev impersonation) is the gating prerequisite for both layers, web and mobile.
+
+---
+
+## 11. Next steps — upgrading the shipped v1 → Option A (post-Firebase-Auth)
+
+**Where we are (shipped, D-054 / `phase-N-connect`):** persistent **group chat** on the existing
+**X-User-Id / BFF-mediated** model — members-only, PII-scrubbed messages in Firestore
+`groups/{id}/messages`, **all reads + writes through the BFF**, real-time via **client polling (~4 s)** with a
+`since` cursor. No Firebase client SDK, no FCM, no mobile. This section sequences the upgrade to the §6/§7
+end-state. **Each step is additive and independently shippable; the v1 keeps working until each is swapped in.**
+
+> **Gate:** Step N.A (Firebase Auth) unblocks everything below it — client-direct listeners and FCM both bind
+> to a verified `uid`. Do it first. (Provisioning detail for each piece is in §8.)
+
+### N.A — Firebase Auth (replaces X-User-Id) — *the gate*
+- Enable providers (email/Google/Apple/guest); add Firebase to the GCP project (§8.0–8.1).
+- **BFF:** verify the **Firebase ID token** (Admin SDK) → `uid`; replace `api._active_user()`/`_optional_user()`'s
+  header lookup. Keep the X-User-Id/seed path behind a **local-dev flag** so tests/L-M-N suites still run.
+- **Clients:** web `firebase/auth`; send `Authorization: Bearer <idToken>` from the Next proxy instead of
+  `X-User-Id`. Membership/authorship now key on the real `uid` (group `members[].user_id` migrates to it).
+- *Outcome:* every existing endpoint (postings, replies, votes, find/groups, chat) authenticates for real;
+  **no chat behavior change yet** (still BFF-mediated + polling).
+
+### N.B — Client-direct Firestore listeners (retire polling)
+- Add the **Firebase JS SDK (firestore)** to the web app (and later RN). 
+- **Security rules:** member-only **read** on `groups/{id}/messages` (`request.auth.uid ∈ members`);
+  **client writes denied** (BFF/Admin-SDK only). `users/{uid}/...` owner-scoped.
+- **Swap in `GroupChat`:** replace the `setInterval` poll + `since` fetch with a single **`onSnapshot`**
+  subscription (paginated, last ~50). Sends still go **POST → BFF** (keeps the PII pre-flight); reads become
+  client-direct + live. Delete the polling proxy GET once unused.
+- *Outcome:* sub-second live updates for open clients; **polling + the GET messages proxy retire**. Cost
+  shifts from periodic fetches to per-delivered-doc reads (cheaper for idle groups).
+
+### N.C — FCM notifications (offline / background, + controls)
+- Provision FCM (§8.3): APNs key (iOS), **VAPID + service worker** (web), `users/{uid}/fcm_tokens`.
+- **Fan-out trigger** (Cloud Function `onCreate` on `messages`, or BFF inline): notify members who are
+  **offline AND not muted**, excluding the author.
+- Add **per-group mute** (`users/{uid}/group_prefs/{groupId}`), **read receipts** (`groups/{id}/reads/{uid}`)
+  → unread badges. BFF endpoints `PUT …/notifications`, `POST/DELETE /v1/devices`.
+- *Outcome:* members get pushed when not looking; mute + unread controls land.
+
+### N.D — Mobile (Expo / React Native)
+- `@react-native-firebase/{app,auth,firestore,messaging}` (requires a **dev/prod build**, not Expo Go);
+  APNs (iOS) + FCM (Android); notification-permission UX + background handler.
+- Reuse the same Firestore listeners + BFF write endpoints; render the chat in the RN app.
+- *Outcome:* feature parity on mobile (the reason Option A was chosen — same SDKs on both surfaces).
+
+### N.E — Lifecycle & polish (independent of the above)
+- **Group lifecycle:** leave/remove member, archive, roles (read-only/admin), report/moderate.
+- **Presence / typing** (optional): a thin **RTDB** island (Option B) or a Firestore heartbeat doc + TTL.
+- **Retention:** Firestore **TTL** on `messages` for privacy/data-minimization (not cost — §6); media (if any)
+  → **GCS lifecycle**.
+
+### What changes vs. v1 (at a glance)
+| Concern | v1 (shipped) | After N.A–N.D |
+|---|---|---|
+| Identity | `X-User-Id` (seed roster) | **Firebase Auth** `uid` (Bearer token) |
+| Live updates | **polling ~4 s** (`since`) | **Firestore `onSnapshot`** (sub-second) |
+| Reads | BFF-mediated (`GET …/messages`) | **client-direct** (security-rules-guarded) |
+| Writes | BFF (PII scrub) | **BFF (PII scrub) — unchanged** |
+| Offline notify | none | **FCM** (APNs / web push) |
+| Controls | none | mute, unread/read receipts |
+| Surfaces | web | **web + mobile** |
+| Storage / PII posture | Firestore `groups/{id}/messages`, no datastore | **unchanged** |
+
+**Resolve the §9 open questions** (retention/TTL window, mute granularity, PII block-vs-redact, max group
+size, moderation) as each step is specced.
