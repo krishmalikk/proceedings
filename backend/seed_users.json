@@ -2,5 +2,29 @@
   { "id": "demo-arjun", "username": "arjun-h1b",  "label": "Arjun — H-1B holder (India)" },
   { "id": "demo-mei",   "username": "mei-f1",     "label": "Mei — F-1 student (China)" },
   { "id": "demo-sofia", "username": "sofia-eb2",  "label": "Sofia — EB-2 applicant (Mexico)" },
-  { "id": "demo-omar",  "username": "omar-b1b2",  "label": "Omar — B1/B2 applicant abroad (UAE)" }
+  { "id": "demo-omar",  "username": "omar-b1b2",  "label": "Omar — B1/B2 applicant abroad (UAE)" },
+
+  { "id": "syn-01", "username": "aarav-h1b",  "label": "Synthetic · Aarav — H-1B→EB-2 (Mumbai)" },
+  { "id": "syn-02", "username": "diya-h1b",   "label": "Synthetic · Diya — H-1B→EB-2 (Mumbai)" },
+  { "id": "syn-03", "username": "rohan-h1b",  "label": "Synthetic · Rohan — H-1B→EB-2 (Mumbai)" },
+  { "id": "syn-04", "username": "ananya-h1b", "label": "Synthetic · Ananya — H-1B→EB-2 (Mumbai)" },
+  { "id": "syn-05", "username": "vikram-h1b", "label": "Synthetic · Vikram — H-1B→EB-2 (Mumbai)" },
+
+  { "id": "syn-06", "username": "ishaan-f1",  "label": "Synthetic · Ishaan — F-1→H-1B (Hyderabad)" },
+  { "id": "syn-07", "username": "priya-f1",   "label": "Synthetic · Priya — F-1→H-1B (Hyderabad)" },
+  { "id": "syn-08", "username": "karan-f1",   "label": "Synthetic · Karan — F-1→H-1B (Hyderabad)" },
+  { "id": "syn-09", "username": "sneha-f1",   "label": "Synthetic · Sneha — F-1→H-1B (Hyderabad)" },
+  { "id": "syn-10", "username": "aditya-f1",  "label": "Synthetic · Aditya — F-1→H-1B (Hyderabad)" },
+
+  { "id": "syn-11", "username": "meera-eb2",  "label": "Synthetic · Meera — EB-2 NIW (Chennai)" },
+  { "id": "syn-12", "username": "arnav-eb2",  "label": "Synthetic · Arnav — EB-2 NIW (Chennai)" },
+  { "id": "syn-13", "username": "tara-eb2",   "label": "Synthetic · Tara — EB-2 NIW (Chennai)" },
+  { "id": "syn-14", "username": "devn-eb2",   "label": "Synthetic · Dev — EB-2 NIW (Chennai)" },
+  { "id": "syn-15", "username": "nisha-eb2",  "label": "Synthetic · Nisha — EB-2 NIW (Chennai)" },
+
+  { "id": "syn-16", "username": "mateo-b2",   "label": "Synthetic · Mateo — B-2 visitor (Mexico City)" },
+  { "id": "syn-17", "username": "valeria-b2", "label": "Synthetic · Valeria — B-2 visitor (Mexico City)" },
+  { "id": "syn-18", "username": "diego-b2",   "label": "Synthetic · Diego — B-2 visitor (Mexico City)" },
+  { "id": "syn-19", "username": "lucia-b2",   "label": "Synthetic · Lucia — B-2 visitor (Mexico City)" },
+  { "id": "syn-20", "username": "javier-b2",  "label": "Synthetic · Javier — B-2 visitor (Mexico City)" }
 ]
