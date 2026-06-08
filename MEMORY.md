@@ -775,6 +775,20 @@ Five spec refinements on top of D-051 (`phase-M-find-users-in-same-boat`):
 
 **Affected docs / status:** Done on `phase-M-find-users-in-same-boat`.
 
+## D-054 — 2026-06-07 — Phase-N v1: persistent group chat (connect within a group)
+
+**Decision:** Group members can message each other. Shipped a **persistent group chat** now on the existing **X-User-Id / BFF-mediated** model (the phase-L/M pattern), and **sequenced the documented Option-A end-state** (Firebase Auth → client-direct Firestore listeners → FCM push → mobile) as follow-on sub-phases. Channel-options evaluation + provisioning are in **[docs/app/realtime-communication-options.md](docs/app/realtime-communication-options.md)**.
+
+**Locked choices:** (1) scope = persistent chat (send / list / author-delete), **members-only**, **PII-scrubbed**; (2) v1 real-time = **client polling (~4 s)** with a `since` cursor (no new infra; upgrades to listeners later); (3) storage = Firestore **`groups/{id}/messages/{msgId}`** subcollection — **app-state only, never the Vertex datastore** (honors the grounding-vs-app-state split, FINAL-ARCHITECTURE §6).
+
+**Backend `group_messages.py`** (mirrors `interactions.py`): `post_message`/`list_messages`(since-delta)/`delete_message`; membership guard (`uid ∈ groups/{id}.members` → `PermissionError`/403, missing group → `KeyError`/404); `_clean_text` reuses **`profile.scrub_pii`** (redacts email/phone/A-number, 422 on empty/over-4000); `author_uid` stored but **never serialized** (clients see `author_handle` + `is_author`). Endpoints: `GET /api/groups/{id}` (detail, declared after `/all` so the literal wins), `GET|POST /api/groups/{id}/messages`, `DELETE …/{message_id}`. **Dockerfile** COPYs `group_messages.py`.
+
+**Frontend:** `website/src/app/groups/[id]/page.tsx` (group detail: name + members + chat), `GroupChat.tsx` (polling + optimistic send + author-delete + member/no-user gates), 3 proxy routes, and "Open"/"Open chat" links from the `/find` Browse/result.
+
+**Verification:** `test_group_messages.py` **27/27** (pure clean/PII/view; live-Firestore post/list/`since`/non-member-403/author-delete/soft-delete; TestClient gating+403+PII+delete authz). Full **Next-proxy→backend e2e** (group fetch, PII-scrubbed send, member-only reads, non-member 403, since-cursor delta, author-only delete). Website **Vitest 19/19** + `next build` clean. `test_cloud_run.py` **group I** (deployed). 
+
+**Affected docs / status:** Done on `phase-N-connect`. Deferred (Option-A end-state, sequenced per options-doc §8.7): Firebase Auth → client-direct listeners → FCM (mute/read-receipts) → mobile; group lifecycle (leave/remove/archive).
+
 ---
 
 # Session summaries

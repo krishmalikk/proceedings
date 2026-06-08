@@ -272,6 +272,50 @@ def group_h_matching() -> None:
         print("  cleaned up matching test docs")
 
 
+def group_i_chat() -> None:
+    print("\nI — Group chat messages (deployed, phase-N)")
+    try:
+        from google.cloud import firestore
+        db = firestore.Client(project=os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT"))
+    except Exception as e:  # noqa: BLE001
+        check("I0 Firestore available for seeding", False, str(e))
+        return
+    gid = f"test-group-cr-{secrets.token_hex(4)}"
+    try:
+        db.collection("groups").document(gid).set({
+            "name": "CR chat test", "status": "formed",
+            "members": [{"user_id": "demo-arjun", "username": "arjun-h1b"},
+                        {"user_id": "demo-mei", "username": "mei-f1"}],
+        })
+        check("I1 post without user → 400", post(f"/api/groups/{gid}/messages", {"text": "hi"}).status_code == 400)
+        check("I2 non-member post → 403",
+              post(f"/api/groups/{gid}/messages", {"text": "hi"}, headers=hdr("demo-sofia")).status_code == 403)
+
+        r = post(f"/api/groups/{gid}/messages", {"text": "Hello — reach me at me@example.com"}, headers=hdr("demo-arjun"))
+        rj = r.json()
+        mid = rj.get("id", "")
+        check("I3 post 200 + handle + PII scrubbed + no author_uid",
+              r.status_code == 200 and rj.get("author_handle") == "arjun-h1b"
+              and "me@example.com" not in rj.get("text", "") and "author_uid" not in rj, f"status={r.status_code}")
+
+        lst = get(f"/api/groups/{gid}/messages", headers=hdr("demo-mei")).json()
+        seen = next((m for m in lst.get("messages", []) if m["id"] == mid), {})
+        check("I4 member list shows it; is_author False for the other member",
+              bool(seen) and seen.get("is_author") is False)
+        check("I5 non-member list → 403", get(f"/api/groups/{gid}/messages", headers=hdr("demo-sofia")).status_code == 403)
+
+        dwrong = delete(f"/api/groups/{gid}/messages/{mid}", headers=hdr("demo-mei"))
+        dauthor = delete(f"/api/groups/{gid}/messages/{mid}", headers=hdr("demo-arjun"))
+        check("I6 delete: non-author 403, author 200",
+              dwrong.status_code == 403 and dauthor.status_code == 200,
+              f"wrong={dwrong.status_code} author={dauthor.status_code}")
+    finally:
+        for d in db.collection("groups").document(gid).collection("messages").stream():
+            d.reference.delete()
+        db.collection("groups").document(gid).delete()
+        print("  cleaned up chat test docs")
+
+
 def main() -> int:
     print(f"Cloud Run E2E — {BASE}")
     group_a_health()
@@ -282,6 +326,7 @@ def main() -> int:
     group_f_context_filters()
     group_g_interactions()
     group_h_matching()
+    group_i_chat()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)

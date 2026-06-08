@@ -436,6 +436,25 @@ class GroupsResponse(BaseModel):
     groups: list[GroupCard]
 
 
+# --- Group chat messages (phase-N) ---
+class MessageCreate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=4000)
+
+
+class MessageCard(BaseModel):
+    id: str
+    author_handle: str
+    text: str
+    created_at: str
+    deleted: bool = False
+    is_author: bool = False
+
+
+class MessagesResponse(BaseModel):
+    messages: list[MessageCard]
+    total: int
+
+
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=5, max_length=500)
     strictness: str = "balanced"  # broad | balanced | strict
@@ -1062,6 +1081,71 @@ async def join_group_route(group_id: str, request: Request):
     except KeyError:
         raise HTTPException(status_code=404, detail="Group not found")
     return GroupCard(**g)
+
+
+# ---------------------------------------------------------------------------
+# Group chat (phase-N). Members-only messages in Firestore groups/{id}/messages
+# (app-state, never the datastore). v1 real-time = client polling with `since`.
+# Declared AFTER /api/groups/all so the literal route wins over {group_id}.
+# ---------------------------------------------------------------------------
+
+@app.get("/api/groups/{group_id}", response_model=GroupCard)
+async def get_group_route(group_id: str, request: Request):
+    """One group (name, members, is_member) for the group detail / chat page."""
+    import matching
+    uid = _active_user(request)
+    g = next((x for x in _guard(lambda: matching.list_all_groups(_db, uid))
+              if x["group_id"] == group_id), None)
+    if g is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return GroupCard(**g)
+
+
+@app.get("/api/groups/{group_id}/messages", response_model=MessagesResponse)
+async def list_messages_route(group_id: str, request: Request, since: str = "", limit: int = 200):
+    """Members-only message list (polled). `since` = an ISO created_at cursor → only newer."""
+    import group_messages
+    uid = _active_user(request)
+    try:
+        msgs = _guard(lambda: group_messages.list_messages(_db, group_id, uid, since, limit))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return MessagesResponse(messages=[MessageCard(**m) for m in msgs], total=len(msgs))
+
+
+@app.post("/api/groups/{group_id}/messages", response_model=MessageCard)
+async def post_message_route(group_id: str, body: MessageCreate, request: Request):
+    """Post a message to a group (members only; PII-scrubbed)."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+    import group_messages
+    uid = _active_user(request)
+    try:
+        msg = _guard(lambda: group_messages.post_message(_db, group_id, uid, body.text))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return MessageCard(**msg)
+
+
+@app.delete("/api/groups/{group_id}/messages/{message_id}")
+async def delete_message_route(group_id: str, message_id: str, request: Request):
+    """Soft-delete one of your own messages (author-only)."""
+    import group_messages
+    uid = _active_user(request)
+    try:
+        _guard(lambda: group_messages.delete_message(_db, group_id, message_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Message not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return {"ok": True}
 
 
 @app.get("/api/health", response_model=HealthResponse)
