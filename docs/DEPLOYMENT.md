@@ -1,0 +1,163 @@
+# Deployment & DevOps runbook (app: backend + web + mobile)
+
+How the Proceedings app ships. Two independent deploy targets today, plus mobile (not yet deployed).
+*(The Reddit-ingestion pipeline has its own infra doc: [docs/ingestion/DEPLOYMENT.md](ingestion/DEPLOYMENT.md). This doc is the **app** — the FastAPI BFF + the Next.js site.)*
+
+---
+
+## 1. Topology — who deploys where
+
+```
+  Browser ──HTTPS──▶  Vercel (Next.js site, website/)  ──server-side fetch (PYTHON_API_URL)──▶  Cloud Run (FastAPI, backend/)
+                      • static pages + /api/* proxy routes                                       • Firestore · Vertex AI Search · GCS · BigQuery · Gemini
+```
+
+| Component | Source dir | Platform | Deploy trigger | Today |
+|---|---|---|---|---|
+| **Backend (BFF)** | `backend/` | **GCP Cloud Run** (`immiguide-api`, `us-central1`) | **Manual** `gcloud run deploy` (no CI) | Live |
+| **Frontend** | `website/` | **Vercel** (Next.js) | **Git** — push/PR → Preview, merge to `main` → Production | Live (via main) |
+| **Mobile** | `mobile/` | Expo / EAS → App Store / Play | Not set up | Not deployed |
+
+**Key asymmetry:** the **backend deploy is manual and git-independent** (it builds from your *local* `backend/` working tree); the **frontend deploy is git-driven** (Vercel builds from the branch). They are decoupled — the backend can lead the frontend (new endpoints are additive; nothing calls them until the site ships).
+
+GCP project: **`proceedings-490601`** (number `971592620882`) · region **`us-central1`** (Vertex datastore location `global`).
+
+---
+
+## 2. Backend — Cloud Run (`immiguide-api`)
+
+### 2.1 Prerequisites
+- `gcloud` CLI authenticated with deploy rights on `proceedings-490601`; **ADC** for running scripts/tests locally (`gcloud auth application-default login`).
+- APIs enabled: Cloud Run, Cloud Build, Artifact Registry, Firestore, Discovery Engine (Vertex AI Search), Vertex AI, Storage, BigQuery.
+- **No service-account key files** (org policy `iam.disableServiceAccountKeyCreation`, D-018) — auth is the **attached service account** + ADC.
+
+### 2.2 Deploy
+```bash
+gcloud run deploy immiguide-api --source backend --region us-central1
+# (--quiet to skip the confirm prompt)
+```
+What happens: `--source backend` uploads the `backend/` dir → **Cloud Build** builds the image (`backend/Dockerfile`) → pushes to **Artifact Registry** (`us-central1-docker.pkg.dev/proceedings-490601/cloud-run-source-deploy/immiguide-api`) → rolls out a **new Cloud Run revision** serving 100% traffic. URL: `https://immiguide-api-fbtmilucfq-uc.a.run.app` (and `https://immiguide-api-971592620882.us-central1.run.app`).
+
+> **Dockerfile gotcha:** the image COPYs an explicit module list. **When you add a new backend `.py` module, add it to `backend/Dockerfile`'s `COPY` line** or the deploy will crash on import (this bit phases L/M/N — `interactions.py`, `matching.py`, `group_messages.py` each had to be added).
+
+### 2.3 Configuration (env vars on the service)
+Set on the Cloud Run service (Console → Variables, or `gcloud run deploy … --set-env-vars k=v,…` / `--update-env-vars`). The service reads them at startup (`api.py` lifespan):
+
+| Var | Purpose |
+|---|---|
+| `GCP_PROJECT_ID` | project (`proceedings-490601`) |
+| `GCP_REGION` | `us-central1` (Gemini/Vertex init) |
+| `GCP_VERTEX_SEARCH_APP_ID` | grounding engine `imm-postings-search-app` |
+| `GCP_VERTEX_DATASTORE_ID` | `imm-postings-datastore` |
+| `GCP_VERTEX_DATASTORE_LOCATION` | `global` |
+| `GCP_VERTEX_PUBLIC_ENGINE_ID` | *(optional)* DS-2 public tier; off if unset |
+| `GCP_BUCKET_NAME` | GCS sidecar bucket `imm-postings-ingestion` |
+| `GCP_GEMINI_MODEL` | *(optional)* default `gemini-2.5-flash` |
+| `ALLOW_USER_IMPERSONATION` | `1` while on the dev `X-User-Id` model (turn off when Firebase Auth lands) |
+
+Secrets (e.g. a future Reddit OAuth secret) → **Secret Manager**, mounted as env/volume — never committed. No GCP API keys (ADC via the attached SA).
+
+### 2.4 IAM (attached service account)
+The Cloud Run service runs as **`971592620882-compute@developer.gserviceaccount.com`** (default compute SA). It needs: Firestore (`datastore.user`), Discovery Engine (search/answer + `documents.import`), Vertex AI (Gemini), GCS (read/write the bucket), BigQuery (write `postings_metadata`). Grant additional roles to **this SA**, not key files. (For phase-N's full real-time path, add FCM-send when that lands.)
+
+### 2.5 CORS
+`backend/api.py` allows `http://localhost:3000` and any `https://*.vercel.app` (regex). So Vercel preview **and** production origins work out of the box. A custom frontend domain must be **added to `allow_origins`** and redeployed.
+
+### 2.6 Verify (post-deploy smoke)
+```bash
+# health
+curl -s https://immiguide-api-fbtmilucfq-uc.a.run.app/api/health
+# full end-to-end suite against the DEPLOYED service (grounding → chat → search → replies/votes → groups → chat)
+.venv/bin/python backend/tests/test_cloud_run.py        # 35/35 expected
+```
+
+### 2.7 Rollback
+Cloud Run keeps every revision:
+```bash
+gcloud run revisions list --service immiguide-api --region us-central1
+gcloud run services update-traffic immiguide-api --region us-central1 --to-revisions <PREV_REVISION>=100
+```
+
+---
+
+## 3. Frontend — Vercel (Next.js, `website/`)
+
+### 3.1 One-time project setup (in the Vercel dashboard)
+1. **Import the GitHub repo** into a Vercel project (Vercel ↔ GitHub app).
+2. **Root Directory = `website/`** (the Next app is in a subfolder of the monorepo).
+3. Framework **Next.js** is auto-detected → Build `next build`, Output handled by Vercel, Install `npm install`. (No `vercel.json` needed; there is none.)
+4. **Environment variables** (Project → Settings → Environment Variables) — set for **Production** *and* **Preview**:
+   - **`PYTHON_API_URL`** = the Cloud Run URL `https://immiguide-api-fbtmilucfq-uc.a.run.app`.
+     - It's read **server-side** in the `/api/*` proxy routes (e.g. `website/src/app/api/groups/route.ts`), defaulting to `http://localhost:8000` for local dev. **Not** prefixed `NEXT_PUBLIC_`, so it's never exposed to the browser — the backend URL stays server-side and all calls go browser → Vercel proxy → Cloud Run.
+
+### 3.2 How deploys happen (git-driven)
+- **Every push to a branch / open PR → a Preview deployment** at a unique `*.vercel.app` URL (works with the backend thanks to the `*.vercel.app` CORS rule).
+- **Merge to `main` → a Production deployment** (the live site / custom domain).
+- Rollbacks: Vercel dashboard → Deployments → **Promote** a previous build to Production (instant).
+
+### 3.3 Verify
+- Open the Preview/Prod URL; exercise the changed pages (e.g. `/find`, `/groups/[id]`).
+- Confirm proxy wiring: a page action should hit `…/api/*` → Cloud Run (check the Network tab / Vercel function logs).
+
+---
+
+## 4. Shipping a feature end-to-end (the standard flow)
+
+Using phase-N as the example:
+1. **Branch + build the feature**, run tests locally (`backend/tests/*.py`, `cd website && npm test && npm run build`).
+2. **Deploy the backend** to Cloud Run (`gcloud run deploy … --source backend`) and smoke it (`test_cloud_run.py`). *(Backend leads safely — new endpoints are additive.)*
+3. **Push the branch & open a PR** → a **Vercel Preview** builds the new UI; click through it.
+4. **Merge to `main`** → **Vercel Production** rebuilds with the feature; backend is already live.
+> Order matters only in that the **backend should be deployed before the frontend that calls it** reaches production.
+
+---
+
+## 5. Local development
+```bash
+# backend
+cd backend && ../.venv/bin/python -m uvicorn api:app --reload --port 8000   # reads ../.env via dotenv + ADC
+# frontend (separate shell)
+cd website && PYTHON_API_URL=http://localhost:8000 npm run dev               # http://localhost:3000
+```
+- Backend config: root **`.env`** (gitignored) loaded by `python-dotenv` + ADC for GCP creds.
+- Frontend config: **`website/.env.local`** (gitignored) — set `PYTHON_API_URL` for local; defaults to `http://localhost:8000`.
+- Identity in dev: the **`X-User-Id`** header (seed roster in `backend/seed_users.json`), surfaced by the website user-picker (`website/src/lib/activeUser.ts`).
+
+---
+
+## 6. Config & secrets inventory
+
+| What | Where | Committed? |
+|---|---|---|
+| Backend runtime config | Cloud Run env vars | No (set on the service) |
+| Backend local config | root `.env` | **No** (gitignored) |
+| GCP credentials | **attached SA + ADC** (no key files) | No |
+| Real secrets (future) | **Secret Manager** | No |
+| Frontend → backend URL | Vercel env `PYTHON_API_URL` / `website/.env.local` | No |
+| Noise kept out of git | `.claude/`, `*.tsbuildinfo`, `.env.local` | gitignored |
+
+---
+
+## 7. CI / automation status & gaps
+- **No CI pipeline today** (`.github/workflows` is absent). Tests + the backend deploy are **run manually**. Vercel provides the only automation (git-triggered frontend builds + previews).
+- **Future hardening** (when desired): a GitHub Actions workflow to (a) run `backend/tests` + `website` `npm test`/`build` on PRs, and (b) `gcloud run deploy` the backend on merge to `main` (via Workload Identity Federation — no SA keys), so backend + frontend ship together from git.
+
+---
+
+## 8. Mobile (Expo / React Native, `mobile/`) — not deployed yet
+Future path: **EAS Build** (`eas build`) for iOS/Android binaries → TestFlight / Play internal → store release; it will point at the same Cloud Run `PYTHON_API_URL` and (per the realtime roadmap) add Firebase Auth + FCM. See [docs/app/realtime-communication-options.md](app/realtime-communication-options.md) §11.
+
+---
+
+## 9. Quick reference
+```bash
+# Deploy backend
+gcloud run deploy immiguide-api --source backend --region us-central1 --quiet
+# Backend revision + URL
+gcloud run services describe immiguide-api --region us-central1 \
+  --format="value(status.latestReadyRevisionName,status.url)"
+# Deployed e2e smoke
+.venv/bin/python backend/tests/test_cloud_run.py
+# Frontend: push the branch → PR (Vercel Preview) → merge main (Vercel Production)
+git push -u origin <branch>
+```
