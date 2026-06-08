@@ -60,6 +60,7 @@ Copy `.env.example` to `.env`. Key variables:
 - `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_BUCKET_NAME` — GCP config
 - `FIRECRAWL_API_KEY` — for crawler.py
 - `GCP_VERTEX_SEARCH_APP_ID`, `GCP_VERTEX_DATASTORE_ID`, `GCP_VERTEX_DATASTORE_LOCATION` — managed Vertex AI Search (Discovery Engine) grounding sink used by `api.py`/`search_client.py`. (The old self-managed Vector Search `VERTEX_AI_INDEX_*` was retired/decommissioned — D-039/D-040.)
+- `APP_SOURCE_SYSTEM`, `APP_BASE_URL` — the website's **provenance identity** for first-party postings (D-055). Default `unclesamcalling` / `https://proceedings.app`; **set these to your domain once registered** (`APP_SOURCE_SYSTEM=<domain>`, `APP_BASE_URL=https://<domain>`) — a config flip, no code change. The `channel` token stays `"app"` (controlled vocabulary — the domain never goes there).
 - `LABEL_STUDIO_URL`, `LABEL_STUDIO_API_KEY` — optional, for Label Studio API automation
 
 ## Key Design Decisions

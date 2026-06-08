@@ -184,9 +184,10 @@ def group_e_build() -> None:
                           {"background_summary": "bg", "severity": "high"})
 
     check("E1 primary_consulate derived from consulates[0]", c["primary_consulate"] == "BOM", c["primary_consulate"])
-    check("E2 case_id format ourwebsite-YYYY-MM-DD-xxxx",
-          bool(re.match(r"^ourwebsite-\d{4}-\d{2}-\d{2}-[0-9a-f]{8}$", c["case_id"])), c["case_id"])
-    check("E3 channel/source_system = ourwebsite", c["channel"] == "ourwebsite" and c["source_system"] == "ourwebsite")
+    check("E2 case_id format app-YYYY-MM-DD-xxxx",
+          bool(re.match(r"^app-\d{4}-\d{2}-\d{2}-[0-9a-f]{8}$", c["case_id"])), c["case_id"])
+    check("E3 channel=app, source_system=unclesamcalling",
+          c["channel"] == "app" and c["source_system"] == "unclesamcalling")
     check("E4 synthetic author_handle present", bool(c["author_handle"]), c["author_handle"])
     check("E5 user stages/dates carried through",
           c["key_stages_or_info"] == {"visa_status": "approved"} and c["key_dates"] == {"visa_interview_date": "2026-05-20"})
@@ -335,15 +336,15 @@ def group_g_api() -> None:
             "key_dates": {"visa_interview_date": "2026-05-20"},
         })
         pj = pub.json()
-        ok_pub = pub.status_code == 200 and pj.get("case_id", "").startswith("ourwebsite-")
-        check("G4 publish with visa -> 200 + ourwebsite case_id", ok_pub,
+        ok_pub = pub.status_code == 200 and pj.get("case_id", "").startswith("app-")
+        check("G4 publish with visa -> 200 + app case_id", ok_pub,
               f"status={pub.status_code} case_id={pj.get('case_id')}")
 
         if ok_pub:
             cid = pj["case_id"]
             detail = client.get(f"/api/postings/{cid}").json()
             check("G5 published doc retrievable from datastore",
-                  detail.get("title", "").startswith("[E2E]") and detail.get("channel") == "ourwebsite",
+                  detail.get("title", "").startswith("[E2E]") and detail.get("channel") == "app",
                   f"title={detail.get('title')}")
             notes = _cleanup(cid, pj["gcs_path"])
             check("G6 cleanup of E2E test doc", "deleted" in notes, notes)
