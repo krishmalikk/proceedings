@@ -11,12 +11,15 @@ Implements the "Post a new message" flow (posting-specs.md). Two capabilities:
   2. publish_posting(title, description, tags, ...)
        → build the canonical sidecar JSON (JSON-SCHEMA-FIELD-DICTIONARY), validate
          it against the master vocab, then (a) write <case_id>.md + .json to
-         gs://imm-postings-ingestion/<date>/ourwebsite/, (b) documents.import it
+         gs://imm-postings-ingestion/<date>/app/, (b) documents.import it
          into DS-1 (imm-postings-datastore) so it's searchable in minutes, and
          (c) append a row to BigQuery postings.postings_metadata.
 
-Decisions (phase-H): channel = "ourwebsite"; anonymous author (synthetic handle);
-direct documents.import (no Eventarc/auto-sync deployed); BigQuery row written.
+Decisions: channel = "app" (D-036/D-038 canonical — the controlled pathway token the
+search boost/filters key on; the domain never goes here). The website's provenance
+identity (source_system + URLs) is env-driven (APP_SOURCE_SYSTEM / APP_BASE_URL), so
+registering a domain later is a config flip, not a code change. Anonymous author
+(synthetic handle); direct documents.import; BigQuery row written.
 """
 
 from __future__ import annotations
@@ -37,7 +40,11 @@ from google.cloud import storage
 # Config
 # ---------------------------------------------------------------------------
 
-CHANNEL = "ourwebsite"
+CHANNEL = "app"  # controlled pathway token (channel field + case_id prefix + GCS segment) — the domain NEVER goes here
+# The website's provenance identity. Env-driven so registering a domain later is a
+# config flip (set APP_SOURCE_SYSTEM=<domain>, APP_BASE_URL=https://<domain>) — no code/redeploy of logic.
+SOURCE_SYSTEM = os.getenv("APP_SOURCE_SYSTEM", "unclesamcalling")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "https://proceedings.app").rstrip("/")
 _TAGS_DIR = os.path.join(os.path.dirname(__file__), "tags-cleaned")
 
 
@@ -543,13 +550,13 @@ def build_canonical(title: str, description: str, tags: dict,
         "case_id": case_id,
         # provenance
         "ingestion_method": "user_post",
-        "source_system": CHANNEL,
+        "source_system": SOURCE_SYSTEM,
         "channel": CHANNEL,
-        "source_url": "https://proceedings.app",
-        "source_uri": CHANNEL,
+        "source_url": APP_BASE_URL,
+        "source_uri": f"{APP_BASE_URL}/case/{case_id}",
         "subreddit": "",
         "author_handle": _synthetic_handle(),
-        "full_url": f"https://proceedings.app/case/{case_id}",
+        "full_url": f"{APP_BASE_URL}/case/{case_id}",
         "post_title": title,
         "language": str(ex.get("language") or "en"),
         # timestamps

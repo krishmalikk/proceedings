@@ -54,7 +54,7 @@ def read_sidecar(case_id: str, gcs_prefix: str = "") -> dict:
         bucket_name, base = rest.split("/", 1)
     else:
         m = re.search(r"(\d{4}-\d{2}-\d{2})", case_id)
-        bucket_name, base = BUCKET, f"{m.group(1)}/ourwebsite"
+        bucket_name, base = BUCKET, f"{m.group(1)}/app"
     blob = storage.Client(project=PROJECT).bucket(bucket_name).blob(f"{base}/{case_id}.json")
     return json.loads(blob.download_as_text())
 
@@ -133,8 +133,8 @@ def main() -> int:
                 ej = read_sidecar(exp_cid)
                 assert_subset("2b experience JSON matches expected (stable fields)", ej, {
                     "doc_kind": "experience",
-                    "channel": "ourwebsite",
-                    "source_system": "ourwebsite",
+                    "channel": "app",
+                    "source_system": "unclesamcalling",
                     "concerns_or_questions_tags": [],                    # rule: never concerns
                     "parent_case_id": ej.get("author_handle"),          # linked by handle (no PII)
                 })
@@ -162,8 +162,8 @@ def main() -> int:
                 pj = read_sidecar(post_cid, pub.get("gcs_path", ""))
                 assert_subset("3b posting JSON matches expected (controlled fields)", pj, {
                     "doc_kind": "post",
-                    "channel": "ourwebsite",
-                    "source_system": "ourwebsite",
+                    "channel": "app",
+                    "source_system": "unclesamcalling",
                     "current_visa_or_greencard_category": [],
                     "visa_applying_for": ["L-1B"],
                     "consulates": ["MAA"],

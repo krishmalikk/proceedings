@@ -789,6 +789,20 @@ Five spec refinements on top of D-051 (`phase-M-find-users-in-same-boat`):
 
 **Affected docs / status:** Done on `phase-N-connect`. Deferred (Option-A end-state, sequenced per options-doc §8.7): Firebase Auth → client-direct listeners → FCM (mute/read-receipts) → mobile; group lifecycle (leave/remove/archive).
 
+## D-055 — 2026-06-08 — Channel `ourwebsite` → `app`; provenance identity env-driven (resolves phase-K #3)
+
+**Decision:** Fixed the latent channel-mismatch bug (phase-K follow-up #3). The live composer (`backend/posting.py`) overloaded a single `CHANNEL = "ourwebsite"` for three distinct concepts; split them per the canonical schema (D-036/D-038):
+- **`CHANNEL = "app"`** — the controlled **pathway** token (the `channel` field + the `case_id` prefix + the GCS `<date>/app/` segment). This is what the **search boost** (`channel: ANY("app")`), the frontend **filter chips** (`channel:["reddit","app"]`), and grounding key on — so first-party content now matches them instead of landing in a phantom `ourwebsite` channel. The **domain never goes here**.
+- **Provenance identity is env-driven**: `SOURCE_SYSTEM = os.getenv("APP_SOURCE_SYSTEM", "unclesamcalling")` and `APP_BASE_URL = os.getenv("APP_BASE_URL", "https://proceedings.app")`. `source_system` ← `SOURCE_SYSTEM`; `source_url`/`source_uri`/`full_url` ← `APP_BASE_URL/case/<id>`. **Registering a real domain later is a one-line config flip** (set `APP_SOURCE_SYSTEM=<domain>`, `APP_BASE_URL=https://<domain>` on the Cloud Run service) — no code change, no data migration; only the small pre-domain corpus carries the placeholder, and ranking is unaffected since the domain is never the channel.
+
+**Why env-driven:** the user wants the identifier to eventually be the website's domain (not yet registered). The domain belongs in **provenance** (`source_system`/URLs), not the controlled `channel` token — so config is the right home, with placeholders until the domain exists.
+
+**Blast radius:** new postings now use `app-…` case_ids + `<date>/app/` GCS paths; existing `ourwebsite-…` docs keep their ids (no migration needed). 8 hardcoded test assertions updated (`test_posting_tagging` E2/E3/G4/G5, `test_reconcile` B2/connect, `test_e2e_journey` ×2 + the sidecar prefix).
+
+**Verification:** `test_posting_tagging` 42/42, `test_reconcile` 67/67, `test_e2e_journey` 10/10 (publish→read against real GCP, now `channel=app`/`source_system=unclesamcalling`); env-override confirmed (`APP_SOURCE_SYSTEM`/`APP_BASE_URL` flow through; channel stays `app`). `grep ourwebsite` in `backend/` → none.
+
+**Affected docs / status:** Done on `fix-channel-app-domain-config`. New env vars documented in `CLAUDE.md` + `docs/DEPLOYMENT.md`.
+
 ---
 
 # Session summaries

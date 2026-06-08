@@ -164,7 +164,7 @@ def group_b() -> None:
     c = p.build_experience_canonical(profile, entry, extracted)
 
     check("B1 doc_kind == experience", c["doc_kind"] == "experience", c["doc_kind"])
-    check("B2 case_id is an exp- id", bool(re.match(r"^ourwebsite-exp-\d{4}-\d{2}-\d{2}-[0-9a-f]{8}$", c["case_id"])), c["case_id"])
+    check("B2 case_id is an exp- id", bool(re.match(r"^app-exp-\d{4}-\d{2}-\d{2}-[0-9a-f]{8}$", c["case_id"])), c["case_id"])
     check("B3 author/parent = synthetic handle (no PII)",
           c["author_handle"] == "eager-delta-7277" and c["parent_case_id"] == "eager-delta-7277")
     check("B4 facets describe the EXPERIENCE (from text), not current state",
@@ -295,7 +295,7 @@ def group_e() -> None:
     cc = p.publish_connect_card({"username": "eager-delta-7277", "current_visa_or_greencard_category": ["H-1B"],
                                  "consulates": ["BOM"]}, note="Happy to connect.")
     check("E5 connect card published (doc_kind=connect_card)",
-          cc["doc_kind"] == "connect_card" and cc["case_id"].startswith("ourwebsite-connect-"), str(cc))
+          cc["doc_kind"] == "connect_card" and cc["case_id"].startswith("app-connect-"), str(cc))
     p.delete_content(cc["case_id"])
     check("E6 connect card deleted", True)
 
