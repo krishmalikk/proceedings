@@ -64,10 +64,13 @@ export default function OnboardingPage() {
   const threadRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/users').then((r) => r.json()).then((list: SeedUser[]) => {
-      setUsers(list)
+    fetch('/api/users').then((r) => r.json()).then((list: unknown) => {
+      // Defensive: a proxy/backend error returns an object ({detail:…}), not an
+      // array — feeding it to setUsers would crash users.map() at render time.
+      const arr: SeedUser[] = Array.isArray(list) ? list : []
+      setUsers(arr)
       const saved = getActiveUser()
-      const id = saved && list.some((u) => u.id === saved) ? saved : (list[0]?.id || '')
+      const id = saved && arr.some((u) => u.id === saved) ? saved : (arr[0]?.id || '')
       if (id) { setActiveUser(id); setActiveId(id) }
     }).catch(() => {})
   }, [])
