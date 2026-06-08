@@ -151,20 +151,65 @@ Why it's the on-architecture answer:
 
 ---
 
-## 8. What we must provision (for the recommended path)
+## 8. Prerequisites & provisioning steps (Option A)
 
-| Resource | Purpose | New? |
-|---|---|---|
-| **Firebase Auth** (enable email/Google/Apple + anonymous guest) | Verified `uid` for membership, rules, FCM binding | **Yes — closes the dev-impersonation gap** |
-| **Firestore security rules** for `groups/{id}/messages`, `presence`, `lastRead` | Member-only read; writes denied to clients (BFF-only) | Yes |
-| **Firestore collections** `groups/{id}/messages/{msgId}`, `…/lastRead/{uid}`, optional `…/presence/{uid}` (+ **TTL** policy) | Message store, read receipts, retention | Yes (schema) |
-| **FCM** — Cloud Messaging API + **APNs auth key (iOS)** + device-token store per `uid` | Push to offline/mobile members | Yes |
-| **Fan-out trigger** — BFF on-write, or a **Cloud Function/Eventarc** on new message → FCM to offline members | Deliver notifications | Yes |
-| **BFF endpoints** — `POST /v1/groups/{id}/messages` (PII pre-flight + write), membership guards | Mediated writes + guardrails | Yes |
-| **Mobile Firebase SDK** (React Native Firebase or Expo + JS SDK) + push permission UX | Live listeners + push on mobile | Yes |
-| **SA / IAM** — BFF Admin SDK already has Firestore; add FCM send role | Writes + notifications | Small |
+No new datastore, broker, always-on node, or third-party contract. The work is: **stand up Firebase Auth**, add a **chat data model + rules** to the existing Firestore, wire **FCM**, add **BFF endpoints + a fan-out trigger**, and integrate the **web + mobile SDKs**.
 
-No new datastore, no broker, no always-on serving node, no third-party contract.
+### 8.0 Prerequisites (do these first; everything else depends on them)
+- [ ] **Firebase added to the existing GCP project** (`gcp_setup`-equivalent: link Firebase to the current `GCP_PROJECT_ID`; Firestore Native + `us-central1` already exist).
+- [ ] **Real Firebase Auth** replaces the `X-User-Id` dev-impersonation gate — **the single gating prerequisite** (client-direct listeners + FCM both bind to a verified `uid`). Keep the seed-roster/`X-User-Id` path behind a local-dev flag for tests.
+- [ ] **Apple Developer account** (for Apple Sign-In *and* iOS push / APNs) — `$99/yr`; needed before mobile push/auth.
+- [ ] **Decisions from §9** that change the schema: retention/TTL window, mute granularity, PII block-vs-redact.
+
+### 8.1 Identity — Firebase Auth
+1. Enable sign-in providers in Firebase: **Email/Password, Google, Apple, Anonymous (guest)** (req §5.4 / D-035).
+2. **BFF:** verify the **Firebase ID token** (Admin SDK) on every request → derive `uid`; replace `_active_user()`'s header lookup. Membership/authorship use this `uid`; `author_handle` stays the **synthetic username** (no PII surfaced).
+3. **Clients:** web `firebase/auth`; mobile `@react-native-firebase/auth` (or Firebase JS SDK under Expo). Send the ID token as `Authorization: Bearer`.
+
+### 8.2 Firestore — data model, rules, indexes, TTL
+1. **Collections** (extend the existing `groups/{id}`):
+   - `groups/{id}/messages/{msgId}` — `{ author_uid, author_handle, text, created_at, edited_at?, deleted? }`
+   - `groups/{id}/reads/{uid}` — `{ last_read_at }` (unread badges / "all read")
+   - `users/{uid}/group_prefs/{groupId}` — `{ muted: bool }` (per-group notifications on/off)
+   - `users/{uid}/fcm_tokens/{tokenId}` — `{ token, platform, updated_at }` (device push tokens)
+2. **Security rules** (the safety boundary): message/read **reads** allowed only when `request.auth.uid ∈ groups/{id}.members`; **client writes denied** on `messages` (BFF/Admin-SDK only); `group_prefs` + `fcm_tokens` read/write limited to the owner `uid`.
+3. **Indexes:** `messages` ordered by `created_at` within a group is a single-field index (automatic); add a composite only if we later filter+order.
+4. **TTL:** enable a **Firestore TTL policy** on `messages` (e.g., an `expire_at` field) **only if** we adopt a retention window (§9.3) — for privacy/data-minimization, **not** cost (text storage is sub-$1/mo; see §6). Media, if any, → **GCS with lifecycle rules**, not Firestore.
+
+### 8.3 Notifications — FCM
+1. **Enable** the Cloud Messaging API on the project.
+2. **iOS:** create an **APNs auth key (.p8)** in the Apple Developer portal and upload it to the Firebase project; add the push entitlement.
+3. **Android:** `google-services.json` (FCM works out of the box).
+4. **Web:** generate a **VAPID key pair** in Firebase; register a **service worker** (`firebase-messaging-sw.js`) at the web root; request notification permission; `getToken()` → store in `users/{uid}/fcm_tokens`.
+5. **Fan-out trigger** — on a new `messages` doc: look up `groups/{id}.members`, **exclude the author and muted members** (`group_prefs.muted`), and send FCM to their tokens. Implement as a **Cloud Function (Firestore `onCreate` trigger)** *or* inline in the BFF write. (Cloud Function = decoupled, retriable; pick one.)
+
+### 8.4 BFF endpoints (mediated writes + guardrails)
+- `POST /v1/groups/{id}/messages` — verify token, assert membership, **run the Gemini PII pre-flight** (block/redact phone, email, address, A-number, passport, SSN — reuse the posting pre-flight, D-d/IMPROVED §6), then write the message doc. **Reads stay client-direct** (listeners), so no history endpoint is required beyond rules.
+- `POST /v1/devices` / `DELETE /v1/devices/{token}` — register/unregister an FCM token for the `uid`.
+- `PUT /v1/groups/{id}/notifications` — set `group_prefs.muted` (per-group on/off).
+- Group **join/leave/membership** reuse the phase-M `/api/groups*` endpoints (add `leave`).
+
+### 8.5 IAM / service accounts (no key files — D-018)
+- **BFF SA** already has Firestore (`datastore.user`); **add FCM send** (`roles/firebasecloudmessaging.admin` or the `cloudmessaging.messages.create` permission).
+- If using a **Cloud Function** for fan-out: its SA needs Firestore read + FCM send. All via attached SAs (org policy forbids SA key files).
+
+### 8.6 Clients — web & mobile
+- **Web (Next.js):** Firebase JS SDK (`auth`, `firestore`, `messaging`); `onSnapshot` on `groups/{id}/messages` (paginated, last ~50); the `firebase-messaging-sw.js` service worker for Web Push; permission UX. *Safari/iOS-web push needs the site installed as a PWA.*
+- **Mobile (Expo/React Native):** `@react-native-firebase/{app,auth,firestore,messaging}` (requires a **dev/prod build**, not Expo Go, for native push); APNs (iOS) + FCM (Android); notification-permission UX; background message handler.
+
+### 8.7 Provisioning order (suggested)
+1. Firebase Auth (§8.0–8.1) → verified `uid` end-to-end (web + mobile sign-in, BFF token verify).
+2. Firestore model + **security rules** (§8.2) → live message send/receive between two members (listeners only).
+3. BFF write endpoint + PII pre-flight (§8.4) → mediated, guardrailed writes.
+4. FCM + fan-out (§8.3, §8.5) → offline/background push on web + mobile.
+5. Mute prefs + unread/read receipts (§8.2, §8.4) → notification control.
+
+### 8.8 Verification
+- **Two-client live test:** two signed-in members, group open on both → a message from A appears on B in < 1 s (Firestore listener), with **no FCM** involved.
+- **Push test:** background/close B's app → A sends → B receives an **FCM** notification (iOS via APNs, Android via FCM, web via service worker); opening it resyncs missed messages.
+- **Authorization test:** a non-member is **denied** read by rules; a client attempting a direct `messages` write is **denied** (BFF-only).
+- **PII test:** a message containing a phone/email is **blocked/redacted** at the BFF before persistence.
+- **Mute test:** muting a group → no FCM for new messages, but the in-app listener still shows them.
 
 ---
 
