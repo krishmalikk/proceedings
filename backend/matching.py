@@ -263,6 +263,7 @@ def find_matches(db, user_id: str, criteria: dict, top_n: int = 20, min_score: f
             matches.append({
                 "user_id": p["user_id"], "username": p["username"],
                 "score": s["score"], "shared": s["shared"], "summary": _summary(p),
+                "background": (p.get("background_text") or "")[:280],
             })
     matches.sort(key=lambda m: (m["score"], m["username"]), reverse=True)
     return matches[:top_n]

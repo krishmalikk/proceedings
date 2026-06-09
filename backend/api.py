@@ -407,6 +407,7 @@ class MatchCard(BaseModel):
     score: float
     shared: list[str] = []
     summary: str = ""
+    background: str = ""
 
 
 class MatchesResponse(BaseModel):
