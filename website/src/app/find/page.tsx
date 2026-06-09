@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Markdown from '@/components/Markdown'
 import MatchCard, { MatchData } from '@/components/MatchCard'
@@ -15,6 +16,17 @@ type Criteria = {
   key_dates: Record<string, string>
   background_text: string
 }
+type ConsulateOption = { code: string; label: string }
+type Vocab = {
+  visa: string[]; consulate: string[]; consulate_options: ConsulateOption[]
+  profile_stage_key: string[]; date_key: string[]; outcome: string[]; country: string[]
+  stage_value_domains: Record<string, string>
+}
+const EMPTY_VOCAB: Vocab = {
+  visa: [], consulate: [], consulate_options: [], profile_stage_key: [],
+  date_key: [], outcome: [], country: [], stage_value_domains: {},
+}
+type ChipField = 'current_visa_or_greencard_category' | 'visa_applying_for' | 'consulates'
 type SeedUser = { id: string; username: string; label?: string }
 type Turn = { id: string; role: 'user' | 'ai'; content: string }
 type Conflict = { field: string; profile_value: unknown; message_value: unknown }
@@ -32,10 +44,10 @@ const GREETING =
   "and the key dates that place you in line. I'll turn it into match criteria.\n\n" +
   "(Please don't share personal details like your name, date of birth, or passport number.)"
 
-const CHIP_FIELDS: { field: 'current_visa_or_greencard_category' | 'visa_applying_for' | 'consulates'; label: string }[] = [
-  { field: 'current_visa_or_greencard_category', label: 'Current status' },
-  { field: 'visa_applying_for', label: 'Applying for' },
-  { field: 'consulates', label: 'Consulate(s)' },
+const CHIP_FIELDS: { field: ChipField; label: string; kind: 'visa' | 'consulate' }[] = [
+  { field: 'current_visa_or_greencard_category', label: 'Current status', kind: 'visa' },
+  { field: 'visa_applying_for', label: 'Applying for', kind: 'visa' },
+  { field: 'consulates', label: 'Consulate(s)', kind: 'consulate' },
 ]
 
 function hasCriteria(c: Criteria): boolean {
@@ -46,10 +58,14 @@ function hasCriteria(c: Criteria): boolean {
 }
 
 export default function FindPage() {
+  const router = useRouter()
   const [users, setUsers] = useState<SeedUser[]>([])
   const [activeId, setActiveId] = useState('')
-  const [tab, setTab] = useState<'find' | 'browse'>('find')
+  const [tab, setTab] = useState<'find' | 'browse'>('browse')  // land on existing groups
   const [draft, setDraft] = useState<Criteria>(EMPTY)
+  const [vocab, setVocab] = useState<Vocab>(EMPTY_VOCAB)
+  const [sKey, setSKey] = useState(''); const [sVal, setSVal] = useState('')
+  const [dKey, setDKey] = useState(''); const [dVal, setDVal] = useState('')
   const [messages, setMessages] = useState<Turn[]>([{ id: 'greet', role: 'ai', content: GREETING }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -87,9 +103,30 @@ export default function FindPage() {
       const id = saved && arr.some((u) => u.id === saved) ? saved : (arr[0]?.id || '')
       if (id) { setActiveUser(id); setActiveId(id) }
     }).catch(() => {})
+    fetch('/api/tag-vocab').then((r) => r.json()).then((d) => setVocab({
+      visa: d.visa || [], consulate: d.consulate || [], consulate_options: d.consulate_options || [],
+      profile_stage_key: d.profile_stage_key || [], date_key: d.date_key || [],
+      outcome: d.outcome || [], country: d.country || [], stage_value_domains: d.stage_value_domains || {},
+    })).catch(() => {})
   }, [])
 
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [messages, loading])
+
+  const vocabSets = useMemo(() => ({
+    visa: new Set(vocab.visa), consulate: new Set(vocab.consulate),
+    profile_stage_key: new Set(vocab.profile_stage_key), date_key: new Set(vocab.date_key),
+    outcome: new Set(vocab.outcome), country: new Set(vocab.country),
+  }), [vocab])
+  const consulateByLabel = useMemo(() => new Map(vocab.consulate_options.map((o) => [o.label, o.code])), [vocab])
+  const consulateByCode = useMemo(() => new Map(vocab.consulate_options.map((o) => [o.code, o.label])), [vocab])
+  const stageDomain = vocab.stage_value_domains[sKey.trim()] || ''
+  function stageValueOk(domain: string, v: string): boolean {
+    if (domain === 'country') return vocabSets.country.has(v)
+    if (domain === 'consulate') return vocabSets.consulate.has(v)
+    if (domain === 'visa') return vocabSets.visa.has(v)
+    if (domain === 'outcome') return vocabSets.outcome.has(v)
+    return true
+  }
 
   function resetFlow() {
     setConflicts([]); setExplainer(''); setMerged(null)
@@ -122,11 +159,36 @@ export default function FindPage() {
     } finally { setLoading(false) }
   }
 
-  function removeChip(field: 'current_visa_or_greencard_category' | 'visa_applying_for' | 'consulates', value: string) {
+  function removeChip(field: ChipField, value: string) {
     setDraft((d) => ({ ...d, [field]: d[field].filter((v) => v !== value) }))
   }
   function removeKV(field: 'key_stages_or_info' | 'key_dates', key: string) {
     setDraft((d) => { const n = { ...d[field] }; delete n[key]; return { ...d, [field]: n } })
+  }
+  // --- manual criteria editing (chips + controlled-vocab dropdowns) ---
+  function addChip(field: ChipField, kind: 'visa' | 'consulate', raw: string) {
+    let value = raw.trim(); if (!value) return
+    if (kind === 'consulate' && consulateByLabel.has(value)) value = consulateByLabel.get(value) as string
+    if (!vocabSets[kind].has(value)) {
+      setError(kind === 'consulate' ? 'Pick a consulate from the list (e.g. "Mumbai, India (BOM)").' : `"${value}" is not a valid ${kind} — pick one from the list.`)
+      return
+    }
+    setError('')
+    setDraft((d) => (d[field].includes(value) ? d : { ...d, [field]: [...d[field], value] }))
+  }
+  function addStage() {
+    const k = sKey.trim(); let v = sVal.trim(); if (!k || !v) return
+    if (!vocabSets.profile_stage_key.has(k)) { setError(`"${k}" is not a valid stage key — pick one from the list.`); return }
+    const domain = vocab.stage_value_domains[k]
+    if (domain === 'consulate' && consulateByLabel.has(v)) v = consulateByLabel.get(v) as string
+    if (domain && !stageValueOk(domain, v)) { setError(`"${v}" is not a valid value for "${k}" — pick from the ${domain} list.`); return }
+    setError(''); setDraft((d) => ({ ...d, key_stages_or_info: { ...d.key_stages_or_info, [k]: v } })); setSKey(''); setSVal('')
+  }
+  function addDate() {
+    const k = dKey.trim(), v = dVal.trim(); if (!k || !v) return
+    if (!vocabSets.date_key.has(k)) { setError(`"${k}" is not a valid date key — pick one from the list.`); return }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { setError('Date must be YYYY-MM-DD.'); return }
+    setError(''); setDraft((d) => ({ ...d, key_dates: { ...d.key_dates, [k]: v } })); setDKey(''); setDVal('')
   }
 
   // Fetch matches with a given criteria, then surface the ranked candidates.
@@ -210,6 +272,7 @@ export default function FindPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Could not create group')
       setGroup(data)
+      if (data.group_id) router.push(`/groups/${encodeURIComponent(data.group_id)}`)  // open chat
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not create group') }
   }
 
@@ -251,16 +314,16 @@ export default function FindPage() {
         </label>
       </div>
 
-      {/* tabs */}
+      {/* tabs — the groups list is the landing view */}
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={() => setTab('find')} className={`pill ${tab === 'find' ? 'pill-active' : ''}`}>Find matches</button>
-        <button onClick={() => setTab('browse')} className={`pill ${tab === 'browse' ? 'pill-active' : ''}`}>Browse groups</button>
+        <button onClick={() => setTab('browse')} className={`pill ${tab === 'browse' ? 'pill-active' : ''}`}>Groups</button>
+        <button onClick={() => setTab('find')} className={`pill ${tab === 'find' ? 'pill-active' : ''}`}>Find / create group</button>
       </div>
 
       {error && <div className="card text-error mb-4">{error}</div>}
 
       {tab === 'find' ? (
-        <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
+        <div className="grid gap-6 lg:grid-cols-2 items-start">
           {/* LEFT — expert chat */}
           <div className="bg-surface-container-low rounded-xl p-4 flex flex-col" style={{ minHeight: '60vh' }}>
             <div ref={threadRef} className="flex-1 space-y-4 overflow-y-auto max-h-[64vh] pr-1">
@@ -293,43 +356,93 @@ export default function FindPage() {
 
           {/* RIGHT — criteria → reconcile → matches → group */}
           <aside className="space-y-4">
-            <div className="card">
-              <h2 className="text-label-md font-semibold text-on-surface mb-3">Your match criteria</h2>
-              {!hasCriteria(draft) ? (
-                <p className="text-body-md text-on-surface-variant">Chat on the left to build your criteria.</p>
-              ) : (
-                <div className="space-y-3">
-                  {CHIP_FIELDS.map(({ field, label }) => draft[field].length > 0 && (
-                    <div key={field}>
-                      <p className="text-caption text-on-surface-variant mb-1">{label}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {draft[field].map((v) => (
-                          <span key={v} className="inline-flex items-center gap-1 text-caption bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full">
-                            {v}
-                            <button onClick={() => removeChip(field, v)} className="material-symbols-outlined text-[14px] hover:text-error" aria-label={`Remove ${v}`}>close</button>
-                          </span>
-                        ))}
-                      </div>
+            <div className="card space-y-3">
+              <h2 className="text-label-md font-semibold text-on-surface">Your match criteria</h2>
+              <p className="text-caption text-on-surface-variant">Chat on the left, or add / remove tags directly below.</p>
+
+              {CHIP_FIELDS.map((s) => {
+                const values = draft[s.field]
+                const listId = `fc-${s.kind}`
+                return (
+                  <div key={s.field}>
+                    <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">{s.label}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {values.length === 0 && <span className="text-caption text-on-surface-variant">None.</span>}
+                      {values.map((v) => (
+                        <span key={v} className="inline-flex items-center gap-1 text-caption bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full">
+                          {s.kind === 'consulate' ? (consulateByCode.get(v) || v) : v}
+                          <button onClick={() => removeChip(s.field, v)} className="material-symbols-outlined text-[14px] hover:text-error" aria-label={`Remove ${v}`}>close</button>
+                        </span>
+                      ))}
                     </div>
+                    <input list={listId}
+                      placeholder={s.kind === 'consulate' ? 'Add a consulate (city/country)…' : `Add ${s.label.toLowerCase()}…`}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        const valid = s.kind === 'consulate' ? consulateByLabel.has(val) : vocabSets[s.kind].has(val)
+                        if (valid) { addChip(s.field, s.kind, val); e.target.value = '' }
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addChip(s.field, s.kind, (e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = '' } }}
+                      className="mt-1 w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                  </div>
+                )
+              })}
+              <datalist id="fc-visa">{vocab.visa.map((v) => <option key={v} value={v} />)}</datalist>
+              <datalist id="fc-consulate">{vocab.consulate_options.map((o) => <option key={o.code} value={o.label} />)}</datalist>
+
+              {/* Status facts (key stages) */}
+              <div>
+                <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">Status facts</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.keys(draft.key_stages_or_info).length === 0 && <span className="text-caption text-on-surface-variant">None.</span>}
+                  {Object.entries(draft.key_stages_or_info).map(([k, v]) => (
+                    <span key={k} className="inline-flex items-center gap-1 text-caption bg-surface-container text-on-surface-variant px-2 py-0.5 rounded-full">
+                      {k.replace(/_/g, ' ')}: {v}
+                      <button onClick={() => removeKV('key_stages_or_info', k)} className="material-symbols-outlined text-[14px] hover:text-error" aria-label={`Remove ${k}`}>close</button>
+                    </span>
                   ))}
-                  {(['key_stages_or_info', 'key_dates'] as const).map((field) => Object.keys(draft[field]).length > 0 && (
-                    <div key={field}>
-                      <p className="text-caption text-on-surface-variant mb-1">{field === 'key_dates' ? 'Key dates' : 'Status facts'}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {Object.entries(draft[field]).map(([k, v]) => (
-                          <span key={k} className="inline-flex items-center gap-1 text-caption bg-surface-container text-on-surface-variant px-2 py-0.5 rounded-full">
-                            {k.replace(/_/g, ' ')}: {v}
-                            <button onClick={() => removeKV(field, k)} className="material-symbols-outlined text-[14px] hover:text-error" aria-label={`Remove ${k}`}>close</button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <button onClick={findMatches} disabled={matchLoading} className="btn-primary w-full disabled:opacity-50">
-                    {matchLoading ? 'Finding…' : 'Find matches'}
-                  </button>
                 </div>
-              )}
+                <div className="flex gap-2 mt-1">
+                  <input list="fc-stage-keys" value={sKey} onChange={(e) => { setSKey(e.target.value); setSVal('') }} placeholder="stage key"
+                    className="flex-1 min-w-0 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                  <input list={stageDomain ? `fc-sv-${stageDomain}` : undefined} value={sVal} onChange={(e) => setSVal(e.target.value)}
+                    placeholder={stageDomain ? `${stageDomain} value…` : 'value'}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addStage() } }}
+                    className="flex-1 min-w-0 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                  <button onClick={addStage} className="btn-secondary text-label-md">Add</button>
+                </div>
+                <datalist id="fc-stage-keys">{vocab.profile_stage_key.map((v) => <option key={v} value={v} />)}</datalist>
+                <datalist id="fc-sv-country">{vocab.country.map((v) => <option key={v} value={v} />)}</datalist>
+                <datalist id="fc-sv-outcome">{vocab.outcome.map((v) => <option key={v} value={v} />)}</datalist>
+                <datalist id="fc-sv-visa">{vocab.visa.map((v) => <option key={v} value={v} />)}</datalist>
+                <datalist id="fc-sv-consulate">{vocab.consulate_options.map((o) => <option key={o.code} value={o.label} />)}</datalist>
+              </div>
+
+              {/* Key dates */}
+              <div>
+                <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">Key dates</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.keys(draft.key_dates).length === 0 && <span className="text-caption text-on-surface-variant">None.</span>}
+                  {Object.entries(draft.key_dates).map(([k, v]) => (
+                    <span key={k} className="inline-flex items-center gap-1 text-caption bg-surface-container text-on-surface-variant px-2 py-0.5 rounded-full">
+                      {k.replace(/_/g, ' ')}: {v}
+                      <button onClick={() => removeKV('key_dates', k)} className="material-symbols-outlined text-[14px] hover:text-error" aria-label={`Remove ${k}`}>close</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <input list="fc-date-keys" value={dKey} onChange={(e) => setDKey(e.target.value)} placeholder="date key"
+                    className="flex-1 min-w-0 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                  <input type="date" value={dVal} onChange={(e) => setDVal(e.target.value)}
+                    className="flex-1 min-w-0 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                  <button onClick={addDate} className="btn-secondary text-label-md">Add</button>
+                </div>
+                <datalist id="fc-date-keys">{vocab.date_key.map((v) => <option key={v} value={v} />)}</datalist>
+              </div>
+
+              <button onClick={findMatches} disabled={matchLoading || !hasCriteria(draft)} className="btn-primary w-full disabled:opacity-50">
+                {matchLoading ? 'Finding…' : 'Find matches'}
+              </button>
             </div>
 
             {/* 2a — offer to update the profile */}
@@ -375,7 +488,7 @@ export default function FindPage() {
                   <div className="space-y-2">
                     {matches.map((m) => <MatchCard key={m.user_id} m={m} checked={selected.has(m.user_id)} onToggle={toggle} />)}
                     <button onClick={createGroup} className="btn-primary w-full mt-2">
-                      Create / join group{selected.size > 0 ? ` (+${selected.size})` : ''}
+                      Create group and open chat{selected.size > 0 ? ` (+${selected.size})` : ''}
                     </button>
                   </div>
                 )}
@@ -398,41 +511,57 @@ export default function FindPage() {
           </aside>
         </div>
       ) : (
-        /* BROWSE GROUPS */
-        <div className="max-w-3xl">
-          {browseLoading ? (
-            <div className="card text-on-surface-variant">Loading groups…</div>
-          ) : allGroups.length === 0 ? (
-            <div className="card text-on-surface-variant">No groups yet. Use “Find matches” to create the first one.</div>
-          ) : (
-            <div className="space-y-3">
-              {allGroups.map((g) => (
-                <div key={g.group_id} className="card flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-label-md font-semibold text-on-surface">{g.name}</p>
-                    {g.criteria_text && <p className="text-caption text-on-surface-variant mt-0.5">{g.criteria_text}</p>}
-                    <p className="text-caption text-on-surface-variant mt-1">
-                      {g.members.length} member{g.members.length === 1 ? '' : 's'}: {g.members.map((m) => m.username).join(', ')}
-                    </p>
+        /* GROUPS (landing) — your joined groups first, plus a create-your-group CTA */
+        <div className="grid gap-6 lg:grid-cols-2 items-start">
+          <div className="space-y-3">
+            <h2 className="text-label-md font-semibold text-on-surface">Your groups</h2>
+            {browseLoading ? (
+              <div className="card text-on-surface-variant">Loading groups…</div>
+            ) : allGroups.filter((g) => g.is_member).length === 0 ? (
+              <div className="card text-on-surface-variant">You haven&apos;t joined any group yet — create or find one with the panel on the right.</div>
+            ) : (
+              allGroups.filter((g) => g.is_member).map((g) => (
+                  <div key={g.group_id} className={`card flex items-start justify-between gap-4 ${g.is_member ? 'border border-primary/40' : ''}`}>
+                    <div className="min-w-0">
+                      <p className="text-label-md font-semibold text-on-surface flex items-center gap-1.5">
+                        {g.is_member && <span className="material-symbols-outlined text-[16px] text-primary">check_circle</span>}
+                        {g.name}
+                      </p>
+                      {g.criteria_text && <p className="text-caption text-on-surface-variant mt-0.5">{g.criteria_text}</p>}
+                      <p className="text-caption text-on-surface-variant mt-1">
+                        {g.members.length} member{g.members.length === 1 ? '' : 's'}: {g.members.map((m) => m.username).join(', ')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {g.is_member ? (
+                        <span className="text-label-md text-secondary whitespace-nowrap flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[18px]">check</span>Joined
+                        </span>
+                      ) : (
+                        <button onClick={() => joinGroup(g.group_id)} className="btn-secondary text-label-md whitespace-nowrap">Join</button>
+                      )}
+                      {g.is_member && (
+                        <Link href={`/groups/${encodeURIComponent(g.group_id)}`} className="btn-primary text-label-md whitespace-nowrap inline-flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[18px]">chat</span> Open
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {g.is_member ? (
-                      <span className="text-label-md text-secondary whitespace-nowrap flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[18px]">check</span>Joined
-                      </span>
-                    ) : (
-                      <button onClick={() => joinGroup(g.group_id)} className="btn-secondary text-label-md whitespace-nowrap">Join</button>
-                    )}
-                    {g.is_member && (
-                      <Link href={`/groups/${encodeURIComponent(g.group_id)}`} className="btn-primary text-label-md whitespace-nowrap inline-flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[18px]">chat</span> Open
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              ))}
+                ))
+            )}
+          </div>
+
+          {/* RIGHT — create-your-group CTA (uses the Find-matches flow) */}
+          <aside>
+            <div className="card text-center">
+              <span className="material-symbols-outlined text-[40px] text-secondary">group_add</span>
+              <p className="text-body-lg text-on-surface mt-2 font-medium">Did not find a group you are looking for?</p>
+              <p className="text-body-md text-on-surface-variant mt-1 mb-4">
+                Describe your situation and we&apos;ll find others in the same boat — then form a group.
+              </p>
+              <button onClick={() => setTab('find')} className="btn-primary w-full">Create your group</button>
             </div>
-          )}
+          </aside>
         </div>
       )}
     </div>
