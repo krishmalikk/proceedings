@@ -10,6 +10,7 @@ pending,Case currently pending a decision
 expired,Status or document has expired
 valid,Status or document is currently valid
 invalid,Status or document is invalid
+filed,Application or petition has been filed / submitted
 not-filed-yet,Application or petition has not yet been filed
 withdrawn,Application or petition was withdrawn by the applicant or petitioner
 abandoned,Application abandoned (e.g.
