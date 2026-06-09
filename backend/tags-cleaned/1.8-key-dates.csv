@@ -7,6 +7,11 @@ biometrics_appointment_date,Date of biometrics appointment
 admission_date,Date of admission to the U.S. at a port of entry
 employment_end_date,Date employment ended
 f1_expire_date,Expiration date of F-1 status
+j1_expire_date,Expiration date of J-1 exchange-visitor status
+j2_expire_date,Expiration date of J-2 dependent status
+ds2019_expire_date,End date on Form DS-2019 (J-1/J-2 program)
+l1_expire_date,Expiration date of L-1 status
+o1_expire_date,Expiration date of O-1 status
 h1b_receipt_date,Date USCIS receipt notice was issued for an H-1B petition
 h1b_approved_date,Date the H-1B petition was approved
 h1b_filed_date,Date the H-1B petition was filed

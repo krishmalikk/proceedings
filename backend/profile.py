@@ -93,6 +93,9 @@ def empty_profile() -> dict:
         "visa_applying_for": [],
         "primary_consulate": "",
         "consulates": [],
+        # General tags — forms / actions / outcomes / topics (1.3,1.5,1.6,1.9,1.10),
+        # e.g. I-485, RFE, PERM, 221g. NOT visa categories (those are the fields above).
+        "tags": [],
         "key_stages_or_info": {},
         "key_dates": {},
         "background_text": "",
@@ -229,12 +232,12 @@ def clean_profile(p: dict) -> dict:
     if out["primary_consulate"] and out["primary_consulate"] not in out["consulates"]:
         out["consulates"] = [out["primary_consulate"], *out["consulates"]]
 
-    # key_stages: valid 1.7 key + non-empty; *_of_country values must be ISO-2 country codes.
-    stages = posting._clean_stages(p.get("key_stages_or_info"))
-    out["key_stages_or_info"] = {
-        k: v for k, v in stages.items()
-        if k not in _COUNTRY_STAGE_KEYS or v in _COUNTRY_SET
-    }
+    # Miscellaneous tags & topics ONLY (1.3 abbreviations + 1.10 topics). Forms/outcomes
+    # live under key_stages_or_info; 1.6 visa-form-actions are excluded from profiles.
+    out["tags"] = posting.clean_misc_tags(p.get("tags"))
+    # key_stages: profile key (1.7/1.5/1.1/1.3, NO 1.6) + a value satisfying the key's
+    # value-domain (form -> outcome; *_of_country -> country; etc.).
+    out["key_stages_or_info"] = posting.clean_stages_profile(p.get("key_stages_or_info"))
     out["key_dates"] = _norm_dates(p.get("key_dates"))
     out["background_text"] = scrub_pii(str(p.get("background_text") or ""))[:2000]
     out["journey"] = _clean_journey(p.get("journey"))
@@ -245,7 +248,7 @@ def validate_profile(p: dict) -> list[str]:
     """Non-fatal hints about values that were dropped/invalid (UI can surface)."""
     errs: list[str] = []
     cleaned = clean_profile(p)
-    for f in ("current_visa_or_greencard_category", "visa_applying_for", "consulates"):
+    for f in ("current_visa_or_greencard_category", "visa_applying_for", "consulates", "tags"):
         dropped = set(p.get(f) or []) - set(cleaned[f])
         if dropped:
             errs.append(f"{f}: dropped invalid {sorted(dropped)}")
@@ -264,7 +267,7 @@ def merge_profile(base: dict, incoming: dict) -> dict:
     base = clean_profile(base or {})
     inc = clean_profile(incoming or {})
     out = dict(base)
-    for f in ("current_visa_or_greencard_category", "visa_applying_for", "consulates"):
+    for f in ("current_visa_or_greencard_category", "visa_applying_for", "consulates", "tags"):
         out[f] = list(dict.fromkeys([*base[f], *inc[f]]))
     if inc["primary_consulate"]:
         out["primary_consulate"] = inc["primary_consulate"]
@@ -378,6 +381,8 @@ saved. Keep this stage about facts, status and dates only. When the basics are r
 - If ALREADY IN the USA: current_visa_or_greencard_category (1.1/1.2 codes).
 - If applying for a visa FROM ABROAD: primary_consulate + consulates (1.4) and visa_applying_for (1.1/1.2) if known.
 - citizen_of_country and resident_of_country (ISO-2 country codes) under key_stages_or_info.
+- A FORM the user is dealing with + its status -> key_stages_or_info as {{form: outcome}}, e.g. {{"I-485": "filed", "I-130": "approved", "I-129": "RFE"}}. KEY = a form (1.5); VALUE = an OUTCOME (1.9: filed, received, pending, in-progress, approved, denied, refused, RFE, issued, 221g, withdrawn, not-filed-yet…).
+- Miscellaneous topics / abbreviations the user mentions -> tags (1.3 abbreviations + 1.10 topics ONLY), e.g. NIW, premium-processing, consular-processing. Do NOT put forms, outcomes, visa codes, or visa-form-action (1.6) tags in tags.
 - Relevant key_dates (1.8 keys, YYYY-MM-DD). A short background_text in their own words.
 
 # JOURNEY MAP — ask what's RELEVANT to THIS user's journey (don't force every step)
@@ -420,6 +425,10 @@ in the next stage as text, never as tags.)
 - NEVER ask for or store PII (name, DOB, address, phone, email, passport/A-number, SSN).
 - Use ONLY controlled-vocabulary tag strings; if unsure, leave the field out and put the idea in background_text. Do NOT invent tags.
 - Country values for *_of_country MUST be ISO-2 codes (IN, CN, MX, AE).
+- key_stages_or_info VALUES are constrained by key: a FORM key (1.5, e.g. I-485) -> an OUTCOME (1.9); *_of_country / travel_country -> ISO-2 country code; outcome_status -> an outcome (1.9); visa_type -> a visa code (1.1/1.2); consulate_assigned -> a 1.4 post code. Other stage values are free text.
+- NEVER use visa-form-action (section 1.6) tags ANYWHERE in the profile (not as tags, not as stage keys).
+- A DATE KEY MUST match the user's ACTUAL visa/status — never use an f1_*/h1b_* key for a different visa (e.g. a J-1 holder's status expiry is j1_expire_date, NOT f1_expire_date). If no visa-specific key fits, use the generic i94_expire_date or visa_expire_date.
+- Do NOT invent a FORM the user did not name. "Applying for an extension" of the SAME status is INTENT — capture it via visa_applying_for and/or a status stage (e.g. application_status), NOT by guessing a specific form (e.g. I-539) the user never mentioned.
 
 # CONTROLLED VOCABULARY (use exact strings)
 {posting._master_tags_block()}
@@ -432,6 +441,7 @@ in the next stage as text, never as tags.)
     "visa_applying_for": string[],
     "primary_consulate": string,
     "consulates": string[],
+    "tags": string[],
     "key_stages_or_info": object,
     "key_dates": object,
     "background_text": string
@@ -439,7 +449,13 @@ in the next stage as text, never as tags.)
   "done": boolean
 }}
 
-# Basics so far (merge your new findings into this; keep prior values):
+# ALREADY-CAPTURED PROFILE — this is what you ALREADY KNOW (do NOT re-ask any of it)
+This is the applicant's profile so far. Merge new findings into it and KEEP prior values. Crucially:
+- NEVER ask the user for a field, date or status that is already filled in below (e.g. if i140_approved_date
+  is already set, do NOT ask for it again). Acknowledge what you already know.
+- Ask ONLY about what is MISSING, ambiguous, or that the user explicitly says they want to CHANGE.
+- If the profile already looks reasonably complete, briefly confirm the key facts in ONE message and set
+  "done": true instead of asking further questions.
 {json.dumps({k: v for k, v in (draft or {}).items() if k != "journey"}, ensure_ascii=False)}
 """
 

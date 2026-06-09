@@ -194,6 +194,10 @@ class SeedUser(BaseModel):
     label: str = ""
 
 
+class NewUserRequest(BaseModel):
+    username: str = ""
+
+
 class JourneyEntry(BaseModel):
     milestone: str = ""
     date: str = ""
@@ -231,6 +235,7 @@ class ProfilePayload(BaseModel):
     visa_applying_for: list[str] = []
     primary_consulate: str = ""
     consulates: list[str] = []
+    tags: list[str] = []
     key_stages_or_info: dict[str, str] = {}
     key_dates: dict[str, str] = {}
     background_text: str = ""
@@ -530,7 +535,8 @@ def _active_user(request: Request) -> str:
     uid = request.headers.get("x-user-id", "").strip()
     if not uid:
         raise HTTPException(status_code=400, detail="X-User-Id header is required (pick a user).")
-    if uid not in profile.seed_ids():
+    # Accept the baked roster + any dev-created "new-…" user (see POST /api/users).
+    if uid not in profile.seed_ids() and not uid.startswith("new-"):
         raise HTTPException(status_code=404, detail=f"Unknown user '{uid}'.")
     return uid
 
@@ -541,7 +547,7 @@ def _optional_user(request: Request) -> str:
     are still usable anonymously."""
     import profile
     uid = request.headers.get("x-user-id", "").strip()
-    return uid if uid and uid in profile.seed_ids() else ""
+    return uid if uid and (uid in profile.seed_ids() or uid.startswith("new-")) else ""
 
 
 @app.post("/api/ask", response_model=AskResponse)
@@ -641,6 +647,21 @@ async def list_users():
     """The baked seed roster for the dev user-picker (no auth yet)."""
     import profile
     return [SeedUser(**u) for u in profile.seed_users()]
+
+
+@app.post("/api/users", response_model=SeedUser)
+async def create_user(body: NewUserRequest):
+    """Mint a fresh dev user ('new-…' id) to onboard from scratch. Dev-only; when
+    real auth lands this is replaced by Firebase user creation (same users/{id})."""
+    import secrets
+    import profile
+    if not ALLOW_USER_IMPERSONATION:
+        raise HTTPException(status_code=403, detail="User creation is disabled.")
+    uid = "new-" + secrets.token_hex(4)
+    username = (body.username or "").strip()[:40] or f"new-user-{uid[-4:]}"
+    # Register by creating the (empty) profile doc with the chosen username.
+    _guard(lambda: profile.save_profile(_db, uid, {"username": username}))
+    return SeedUser(id=uid, username=username, label=f"🆕 {username}")
 
 
 @app.get("/api/profile")

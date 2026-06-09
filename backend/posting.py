@@ -136,6 +136,36 @@ def _load_pairs(filename: str, desc_col: int = 1) -> list[tuple[str, str]]:
     return out
 
 
+def _load_misc_options() -> list[dict]:
+    """[{code, label}] for the profile 'Miscellaneous tags & topics' picker:
+    1.3 abbreviations (label shows the Full Name) + 1.10 common-misc (Description).
+    label = 'CODE — meaning' so the dropdown shows the description alongside the code."""
+    out: list[dict] = []
+    seen: set[str] = set()
+    pairs = _load_pairs("1.3-abbreviations.csv", 2) + _load_pairs("1.10-common-misc.csv", 1)
+    for code, desc in pairs:
+        if code and code not in seen:
+            seen.add(code)
+            out.append({"code": code, "label": (f"{code} — {desc}" if desc else code)})
+    return out
+
+
+def _load_country_codes() -> list[str]:
+    """1.4 codes whose Type column == 'country' (ISO-2 country codes)."""
+    path = os.path.join(_TAGS_DIR, "1.4-consulates.csv")
+    out: list[str] = []
+    try:
+        with open(path, newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            next(reader, None)
+            for row in reader:
+                if len(row) >= 2 and row[1].strip().lower() == "country" and row[0].strip():
+                    out.append(row[0].strip())
+    except FileNotFoundError:
+        print("posting: vocab CSV missing: 1.4-consulates.csv")
+    return out
+
+
 class _Vocab:
     """Master vocabulary sets + ordered lists, lazily loaded and cached."""
 
@@ -145,12 +175,23 @@ class _Vocab:
     tag: set[str] = set()           # union of 1.3,1.5,1.6,1.9,1.10
     stage_keys: set[str] = set()
     date_keys: set[str] = set()
+    outcomes: set[str] = set()        # 1.9 outcomes (value domain for outcome_status / form keys)
+    country: set[str] = set()         # 1.4 country-type codes (value domain for *_of_country / travel_country)
+    form: set[str] = set()            # 1.5 forms (profile key_stages KEYS; value domain = outcome)
+    misc: set[str] = set()            # 1.3 + 1.10 (profile 'miscellaneous tags & topics')
+    profile_stage_keys: set[str] = set()  # 1.7 + 1.5 + 1.1 + 1.3 (NO 1.6) — profile key_stages keys
     # ordered lists for compact prompt blocks
     _visa_list: list[str] = []
     _consulate_list: list[str] = []
     _tag_list: list[str] = []
     _stage_list: list[str] = []
     _date_list: list[str] = []
+    _outcome_list: list[str] = []
+    _country_list: list[str] = []
+    _form_list: list[str] = []
+    _misc_list: list[str] = []
+    _misc_options: list[dict] = []
+    _profile_stage_list: list[str] = []
     _tag_plain_list: list[str] = []          # 1.3,1.5,1.6,1.9 names (self-explanatory)
     _misc_pairs: list[tuple[str, str]] = []   # 1.10 (tag, description) — ambiguous, needs meaning
     _consulate_opts: list[dict] = []          # [{code, label}] for the place-name dropdown
@@ -178,11 +219,26 @@ class _Vocab:
             + _load_col("1.6-visa-form-actions.csv")
         )
         cls._date_list = _load_col("1.8-key-dates.csv")
+        cls._outcome_list = _load_col("1.9-outcomes.csv")
+        cls._country_list = _load_country_codes()
+        cls._form_list = _load_col("1.5-forms.csv")
+        cls._misc_list = _load_col("1.3-abbreviations.csv") + _load_col("1.10-common-misc.csv")
+        cls._misc_options = _load_misc_options()
+        # profile key_stages keys: 1.7 + visas + abbreviations + forms — NO 1.6 actions
+        cls._profile_stage_list = (
+            _load_col("1.7-key-stages.csv") + _load_col("1.1-non-immigration-visas.csv")
+            + _load_col("1.3-abbreviations.csv") + _load_col("1.5-forms.csv")
+        )
         cls.visa = set(cls._visa_list)
         cls.consulate = set(cls._consulate_list)
         cls.tag = set(cls._tag_list)
         cls.stage_keys = set(cls._stage_list)
         cls.date_keys = set(cls._date_list)
+        cls.outcomes = set(cls._outcome_list)
+        cls.country = set(cls._country_list)
+        cls.form = set(cls._form_list)
+        cls.misc = set(cls._misc_list)
+        cls.profile_stage_keys = set(cls._profile_stage_list)
         cls._loaded = True
 
 
@@ -214,7 +270,80 @@ def vocab_lists() -> dict:
         "tag": _uniq(_Vocab._tag_list),
         "stage_key": _uniq(_Vocab._stage_list),
         "date_key": _uniq(_Vocab._date_list),
+        "outcome": _uniq(_Vocab._outcome_list),
+        "country": _uniq(_Vocab._country_list),
+        # profile-only vocabularies
+        "misc": _uniq(_Vocab._misc_list),                 # 1.3 + 1.10 codes
+        "misc_options": _Vocab._misc_options,             # [{code, label='CODE — meaning'}]
+        "profile_stage_key": _uniq(_Vocab._profile_stage_list),  # stage keys w/o 1.6
+        # key -> value-domain (incl. every form -> 'outcome')
+        "stage_value_domains": stage_value_domains_map(),
     }
+
+
+# key_stages_or_info keys whose VALUE must come from a sub-vocabulary (not free text).
+# Forms (1.5) used as keys also constrain their value -> outcome (see stage_value_domain).
+STAGE_VALUE_DOMAINS = {
+    "citizen_of_country": "country", "born_in_country": "country",
+    "resident_of_country": "country", "fiance_of_country": "country",
+    "travel_country": "country",
+    "consulate_assigned": "consulate",
+    "outcome_status": "outcome",
+    "visa_type": "visa",
+}
+
+
+def _domain_set(domain: str) -> set[str]:
+    _Vocab.load()
+    return {
+        "country": _Vocab.country, "consulate": _Vocab.consulate,
+        "visa": _Vocab.visa, "outcome": _Vocab.outcomes,
+    }.get(domain, set())
+
+
+def stage_value_domain(key: str) -> str | None:
+    """Value-domain for a stage key, or None for free text. A FORM key (1.5) -> 'outcome'."""
+    if key in STAGE_VALUE_DOMAINS:
+        return STAGE_VALUE_DOMAINS[key]
+    _Vocab.load()
+    return "outcome" if key in _Vocab.form else None
+
+
+def stage_value_ok(key: str, val: str) -> bool:
+    """True if `val` is allowed for stage `key` (free text when key is unconstrained)."""
+    domain = stage_value_domain(key)
+    return True if not domain else (val in _domain_set(domain))
+
+
+def stage_value_domains_map() -> dict:
+    """Full key -> domain map (incl. every form 1.5 -> 'outcome') for the profile UI."""
+    _Vocab.load()
+    return {**STAGE_VALUE_DOMAINS, **{f: "outcome" for f in _Vocab._form_list}}
+
+
+def clean_stages_profile(value) -> dict:
+    """Profile key_stages: key in profile_stage_keys (1.7/1.5/1.1/1.3 — NO 1.6) and the
+    value satisfies the key's domain (forms -> outcome; *_of_country -> country; ...)."""
+    _Vocab.load()
+    out: dict = {}
+    if isinstance(value, dict):
+        for k, v in value.items():
+            k, sv = str(k).strip(), str(v).strip()
+            if k in _Vocab.profile_stage_keys and sv and stage_value_ok(k, sv):
+                out[k] = sv
+    return out
+
+
+def clean_misc_tags(value) -> list[str]:
+    """Profile 'miscellaneous tags & topics' — keep only valid 1.3/1.10 codes."""
+    _Vocab.load()
+    out, seen = [], set()
+    if isinstance(value, list):
+        for t in value:
+            t = str(t).strip()
+            if t in _Vocab.misc and t not in seen:
+                seen.add(t); out.append(t)
+    return out
 
 
 def _vocab_for(field: str) -> set[str]:
@@ -387,14 +516,15 @@ _UI_TAG_SECTIONS = [f for f in GROUP_FIELDS if f != "primary_consulate"]
 
 
 def _clean_stages(value) -> dict:
-    """Keep only key_stages_or_info entries whose key is a valid 1.7 stage key."""
+    """Keep only key_stages_or_info entries with a valid 1.7 key AND a value that
+    satisfies the key's value-domain (country/outcome/visa/consulate; free text otherwise)."""
     _Vocab.load()
     out: dict = {}
     if isinstance(value, dict):
         for k, v in value.items():
-            k = str(k).strip()
-            if k in _Vocab.stage_keys and str(v).strip():
-                out[k] = str(v).strip()
+            k, sv = str(k).strip(), str(v).strip()
+            if k in _Vocab.stage_keys and sv and stage_value_ok(k, sv):
+                out[k] = sv
     return out
 
 
