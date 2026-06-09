@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Markdown from '@/components/Markdown'
 import { getActiveUser, setActiveUser, userHeaders } from '@/lib/activeUser'
 
@@ -11,6 +12,7 @@ type Profile = {
   visa_applying_for: string[]
   primary_consulate: string
   consulates: string[]
+  tags: string[]
   key_stages_or_info: Record<string, string>
   key_dates: Record<string, string>
   background_text: string
@@ -21,11 +23,22 @@ type Profile = {
 type SeedUser = { id: string; username: string; label?: string }
 type Turn = { id: string; role: 'user' | 'ai'; content: string }
 type Stage = 'basics' | 'experiences'
+type ConsulateOption = { code: string; label: string }
+type Vocab = {
+  visa: string[]; consulate: string[]; consulate_options: ConsulateOption[]; tag: string[]
+  stage_key: string[]; date_key: string[]; outcome: string[]; country: string[]
+  misc: string[]; misc_options: ConsulateOption[]; profile_stage_key: string[]
+  stage_value_domains: Record<string, string>
+}
 
 const EMPTY: Profile = {
   username: '', current_visa_or_greencard_category: [], visa_applying_for: [],
-  primary_consulate: '', consulates: [], key_stages_or_info: {}, key_dates: {},
+  primary_consulate: '', consulates: [], tags: [], key_stages_or_info: {}, key_dates: {},
   background_text: '', journey: [], created_at: '', updated_at: '',
+}
+const EMPTY_VOCAB: Vocab = {
+  visa: [], consulate: [], consulate_options: [], tag: [], stage_key: [], date_key: [],
+  outcome: [], country: [], misc: [], misc_options: [], profile_stage_key: [], stage_value_domains: {},
 }
 
 const GREETING_BASICS =
@@ -40,21 +53,26 @@ const GREETING_EXPERIENCES =
   "crossed — these help others going through the same steps (and aren't tagged to your current status)."
 
 const GREETING_RETURNING =
-  "Welcome back! Your **current profile** is on the right. Update it any way you like: edit the tags and " +
-  "fields directly, change your **background** text and hit *Re-generate tags*, or just tell me what changed " +
+  "Welcome back! Your **current tags** are on the right. Update them any way you like: add or remove tags " +
+  "directly, edit your **background** below and hit *Re-generate tags*, or just tell me what changed " +
   "(e.g. \"my I-140 was approved on March 1\") and I'll update the tags for you."
 
-const TAG_CHIPS: { field: keyof Profile; label: string }[] = [
-  { field: 'current_visa_or_greencard_category', label: 'Current status' },
-  { field: 'visa_applying_for', label: 'Applying for' },
-  { field: 'consulates', label: 'Consulate(s)' },
+type ListField = 'current_visa_or_greencard_category' | 'visa_applying_for' | 'consulates' | 'tags'
+type TagKind = 'visa' | 'consulate' | 'misc'
+const LIST_SECTIONS: { field: ListField; label: string; kind: TagKind }[] = [
+  { field: 'current_visa_or_greencard_category', label: 'Current status', kind: 'visa' },
+  { field: 'visa_applying_for', label: 'Applying for', kind: 'visa' },
+  { field: 'consulates', label: 'Consulate(s)', kind: 'consulate' },
+  { field: 'tags', label: 'Miscellaneous tags and topics', kind: 'misc' },
 ]
 
 export default function OnboardingPage() {
+  const router = useRouter()
   const [users, setUsers] = useState<SeedUser[]>([])
   const [activeId, setActiveId] = useState('')
   const [stage, setStage] = useState<Stage>('basics')
   const [draft, setDraft] = useState<Profile>(EMPTY)
+  const [vocab, setVocab] = useState<Vocab>(EMPTY_VOCAB)
   const [messages, setMessages] = useState<Turn[]>([{ id: 'greet', role: 'ai', content: GREETING_BASICS }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -65,6 +83,9 @@ export default function OnboardingPage() {
   const [error, setError] = useState('')
   const [regen, setRegen] = useState(false)
   const [regenNote, setRegenNote] = useState('')
+  // KV add inputs (key stages / key dates)
+  const [sKey, setSKey] = useState(''); const [sVal, setSVal] = useState('')
+  const [dKey, setDKey] = useState(''); const [dVal, setDVal] = useState('')
   // Generated facets for each SHARED/published experience (the experience JSON), fetched from its doc.
   type ExpFacets = { visa: string[]; consulates: string[]; outcome: string; tags: string[]; date: string }
   const [expFacets, setExpFacets] = useState<Record<string, ExpFacets>>({})
@@ -80,6 +101,13 @@ export default function OnboardingPage() {
       const id = saved && arr.some((u) => u.id === saved) ? saved : (arr[0]?.id || '')
       if (id) { setActiveUser(id); setActiveId(id) }
     }).catch(() => {})
+    fetch('/api/tag-vocab').then((r) => r.json()).then((d) => setVocab({
+      visa: d.visa || [], consulate: d.consulate || [], consulate_options: d.consulate_options || [],
+      tag: d.tag || [], stage_key: d.stage_key || [], date_key: d.date_key || [],
+      outcome: d.outcome || [], country: d.country || [],
+      misc: d.misc || [], misc_options: d.misc_options || [], profile_stage_key: d.profile_stage_key || [],
+      stage_value_domains: d.stage_value_domains || {},
+    })).catch(() => {})
   }, [])
 
   const loadProfile = useCallback(() => {
@@ -87,10 +115,31 @@ export default function OnboardingPage() {
       setDraft({ ...EMPTY, ...p })
       setSavedAt(p.updated_at || '')
       setStage('basics')
-      // Already-onboarded users get a "review/update" greeting; new users get setup.
-      setMessages([{ id: 'greet', role: 'ai', content: p.updated_at ? GREETING_RETURNING : GREETING_BASICS }])
+      // "Welcome back" only when there's actual profile content (a freshly-minted
+      // new user has a timestamp but no data → show the setup greeting instead).
+      const hasData = (p.current_visa_or_greencard_category?.length || p.visa_applying_for?.length ||
+        p.consulates?.length || p.tags?.length || Object.keys(p.key_stages_or_info || {}).length ||
+        Object.keys(p.key_dates || {}).length || (p.background_text || '').trim().length)
+      setMessages([{ id: 'greet', role: 'ai', content: hasData ? GREETING_RETURNING : GREETING_BASICS }])
     }).catch(() => {})
   }, [])
+
+  // Mint a brand-new dev user ('new-…') and switch to it to onboard from scratch.
+  async function createNewUser() {
+    const name = (typeof window !== 'undefined' ? window.prompt('Name for the new user (optional):', '') : '') || ''
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: name.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Could not create user')
+      setUsers((prev) => [...prev, { id: data.id, username: data.username, label: data.label }])
+      switchUser(data.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not create user')
+    }
+  }
 
   useEffect(() => { if (activeId) loadProfile() }, [activeId, loadProfile])
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [messages, loading])
@@ -111,12 +160,30 @@ export default function OnboardingPage() {
       }))
   }, [draft.journey, expFacets])
 
+  const vocabSets = useMemo(() => ({
+    visa: new Set(vocab.visa), consulate: new Set(vocab.consulate), misc: new Set(vocab.misc),
+    profile_stage_key: new Set(vocab.profile_stage_key), date_key: new Set(vocab.date_key),
+    outcome: new Set(vocab.outcome), country: new Set(vocab.country),
+  }), [vocab])
+  const consulateByLabel = useMemo(() => new Map(vocab.consulate_options.map((o) => [o.label, o.code])), [vocab])
+  const consulateByCode = useMemo(() => new Map(vocab.consulate_options.map((o) => [o.code, o.label])), [vocab])
+  const miscByLabel = useMemo(() => new Map(vocab.misc_options.map((o) => [o.label, o.code])), [vocab])
+  // value-domain of the currently-typed stage key (country|outcome|visa|consulate|'')
+  const stageDomain = vocab.stage_value_domains[sKey.trim()] || ''
+  function stageValueOk(domain: string, v: string): boolean {
+    if (domain === 'country') return vocabSets.country.has(v)
+    if (domain === 'consulate') return vocabSets.consulate.has(v)
+    if (domain === 'visa') return vocabSets.visa.has(v)
+    if (domain === 'outcome') return vocabSets.outcome.has(v)
+    return true
+  }
+
   function switchUser(id: string) { setActiveUser(id); setActiveId(id) }
 
   async function send(text: string) {
     const t = text.trim()
     if (t.length < 1 || loading) return
-    setInput(''); setError('')
+    setError('')
     const history = messages.map((m) => ({ role: m.role, content: m.content }))
     setMessages((prev) => [...prev, { id: `${Date.now()}-u`, role: 'user', content: t }])
     setLoading(true)
@@ -134,18 +201,46 @@ export default function OnboardingPage() {
     } finally { setLoading(false) }
   }
 
-  function removeChip(field: keyof Profile, value: string) {
-    setDraft((d) => ({ ...d, [field]: (d[field] as string[]).filter((v) => v !== value) }))
+  // --- tag editing (right panel) ---
+  function removeChip(field: ListField, value: string) {
+    setDraft((d) => ({ ...d, [field]: d[field].filter((v) => v !== value) }))
+  }
+  function addTag(field: ListField, kind: TagKind, raw: string) {
+    let value = raw.trim(); if (!value) return
+    if (kind === 'consulate' && consulateByLabel.has(value)) value = consulateByLabel.get(value) as string
+    if (kind === 'misc' && miscByLabel.has(value)) value = miscByLabel.get(value) as string
+    if (!vocabSets[kind].has(value)) {
+      setError(kind === 'consulate' ? 'Pick a consulate from the list (e.g. "Mumbai, India (BOM)").'
+        : kind === 'misc' ? 'Pick a tag from the list.'
+        : `"${value}" is not a valid ${kind} — pick one from the list.`)
+      return
+    }
+    setError('')
+    setDraft((d) => (d[field].includes(value) ? d : { ...d, [field]: [...d[field], value] }))
   }
   function removeKV(field: 'key_stages_or_info' | 'key_dates', key: string) {
     setDraft((d) => { const n = { ...d[field] }; delete n[key]; return { ...d, [field]: n } })
   }
-  function removeJourney(idx: number) {
-    setDraft((d) => ({ ...d, journey: d.journey.filter((_, i) => i !== idx) }))
+  function addStage() {
+    const k = sKey.trim(); let v = sVal.trim(); if (!k || !v) return
+    if (!vocabSets.profile_stage_key.has(k)) { setError(`"${k}" is not a valid stage key — pick one from the list.`); return }
+    const domain = vocab.stage_value_domains[k]
+    if (domain === 'consulate' && consulateByLabel.has(v)) v = consulateByLabel.get(v) as string
+    if (domain && !stageValueOk(domain, v)) {
+      setError(`"${v}" is not a valid value for "${k}" — pick from the ${domain} list.`); return
+    }
+    setError(''); setDraft((d) => ({ ...d, key_stages_or_info: { ...d.key_stages_or_info, [k]: v } })); setSKey(''); setSVal('')
   }
-  function toggleShare(idx: number) {
-    setDraft((d) => ({ ...d, journey: d.journey.map((e, i) => i === idx ? { ...e, shared: !e.shared } : e) }))
+  function addDate() {
+    const k = dKey.trim(), v = dVal.trim(); if (!k || !v) return
+    if (!vocabSets.date_key.has(k)) { setError(`"${k}" is not a valid date key — pick one from the list.`); return }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { setError('Date must be YYYY-MM-DD.'); return }
+    setError(''); setDraft((d) => ({ ...d, key_dates: { ...d.key_dates, [k]: v } })); setDKey(''); setDVal('')
   }
+
+  // --- journey (experiences stage) ---
+  function removeJourney(idx: number) { setDraft((d) => ({ ...d, journey: d.journey.filter((_, i) => i !== idx) })) }
+  function toggleShare(idx: number) { setDraft((d) => ({ ...d, journey: d.journey.map((e, i) => i === idx ? { ...e, shared: !e.shared } : e) })) }
   const prettyMilestone = (m: string) => m.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
   async function persist(): Promise<Profile | null> {
@@ -161,7 +256,7 @@ export default function OnboardingPage() {
 
   // Re-derive the structured tags from the free-text background, using the same
   // AI extraction engine as the chat (one-shot). Lets users edit the background
-  // box and refresh tags without conversing.
+  // box and refresh the tags on the right without conversing.
   async function regenTags() {
     const text = draft.background_text.trim()
     if (text.length < 10) { setError('Add a sentence or two of background first.'); return }
@@ -204,8 +299,8 @@ export default function OnboardingPage() {
 
   async function saveExperiences() {
     setSaving(true); setError('')
-    try { await persist() } catch (e) { setError(e instanceof Error ? e.message : 'Could not save') }
-    finally { setSaving(false) }
+    try { await persist(); router.push('/') }   // done → exit onboarding to the main page
+    catch (e) { setError(e instanceof Error ? e.message : 'Could not save'); setSaving(false) }
   }
 
   async function publishConnectCard() {
@@ -220,13 +315,11 @@ export default function OnboardingPage() {
       setConnectCardId(data.case_id || '')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not publish connect card')
-    } finally {
-      setConnecting(false)
-    }
+    } finally { setConnecting(false) }
   }
 
   function backToBasics() {
-    setStage('basics'); setMessages([{ id: 'greet', role: 'ai', content: GREETING_BASICS }])
+    setStage('basics'); setMessages([{ id: 'greet', role: 'ai', content: savedAt ? GREETING_RETURNING : GREETING_BASICS }])
   }
 
   const hasBasics =
@@ -250,121 +343,181 @@ export default function OnboardingPage() {
         <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
           <span className="material-symbols-outlined text-[20px]">switch_account</span>
           Demo user:
-          <select value={activeId} onChange={(e) => switchUser(e.target.value)}
+          <select value={activeId} onChange={(e) => { const v = e.target.value; if (v === '__new__') createNewUser(); else switchUser(v) }}
             className="bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-body-md focus:outline-none focus:border-primary">
             {users.map((u) => <option key={u.id} value={u.id}>{u.label || u.username}</option>)}
+            <option value="__new__">➕ New user…</option>
           </select>
         </label>
       </div>
 
       {/* stepper */}
       <div className="flex items-center gap-4 mb-4">
-        <Step n={1} label="Basics" active={stage === 'basics'} done={stage === 'experiences'} />
+        <Step n={1} label="Background" active={stage === 'basics'} done={stage === 'experiences'} />
         <span className="w-8 h-0.5 bg-outline-variant" />
         <Step n={2} label="Experiences" active={stage === 'experiences'} done={false} />
       </div>
 
       {error && <div className="card text-error mb-4">{error}</div>}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        {/* LEFT — chat */}
-        <div className="bg-surface-container-low rounded-xl p-4 flex flex-col" style={{ minHeight: '60vh' }}>
-          <div ref={threadRef} className="flex-1 space-y-4 overflow-y-auto max-h-[64vh] pr-1">
-            {messages.map((m) => (
-              m.role === 'user' ? (
-                <div key={m.id} className="flex justify-end">
-                  <div className="bg-primary-container text-on-primary-container rounded-2xl rounded-tr-sm px-3 py-2 text-body-md max-w-[85%]">{m.content}</div>
+      {/* Even split: LEFT = text (chat + background) · RIGHT = tags only */}
+      <div className="grid gap-6 lg:grid-cols-2 items-start">
+        {/* LEFT — text */}
+        <div className="space-y-4">
+          <div className="bg-surface-container-low rounded-xl p-4 flex flex-col" style={{ minHeight: '46vh' }}>
+            <div ref={threadRef} className="flex-1 space-y-4 overflow-y-auto max-h-[56vh] pr-1">
+              {messages.map((m) => (
+                m.role === 'user' ? (
+                  <div key={m.id} className="flex justify-end">
+                    <div className="bg-primary-container text-on-primary-container rounded-2xl rounded-tr-sm px-3 py-2 text-body-md max-w-[85%]">{m.content}</div>
+                  </div>
+                ) : (
+                  <div key={m.id} className="bg-surface-container rounded-2xl rounded-tl-sm p-3 text-on-surface max-w-[90%]">
+                    <Markdown>{m.content}</Markdown>
+                  </div>
+                )
+              ))}
+              {loading && (
+                <div className="flex gap-1 py-1">
+                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
-              ) : (
-                <div key={m.id} className="bg-surface-container rounded-2xl rounded-tl-sm p-3 text-on-surface max-w-[90%]">
-                  <Markdown>{m.content}</Markdown>
+              )}
+            </div>
+            {stage === 'basics' ? (
+              // Single situation/background box (prefilled on load) — drives both
+              // "Re-generate tags" and the conversational assistant.
+              <div className="mt-3">
+                <textarea value={draft.background_text}
+                  onChange={(e) => { setRegenNote(''); setDraft((d) => ({ ...d, background_text: e.target.value })) }}
+                  rows={4} maxLength={2000}
+                  placeholder="Describe your situation in your own words — e.g. On H-1B from India, EB-2 PERM certified, I-140 filed, interviewing at Mumbai…"
+                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-body-md focus:outline-none focus:border-primary resize-y" />
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <button onClick={regenTags} disabled={regen || draft.background_text.trim().length < 10}
+                    className="btn-primary text-label-md disabled:opacity-40 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[18px]">auto_fix_high</span>
+                    {regen ? 'Analyzing…' : 'Re-generate tags'}
+                  </button>
+                  <button onClick={() => send(draft.background_text)} disabled={loading || draft.background_text.trim().length < 1}
+                    className="btn-secondary text-label-md disabled:opacity-40">Ask the assistant</button>
+                  {regenNote && <span className="text-caption text-primary">{regenNote}</span>}
                 </div>
-              )
-            ))}
-            {loading && (
-              <div className="flex gap-1 py-1">
-                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
+            ) : (
+              <form onSubmit={(e) => { e.preventDefault(); send(input); setInput('') }} className="mt-3 flex items-center gap-2">
+                <input value={input} onChange={(e) => setInput(e.target.value)}
+                  placeholder="Share your experience…"
+                  className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-full px-4 py-2 text-body-md focus:outline-none focus:border-primary" />
+                <button type="submit" disabled={input.trim().length < 1 || loading} className="btn-primary rounded-full disabled:opacity-40">Send</button>
+              </form>
             )}
           </div>
-          <form onSubmit={(e) => { e.preventDefault(); send(input) }} className="mt-3 flex items-center gap-2">
-            <input value={input} onChange={(e) => setInput(e.target.value)}
-              placeholder={stage === 'basics' ? 'Describe your situation…' : 'Share your experience…'}
-              className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-full px-4 py-2 text-body-md focus:outline-none focus:border-primary" />
-            <button type="submit" disabled={input.trim().length < 1 || loading} className="btn-primary rounded-full disabled:opacity-40">Send</button>
-          </form>
         </div>
 
-        {/* RIGHT — stage-specific review + save */}
+        {/* RIGHT — tags only */}
         <aside className="bg-surface-container-low rounded-xl p-4 space-y-4 h-fit">
           {stage === 'basics' ? (
             <>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-secondary">badge</span>
-                  <span className="text-label-md font-semibold text-on-surface">Basic profile</span>
-                </div>
-                {savedAt && <span className="badge-success text-caption">saved</span>}
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-secondary">sell</span>
+                <span className="text-label-md font-semibold text-on-surface">Your tags</span>
               </div>
-              <p className="text-caption text-on-surface-variant">{draft.username}</p>
-              {!hasBasics && <p className="text-caption text-on-surface-variant">Nothing captured yet — chat on the left to begin.</p>}
+              <p className="text-caption text-on-surface-variant">
+                Generated from your background — add or remove any. New tags must be picked from the list.
+              </p>
 
-              {TAG_CHIPS.map((s) => {
-                const vals = draft[s.field] as string[]
-                if (!vals.length) return null
+              {/* Visa / status / consulate list fields */}
+              {LIST_SECTIONS.map((s) => {
+                const values = draft[s.field]
+                const listId = `ob-${s.kind}`
                 return (
                   <div key={s.field}>
                     <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">{s.label}</p>
                     <div className="flex flex-wrap gap-2">
-                      {vals.map((v) => (
-                        <span key={v} className="pill-active flex items-center gap-1">{v}
+                      {values.length === 0 && <span className="text-caption text-on-surface-variant">None.</span>}
+                      {values.map((v) => (
+                        <span key={v} className="pill-active flex items-center gap-1">
+                          {s.kind === 'consulate' ? (consulateByCode.get(v) || v) : v}
                           <button onClick={() => removeChip(s.field, v)} aria-label={`Remove ${v}`}><span className="material-symbols-outlined text-[16px]">close</span></button>
                         </span>
                       ))}
                     </div>
+                    <input list={listId}
+                      placeholder={s.kind === 'consulate' ? 'Add a consulate (search city/country)…' : `Add ${s.label.toLowerCase()}…`}
+                      onChange={(e) => {
+                        // Auto-add as soon as a valid value is chosen from the dropdown
+                        // (or fully typed). No error on partial input — Enter handles that.
+                        const val = e.target.value
+                        const valid = s.kind === 'consulate' ? consulateByLabel.has(val)
+                          : s.kind === 'misc' ? miscByLabel.has(val)
+                          : vocabSets[s.kind].has(val)
+                        if (valid) { addTag(s.field, s.kind, val); e.target.value = '' }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          addTag(s.field, s.kind, (e.target as HTMLInputElement).value)
+                          ;(e.target as HTMLInputElement).value = ''
+                        }
+                      }}
+                      className="mt-1 w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
                   </div>
                 )
               })}
+              <datalist id="ob-visa">{vocab.visa.map((v) => <option key={v} value={v} />)}</datalist>
+              <datalist id="ob-consulate">{vocab.consulate_options.map((o) => <option key={o.code} value={o.label} />)}</datalist>
+              <datalist id="ob-misc">{vocab.misc_options.map((o) => <option key={o.code} value={o.label} />)}</datalist>
 
-              {Object.keys(draft.key_stages_or_info).length > 0 && (
-                <div>
-                  <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">Situation</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(draft.key_stages_or_info).map(([k, v]) => (
-                      <span key={k} className="pill-active flex items-center gap-1">{k}: {v}
-                        <button onClick={() => removeKV('key_stages_or_info', k)} aria-label={`Remove ${k}`}><span className="material-symbols-outlined text-[16px]">close</span></button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {Object.keys(draft.key_dates).length > 0 && (
-                <div>
-                  <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">Key dates</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(draft.key_dates).map(([k, v]) => (
-                      <span key={k} className="pill-active flex items-center gap-1">{k}: {v}
-                        <button onClick={() => removeKV('key_dates', k)} aria-label={`Remove ${k}`}><span className="material-symbols-outlined text-[16px]">close</span></button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Key stages / info */}
               <div>
-                <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">Background</p>
-                <textarea value={draft.background_text} onChange={(e) => { setRegenNote(''); setDraft((d) => ({ ...d, background_text: e.target.value })) }}
-                  rows={4} placeholder="Your situation/intent (no personal identifiers)…"
-                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-body-md focus:outline-none focus:border-primary resize-y" />
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <button onClick={regenTags} disabled={regen || draft.background_text.trim().length < 10}
-                    className="btn-secondary text-label-md disabled:opacity-40 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[18px]">auto_fix_high</span>
-                    {regen ? 'Analyzing…' : 'Re-generate tags from this text'}
-                  </button>
-                  {regenNote && <span className="text-caption text-primary">{regenNote}</span>}
+                <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">Key stages / info</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.keys(draft.key_stages_or_info).length === 0 && <span className="text-caption text-on-surface-variant">None.</span>}
+                  {Object.entries(draft.key_stages_or_info).map(([k, v]) => (
+                    <span key={k} className="pill-active flex items-center gap-1">{k}: {v}
+                      <button onClick={() => removeKV('key_stages_or_info', k)} aria-label={`Remove ${k}`}><span className="material-symbols-outlined text-[16px]">close</span></button>
+                    </span>
+                  ))}
                 </div>
+                <div className="flex gap-2 mt-1">
+                  <input list="ob-stage-keys" value={sKey} onChange={(e) => { setSKey(e.target.value); setSVal('') }} placeholder="stage key"
+                    className="flex-1 min-w-0 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                  <input list={stageDomain ? `ob-sv-${stageDomain}` : undefined}
+                    value={sVal} onChange={(e) => setSVal(e.target.value)}
+                    placeholder={stageDomain ? `${stageDomain} value…` : 'value'}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addStage() } }}
+                    className="flex-1 min-w-0 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                  <button onClick={addStage} className="btn-secondary text-label-md">Add</button>
+                </div>
+                {stageDomain && <p className="text-caption text-on-surface-variant mt-0.5">Value must be a valid {stageDomain} (pick from the list).</p>}
+                <datalist id="ob-stage-keys">{vocab.profile_stage_key.map((v) => <option key={v} value={v} />)}</datalist>
+                <datalist id="ob-sv-country">{vocab.country.map((v) => <option key={v} value={v} />)}</datalist>
+                <datalist id="ob-sv-outcome">{vocab.outcome.map((v) => <option key={v} value={v} />)}</datalist>
+                <datalist id="ob-sv-visa">{vocab.visa.map((v) => <option key={v} value={v} />)}</datalist>
+                <datalist id="ob-sv-consulate">{vocab.consulate_options.map((o) => <option key={o.code} value={o.label} />)}</datalist>
+              </div>
+
+              {/* Key dates */}
+              <div>
+                <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">Key dates</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.keys(draft.key_dates).length === 0 && <span className="text-caption text-on-surface-variant">None.</span>}
+                  {Object.entries(draft.key_dates).map(([k, v]) => (
+                    <span key={k} className="pill-active flex items-center gap-1">{k}: {v}
+                      <button onClick={() => removeKV('key_dates', k)} aria-label={`Remove ${k}`}><span className="material-symbols-outlined text-[16px]">close</span></button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <input list="ob-date-keys" value={dKey} onChange={(e) => setDKey(e.target.value)} placeholder="date key"
+                    className="flex-1 min-w-0 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                  <input type="date" value={dVal} onChange={(e) => setDVal(e.target.value)}
+                    className="flex-1 min-w-0 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                  <button onClick={addDate} className="btn-secondary text-label-md">Add</button>
+                </div>
+                <datalist id="ob-date-keys">{vocab.date_key.map((v) => <option key={v} value={v} />)}</datalist>
               </div>
 
               <button onClick={saveAndContinue} disabled={saving || !hasBasics} className="btn-primary w-full disabled:opacity-40">
@@ -428,7 +581,7 @@ export default function OnboardingPage() {
               <button onClick={saveExperiences} disabled={saving} className="btn-primary w-full disabled:opacity-40">
                 {saving ? 'Saving…' : 'Save experiences'}
               </button>
-              <button onClick={backToBasics} className="btn-secondary w-full">Back to basics</button>
+              <button onClick={backToBasics} className="btn-secondary w-full">Back to background</button>
               <p className="text-caption text-on-surface-variant text-center">Experiences are stored as text and never tagged to your current status. Only the ones you tick to share become searchable by others.</p>
 
               {/* Connect card */}
