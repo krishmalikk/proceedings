@@ -19,7 +19,7 @@ export default function Replies({
   onPostingTally?: (t: Tally) => void
 }) {
   const [replies, setReplies] = useState<ReplyCardData[]>([])
-  const [sort, setSort] = useState<'top' | 'new'>('top')
+  const [sort, setSort] = useState<'top' | 'new'>('new')  // default: most recent first
   const [loading, setLoading] = useState(true)
   const [text, setText] = useState('')
   const [submitting, setSubmitting] = useState(false)

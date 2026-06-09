@@ -115,6 +115,13 @@ export default function CaseDetailsPage() {
                 <div className="flex justify-between"><dt className="text-on-surface-variant">Posted</dt><dd className="text-on-surface">{data.date || '—'}</dd></div>
                 {data.outcome && <div className="flex justify-between"><dt className="text-on-surface-variant">Outcome</dt><dd className="text-on-surface">{data.outcome}</dd></div>}
               </dl>
+              {/* Raw metadata JSON — for testing/inspection */}
+              <details className="mt-3" open>
+                <summary className="text-caption text-on-surface-variant cursor-pointer hover:text-primary select-none">Metadata (JSON)</summary>
+                <pre className="mt-2 text-[11px] leading-snug text-on-surface-variant bg-surface-container rounded-lg p-3 overflow-auto max-h-96 whitespace-pre-wrap break-words">
+{JSON.stringify(data, null, 2)}
+                </pre>
+              </details>
             </div>
 
             {data.tags.length > 0 && (
@@ -128,7 +135,8 @@ export default function CaseDetailsPage() {
               </div>
             )}
 
-            {data.url && (
+            {/* Only show for genuine Reddit-sourced posts (otherwise the link goes nowhere useful) */}
+            {data.url && (data.channel === 'reddit' || !!data.subreddit || /reddit\.com/i.test(data.url)) && (
               <a href={data.url} target="_blank" rel="noopener noreferrer" className="card-hover flex items-center gap-2 text-secondary">
                 <span className="material-symbols-outlined text-[18px]">open_in_new</span>
                 View original on Reddit
@@ -136,13 +144,13 @@ export default function CaseDetailsPage() {
             )}
 
             <div className="bg-gradient-to-br from-primary to-primary-container rounded-xl p-6 text-center">
-              <h3 className="text-headline-md text-on-primary mb-2">Need Expert Help?</h3>
+              <h3 className="text-headline-md text-on-primary mb-2">Coming Soon</h3>
               <p className="text-body-md text-on-primary opacity-90 mb-4">
-                Get personalized guidance from a verified immigration attorney.
+                Personalized guidance from a verified immigration attorney is coming soon.
               </p>
-              <Link href="/pro" className="btn-primary bg-white text-primary hover:bg-surface">
+              <button disabled className="btn-primary bg-white text-primary opacity-70 cursor-not-allowed">
                 Consult an Attorney
-              </Link>
+              </button>
             </div>
           </aside>
         </div>

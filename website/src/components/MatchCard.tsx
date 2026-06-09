@@ -6,6 +6,7 @@ export type MatchData = {
   score: number
   shared: string[]
   summary: string
+  background?: string
 }
 
 // A ranked candidate ("same boat") with a checkbox to include in the group.
@@ -38,7 +39,8 @@ export default function MatchCard({
           <span className="text-label-md font-semibold text-on-surface">{m.username}</span>
           <span className="text-caption text-on-surface-variant whitespace-nowrap">match {m.score}</span>
         </div>
-        {m.summary && <p className="text-caption text-on-surface-variant mb-2">{m.summary}</p>}
+        {m.summary && <p className="text-caption font-medium text-on-surface-variant mt-0.5">{m.summary}</p>}
+        {m.background && <p className="text-caption text-on-surface-variant mt-1 mb-2 line-clamp-3">{m.background}</p>}
         <div className="flex flex-wrap gap-1">
           {m.shared.map((s) => (
             <span key={s} className="text-caption text-secondary bg-secondary-container/50 px-2 py-0.5 rounded-full">
