@@ -28,7 +28,12 @@ export function SearchScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Header showLogo showSearch showProfile />
+      <Header
+        showLogo
+        showSearch
+        showProfile
+        onProfile={() => navigation.navigate('Profile')}
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Hero Section */}

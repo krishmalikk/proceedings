@@ -1,7 +1,46 @@
 // API Service for Proceedings Mobile
 // Connects to the same backend API as the website
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://immiguide-api-971592620882.us-central1.run.app';
+
+// Active user management (stored in AsyncStorage)
+let activeUserId: string | null = null;
+
+export function getActiveUserId(): string | null {
+  return activeUserId;
+}
+
+export async function loadActiveUser(): Promise<string | null> {
+  try {
+    activeUserId = await AsyncStorage.getItem('activeUserId');
+    return activeUserId;
+  } catch {
+    return null;
+  }
+}
+
+export async function setActiveUserId(id: string | null): Promise<void> {
+  activeUserId = id;
+  try {
+    if (id) {
+      await AsyncStorage.setItem('activeUserId', id);
+    } else {
+      await AsyncStorage.removeItem('activeUserId');
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function userHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  if (activeUserId) {
+    headers['X-User-Id'] = activeUserId;
+  }
+  return headers;
+}
 
 export interface Source {
   chunk_id: string;
@@ -89,4 +128,449 @@ export async function submitFeedback(qaId: string, helpful: boolean): Promise<{ 
 export async function checkHealth(): Promise<{ status: string; chunks_loaded: number }> {
   const response = await fetch(`${API_URL}/api/health`);
   return response.json();
+}
+
+// ============= Users =============
+
+export interface SeedUser {
+  id: string;
+  username: string;
+  label?: string;
+}
+
+export async function getUsers(): Promise<SeedUser[]> {
+  const response = await fetch(`${API_URL}/api/users`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch users: ${response.status}`);
+  }
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+}
+
+// ============= Voting =============
+
+export interface VoteResult {
+  score: number;
+  your_vote: number;
+}
+
+export async function castVote(contentId: string, dir: -1 | 0 | 1): Promise<VoteResult> {
+  const response = await fetch(`${API_URL}/api/votes`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ content_id: contentId, dir }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Vote failed');
+  }
+  return data;
+}
+
+// ============= Replies =============
+
+export interface ReplyCardData {
+  id: string;
+  parent_case_id: string;
+  body: string;
+  author_handle: string;
+  created_at: string;
+  deleted: boolean;
+  up: number;
+  down: number;
+  score: number;
+  your_vote: number;
+  is_author: boolean;
+}
+
+export interface RepliesResponse {
+  replies: ReplyCardData[];
+  posting?: { up: number; down: number; score: number; your_vote: number };
+}
+
+export async function getReplies(postingId: string, sort: 'top' | 'new' = 'new'): Promise<RepliesResponse> {
+  const response = await fetch(
+    `${API_URL}/api/postings/${encodeURIComponent(postingId)}/replies?sort=${sort}`,
+    { headers: userHeaders() }
+  );
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load replies');
+  }
+  return data;
+}
+
+export async function postReply(postingId: string, body: string): Promise<ReplyCardData> {
+  const response = await fetch(`${API_URL}/api/postings/${encodeURIComponent(postingId)}/replies`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ body }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not post reply');
+  }
+  return data;
+}
+
+export async function deleteReply(postingId: string, replyId: string): Promise<void> {
+  const response = await fetch(
+    `${API_URL}/api/postings/${encodeURIComponent(postingId)}/replies/${encodeURIComponent(replyId)}`,
+    { method: 'DELETE', headers: userHeaders() }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || 'Delete failed');
+  }
+}
+
+// ============= Postings =============
+
+export interface PostingData {
+  case_id: string;
+  title: string;
+  description: string;
+  visa: string[];
+  consulates: string[];
+  outcome: string;
+  subreddit: string;
+  channel: string;
+  tags: string[];
+  url: string;
+  date: string;
+}
+
+export interface PostingGroups {
+  visa_applying_for: string[];
+  current_visa_or_greencard_category: string[];
+  primary_consulate: string;
+  consulates: string[];
+  tags: string[];
+  concerns_or_questions_tags: string[];
+}
+
+export async function getPosting(caseId: string): Promise<PostingData> {
+  const response = await fetch(`${API_URL}/api/postings/${encodeURIComponent(caseId)}`, {
+    headers: userHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load posting');
+  }
+  return data;
+}
+
+export async function createPosting(
+  title: string,
+  description: string,
+  tags: PostingGroups,
+  key_stages_or_info: Record<string, string>,
+  key_dates: Record<string, string>
+): Promise<{ case_id: string; author_handle: string }> {
+  const response = await fetch(`${API_URL}/api/postings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, description, tags, key_stages_or_info, key_dates }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not publish posting');
+  }
+  return data;
+}
+
+export async function suggestTags(
+  title: string,
+  description: string
+): Promise<{
+  groups: PostingGroups;
+  key_stages_or_info: Record<string, string>;
+  key_dates: Record<string, string>;
+  relevant_sections: string[];
+  posting_type: string;
+}> {
+  const response = await fetch(`${API_URL}/api/tag-suggest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, description }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not analyze posting');
+  }
+  return data;
+}
+
+// ============= Tag Vocabulary =============
+
+export interface TagVocab {
+  visa: string[];
+  consulate: string[];
+  consulate_options: { code: string; label: string }[];
+  tag: string[];
+  stage_key: string[];
+  date_key: string[];
+  profile_stage_key: string[];
+  stage_value_domains: Record<string, string>;
+  country: string[];
+  outcome: string[];
+}
+
+export async function getTagVocab(): Promise<TagVocab> {
+  const response = await fetch(`${API_URL}/api/tag-vocab`);
+  const data = await response.json();
+  return {
+    visa: data.visa || [],
+    consulate: data.consulate || [],
+    consulate_options: data.consulate_options || [],
+    tag: data.tag || [],
+    stage_key: data.stage_key || [],
+    date_key: data.date_key || [],
+    profile_stage_key: data.profile_stage_key || [],
+    stage_value_domains: data.stage_value_domains || {},
+    country: data.country || [],
+    outcome: data.outcome || [],
+  };
+}
+
+// ============= Matching / Find =============
+
+export interface MatchData {
+  user_id: string;
+  username: string;
+  score: number;
+  shared: string[];
+  summary: string;
+  background?: string;
+}
+
+export interface Criteria {
+  current_visa_or_greencard_category: string[];
+  visa_applying_for: string[];
+  primary_consulate: string;
+  consulates: string[];
+  key_stages_or_info: Record<string, string>;
+  key_dates: Record<string, string>;
+  background_text: string;
+}
+
+export async function findChat(
+  messages: { role: string; content: string }[],
+  draft: Criteria
+): Promise<{ reply: string; criteria: Criteria }> {
+  const response = await fetch(`${API_URL}/api/find/chat`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ messages, draft }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Find chat error');
+  }
+  return data;
+}
+
+export async function findMatches(criteria: Criteria): Promise<{ matches: MatchData[] }> {
+  const response = await fetch(`${API_URL}/api/find/matches`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ criteria }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not find matches');
+  }
+  return data;
+}
+
+// ============= Groups =============
+
+export interface GroupMember {
+  user_id: string;
+  username: string;
+}
+
+export interface GroupInfo {
+  group_id: string;
+  name: string;
+  criteria_text: string;
+  members: GroupMember[];
+  is_member: boolean;
+}
+
+export interface GroupResult {
+  group_id: string;
+  name: string;
+  joined: boolean;
+  members: GroupMember[];
+}
+
+export async function getAllGroups(): Promise<{ groups: GroupInfo[] }> {
+  const response = await fetch(`${API_URL}/api/groups/all`, {
+    headers: userHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load groups');
+  }
+  return data;
+}
+
+export async function createGroup(
+  criteriaText: string,
+  criteria: Criteria,
+  members: GroupMember[]
+): Promise<GroupResult> {
+  const response = await fetch(`${API_URL}/api/groups`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ criteria_text: criteriaText, criteria, members }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not create group');
+  }
+  return data;
+}
+
+export async function joinGroup(groupId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/join`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || 'Could not join group');
+  }
+}
+
+// ============= Group Chat =============
+
+export interface ChatMessage {
+  id: string;
+  author_handle: string;
+  text: string;
+  created_at: string;
+  deleted: boolean;
+  is_author: boolean;
+}
+
+export async function getGroupMessages(
+  groupId: string,
+  since?: string
+): Promise<{ messages: ChatMessage[]; denied?: boolean }> {
+  const url = since
+    ? `${API_URL}/api/groups/${encodeURIComponent(groupId)}/messages?since=${encodeURIComponent(since)}`
+    : `${API_URL}/api/groups/${encodeURIComponent(groupId)}/messages`;
+  const response = await fetch(url, { headers: userHeaders() });
+  if (response.status === 403) {
+    return { messages: [], denied: true };
+  }
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load messages');
+  }
+  return { messages: data.messages || [] };
+}
+
+export async function sendGroupMessage(groupId: string, text: string): Promise<ChatMessage> {
+  const response = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/messages`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ text }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not send message');
+  }
+  return data;
+}
+
+export async function deleteGroupMessage(groupId: string, messageId: string): Promise<void> {
+  const response = await fetch(
+    `${API_URL}/api/groups/${encodeURIComponent(groupId)}/messages/${encodeURIComponent(messageId)}`,
+    { method: 'DELETE', headers: userHeaders() }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || 'Delete failed');
+  }
+}
+
+// ============= Profile / Reconcile =============
+
+export interface ReconcileResult {
+  conflicts: { field: string; profile_value: unknown; message_value: unknown }[];
+  explainer: string;
+  merged: Criteria;
+  prefilled: string[];
+}
+
+export async function reconcile(message: Partial<Criteria>): Promise<ReconcileResult> {
+  const response = await fetch(`${API_URL}/api/reconcile`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ message }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Reconcile failed');
+  }
+  return data;
+}
+
+// Profile cache key
+const PROFILE_CACHE_KEY = 'proceedings_profile_cache';
+
+// Get cached profile (returns null if not cached)
+export async function getCachedProfile(): Promise<Record<string, unknown> | null> {
+  try {
+    const cached = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch {
+    // Ignore cache errors
+  }
+  return null;
+}
+
+// Save profile to cache
+async function cacheProfile(profile: Record<string, unknown>): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+  } catch {
+    // Ignore cache errors
+  }
+}
+
+// Clear profile cache (call on sign out)
+export async function clearProfileCache(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
+  } catch {
+    // Ignore cache errors
+  }
+}
+
+export async function getProfile(): Promise<Record<string, unknown>> {
+  const response = await fetch(`${API_URL}/api/profile`, {
+    headers: userHeaders(),
+  });
+  const data = await response.json();
+  // Cache the fresh profile
+  await cacheProfile(data);
+  return data;
+}
+
+export async function updateProfile(profile: Record<string, unknown>): Promise<void> {
+  const response = await fetch(`${API_URL}/api/profile`, {
+    method: 'PUT',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(profile),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || 'Could not update profile');
+  }
 }

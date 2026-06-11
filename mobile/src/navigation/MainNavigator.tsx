@@ -1,27 +1,39 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import {
   SearchScreen,
-  OnboardingScreen,
   CommunityScreen,
   CaseDetailsScreen,
   AskProScreen,
   NewsScreen,
+  FindScreen,
+  PostScreen,
+  GroupChatScreen,
+  LoginScreen,
+  SignupScreen,
+  ProfileScreen,
+  BackgroundOnboardingScreen,
+  ExperiencesOnboardingScreen,
 } from '../screens';
 import { colors, spacing } from '../constants/theme';
 import { FloatingChatButton, ChatModal } from '../components/chat';
+import { useAuth } from '../contexts/AuthContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator();
+const OnboardingStackNav = createNativeStackNavigator();
 
 function CommunityStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="CommunityMain" component={CommunityScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="Post" component={PostScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );
 }
@@ -31,21 +43,51 @@ function HomeStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SearchMain" component={SearchScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );
 }
 
-type TabIconName = 'home' | 'document-text' | 'chatbubbles' | 'headset' | 'newspaper';
+function FindStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="FindMain" component={FindScreen} />
+      <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Signup" component={SignupScreen} />
+    </AuthStack.Navigator>
+  );
+}
+
+function OnboardingStack() {
+  return (
+    <OnboardingStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <OnboardingStackNav.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
+      <OnboardingStackNav.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
+    </OnboardingStackNav.Navigator>
+  );
+}
+
+type TabIconName = 'home' | 'document-text' | 'chatbubbles' | 'headset' | 'newspaper' | 'people' | 'create';
 
 const tabIcons: Record<string, { focused: TabIconName; unfocused: `${TabIconName}-outline` }> = {
   Home: { focused: 'home', unfocused: 'home-outline' },
-  MyCase: { focused: 'document-text', unfocused: 'document-text-outline' },
+  Find: { focused: 'people', unfocused: 'people-outline' },
   Community: { focused: 'chatbubbles', unfocused: 'chatbubbles-outline' },
   AskPro: { focused: 'headset', unfocused: 'headset-outline' },
   News: { focused: 'newspaper', unfocused: 'newspaper-outline' },
 };
 
-export function MainNavigator() {
+function TabNavigator() {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   return (
@@ -73,19 +115,10 @@ export function MainNavigator() {
           }}
         />
         <Tab.Screen
-          name="MyCase"
-          component={OnboardingScreen}
+          name="Find"
+          component={FindStack}
           options={{
-            tabBarLabel: 'My Case',
-            tabBarIcon: ({ focused, color }) => (
-              <View style={[styles.caseIconContainer, focused && styles.caseIconActive]}>
-                <Ionicons
-                  name={focused ? 'document-text' : 'document-text-outline'}
-                  size={20}
-                  color={focused ? colors.onPrimary : color}
-                />
-              </View>
-            ),
+            tabBarLabel: 'Find',
           }}
         />
         <Tab.Screen
@@ -124,9 +157,41 @@ export function MainNavigator() {
   );
 }
 
+export function MainNavigator() {
+  const { user, loading, isDevMode, hasCompletedOnboarding } = useAuth();
+
+  // Show loading screen while checking auth state
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Show auth screens if not authenticated and not in dev mode
+  if (!user && !isDevMode) {
+    return <AuthNavigator />;
+  }
+
+  // Show onboarding if user hasn't completed it (and not in dev mode)
+  if (!hasCompletedOnboarding && !isDevMode) {
+    return <OnboardingStack />;
+  }
+
+  // Show main app if authenticated and onboarding complete (or in dev mode)
+  return <TabNavigator />;
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
   },
   tabBar: {
     backgroundColor: colors.surfaceContainerLowest,
@@ -143,17 +208,6 @@ const styles = StyleSheet.create({
   },
   tabBarItem: {
     paddingVertical: 4,
-  },
-  caseIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainerHigh,
-  },
-  caseIconActive: {
-    backgroundColor: colors.primary,
   },
 });
 
