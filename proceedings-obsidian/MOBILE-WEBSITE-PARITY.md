@@ -11,6 +11,33 @@ This note tracks the **functionality gaps** — things that existed on the **web
 
 ---
 
+## 0.4 Posting author profile + their postings (both platforms — ✅ Done)
+
+Show a posting author's structured profile + their other postings on the case page (below Topics), with navigation. **Reverses the previous anonymity for app postings only**, scoped to Firestore (the search datastore stays author-free).
+
+- **Backend**: author uid captured at publish into Firestore `posting_authors/{case_id}` (NOT the datastore). `GET /api/postings/{id}` resolves `author_id` (app channel only). New `GET /api/users/{uid}/public-profile` + `GET /api/users/{uid}/postings`. Deployed Cloud Run rev (author endpoints). Reddit/other-source postings → `author_id=""` → section omitted; app posting w/ unknown author → "Anonymous" note.
+- **Website**: `AuthorSection` component on `/case/[id]` (sections w/ headings: Visa Status, Consulates [code→city label], Tags, Key Stages, Key Dates) + "More postings by this author" (clickable) + "View profile" → new `/author/[uid]` page. Proxies forced `dynamic` (live). **Verified live end-to-end** (profile renders below Topics; clicking a posting navigates; author page lists all).
+- **Mobile**: `AuthorCard` component on CaseDetails (same sections + postings list, navigable) + new `AuthorScreen` (registered in all CaseDetails stacks) reached via "View profile". `apiService.getPublicProfile` + `getUserPostings`. Type-verified.
+
+> Test artifacts: 2 app postings titled "AUTHOR-FEATURE TEST" were published as `syn-01` to verify/demo the loop. They live in the dev corpus (no local datastore-delete path) — remove when done.
+
+---
+
+## 0.5 Two-part consulate picker (both platforms — ✅ Done)
+
+A UX upgrade applied to **both** the website (`/onboarding`) and mobile (`BackgroundOnboardingScreen`) consulate section, kept in lock-step:
+1. **Backend** adds `consulate_tree` to `/api/tag-vocab` — `[{country, country_code, cities:[{code, city}]}]`, grouped from the 1.4 CSV's structured columns (robust to comma country names like "Congo, Dem. Rep. of"). `posting._load_consulate_tree`; 6 new checks in `test_profile_vocab`; deployed Cloud Run rev `immiguide-api-00034`.
+2. **Country** is a **type-to-filter** field (155 countries — too large for a plain dropdown), shown as "Country (CODE)".
+3. **City** is a **fixed dropdown / chip list** (small per-country list, no typing).
+4. **Country-wide** add is allowed — stores the 2-letter country code (a valid `consulates` value) without choosing a city.
+5. **Selecting a city marks BOTH** its country code AND the city code, then **resets/closes** the picker (mobile collapses the section; web clears the inputs).
+- Applies to **first-time onboarding and edit-profile alike** — both platforms use one shared screen/page (`BackgroundOnboardingScreen` / `/onboarding`), so the change covers both with no separate path.
+- Stored values are always codes; existing chips display via `consulate_options` (country codes → "India (IN)", city codes → "Mumbai, India (BOM)").
+- Verified live in the browser: type India → 5-city dropdown → select Chennai ⇒ both "India (IN)" + "Chennai, India (MAA)" chips, picker reset; country-wide → "India (IN)" chip. Mobile mirrors the flow (typeahead + fixed city chips, collapse-on-select), offline-fallback to the baked city list — type-verified.
+- Also fixed on mobile onboarding while here: removed a **duplicate "Describe your situation" box** (the chat now has no separate input — the single background box drives it, matching the website) and added the **"Ask the assistant"** button beside "Re-generate tags".
+
+---
+
 ## Legend
 - ✅ **Done** — implemented on this branch, type-checked, contract-verified against the deployed backend.
 - 🟡 **Partial** — works, but a sub-capability is intentionally simpler than the website.
