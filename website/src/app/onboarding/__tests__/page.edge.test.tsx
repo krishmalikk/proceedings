@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import OnboardingPage from '../page'
 
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false, signOut: vi.fn() }) }))
 vi.mock('@/lib/activeUser', () => ({
   getActiveUser: vi.fn(() => 'demo-arjun'),
   setActiveUser: vi.fn(),

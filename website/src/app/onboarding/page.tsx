@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Markdown from '@/components/Markdown'
+import { useAuth } from '@/contexts/AuthContext'
 import { getActiveUser, setActiveUser, userHeaders } from '@/lib/activeUser'
 
 type JourneyEntry = { milestone: string; date: string; experience: string; shared?: boolean; experience_case_id?: string }
@@ -68,6 +69,7 @@ const LIST_SECTIONS: { field: ListField; label: string; kind: TagKind }[] = [
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const { user: authUser } = useAuth()
   const [users, setUsers] = useState<SeedUser[]>([])
   const [activeId, setActiveId] = useState('')
   const [stage, setStage] = useState<Stage>('basics')
@@ -340,15 +342,23 @@ export default function OnboardingPage() {
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
         <h1 className="text-headline-md text-on-surface">{savedAt ? 'Your profile' : 'Set up your profile'}</h1>
-        <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
-          <span className="material-symbols-outlined text-[20px]">switch_account</span>
-          Demo user:
-          <select value={activeId} onChange={(e) => { const v = e.target.value; if (v === '__new__') createNewUser(); else switchUser(v) }}
-            className="bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-body-md focus:outline-none focus:border-primary">
-            {users.map((u) => <option key={u.id} value={u.id}>{u.label || u.username}</option>)}
-            <option value="__new__">➕ New user…</option>
-          </select>
-        </label>
+        {authUser ? (
+          /* Firebase-authenticated — the demo picker is inert (the uid wins), so show identity instead. */
+          <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
+            <span className="material-symbols-outlined text-[20px]">account_circle</span>
+            Signed in as {authUser.displayName || authUser.email}
+          </span>
+        ) : (
+          <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
+            <span className="material-symbols-outlined text-[20px]">switch_account</span>
+            Demo user:
+            <select value={activeId} onChange={(e) => { const v = e.target.value; if (v === '__new__') createNewUser(); else switchUser(v) }}
+              className="bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-body-md focus:outline-none focus:border-primary">
+              {users.map((u) => <option key={u.id} value={u.id}>{u.label || u.username}</option>)}
+              <option value="__new__">➕ New user…</option>
+            </select>
+          </label>
+        )}
       </div>
 
       {/* stepper */}

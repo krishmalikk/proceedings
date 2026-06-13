@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Markdown from '@/components/Markdown'
 import MatchCard, { MatchData } from '@/components/MatchCard'
+import { useAuth } from '@/contexts/AuthContext'
 import { getActiveUser, setActiveUser, userHeaders } from '@/lib/activeUser'
 
 type Criteria = {
@@ -59,6 +60,7 @@ function hasCriteria(c: Criteria): boolean {
 
 export default function FindPage() {
   const router = useRouter()
+  const { user: authUser } = useAuth()
   const [users, setUsers] = useState<SeedUser[]>([])
   const [activeId, setActiveId] = useState('')
   const [tab, setTab] = useState<'find' | 'browse'>('browse')  // land on existing groups
@@ -304,14 +306,22 @@ export default function FindPage() {
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <h1 className="text-headline-md text-on-surface">Find users in the same boat</h1>
-        <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
-          <span className="material-symbols-outlined text-[20px]">switch_account</span>
-          Demo user:
-          <select value={activeId} onChange={(e) => switchUser(e.target.value)}
-            className="bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-body-md focus:outline-none focus:border-primary">
-            {users.map((u) => <option key={u.id} value={u.id}>{u.label || u.username}</option>)}
-          </select>
-        </label>
+        {authUser ? (
+          /* Firebase-authenticated — the demo picker is inert (the uid wins), so show identity instead. */
+          <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
+            <span className="material-symbols-outlined text-[20px]">account_circle</span>
+            Signed in as {authUser.displayName || authUser.email}
+          </span>
+        ) : (
+          <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
+            <span className="material-symbols-outlined text-[20px]">switch_account</span>
+            Demo user:
+            <select value={activeId} onChange={(e) => switchUser(e.target.value)}
+              className="bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-body-md focus:outline-none focus:border-primary">
+              {users.map((u) => <option key={u.id} value={u.id}>{u.label || u.username}</option>)}
+            </select>
+          </label>
+        )}
       </div>
 
       {/* tabs — the groups list is the landing view */}
