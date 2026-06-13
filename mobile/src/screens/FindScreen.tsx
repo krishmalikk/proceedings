@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, borderRadius } from '../constants/theme';
-import { MatchCard, Card } from '../components';
+import { MatchCard, Card, Markdown } from '../components';
 import {
   getUsers,
   getTagVocab,
@@ -25,16 +25,20 @@ import {
   findMatches,
   getAllGroups,
   createGroup,
-  joinGroup,
   getActiveUserId,
   setActiveUserId,
   loadActiveUser,
+  reconcile,
+  getProfile,
+  updateProfile,
   SeedUser,
   TagVocab,
   MatchData,
   Criteria,
   GroupInfo,
+  ReconcileResult,
 } from '../services/apiService';
+import { KEY_STAGES, STAGE_OUTCOMES, KEY_DATE_TYPES } from '../constants/onboardingData';
 
 type Turn = { id: string; role: 'user' | 'ai'; content: string };
 
@@ -80,6 +84,19 @@ export function FindScreen() {
   const [searched, setSearched] = useState(false);
   const [matchLoading, setMatchLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Reconcile (criteria vs saved profile) — two-step offer, mirroring the website.
+  const [conflicts, setConflicts] = useState<ReconcileResult['conflicts']>([]);
+  const [explainer, setExplainer] = useState('');
+  const [merged, setMerged] = useState<Criteria | null>(null);
+  const [showUpdateOffer, setShowUpdateOffer] = useState(false);
+  const [showMergeOffer, setShowMergeOffer] = useState(false);
+  const [profileUpdated, setProfileUpdated] = useState(false);
+
+  // Manual key-stage / key-date editing (website parity; same pickers as onboarding)
+  const [selectedStageKey, setSelectedStageKey] = useState('');
+  const [selectedDateKey, setSelectedDateKey] = useState('');
+  const [dateValue, setDateValue] = useState('');
 
   // Browse
   const [allGroups, setAllGroups] = useState<GroupInfo[]>([]);
@@ -165,11 +182,11 @@ export function FindScreen() {
     }
   };
 
-  const runMatches = async () => {
+  const runMatches = async (criteria?: Criteria) => {
     setMatchLoading(true);
     setError('');
     try {
-      const data = await findMatches(draft);
+      const data = await findMatches(criteria || draft);
       setMatches(data.matches || []);
       setSearched(true);
       setSelected(new Set());
@@ -178,6 +195,87 @@ export function FindScreen() {
     } finally {
       setMatchLoading(false);
     }
+  };
+
+  // Step 1 (website parity): validate the criteria against the saved profile.
+  // On discrepancies, offer to update the profile (2a) → if declined, offer to
+  // fold the profile context into the search (2b). Otherwise match directly.
+  const handleFindMatches = async () => {
+    setConflicts([]);
+    setExplainer('');
+    setMerged(null);
+    setShowUpdateOffer(false);
+    setShowMergeOffer(false);
+    setProfileUpdated(false);
+    try {
+      const rd = await reconcile(draft);
+      if ((rd.conflicts || []).length > 0) {
+        setConflicts(rd.conflicts);
+        setExplainer(rd.explainer || '');
+        setMerged({ ...EMPTY_CRITERIA, ...(rd.merged || {}) });
+        setShowUpdateOffer(true);
+        return;
+      }
+    } catch {
+      // reconcile is best-effort — fall through to matching
+    }
+    await runMatches();
+  };
+
+  // 2a — apply the conflicting values to the saved profile, then match.
+  const acceptUpdate = async () => {
+    try {
+      const cur = await getProfile();
+      const next: Record<string, unknown> = { ...cur };
+      for (const c of conflicts) {
+        if (c.field.includes('.')) {
+          const [mapF, key] = c.field.split('.');
+          next[mapF] = { ...((next[mapF] as Record<string, unknown>) || {}), [key]: c.message_value };
+        } else {
+          next[c.field] = c.message_value;
+        }
+      }
+      await updateProfile(next);
+      setProfileUpdated(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update profile');
+    }
+    setShowUpdateOffer(false);
+    setConflicts([]);
+    await runMatches();
+  };
+
+  // 2b — fold the profile context into the criteria → match on merged tags.
+  const acceptMerge = () => {
+    const eff = merged || draft;
+    setDraft(eff);
+    setShowMergeOffer(false);
+    runMatches(eff);
+  };
+
+  // Manual key-stage / key-date editing (website parity)
+  const removeKV = (field: 'key_stages_or_info' | 'key_dates', key: string) => {
+    setDraft((d) => {
+      const n = { ...d[field] };
+      delete n[key];
+      return { ...d, [field]: n };
+    });
+  };
+  const addStage = (key: string, outcome: string) => {
+    setDraft((d) => ({ ...d, key_stages_or_info: { ...d.key_stages_or_info, [key]: outcome } }));
+    setSelectedStageKey('');
+  };
+  const addDate = () => {
+    const v = dateValue.trim();
+    if (!selectedDateKey || !v) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      setError('Date must be YYYY-MM-DD.');
+      return;
+    }
+    setError('');
+    setDraft((d) => ({ ...d, key_dates: { ...d.key_dates, [selectedDateKey]: v } }));
+    setSelectedDateKey('');
+    setDateValue('');
   };
 
   const toggle = (userId: string) => {
@@ -202,16 +300,6 @@ export function FindScreen() {
     }
   };
 
-  const handleJoinGroup = async (groupId: string, groupName: string) => {
-    try {
-      await joinGroup(groupId);
-      await loadGroups();
-      navigation.navigate('GroupChat', { groupId, groupName });
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Could not join group');
-    }
-  };
-
   const removeChip = (field: keyof Criteria, value: string) => {
     setDraft((d) => ({
       ...d,
@@ -219,8 +307,8 @@ export function FindScreen() {
     }));
   };
 
+  // Website parity: the groups list shows ONLY the groups the user has joined.
   const myGroups = allGroups.filter((g) => g.is_member);
-  const otherGroups = allGroups.filter((g) => !g.is_member);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -293,38 +381,15 @@ export function FindScreen() {
                   ))
                 )}
 
-                {otherGroups.length > 0 && (
-                  <>
-                    <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>Other Groups</Text>
-                    {otherGroups.map((g) => (
-                      <View key={g.group_id} style={styles.groupCard}>
-                        <Text style={styles.groupName}>{g.name}</Text>
-                        {g.criteria_text ? <Text style={styles.groupCriteria}>{g.criteria_text}</Text> : null}
-                        <View style={styles.groupFooter}>
-                          <Text style={styles.groupMembers}>
-                            {g.members.length} member{g.members.length !== 1 ? 's' : ''}
-                          </Text>
-                          <TouchableOpacity
-                            style={styles.joinButton}
-                            onPress={() => handleJoinGroup(g.group_id, g.name)}
-                          >
-                            <Text style={styles.joinButtonText}>Join</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ))}
-                  </>
-                )}
-
-                {/* CTA */}
+                {/* CTA (website parity: "Did not find a group you are looking for?") */}
                 <Card style={styles.ctaCard}>
                   <Ionicons name="people-outline" size={36} color={colors.secondary} />
-                  <Text style={styles.ctaTitle}>Create Your Group</Text>
+                  <Text style={styles.ctaTitle}>Did not find a group you are looking for?</Text>
                   <Text style={styles.ctaText}>
-                    Describe your situation and we'll find others in the same boat.
+                    Describe your situation and we'll find others in the same boat — then form a group.
                   </Text>
                   <TouchableOpacity style={styles.ctaButton} onPress={() => setTab('find')}>
-                    <Text style={styles.ctaButtonText}>Create Group</Text>
+                    <Text style={styles.ctaButtonText}>Create your group</Text>
                   </TouchableOpacity>
                 </Card>
               </>
@@ -348,7 +413,7 @@ export function FindScreen() {
                   </View>
                 ) : (
                   <View key={m.id} style={styles.aiBubble}>
-                    <Text style={styles.aiBubbleText}>{m.content}</Text>
+                    <Markdown>{m.content}</Markdown>
                   </View>
                 )
               )}
@@ -413,10 +478,88 @@ export function FindScreen() {
                       <Ionicons name="close" size={14} color={colors.onSurfaceVariant} />
                     </TouchableOpacity>
                   ))}
+                  {Object.entries(draft.key_stages_or_info).map(([k, v]) => (
+                    <TouchableOpacity
+                      key={`ks-${k}`}
+                      style={[styles.chip, styles.chipSecondary]}
+                      onPress={() => removeKV('key_stages_or_info', k)}
+                    >
+                      <Text style={styles.chipTextSecondary}>{k}: {v}</Text>
+                      <Ionicons name="close" size={14} color={colors.onSurfaceVariant} />
+                    </TouchableOpacity>
+                  ))}
+                  {Object.entries(draft.key_dates).map(([k, v]) => (
+                    <TouchableOpacity
+                      key={`kd-${k}`}
+                      style={[styles.chip, styles.chipSecondary]}
+                      onPress={() => removeKV('key_dates', k)}
+                    >
+                      <Ionicons name="calendar-outline" size={12} color={colors.onSurfaceVariant} />
+                      <Text style={styles.chipTextSecondary}>{k.replace(/_/g, ' ')}: {v}</Text>
+                      <Ionicons name="close" size={14} color={colors.onSurfaceVariant} />
+                    </TouchableOpacity>
+                  ))}
                 </View>
+
+                {/* Manual add: status fact (form → outcome, website parity) */}
+                <Text style={styles.kvLabel}>Add a status fact</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {KEY_STAGES.filter((s) => !draft.key_stages_or_info[s.key]).map((s) => (
+                    <TouchableOpacity
+                      key={s.key}
+                      style={[styles.miniChip, selectedStageKey === s.key && styles.miniChipActive]}
+                      onPress={() => setSelectedStageKey(selectedStageKey === s.key ? '' : s.key)}
+                    >
+                      <Text style={[styles.miniChipText, selectedStageKey === s.key && styles.miniChipTextActive]}>
+                        {s.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                {!!selectedStageKey && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.base }}>
+                    {(vocab?.outcome?.length ? vocab.outcome : STAGE_OUTCOMES).map((o) => (
+                      <TouchableOpacity key={o} style={styles.miniChip} onPress={() => addStage(selectedStageKey, o)}>
+                        <Text style={styles.miniChipText}>{o}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+
+                {/* Manual add: key date (website parity) */}
+                <Text style={styles.kvLabel}>Add a key date</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {KEY_DATE_TYPES.filter((d) => !draft.key_dates[d.key]).map((d) => (
+                    <TouchableOpacity
+                      key={d.key}
+                      style={[styles.miniChip, selectedDateKey === d.key && styles.miniChipActive]}
+                      onPress={() => setSelectedDateKey(selectedDateKey === d.key ? '' : d.key)}
+                    >
+                      <Text style={[styles.miniChipText, selectedDateKey === d.key && styles.miniChipTextActive]}>
+                        {d.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                {!!selectedDateKey && (
+                  <View style={styles.dateRow}>
+                    <TextInput
+                      style={styles.dateInput}
+                      value={dateValue}
+                      onChangeText={setDateValue}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={colors.onSurfaceVariant}
+                      keyboardType="numbers-and-punctuation"
+                    />
+                    <TouchableOpacity style={styles.addDateButton} onPress={addDate}>
+                      <Text style={styles.addDateText}>Add</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
                 <TouchableOpacity
                   style={styles.findButton}
-                  onPress={runMatches}
+                  onPress={handleFindMatches}
                   disabled={matchLoading}
                 >
                   <Text style={styles.findButtonText}>
@@ -425,6 +568,58 @@ export function FindScreen() {
                 </TouchableOpacity>
               </Card>
             )}
+
+            {/* 2a — offer to update the profile (website parity) */}
+            {showUpdateOffer && (
+              <Card style={styles.offerCard}>
+                <Text style={styles.offerText}>
+                  {explainer || 'Some details differ from your saved profile.'}
+                </Text>
+                {conflicts.map((c) => (
+                  <Text key={c.field} style={styles.offerDetail}>
+                    · {c.field.replace(/_/g, ' ').replace('.', ': ')} — profile: {String(c.profile_value)} → here: {String(c.message_value)}
+                  </Text>
+                ))}
+                <View style={styles.offerButtons}>
+                  <TouchableOpacity style={styles.offerPrimary} onPress={acceptUpdate}>
+                    <Text style={styles.offerPrimaryText}>Update my profile & continue</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.offerSecondary}
+                    onPress={() => {
+                      setShowUpdateOffer(false);
+                      setShowMergeOffer(true);
+                    }}
+                  >
+                    <Text style={styles.offerSecondaryText}>Don't update</Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            )}
+
+            {/* 2b — offer to fold the profile context into the search */}
+            {showMergeOffer && (
+              <Card style={styles.offerCard}>
+                <Text style={styles.offerText}>
+                  Also include your saved profile context in the search, so matches reflect your full situation?
+                </Text>
+                <View style={styles.offerButtons}>
+                  <TouchableOpacity style={styles.offerPrimary} onPress={acceptMerge}>
+                    <Text style={styles.offerPrimaryText}>Yes, include my profile</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.offerSecondary}
+                    onPress={() => {
+                      setShowMergeOffer(false);
+                      runMatches();
+                    }}
+                  >
+                    <Text style={styles.offerSecondaryText}>No, just these criteria</Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            )}
+            {profileUpdated && <Text style={styles.profileUpdated}>Profile updated ✓</Text>}
 
             {/* Matches */}
             {searched && (
@@ -745,6 +940,61 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.onSurfaceVariant,
   },
+  kvLabel: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    color: colors.onSurfaceVariant,
+    marginTop: spacing.base,
+    marginBottom: 4,
+  },
+  miniChip: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.full,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    marginRight: spacing.base,
+  },
+  miniChipActive: { backgroundColor: colors.primary },
+  miniChipText: { fontSize: 12, color: colors.onSurfaceVariant },
+  miniChipTextActive: { color: colors.onPrimary, fontWeight: '600' },
+  dateRow: { flexDirection: 'row', gap: spacing.base, marginTop: spacing.base },
+  dateInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: colors.onSurface,
+  },
+  addDateButton: {
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+  },
+  addDateText: { color: colors.onSecondaryContainer, fontWeight: '600', fontSize: 13 },
+  offerCard: { marginTop: spacing.md, padding: spacing.md, backgroundColor: colors.surfaceContainerLow },
+  offerText: { fontSize: 14, color: colors.onSurface },
+  offerDetail: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 },
+  offerButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.base, marginTop: spacing.md },
+  offerPrimary: {
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: borderRadius.full,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+  },
+  offerPrimaryText: { color: colors.onSecondaryContainer, fontWeight: '600', fontSize: 13 },
+  offerSecondary: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.full,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+  },
+  offerSecondaryText: { color: colors.onSurfaceVariant, fontWeight: '500', fontSize: 13 },
+  profileUpdated: { color: colors.primary, fontSize: 12, marginTop: spacing.base },
   createGroupButton: {
     backgroundColor: colors.primary,
     paddingVertical: 12,

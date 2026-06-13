@@ -1,308 +1,329 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Switch,
   TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Header, Card, Button, Input, FilterChip, Select, CaseMatchCard } from '../components';
-import { colors, spacing, borderRadius, typography } from '../constants/theme';
-import { caseMatches, applicationStages } from '../data/mockData';
+import { Header, PostingCard } from '../components';
+import { colors, spacing, borderRadius } from '../constants/theme';
+import {
+  searchPostings,
+  facetId,
+  SearchResultItem,
+  SuggestedFilterGroup,
+  Strictness,
+} from '../services/apiService';
 
-const visaTypeOptions = [
-  { label: 'H-1B Special Occupations', value: 'h1b' },
-  { label: 'L-1 Intracompany Transfer', value: 'l1' },
-  { label: 'EB-2 National Interest Waiver', value: 'eb2niw' },
-  { label: 'EB-1 Extraordinary Ability', value: 'eb1' },
+// Same example prompts as the website's empty search state.
+const EXAMPLES = ['B1/B2 Mumbai', 'H-1B RFE', 'F-1 to H-1B'];
+
+const STRICTNESS_LEVELS: { value: Strictness; label: string }[] = [
+  { value: 'broad', label: 'Broad' },
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'strict', label: 'Strict' },
 ];
 
 export function SearchScreen({ navigation }: any) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [visaType, setVisaType] = useState('h1b');
-  const [selectedStage, setSelectedStage] = useState('rfe');
-  const [resolvedOnly, setResolvedOnly] = useState(true);
+  const [query, setQuery] = useState('');
+  const [strictness, setStrictness] = useState<Strictness>('balanced');
+  const [results, setResults] = useState<SearchResultItem[]>([]);
+  const [suggested, setSuggested] = useState<SuggestedFilterGroup[]>([]);
+  const [selectedFacets, setSelectedFacets] = useState<Set<string>>(new Set());
+  const [nextPageToken, setNextPageToken] = useState('');
+  const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
+
+  const runSearch = useCallback(
+    async (q: string, facets: Set<string>, level: Strictness) => {
+      setLoading(true);
+      setError('');
+      try {
+        const data = await searchPostings(q, {
+          strictness: level,
+          facets: Array.from(facets),
+        });
+        setResults(data.results);
+        setNextPageToken(data.next_page_token);
+        setSuggested(data.suggested_filters);
+        setSearched(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Search failed');
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  const loadMore = async () => {
+    if (!nextPageToken || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await searchPostings(query, {
+        strictness,
+        facets: Array.from(selectedFacets),
+        pageToken: nextPageToken,
+      });
+      setResults((prev) => [...prev, ...data.results]);
+      setNextPageToken(data.next_page_token);
+    } catch {
+      // keep what we have
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const toggleFacet = (field: string, code: string) => {
+    const id = facetId(field, code);
+    const next = new Set(selectedFacets);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedFacets(next);
+    runSearch(query, next, strictness);
+  };
+
+  const changeStrictness = (level: Strictness) => {
+    setStrictness(level);
+    if (searched) runSearch(query, selectedFacets, level);
+  };
+
+  const submit = (q?: string) => {
+    const text = (q ?? query).trim();
+    if (q !== undefined) setQuery(q);
+    setSelectedFacets(new Set());
+    runSearch(text, new Set(), strictness);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Header
-        showLogo
-        showSearch
-        showProfile
-        onProfile={() => navigation.navigate('Profile')}
-      />
+      <Header showLogo showProfile onProfile={() => navigation.navigate('Profile')} />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <View style={styles.hero}>
-          <View style={styles.heroIcon}>
-            <Ionicons name="search" size={20} color={colors.onPrimary} />
-          </View>
-          <Text style={styles.heroTitle}>Find precedents in seconds.</Text>
-          <Text style={styles.heroSubtitle}>
-            Search our verified database of immigration cases and legal RFEs to match your specific situation.
-          </Text>
-        </View>
-
-        {/* Search Input */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputWrapper}>
-            <Ionicons name="document-text-outline" size={20} color={colors.outline} />
-            <Input
-              placeholder="Describe your situation..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              containerStyle={styles.searchInput}
-              style={styles.searchInputField}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* Search box */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchInputWrap}>
+            <Ionicons name="search" size={18} color={colors.onSurfaceVariant} />
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search visa experiences…"
+              placeholderTextColor={colors.onSurfaceVariant}
+              returnKeyType="search"
+              onSubmitEditing={() => submit()}
             />
           </View>
-          <Button style={styles.searchButton}>Find Matches</Button>
-        </View>
-
-        {/* Refine Search */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>REFINE SEARCH</Text>
-
-          <Select
-            label="Visa Type"
-            options={visaTypeOptions}
-            value={visaType}
-            onChange={setVisaType}
-            containerStyle={styles.selectContainer}
-          />
-
-          <Text style={styles.fieldLabel}>Application Stage</Text>
-          <View style={styles.chips}>
-            {applicationStages.map((stage) => (
-              <FilterChip
-                key={stage.value}
-                label={stage.label}
-                selected={selectedStage === stage.value}
-                onPress={() => setSelectedStage(stage.value)}
-              />
-            ))}
-          </View>
-
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>Resolved cases only</Text>
-            <Switch
-              value={resolvedOnly}
-              onValueChange={setResolvedOnly}
-              trackColor={{ false: colors.outlineVariant, true: colors.primary }}
-              thumbColor={colors.surfaceContainerLowest}
-            />
-          </View>
-        </View>
-
-        {/* Pro Tip */}
-        <Card style={styles.proTip} elevation={0}>
-          <Text style={styles.proTipTitle}>Pro Tip:</Text>
-          <Text style={styles.proTipText}>
-            Including your specific job title or industry often yields 40% more relevant matches.
-          </Text>
-        </Card>
-
-        {/* Results */}
-        <View style={styles.resultsHeader}>
-          <Text style={styles.resultsCount}>
-            Showing <Text style={styles.resultsBold}>24 results</Text> matching your description
-          </Text>
-          <TouchableOpacity style={styles.sortButton}>
-            <Text style={styles.sortText}>Sort by Relevance</Text>
-            <Ionicons name="chevron-down" size={16} color={colors.onSurfaceVariant} />
+          <TouchableOpacity style={styles.searchButton} onPress={() => submit()} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.onPrimary} />
+            ) : (
+              <Text style={styles.searchButtonText}>Search</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Case Cards */}
-        {caseMatches.map((caseItem) => (
-          <CaseMatchCard
-            key={caseItem.id}
-            {...caseItem}
-            onPress={() => navigation.navigate('CaseDetails', { caseId: caseItem.id })}
-          />
-        ))}
+        {/* Strictness — parity with the website's precision slider */}
+        <View style={styles.strictnessRow}>
+          <Text style={styles.strictnessLabel}>Precision</Text>
+          <View style={styles.segmented}>
+            {STRICTNESS_LEVELS.map((l) => (
+              <TouchableOpacity
+                key={l.value}
+                style={[styles.segment, strictness === l.value && styles.segmentActive]}
+                onPress={() => changeStrictness(l.value)}
+              >
+                <Text style={[styles.segmentText, strictness === l.value && styles.segmentTextActive]}>
+                  {l.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
-        {/* Expert CTA */}
-        <Card style={styles.expertCta}>
-          <Text style={styles.expertTitle}>Need an Expert Opinion?</Text>
-          <Text style={styles.expertText}>
-            Our pros can review your specific RFE letter and draft a custom response strategy.
-          </Text>
-          <Button variant="secondary" style={styles.expertButton}>
-            Talk to an Attorney
-          </Button>
-        </Card>
+        {/* Suggested filters from the search response (website parity) */}
+        {suggested.length > 0 && (
+          <View style={styles.filtersBlock}>
+            <View style={styles.filtersHeader}>
+              <Ionicons name="filter" size={16} color={colors.secondary} />
+              <Text style={styles.filtersTitle}>Refine by</Text>
+            </View>
+            {suggested.map((g) => (
+              <View key={g.key} style={styles.filterGroup}>
+                <Text style={styles.filterGroupLabel}>{g.label}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {g.values.map((v) => {
+                    const active = selectedFacets.has(facetId(g.field, v.code));
+                    return (
+                      <TouchableOpacity
+                        key={v.code}
+                        style={[styles.facetChip, active && styles.facetChipActive]}
+                        onPress={() => toggleFacet(g.field, v.code)}
+                      >
+                        <Text style={[styles.facetChipText, active && styles.facetChipTextActive]}>
+                          {v.label} ({v.count})
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            ))}
+          </View>
+        )}
 
-        <View style={styles.bottomPadding} />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {/* Empty state with example prompts (website parity) */}
+        {!searched && !loading && (
+          <View style={styles.emptyState}>
+            <Ionicons name="search" size={40} color={colors.onSurfaceVariant} />
+            <Text style={styles.emptyTitle}>Search real visa experiences</Text>
+            <Text style={styles.emptyText}>
+              Find postings from applicants in the same situation — by visa, consulate, or what happened.
+            </Text>
+            <View style={styles.exampleRow}>
+              {EXAMPLES.map((ex) => (
+                <TouchableOpacity key={ex} style={styles.exampleChip} onPress={() => submit(ex)}>
+                  <Text style={styles.exampleChipText}>{ex}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Results */}
+        {searched && !loading && (
+          <View style={styles.results}>
+            <Text style={styles.resultsCount}>
+              {results.length === 0
+                ? 'No results — try broadening your search.'
+                : `${results.length} result${results.length === 1 ? '' : 's'}`}
+            </Text>
+            {results.map((r) => (
+              <PostingCard
+                key={r.case_id}
+                posting={r}
+                onPress={() => navigation.navigate('CaseDetails', { caseId: r.case_id })}
+              />
+            ))}
+            {nextPageToken ? (
+              <TouchableOpacity style={styles.loadMore} onPress={loadMore} disabled={loadingMore}>
+                <Text style={styles.loadMoreText}>{loadingMore ? 'Loading…' : 'Load more'}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
+
+        <View style={{ height: spacing.xl }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { flex: 1, paddingHorizontal: spacing.md },
+  searchRow: { flexDirection: 'row', gap: spacing.base, marginTop: spacing.md },
+  searchInputWrap: {
     flex: 1,
-    backgroundColor: colors.surface,
-  },
-  content: {
-    flex: 1,
-  },
-  hero: {
-    paddingHorizontal: spacing.marginMobile,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-    alignItems: 'center',
-  },
-  heroIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.onSurface,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  heroSubtitle: {
-    fontSize: 15,
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: spacing.md,
-  },
-  searchContainer: {
-    paddingHorizontal: spacing.marginMobile,
-    marginBottom: spacing.md,
-  },
-  searchInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.base,
     backgroundColor: colors.surfaceContainerLowest,
     borderWidth: 1,
     borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.default,
-    paddingLeft: spacing.sm,
-    marginBottom: spacing.sm,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
   },
-  searchInput: {
-    flex: 1,
-  },
-  searchInputField: {
-    borderWidth: 0,
-  },
+  searchInput: { flex: 1, paddingVertical: 10, fontSize: 15, color: colors.onSurface },
   searchButton: {
-    alignSelf: 'flex-end',
-  },
-  section: {
-    paddingHorizontal: spacing.marginMobile,
-    marginBottom: spacing.md,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.outline,
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
-  },
-  selectContainer: {
-    marginBottom: spacing.md,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.onSurface,
-    marginBottom: spacing.base,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: spacing.sm,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    minWidth: 76,
     alignItems: 'center',
-    paddingVertical: spacing.sm,
   },
-  toggleLabel: {
-    fontSize: 15,
-    color: colors.onSurface,
+  searchButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 14 },
+  strictnessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
   },
-  proTip: {
-    marginHorizontal: spacing.marginMobile,
-    marginBottom: spacing.md,
+  strictnessLabel: { fontSize: 13, color: colors.onSurfaceVariant, fontWeight: '500' },
+  segmented: {
+    flexDirection: 'row',
     backgroundColor: colors.surfaceContainerHigh,
-    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.full,
+    padding: 3,
   },
-  proTipTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.onSurface,
+  segment: { paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: borderRadius.full },
+  segmentActive: { backgroundColor: colors.primary },
+  segmentText: { fontSize: 13, color: colors.onSurfaceVariant },
+  segmentTextActive: { color: colors.onPrimary, fontWeight: '600' },
+  filtersBlock: { marginTop: spacing.md },
+  filtersHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
+  filtersTitle: { fontSize: 13, fontWeight: '600', color: colors.onSurface },
+  filterGroup: { marginBottom: spacing.base },
+  filterGroupLabel: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    color: colors.onSurfaceVariant,
     marginBottom: 4,
   },
-  proTipText: {
-    fontSize: 13,
-    color: colors.onSurfaceVariant,
-    lineHeight: 18,
+  facetChip: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.full,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    marginRight: spacing.base,
   },
-  resultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.marginMobile,
-    marginBottom: spacing.md,
-  },
-  resultsCount: {
+  facetChipActive: { backgroundColor: colors.primaryContainer },
+  facetChipText: { fontSize: 12, color: colors.onSurfaceVariant },
+  facetChipTextActive: { color: colors.onPrimaryContainer, fontWeight: '600' },
+  error: { color: colors.error, marginTop: spacing.md },
+  emptyState: { alignItems: 'center', marginTop: spacing.xl * 1.5, paddingHorizontal: spacing.lg },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: colors.onSurface, marginTop: spacing.md },
+  emptyText: {
     fontSize: 14,
     color: colors.onSurfaceVariant,
-    flex: 1,
+    textAlign: 'center',
+    marginTop: spacing.base,
   },
-  resultsBold: {
-    fontWeight: '600',
-    color: colors.onSurface,
-  },
-  sortButton: {
+  exampleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.base,
+    marginTop: spacing.md,
+    justifyContent: 'center',
   },
-  sortText: {
-    fontSize: 13,
-    color: colors.onSurfaceVariant,
-    marginRight: 4,
+  exampleChip: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.full,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
   },
-  expertCta: {
-    marginHorizontal: spacing.marginMobile,
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  exampleChipText: { fontSize: 13, color: colors.onSurface },
+  results: { marginTop: spacing.md },
+  resultsCount: { fontSize: 13, color: colors.onSurfaceVariant, marginBottom: spacing.base },
+  loadMore: {
+    alignSelf: 'center',
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.full,
+    marginTop: spacing.base,
   },
-  expertTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.onPrimary,
-    marginBottom: spacing.base,
-  },
-  expertText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 21,
-    marginBottom: spacing.md,
-  },
-  expertButton: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderColor: colors.surfaceContainerLowest,
-  },
-  bottomPadding: {
-    height: spacing.xl,
-  },
+  loadMoreText: { fontSize: 14, color: colors.onSurface, fontWeight: '500' },
 });
 
 export default SearchScreen;

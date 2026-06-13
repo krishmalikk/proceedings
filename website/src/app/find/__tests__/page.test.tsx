@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import FindPage from '../page'
 
 // Keep the regression test focused on the data-shape guard; stub the heavy bits.
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false, signOut: vi.fn() }) }))
 vi.mock('@/lib/activeUser', () => ({
   getActiveUser: vi.fn(() => ''),
   setActiveUser: vi.fn(),

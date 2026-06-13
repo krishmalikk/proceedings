@@ -52,6 +52,25 @@ function getAuthErrorMessage(errorCode: string): string {
   }
 }
 
+// Register the Firebase uid with the backend so the X-User-Id gate accepts it
+// (idempotent POST /api/users; a localStorage flag avoids a call on every load).
+async function registerBackendUser(firebaseUser: User): Promise<void> {
+  const flag = `backend-registered-${firebaseUser.uid}`;
+  if (typeof window === 'undefined' || localStorage.getItem(flag)) return;
+  try {
+    const username =
+      firebaseUser.displayName?.trim() || firebaseUser.email?.split('@')[0] || '';
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: firebaseUser.uid, username }),
+    });
+    if (res.ok) localStorage.setItem(flag, '1');
+  } catch {
+    // Best-effort — retried on the next auth-state change / page load.
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
+      if (firebaseUser) void registerBackendUser(firebaseUser);
     });
 
     return unsubscribe;

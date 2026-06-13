@@ -25,7 +25,6 @@
     },
     "plugins": [
       "expo-font",
-      "expo-status-bar",
       "expo-web-browser"
     ]
   }

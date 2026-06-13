@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { USER_KEY } from '@/lib/activeUser';
 
 const navItems = [
-  { href: '/search', label: 'Case Search', icon: 'search' },
-  { href: '/find', label: 'Find Peers', icon: 'diversity_3' },
-  { href: '/news', label: 'News', icon: 'newspaper' },
-  // Removed for now (phase-H): 'Forum' (/community) and 'Ask a Pro' (/pro).
+  { href: '/search', label: 'Community', icon: 'search' },
+  { href: '/find', label: 'Groups', icon: 'diversity_3' },
+  // Removed for now: 'News' (/news), 'Forum' (/community), 'Ask a Pro' (/pro).
 ];
 
 export default function TopAppBar() {
@@ -18,6 +18,12 @@ export default function TopAppBar() {
   const { user, loading, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Dev-mode impersonation (demo-user picker) — read directly from localStorage,
+  // re-checked on navigation, so posting stays available without Firebase login.
+  const [devUid, setDevUid] = useState('');
+  useEffect(() => {
+    if (typeof window !== 'undefined') setDevUid(localStorage.getItem(USER_KEY) || '');
+  }, [pathname]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -74,8 +80,8 @@ export default function TopAppBar() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {/* Post button - only show when authenticated */}
-          {user && (
+          {/* Post button — shown for Firebase users AND dev-mode (demo picker) users */}
+          {(user || devUid) && (
             <Link
               href="/post"
               className="btn-primary flex items-center gap-1.5 rounded-full text-label-md"
@@ -120,7 +126,7 @@ export default function TopAppBar() {
                   {/* Menu items */}
                   <div className="py-1">
                     <Link
-                      href="/onboarding"
+                      href="/profile"
                       onClick={() => setShowUserMenu(false)}
                       className="flex items-center gap-3 px-4 py-2.5 text-body-md text-on-surface hover:bg-surface-container-low transition-colors"
                     >

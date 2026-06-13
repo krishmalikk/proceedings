@@ -338,18 +338,23 @@ def save_profile(db, user_id: str, p: dict) -> dict:
     Consented experiences are projected to searchable DS-1 docs (D-041)."""
     from google.cloud import firestore as _fs
     cleaned = clean_profile(p)
-    cleaned["username"] = cleaned["username"] or username_for(user_id)
+    # Username precedence: what the user submitted > the stored username (a PUT
+    # without a username must not reset it — for registered Firebase uids the
+    # roster fallback is just the raw uid) > the seed-roster fallback.
+    prior: dict = {}
+    if db is not None:
+        snap = db.collection("users").document(user_id).get()
+        prior = (snap.to_dict() or {}) if snap.exists else {}
+    cleaned["username"] = cleaned["username"] or prior.get("username") or username_for(user_id)
     # Publish/withdraw consented experiences and capture their doc ids.
     cleaned, _proj = project_experiences(cleaned)
     if db is None:
         return cleaned
     doc = db.collection("users").document(user_id)
-    existing = doc.get()
     payload = dict(cleaned)
     payload["updated_at"] = _fs.SERVER_TIMESTAMP
     # Preserve the original created_at; otherwise stamp it now.
-    prior_created = (existing.to_dict() or {}).get("created_at") if existing.exists else None
-    payload["created_at"] = prior_created or _fs.SERVER_TIMESTAMP
+    payload["created_at"] = prior.get("created_at") or _fs.SERVER_TIMESTAMP
     # Authoritative full overwrite (NOT merge=True): Firestore deep-merges maps, so
     # merge would leave removed key_stages_or_info / key_dates entries behind. The
     # saved profile must exactly reflect what the user submitted.

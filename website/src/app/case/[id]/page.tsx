@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Markdown from '@/components/Markdown'
 import VoteControl from '@/components/VoteControl'
 import Replies from '@/components/Replies'
+import AuthorSection from '@/components/AuthorSection'
 
 type Tally = { up: number; down: number; score: number; your_vote: number }
 const ZERO_TALLY: Tally = { up: 0, down: 0, score: 0, your_vote: 0 }
@@ -23,6 +24,7 @@ type PostingDetail = {
   url: string
   date: string
   body: string
+  author_id: string
 }
 
 function outcomeBadge(outcome: string) {
@@ -134,6 +136,9 @@ export default function CaseDetailsPage() {
                 </div>
               </div>
             )}
+
+            {/* Author profile + their other postings (app postings only) */}
+            <AuthorSection authorId={data.author_id} channel={data.channel} currentCaseId={data.case_id} />
 
             {/* Only show for genuine Reddit-sourced posts (otherwise the link goes nowhere useful) */}
             {data.url && (data.channel === 'reddit' || !!data.subreddit || /reddit\.com/i.test(data.url)) && (

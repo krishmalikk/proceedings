@@ -14,30 +14,103 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { Alert, ActivityIndicator } from 'react-native';
 import { colors, spacing, borderRadius } from '../constants/theme';
-import { MILESTONES, JourneyEntry, OnboardingProfile } from '../constants/onboardingData';
+import {
+  MILESTONES,
+  JourneyEntry,
+  OnboardingProfile,
+  toBackendProfile,
+  createEmptyProfile,
+} from '../constants/onboardingData';
 import { useAuth } from '../contexts/AuthContext';
+import Markdown from '../components/Markdown';
+import { updateProfile, onboardTurn, getActiveUserId } from '../services/apiService';
+import { useExperienceFacets } from '../hooks/useExperienceFacets';
 
 type RouteParams = {
   ExperiencesOnboarding: {
     profile: OnboardingProfile;
+    journey?: JourneyEntry[];
     skipped?: boolean;
   };
 };
+
+type Turn = { id: string; role: 'user' | 'ai'; content: string };
+
+// Same fallback greeting as the website's stage-2 opener.
+const GREETING_EXPERIENCES =
+  "Your basic profile is saved ✓. Now let's capture your experiences at the milestones you've already " +
+  "crossed — these help others going through the same steps (and aren't tagged to your current status).";
 
 export function ExperiencesOnboardingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<RouteProp<RouteParams, 'ExperiencesOnboarding'>>();
   const { completeOnboarding } = useAuth();
 
-  const { profile, skipped } = route.params || {};
+  const { profile, journey: savedJourney, skipped } = route.params || {};
 
-  const [experiences, setExperiences] = useState<JourneyEntry[]>([]);
+  // Start from the user's EXISTING journey so edits never wipe published experiences.
+  const [experiences, setExperiences] = useState<JourneyEntry[]>(savedJourney || []);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState('');
   const [experienceDate, setExperienceDate] = useState('');
   const [experienceText, setExperienceText] = useState('');
   const [shareExperience, setShareExperience] = useState(true);
+
+  // AI experiences chat (website parity: POST /api/onboard, stage 'experiences').
+  const [messages, setMessages] = useState<Turn[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const draftForBot = () => toBackendProfile(profile || createEmptyProfile(), experiences);
+
+  // Generated facets for each shared/published experience (website parity).
+  const expFacets = useExperienceFacets(experiences);
+
+  // Website parity: the bot opens stage 2 by inferring crossed milestones from
+  // the saved profile (fallback greeting offline / for dev users).
+  React.useEffect(() => {
+    if (!getActiveUserId()) {
+      setMessages([{ id: 's2', role: 'ai', content: GREETING_EXPERIENCES }]);
+      return;
+    }
+    setChatLoading(true);
+    onboardTurn('experiences', [], draftForBot())
+      .then((data) => {
+        setMessages([{ id: 's2', role: 'ai', content: data.reply || GREETING_EXPERIENCES }]);
+        if (data.profile?.journey) setExperiences(data.profile.journey as JourneyEntry[]);
+      })
+      .catch(() => setMessages([{ id: 's2', role: 'ai', content: GREETING_EXPERIENCES }]))
+      .finally(() => setChatLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sendChat = async () => {
+    const t = chatInput.trim();
+    if (!t || chatLoading) return;
+    setChatInput('');
+    const history = messages.map((m) => ({ role: m.role, content: m.content }));
+    setMessages((prev) => [...prev, { id: `${Date.now()}-u`, role: 'user', content: t }]);
+    setChatLoading(true);
+    try {
+      const data = await onboardTurn(
+        'experiences',
+        [...history, { role: 'user', content: t }],
+        draftForBot()
+      );
+      setMessages((prev) => [...prev, { id: `${Date.now()}-a`, role: 'ai', content: data.reply }]);
+      // The bot extracts journey entries from the conversation.
+      if (data.profile?.journey) setExperiences(data.profile.journey as JourneyEntry[]);
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { id: `${Date.now()}-x`, role: 'ai', content: e instanceof Error ? e.message : 'Assistant error' },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   const addExperience = () => {
     if (selectedMilestone && experienceText.trim()) {
@@ -64,9 +137,38 @@ export function ExperiencesOnboardingScreen() {
     setExperiences(experiences.filter((_, i) => i !== index));
   };
 
+  const [saving, setSaving] = useState(false);
+
   const handleComplete = async () => {
-    // Save profile and experiences (for now just mark onboarding complete)
-    await completeOnboarding();
+    if (saving) return;
+    setSaving(true);
+    try {
+      // Persist the collected profile + experiences to the backend (same
+      // PUT /api/profile contract as the website; the backend validates the
+      // controlled-vocab values and publishes shared experiences).
+      await updateProfile({
+        current_visa_or_greencard_category: profile?.currentStatus || [],
+        visa_applying_for: profile?.applyingFor || [],
+        consulates: profile?.consulates || [],
+        primary_consulate: profile?.consulates?.[0] || '',
+        tags: profile?.tags || [],
+        key_stages_or_info: profile?.keyStages || {},
+        key_dates: profile?.keyDates || {},
+        background_text: profile?.backgroundText || '',
+        journey: experiences,
+      });
+      await completeOnboarding();
+      // When editing from within the app (tab stacks), return to the tab root;
+      // during first-run onboarding the navigator switches automatically.
+      navigation.popToTop?.();
+    } catch (e) {
+      Alert.alert(
+        'Could not save your profile',
+        e instanceof Error ? e.message : 'Please check your connection and try again.'
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleBack = () => {
@@ -100,6 +202,50 @@ export function ExperiencesOnboardingScreen() {
             </Text>
           </View>
 
+          {/* AI assistant chat (website parity: tell the bot your stories, it builds the timeline) */}
+          <View style={styles.chatCard}>
+            <View style={styles.chatHeader}>
+              <Ionicons name="sparkles-outline" size={16} color={colors.secondary} />
+              <Text style={styles.chatTitle}>AI assistant</Text>
+            </View>
+            <View style={styles.chatThread}>
+              {messages.map((m) =>
+                m.role === 'user' ? (
+                  <View key={m.id} style={styles.chatBubbleUserWrap}>
+                    <View style={styles.chatBubbleUser}>
+                      <Text style={styles.chatBubbleUserText}>{m.content}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View key={m.id} style={styles.chatBubbleAi}>
+                    <Markdown>{m.content}</Markdown>
+                  </View>
+                )
+              )}
+              {chatLoading && (
+                <ActivityIndicator size="small" color={colors.primary} style={{ alignSelf: 'flex-start' }} />
+              )}
+            </View>
+            <View style={styles.chatInputRow}>
+              <TextInput
+                style={styles.chatInput}
+                value={chatInput}
+                onChangeText={setChatInput}
+                placeholder="Share your experience…"
+                placeholderTextColor={colors.onSurfaceVariant}
+                onSubmitEditing={sendChat}
+                returnKeyType="send"
+              />
+              <TouchableOpacity
+                style={[styles.chatSend, (!chatInput.trim() || chatLoading) && styles.chatSendDisabled]}
+                onPress={sendChat}
+                disabled={!chatInput.trim() || chatLoading}
+              >
+                <Ionicons name="send" size={16} color={colors.onPrimary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Existing experiences */}
           {experiences.length > 0 && (
             <View style={styles.experiencesList}>
@@ -129,6 +275,33 @@ export function ExperiencesOnboardingScreen() {
                     <View style={styles.sharedBadge}>
                       <Ionicons name="people" size={14} color={colors.secondary} />
                       <Text style={styles.sharedBadgeText}>Shared with community</Text>
+                    </View>
+                  )}
+                  {/* Generated facets — only for shared/published experiences */}
+                  {exp.experience_case_id && expFacets[exp.experience_case_id] && (
+                    <View style={styles.facetRow}>
+                      {expFacets[exp.experience_case_id].visa.map((v) => (
+                        <View key={`v${v}`} style={[styles.facetBadge, styles.facetVisa]}>
+                          <Text style={styles.facetVisaText}>{v}</Text>
+                        </View>
+                      ))}
+                      {expFacets[exp.experience_case_id].consulates.map((c) => (
+                        <View key={`c${c}`} style={[styles.facetBadge, styles.facetConsulate]}>
+                          <Text style={styles.facetConsulateText}>{c}</Text>
+                        </View>
+                      ))}
+                      {!!expFacets[exp.experience_case_id].outcome && (
+                        <View style={[styles.facetBadge, styles.facetConsulate]}>
+                          <Text style={styles.facetConsulateText}>
+                            {expFacets[exp.experience_case_id].outcome}
+                          </Text>
+                        </View>
+                      )}
+                      {expFacets[exp.experience_case_id].tags.slice(0, 5).map((t) => (
+                        <View key={`t${t}`} style={[styles.facetBadge, styles.facetTag]}>
+                          <Text style={styles.facetTagText}>{t}</Text>
+                        </View>
+                      ))}
                     </View>
                   )}
                 </View>
@@ -302,6 +475,56 @@ const styles = StyleSheet.create({
     padding: spacing.marginMobile,
     paddingBottom: spacing.xl,
   },
+  chatCard: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  chatHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
+  chatTitle: { fontSize: 13, fontWeight: '600', color: colors.onSurface },
+  chatThread: { gap: spacing.base, maxHeight: 280 },
+  chatBubbleUserWrap: { alignItems: 'flex-end' },
+  chatBubbleUser: {
+    backgroundColor: colors.primaryContainer,
+    borderRadius: borderRadius.md,
+    borderTopRightRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    maxWidth: '85%',
+  },
+  chatBubbleUserText: { fontSize: 14, color: colors.onPrimaryContainer },
+  chatBubbleAi: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.md,
+    borderTopLeftRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    maxWidth: '90%',
+    alignSelf: 'flex-start',
+  },
+  chatBubbleAiText: { fontSize: 14, color: colors.onSurface, lineHeight: 20 },
+  chatInputRow: { flexDirection: 'row', gap: spacing.base, marginTop: spacing.md },
+  chatInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: colors.onSurface,
+  },
+  chatSend: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatSendDisabled: { opacity: 0.4 },
   header: {
     marginBottom: spacing.md,
   },
@@ -382,6 +605,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.secondary,
   },
+  facetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: spacing.base },
+  facetBadge: { borderRadius: borderRadius.full, paddingVertical: 2, paddingHorizontal: 8 },
+  facetVisa: { backgroundColor: colors.primaryContainer },
+  facetVisaText: { fontSize: 11, color: colors.onPrimaryContainer, fontWeight: '500' },
+  facetConsulate: { backgroundColor: colors.secondaryContainer },
+  facetConsulateText: { fontSize: 11, color: colors.onSecondaryContainer, fontWeight: '500' },
+  facetTag: { backgroundColor: colors.surfaceContainerHigh },
+  facetTagText: { fontSize: 11, color: colors.onSurfaceVariant },
   addForm: {
     backgroundColor: colors.surfaceContainerLowest,
     borderWidth: 1,

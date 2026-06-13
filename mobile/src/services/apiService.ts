@@ -42,6 +42,23 @@ function userHeaders(extra: Record<string, string> = {}): Record<string, string>
   return headers;
 }
 
+/**
+ * Register a Firebase uid with the backend (idempotent POST /api/users) so the
+ * X-User-Id gate accepts it, then make it the active user for all API calls.
+ */
+export async function registerBackendUser(uid: string, username: string): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, username }),
+    });
+  } catch {
+    // Best-effort — re-run on the next auth-state change; calls 404 until then.
+  }
+  await setActiveUserId(uid);
+}
+
 export interface Source {
   chunk_id: string;
   text: string;
@@ -238,6 +255,52 @@ export interface PostingData {
   tags: string[];
   url: string;
   date: string;
+  body: string; // full posting text (markdown on the website; rendered plain here)
+  author_id: string; // authoring app user (empty for reddit/unknown)
+}
+
+// A posting author's structured profile (the PII-free profile shown in setup).
+export interface PublicProfile {
+  username: string;
+  current_visa_or_greencard_category: string[];
+  visa_applying_for: string[];
+  primary_consulate: string;
+  consulates: string[];
+  tags: string[];
+  key_stages_or_info: Record<string, string>;
+  key_dates: Record<string, string>;
+  background_text: string;
+  journey: { milestone: string; date: string; experience: string; shared?: boolean }[];
+}
+
+export interface AuthorPostingCard {
+  case_id: string;
+  title: string;
+  visa: string[];
+  consulates: string[];
+  outcome: string;
+  date: string;
+}
+
+export async function getPublicProfile(uid: string): Promise<PublicProfile | null> {
+  try {
+    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/public-profile`);
+    if (!r.ok) return null;
+    return (await r.json()) as PublicProfile;
+  } catch {
+    return null;
+  }
+}
+
+export async function getUserPostings(uid: string): Promise<AuthorPostingCard[]> {
+  try {
+    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/postings`);
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.postings || []) as AuthorPostingCard[];
+  } catch {
+    return [];
+  }
 }
 
 export interface PostingGroups {
@@ -303,11 +366,130 @@ export async function suggestTags(
 
 // ============= Tag Vocabulary =============
 
+// ============= AI Onboarding (same contract as the website's /api/onboard) ====
+
+export interface OnboardJourneyEntry {
+  milestone: string;
+  date: string;
+  experience: string;
+  shared?: boolean;
+  experience_case_id?: string;
+}
+
+// The backend ProfilePayload shape used as the onboarding draft.
+export interface OnboardProfile {
+  username?: string;
+  current_visa_or_greencard_category: string[];
+  visa_applying_for: string[];
+  primary_consulate: string;
+  consulates: string[];
+  tags: string[];
+  key_stages_or_info: Record<string, string>;
+  key_dates: Record<string, string>;
+  background_text: string;
+  journey?: OnboardJourneyEntry[];
+}
+
+export interface OnboardResponse {
+  reply: string;
+  profile: OnboardProfile;
+  done: boolean;
+}
+
+/** One conversational AI-onboarding turn (stage 1 'basics' | stage 2 'experiences'). */
+export async function onboardTurn(
+  stage: 'basics' | 'experiences',
+  messages: { role: string; content: string }[],
+  draft: OnboardProfile
+): Promise<OnboardResponse> {
+  const response = await fetch(`${API_URL}/api/onboard`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ stage, messages, draft }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Onboarding assistant error');
+  }
+  return data;
+}
+
+// ============= Search (same contract as the website's /api/search) =============
+
+export type Strictness = 'broad' | 'balanced' | 'strict';
+
+export interface SearchResultItem {
+  case_id: string;
+  title: string;
+  description: string;
+  visa: string[];
+  consulates: string[];
+  outcome: string;
+  subreddit: string;
+  channel: string;
+  tags: string[];
+  url: string;
+  date: string;
+}
+
+export interface SearchFacetValue {
+  code: string;
+  label: string;
+  count: number;
+}
+
+export interface SuggestedFilterGroup {
+  key: string;
+  label: string;
+  field: string;
+  values: SearchFacetValue[];
+}
+
+export interface SearchResponse {
+  results: SearchResultItem[];
+  next_page_token: string;
+  suggested_filters: SuggestedFilterGroup[];
+}
+
+// Selection id used for the backend `facet` param — mirrors the website's facetId().
+export const facetId = (field: string, code: string) => `${field}:${code}`;
+
+export async function searchPostings(
+  q: string,
+  opts: { strictness?: Strictness; facets?: string[]; pageToken?: string; pageSize?: number } = {}
+): Promise<SearchResponse> {
+  const p = new URLSearchParams();
+  p.set('q', q || 'immigration visa experience');
+  (opts.facets || []).forEach((f) => p.append('facet', f));
+  p.set('strictness', opts.strictness || 'balanced');
+  p.set('page_size', String(opts.pageSize ?? 15));
+  if (opts.pageToken) p.set('page_token', opts.pageToken);
+  const response = await fetch(`${API_URL}/api/search?${p.toString()}`);
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Search failed');
+  }
+  return {
+    results: data.results || [],
+    next_page_token: data.next_page_token || '',
+    suggested_filters: data.suggested_filters || [],
+  };
+}
+
+export interface ConsulateCountry {
+  country: string;
+  country_code: string;
+  cities: { code: string; city: string }[];
+}
+
 export interface TagVocab {
   visa: string[];
   consulate: string[];
   consulate_options: { code: string; label: string }[];
+  consulate_tree: ConsulateCountry[];
   tag: string[];
+  misc: string[];
+  misc_options: { code: string; label: string }[];
   stage_key: string[];
   date_key: string[];
   profile_stage_key: string[];
@@ -316,21 +498,35 @@ export interface TagVocab {
   outcome: string[];
 }
 
-export async function getTagVocab(): Promise<TagVocab> {
-  const response = await fetch(`${API_URL}/api/tag-vocab`);
-  const data = await response.json();
-  return {
-    visa: data.visa || [],
-    consulate: data.consulate || [],
-    consulate_options: data.consulate_options || [],
-    tag: data.tag || [],
-    stage_key: data.stage_key || [],
-    date_key: data.date_key || [],
-    profile_stage_key: data.profile_stage_key || [],
-    stage_value_domains: data.stage_value_domains || {},
-    country: data.country || [],
-    outcome: data.outcome || [],
-  };
+// Cached per app session; returns null offline so callers can fall back to the
+// curated constants in constants/onboardingData.
+let vocabCache: TagVocab | null = null;
+
+export async function getTagVocab(): Promise<TagVocab | null> {
+  if (vocabCache) return vocabCache;
+  try {
+    const response = await fetch(`${API_URL}/api/tag-vocab`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    vocabCache = {
+      visa: data.visa || [],
+      consulate: data.consulate || [],
+      consulate_options: data.consulate_options || [],
+      consulate_tree: data.consulate_tree || [],
+      tag: data.tag || [],
+      misc: data.misc || [],
+      misc_options: data.misc_options || [],
+      stage_key: data.stage_key || [],
+      date_key: data.date_key || [],
+      profile_stage_key: data.profile_stage_key || [],
+      stage_value_domains: data.stage_value_domains || {},
+      country: data.country || [],
+      outcome: data.outcome || [],
+    };
+    return vocabCache;
+  } catch {
+    return null;
+  }
 }
 
 // ============= Matching / Find =============
@@ -403,6 +599,17 @@ export interface GroupResult {
   name: string;
   joined: boolean;
   members: GroupMember[];
+}
+
+export async function getGroup(groupId: string): Promise<GroupInfo> {
+  const response = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
+    headers: userHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load group');
+  }
+  return data;
 }
 
 export async function getAllGroups(): Promise<{ groups: GroupInfo[] }> {

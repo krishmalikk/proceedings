@@ -196,6 +196,9 @@ class SeedUser(BaseModel):
 
 class NewUserRequest(BaseModel):
     username: str = ""
+    # Optional client-supplied id (a Firebase uid) to REGISTER instead of minting
+    # a "new-…" dev id. Idempotent: re-registering returns the existing account.
+    uid: str = ""
 
 
 class JourneyEntry(BaseModel):
@@ -332,6 +335,24 @@ class SearchResponse(BaseModel):
 
 class PostingDetail(PostingCard):
     body: str
+    # The authoring app user's id, resolved from the Firestore posting↔author
+    # link. Empty for Reddit/other-source postings or app postings published
+    # before author capture (kept OUT of the search datastore — anonymity there
+    # is preserved; the link lives only in Firestore for this author view).
+    author_id: str = ""
+
+
+class AuthorPostingCard(BaseModel):
+    case_id: str
+    title: str
+    visa: list[str] = []
+    consulates: list[str] = []
+    outcome: str = ""
+    date: str = ""
+
+
+class AuthorPostingsResponse(BaseModel):
+    postings: list[AuthorPostingCard]
 
 
 # --- Replies + voting (phase-L) ---
@@ -527,17 +548,42 @@ def _guard(fn):
 # off and the uid comes only from a verified Firebase token (same users/{id} schema).
 ALLOW_USER_IMPERSONATION = os.getenv("ALLOW_USER_IMPERSONATION", "1") == "1"
 
+# Registered uids (e.g. Firebase accounts) accepted by the X-User-Id gate.
+# Source of truth is the Firestore users/{uid} doc created by POST /api/users;
+# this set just caches positive lookups. NOTE: the header is still UNVERIFIED —
+# server-side Firebase ID-token verification is the Option-A follow-up.
+_KNOWN_UIDS: set[str] = set()
+
+
+def _uid_registered(uid: str) -> bool:
+    """True if a users/{uid} profile doc exists (cached after first hit)."""
+    if uid in _KNOWN_UIDS:
+        return True
+    if _db is None:
+        return False
+    try:
+        if _db.collection("users").document(uid).get().exists:
+            _KNOWN_UIDS.add(uid)
+            return True
+    except Exception as e:  # noqa: BLE001 — gate lookup must never 500
+        print(f"_uid_registered({uid}): {e}")
+    return False
+
+
+def _uid_accepted(uid: str) -> bool:
+    """Baked roster, dev-created 'new-…' ids, or registered (Firebase) accounts."""
+    import profile
+    return uid in profile.seed_ids() or uid.startswith("new-") or _uid_registered(uid)
+
 
 def _active_user(request: Request) -> str:
-    """Resolve the active baked user id from the X-User-Id header (dev impersonation)."""
-    import profile
+    """Resolve the active user id from the X-User-Id header (dev impersonation)."""
     if not ALLOW_USER_IMPERSONATION:
         raise HTTPException(status_code=403, detail="User impersonation is disabled.")
     uid = request.headers.get("x-user-id", "").strip()
     if not uid:
         raise HTTPException(status_code=400, detail="X-User-Id header is required (pick a user).")
-    # Accept the baked roster + any dev-created "new-…" user (see POST /api/users).
-    if uid not in profile.seed_ids() and not uid.startswith("new-"):
+    if not _uid_accepted(uid):
         raise HTTPException(status_code=404, detail=f"Unknown user '{uid}'.")
     return uid
 
@@ -546,9 +592,8 @@ def _optional_user(request: Request) -> str:
     """Like `_active_user` but never raises — returns '' when no/unknown user.
     Used by read endpoints that personalize (e.g. the viewer's own votes) but
     are still usable anonymously."""
-    import profile
     uid = request.headers.get("x-user-id", "").strip()
-    return uid if uid and (uid in profile.seed_ids() or uid.startswith("new-")) else ""
+    return uid if uid and _uid_accepted(uid) else ""
 
 
 @app.post("/api/ask", response_model=AskResponse)
@@ -628,6 +673,10 @@ async def create_posting(body: PostingCreateRequest, request: Request):
 
     import posting
 
+    # Author (the publishing app user). Kept OUT of the posting itself / search
+    # datastore — only recorded in the Firestore posting↔author link below.
+    author_uid = _optional_user(request)
+
     try:
         result = _guard(lambda: posting.publish_posting(
             body.title, body.description, body.tags.model_dump(),
@@ -636,6 +685,28 @@ async def create_posting(body: PostingCreateRequest, request: Request):
     except ValueError as e:
         # vocabulary / schema validation failure → 422
         raise HTTPException(status_code=422, detail=f"Posting failed validation: {e}")
+
+    # Record the author link (Firestore only) so the author's profile + their
+    # other postings can be shown on the case page. Best-effort — never blocks
+    # the publish.
+    if author_uid and _db is not None:
+        try:
+            visa = list(dict.fromkeys(
+                (body.tags.visa_applying_for or []) + (body.tags.current_visa_or_greencard_category or [])
+            ))
+            _db.collection("posting_authors").document(result["case_id"]).set({
+                "case_id": result["case_id"],
+                "author_uid": author_uid,
+                "channel": "app",
+                "title": body.title,
+                "visa": visa,
+                "consulates": body.tags.consulates or [],
+                "outcome": (body.key_stages_or_info or {}).get("outcome_status", ""),
+                "created_at": firestore.SERVER_TIMESTAMP,
+            })
+        except Exception as e:  # noqa: BLE001 — author link is non-critical
+            print(f"posting_authors write failed for {result['case_id']}: {e}")
+
     return PostingCreateResponse(**result)
 
 
@@ -652,17 +723,38 @@ async def list_users():
 
 @app.post("/api/users", response_model=SeedUser)
 async def create_user(body: NewUserRequest):
-    """Mint a fresh dev user ('new-…' id) to onboard from scratch. Dev-only; when
-    real auth lands this is replaced by Firebase user creation (same users/{id})."""
+    """Create/register a user account.
+
+    - No `uid` (dev picker): mint a fresh "new-…" id to onboard from scratch.
+    - With `uid` (Firebase sign-in/up): register that uid so the X-User-Id gate
+      accepts it. Idempotent — an already-registered uid returns its existing
+      account and NEVER overwrites the stored profile. The header remains
+      unverified dev-mode identity until ID-token verification lands (Option A).
+    """
+    import re as _re
     import secrets
     import profile
     if not ALLOW_USER_IMPERSONATION:
         raise HTTPException(status_code=403, detail="User creation is disabled.")
-    uid = "new-" + secrets.token_hex(4)
-    username = (body.username or "").strip()[:40] or f"new-user-{uid[-4:]}"
+
+    uid = (body.uid or "").strip()
+    if uid:
+        if uid in profile.seed_ids() or not _re.fullmatch(r"[A-Za-z0-9_-]{6,128}", uid):
+            raise HTTPException(status_code=422, detail="Invalid uid.")
+        if _uid_registered(uid):
+            # Already registered — return the existing account untouched.
+            existing = _guard(lambda: profile.get_profile(_db, uid))
+            return SeedUser(id=uid, username=existing.get("username") or uid, label=existing.get("username") or uid)
+        username = (body.username or "").strip()[:40] or f"member-{uid[:6]}"
+        _guard(lambda: profile.save_profile(_db, uid, {"username": username}))
+        _KNOWN_UIDS.add(uid)
+        return SeedUser(id=uid, username=username, label=username)
+
+    new_id = "new-" + secrets.token_hex(4)
+    username = (body.username or "").strip()[:40] or f"new-user-{new_id[-4:]}"
     # Register by creating the (empty) profile doc with the chosen username.
-    _guard(lambda: profile.save_profile(_db, uid, {"username": username}))
-    return SeedUser(id=uid, username=username, label=f"🆕 {username}")
+    _guard(lambda: profile.save_profile(_db, new_id, {"username": username}))
+    return SeedUser(id=new_id, username=username, label=f"🆕 {username}")
 
 
 @app.get("/api/profile")
@@ -958,13 +1050,70 @@ async def search(
     )
 
 
+def _posting_author_uid(case_id: str) -> str:
+    """The app user who authored this posting, from the Firestore link (or '')."""
+    if _db is None:
+        return ""
+    try:
+        snap = _db.collection("posting_authors").document(case_id).get()
+        return (snap.to_dict() or {}).get("author_uid", "") if snap.exists else ""
+    except Exception as e:  # noqa: BLE001
+        print(f"_posting_author_uid({case_id}): {e}")
+        return ""
+
+
 @app.get("/api/postings/{case_id}", response_model=PostingDetail)
 async def posting_detail(case_id: str):
-    """Full detail for one posting (card fields + Markdown body)."""
+    """Full detail for one posting (card fields + Markdown body + author link)."""
     card = get_posting(case_id, _project_id, _ds_location, _datastore_id)
     if card is None:
         raise HTTPException(status_code=404, detail="Posting not found")
+    # Resolve the author only for first-party app postings (Reddit/others omit).
+    card["author_id"] = _posting_author_uid(case_id) if card.get("channel") == "app" else ""
     return PostingDetail(**card)
+
+
+@app.get("/api/users/{uid}/public-profile")
+async def public_profile(uid: str):
+    """A posting author's structured profile (the same PII-free profile shown in
+    setup). Returned for the case-page author section. 404 if no profile."""
+    import profile
+    prof = _guard(lambda: profile.get_profile(_db, uid))
+    if not prof:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return prof
+
+
+@app.get("/api/users/{uid}/postings", response_model=AuthorPostingsResponse)
+async def user_postings(uid: str):
+    """All app postings authored by a user (newest first), from the Firestore
+    posting↔author link. Used by the case-page 'other postings by this author'."""
+    if _db is None:
+        return AuthorPostingsResponse(postings=[])
+    try:
+        docs = list(_db.collection("posting_authors").where("author_uid", "==", uid).stream())
+    except Exception as e:  # noqa: BLE001
+        print(f"user_postings({uid}): {e}")
+        return AuthorPostingsResponse(postings=[])
+    rows = [d.to_dict() or {} for d in docs]
+
+    def _created_key(r: dict):
+        ts = r.get("created_at")
+        return ts.isoformat() if hasattr(ts, "isoformat") else str(ts or "")
+
+    rows.sort(key=_created_key, reverse=True)
+    cards = [
+        AuthorPostingCard(
+            case_id=r.get("case_id", ""),
+            title=r.get("title", ""),
+            visa=r.get("visa", []) or [],
+            consulates=r.get("consulates", []) or [],
+            outcome=r.get("outcome", "") or "",
+            date=_created_key(r)[:10],
+        )
+        for r in rows if r.get("case_id")
+    ]
+    return AuthorPostingsResponse(postings=cards)
 
 
 # ---------------------------------------------------------------------------
