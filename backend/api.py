@@ -335,6 +335,24 @@ class SearchResponse(BaseModel):
 
 class PostingDetail(PostingCard):
     body: str
+    # The authoring app user's id, resolved from the Firestore posting↔author
+    # link. Empty for Reddit/other-source postings or app postings published
+    # before author capture (kept OUT of the search datastore — anonymity there
+    # is preserved; the link lives only in Firestore for this author view).
+    author_id: str = ""
+
+
+class AuthorPostingCard(BaseModel):
+    case_id: str
+    title: str
+    visa: list[str] = []
+    consulates: list[str] = []
+    outcome: str = ""
+    date: str = ""
+
+
+class AuthorPostingsResponse(BaseModel):
+    postings: list[AuthorPostingCard]
 
 
 # --- Replies + voting (phase-L) ---
@@ -655,6 +673,10 @@ async def create_posting(body: PostingCreateRequest, request: Request):
 
     import posting
 
+    # Author (the publishing app user). Kept OUT of the posting itself / search
+    # datastore — only recorded in the Firestore posting↔author link below.
+    author_uid = _optional_user(request)
+
     try:
         result = _guard(lambda: posting.publish_posting(
             body.title, body.description, body.tags.model_dump(),
@@ -663,6 +685,28 @@ async def create_posting(body: PostingCreateRequest, request: Request):
     except ValueError as e:
         # vocabulary / schema validation failure → 422
         raise HTTPException(status_code=422, detail=f"Posting failed validation: {e}")
+
+    # Record the author link (Firestore only) so the author's profile + their
+    # other postings can be shown on the case page. Best-effort — never blocks
+    # the publish.
+    if author_uid and _db is not None:
+        try:
+            visa = list(dict.fromkeys(
+                (body.tags.visa_applying_for or []) + (body.tags.current_visa_or_greencard_category or [])
+            ))
+            _db.collection("posting_authors").document(result["case_id"]).set({
+                "case_id": result["case_id"],
+                "author_uid": author_uid,
+                "channel": "app",
+                "title": body.title,
+                "visa": visa,
+                "consulates": body.tags.consulates or [],
+                "outcome": (body.key_stages_or_info or {}).get("outcome_status", ""),
+                "created_at": firestore.SERVER_TIMESTAMP,
+            })
+        except Exception as e:  # noqa: BLE001 — author link is non-critical
+            print(f"posting_authors write failed for {result['case_id']}: {e}")
+
     return PostingCreateResponse(**result)
 
 
@@ -1006,13 +1050,70 @@ async def search(
     )
 
 
+def _posting_author_uid(case_id: str) -> str:
+    """The app user who authored this posting, from the Firestore link (or '')."""
+    if _db is None:
+        return ""
+    try:
+        snap = _db.collection("posting_authors").document(case_id).get()
+        return (snap.to_dict() or {}).get("author_uid", "") if snap.exists else ""
+    except Exception as e:  # noqa: BLE001
+        print(f"_posting_author_uid({case_id}): {e}")
+        return ""
+
+
 @app.get("/api/postings/{case_id}", response_model=PostingDetail)
 async def posting_detail(case_id: str):
-    """Full detail for one posting (card fields + Markdown body)."""
+    """Full detail for one posting (card fields + Markdown body + author link)."""
     card = get_posting(case_id, _project_id, _ds_location, _datastore_id)
     if card is None:
         raise HTTPException(status_code=404, detail="Posting not found")
+    # Resolve the author only for first-party app postings (Reddit/others omit).
+    card["author_id"] = _posting_author_uid(case_id) if card.get("channel") == "app" else ""
     return PostingDetail(**card)
+
+
+@app.get("/api/users/{uid}/public-profile")
+async def public_profile(uid: str):
+    """A posting author's structured profile (the same PII-free profile shown in
+    setup). Returned for the case-page author section. 404 if no profile."""
+    import profile
+    prof = _guard(lambda: profile.get_profile(_db, uid))
+    if not prof:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return prof
+
+
+@app.get("/api/users/{uid}/postings", response_model=AuthorPostingsResponse)
+async def user_postings(uid: str):
+    """All app postings authored by a user (newest first), from the Firestore
+    posting↔author link. Used by the case-page 'other postings by this author'."""
+    if _db is None:
+        return AuthorPostingsResponse(postings=[])
+    try:
+        docs = list(_db.collection("posting_authors").where("author_uid", "==", uid).stream())
+    except Exception as e:  # noqa: BLE001
+        print(f"user_postings({uid}): {e}")
+        return AuthorPostingsResponse(postings=[])
+    rows = [d.to_dict() or {} for d in docs]
+
+    def _created_key(r: dict):
+        ts = r.get("created_at")
+        return ts.isoformat() if hasattr(ts, "isoformat") else str(ts or "")
+
+    rows.sort(key=_created_key, reverse=True)
+    cards = [
+        AuthorPostingCard(
+            case_id=r.get("case_id", ""),
+            title=r.get("title", ""),
+            visa=r.get("visa", []) or [],
+            consulates=r.get("consulates", []) or [],
+            outcome=r.get("outcome", "") or "",
+            date=_created_key(r)[:10],
+        )
+        for r in rows if r.get("case_id")
+    ]
+    return AuthorPostingsResponse(postings=cards)
 
 
 # ---------------------------------------------------------------------------

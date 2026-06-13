@@ -106,6 +106,20 @@ def group_vocab_api() -> None:
     check("V profile_stage_key excludes 1.6", "h1b-petition" not in set(v["profile_stage_key"]))
     check("V 'filed' present in outcome list", "filed" in v["outcome"])
     check("V J-1 expiry date key present (j1_expire_date)", "j1_expire_date" in v["date_key"])
+    # consulate_tree: grouped country -> cities for the two-part picker
+    tree = v.get("consulate_tree") or []
+    check("V consulate_tree present + non-empty", bool(tree), str(len(tree)))
+    tree_by_country = {c["country"]: c for c in tree}
+    india = tree_by_country.get("India")
+    check("V consulate_tree India has country_code IN", bool(india) and india["country_code"] == "IN")
+    check("V consulate_tree India cities include Mumbai/BOM",
+          bool(india) and any(x["code"] == "BOM" and x["city"] == "Mumbai" for x in india["cities"]))
+    check("V consulate_tree comma-country grouped correctly (Congo, Dem. Rep. of -> CD)",
+          tree_by_country.get("Congo, Dem. Rep. of", {}).get("country_code") == "CD")
+    check("V consulate_tree every city-bearing country has a country_code",
+          all(c["country_code"] for c in tree if c["cities"]))
+    check("V consulate_tree country codes are valid consulate values",
+          all(c["country_code"] in posting._Vocab.consulate for c in tree if c["country_code"]))
 
 
 # ---------------------------------------------------------------------------
