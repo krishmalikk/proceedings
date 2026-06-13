@@ -196,6 +196,9 @@ class SeedUser(BaseModel):
 
 class NewUserRequest(BaseModel):
     username: str = ""
+    # Optional client-supplied id (a Firebase uid) to REGISTER instead of minting
+    # a "new-…" dev id. Idempotent: re-registering returns the existing account.
+    uid: str = ""
 
 
 class JourneyEntry(BaseModel):
@@ -527,17 +530,42 @@ def _guard(fn):
 # off and the uid comes only from a verified Firebase token (same users/{id} schema).
 ALLOW_USER_IMPERSONATION = os.getenv("ALLOW_USER_IMPERSONATION", "1") == "1"
 
+# Registered uids (e.g. Firebase accounts) accepted by the X-User-Id gate.
+# Source of truth is the Firestore users/{uid} doc created by POST /api/users;
+# this set just caches positive lookups. NOTE: the header is still UNVERIFIED —
+# server-side Firebase ID-token verification is the Option-A follow-up.
+_KNOWN_UIDS: set[str] = set()
+
+
+def _uid_registered(uid: str) -> bool:
+    """True if a users/{uid} profile doc exists (cached after first hit)."""
+    if uid in _KNOWN_UIDS:
+        return True
+    if _db is None:
+        return False
+    try:
+        if _db.collection("users").document(uid).get().exists:
+            _KNOWN_UIDS.add(uid)
+            return True
+    except Exception as e:  # noqa: BLE001 — gate lookup must never 500
+        print(f"_uid_registered({uid}): {e}")
+    return False
+
+
+def _uid_accepted(uid: str) -> bool:
+    """Baked roster, dev-created 'new-…' ids, or registered (Firebase) accounts."""
+    import profile
+    return uid in profile.seed_ids() or uid.startswith("new-") or _uid_registered(uid)
+
 
 def _active_user(request: Request) -> str:
-    """Resolve the active baked user id from the X-User-Id header (dev impersonation)."""
-    import profile
+    """Resolve the active user id from the X-User-Id header (dev impersonation)."""
     if not ALLOW_USER_IMPERSONATION:
         raise HTTPException(status_code=403, detail="User impersonation is disabled.")
     uid = request.headers.get("x-user-id", "").strip()
     if not uid:
         raise HTTPException(status_code=400, detail="X-User-Id header is required (pick a user).")
-    # Accept the baked roster + any dev-created "new-…" user (see POST /api/users).
-    if uid not in profile.seed_ids() and not uid.startswith("new-"):
+    if not _uid_accepted(uid):
         raise HTTPException(status_code=404, detail=f"Unknown user '{uid}'.")
     return uid
 
@@ -546,9 +574,8 @@ def _optional_user(request: Request) -> str:
     """Like `_active_user` but never raises — returns '' when no/unknown user.
     Used by read endpoints that personalize (e.g. the viewer's own votes) but
     are still usable anonymously."""
-    import profile
     uid = request.headers.get("x-user-id", "").strip()
-    return uid if uid and (uid in profile.seed_ids() or uid.startswith("new-")) else ""
+    return uid if uid and _uid_accepted(uid) else ""
 
 
 @app.post("/api/ask", response_model=AskResponse)
@@ -652,17 +679,38 @@ async def list_users():
 
 @app.post("/api/users", response_model=SeedUser)
 async def create_user(body: NewUserRequest):
-    """Mint a fresh dev user ('new-…' id) to onboard from scratch. Dev-only; when
-    real auth lands this is replaced by Firebase user creation (same users/{id})."""
+    """Create/register a user account.
+
+    - No `uid` (dev picker): mint a fresh "new-…" id to onboard from scratch.
+    - With `uid` (Firebase sign-in/up): register that uid so the X-User-Id gate
+      accepts it. Idempotent — an already-registered uid returns its existing
+      account and NEVER overwrites the stored profile. The header remains
+      unverified dev-mode identity until ID-token verification lands (Option A).
+    """
+    import re as _re
     import secrets
     import profile
     if not ALLOW_USER_IMPERSONATION:
         raise HTTPException(status_code=403, detail="User creation is disabled.")
-    uid = "new-" + secrets.token_hex(4)
-    username = (body.username or "").strip()[:40] or f"new-user-{uid[-4:]}"
+
+    uid = (body.uid or "").strip()
+    if uid:
+        if uid in profile.seed_ids() or not _re.fullmatch(r"[A-Za-z0-9_-]{6,128}", uid):
+            raise HTTPException(status_code=422, detail="Invalid uid.")
+        if _uid_registered(uid):
+            # Already registered — return the existing account untouched.
+            existing = _guard(lambda: profile.get_profile(_db, uid))
+            return SeedUser(id=uid, username=existing.get("username") or uid, label=existing.get("username") or uid)
+        username = (body.username or "").strip()[:40] or f"member-{uid[:6]}"
+        _guard(lambda: profile.save_profile(_db, uid, {"username": username}))
+        _KNOWN_UIDS.add(uid)
+        return SeedUser(id=uid, username=username, label=username)
+
+    new_id = "new-" + secrets.token_hex(4)
+    username = (body.username or "").strip()[:40] or f"new-user-{new_id[-4:]}"
     # Register by creating the (empty) profile doc with the chosen username.
-    _guard(lambda: profile.save_profile(_db, uid, {"username": username}))
-    return SeedUser(id=uid, username=username, label=f"🆕 {username}")
+    _guard(lambda: profile.save_profile(_db, new_id, {"username": username}))
+    return SeedUser(id=new_id, username=username, label=f"🆕 {username}")
 
 
 @app.get("/api/profile")
