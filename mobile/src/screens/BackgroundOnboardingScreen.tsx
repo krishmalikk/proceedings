@@ -36,6 +36,7 @@ import {
   onboardTurn,
   getActiveUserId,
   TagVocab,
+  ConsulateCountry,
 } from '../services/apiService';
 import { ActivityIndicator, Alert } from 'react-native';
 
@@ -55,8 +56,9 @@ const GREETING_RETURNING =
 export function BackgroundOnboardingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [profile, setProfile] = useState<OnboardingProfile>(createEmptyProfile());
+  // All collapsible panels start CLOSED on load.
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
-    status: true,
+    status: false,
     applying: false,
     consulates: false,
     tags: false,
@@ -65,6 +67,9 @@ export function BackgroundOnboardingScreen() {
   });
   const [selectedStageKey, setSelectedStageKey] = useState('');
   const [selectedDateKey, setSelectedDateKey] = useState('');
+  // Two-part consulate picker: type-to-filter a country, then pick a city.
+  const [consQuery, setConsQuery] = useState('');
+  const [consCountry, setConsCountry] = useState<ConsulateCountry | null>(null);
 
   // Live controlled vocabulary (falls back to the baked constants offline).
   const [vocab, setVocab] = useState<TagVocab | null>(null);
@@ -76,7 +81,6 @@ export function BackgroundOnboardingScreen() {
   const [messages, setMessages] = useState<Turn[]>([
     { id: 'greet', role: 'ai', content: GREETING_SETUP },
   ]);
-  const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
   const [regenNote, setRegenNote] = useState('');
@@ -111,10 +115,11 @@ export function BackgroundOnboardingScreen() {
   }, []);
 
   // One assistant turn: the AI updates the tags below from the conversation.
-  const sendChat = async () => {
-    const t = chatInput.trim();
+  // Driven by the single "Describe your situation" box (website parity — there
+  // is no separate chat input in the basics stage).
+  const send = async (raw: string) => {
+    const t = raw.trim();
     if (!t || chatLoading) return;
-    setChatInput('');
     const history = messages.map((m) => ({ role: m.role, content: m.content }));
     setMessages((prev) => [...prev, { id: `${Date.now()}-u`, role: 'user', content: t }]);
     setChatLoading(true);
@@ -135,6 +140,7 @@ export function BackgroundOnboardingScreen() {
       setChatLoading(false);
     }
   };
+  const askAssistant = () => send(profile.backgroundText);
 
   // Re-derive the tags from the free-text background (one-shot; website parity).
   const regenTags = async () => {
@@ -159,17 +165,53 @@ export function BackgroundOnboardingScreen() {
   };
   const visaOptions = vocab?.visa?.length ? vocab.visa : VISA_CATEGORIES;
   const outcomeOptions = vocab?.outcome?.length ? vocab.outcome : STAGE_OUTCOMES;
-  // Consulates: curated list for mobile chips, but store the 1.4 CODE in the
-  // profile (the backend drops anything that isn't a valid code).
-  const consulateLabelByCode = useMemo(
-    () => new Map(CONSULATE_OPTIONS.map((o) => [o.code, o.label])),
-    []
-  );
-  const consulateCodeByLabel = useMemo(
-    () => new Map(CONSULATE_OPTIONS.map((o) => [o.label, o.code])),
-    []
-  );
-  const consulateLabels = CONSULATE_OPTIONS.map((o) => o.label);
+  // Consulates: display existing chips by code (prefer the live vocab so country
+  // codes like "IN" render as "India (IN)"; fall back to the baked city list).
+  const consulateLabelByCode = useMemo(() => {
+    const m = new Map(CONSULATE_OPTIONS.map((o) => [o.code, o.label]));
+    (vocab?.consulate_options || []).forEach((o) => m.set(o.code, o.label));
+    return m;
+  }, [vocab]);
+  // Grouped country → cities for the two-part picker (offline: degrade gracefully).
+  const consulateTree = vocab?.consulate_tree || [];
+  const countryMatches =
+    consQuery.trim().length === 0
+      ? []
+      : consulateTree
+          .filter(
+            (c) =>
+              c.country.toLowerCase().includes(consQuery.trim().toLowerCase()) ||
+              c.country_code.toLowerCase().includes(consQuery.trim().toLowerCase())
+          )
+          .slice(0, 8);
+  const addConsulate = (code: string) => {
+    if (!code) return;
+    setProfile((p) =>
+      p.consulates.includes(code) ? p : { ...p, consulates: [...p.consulates, code] }
+    );
+  };
+  const removeConsulate = (code: string) =>
+    setProfile((p) => ({ ...p, consulates: p.consulates.filter((c) => c !== code) }));
+  // Selecting a CITY marks BOTH its country and the city, then closes the section.
+  const selectCity = (country: ConsulateCountry, cityCode: string) => {
+    setProfile((p) => {
+      const next = [...p.consulates];
+      for (const code of [country.country_code, cityCode]) {
+        if (code && !next.includes(code)) next.push(code);
+      }
+      return { ...p, consulates: next };
+    });
+    setConsCountry(null);
+    setConsQuery('');
+    setExpandedSections((prev) => ({ ...prev, consulates: false }));
+  };
+  // Adding country-wide also closes the section.
+  const selectCountryWide = (country: ConsulateCountry) => {
+    addConsulate(country.country_code);
+    setConsCountry(null);
+    setConsQuery('');
+    setExpandedSections((prev) => ({ ...prev, consulates: false }));
+  };
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
@@ -311,24 +353,9 @@ export function BackgroundOnboardingScreen() {
               )}
               {chatLoading && <ActivityIndicator size="small" color={colors.primary} style={{ alignSelf: 'flex-start' }} />}
             </View>
-            <View style={styles.chatInputRow}>
-              <TextInput
-                style={styles.chatInput}
-                value={chatInput}
-                onChangeText={setChatInput}
-                placeholder="Describe your situation…"
-                placeholderTextColor={colors.onSurfaceVariant}
-                onSubmitEditing={sendChat}
-                returnKeyType="send"
-              />
-              <TouchableOpacity
-                style={[styles.chatSend, (!chatInput.trim() || chatLoading) && styles.chatSendDisabled]}
-                onPress={sendChat}
-                disabled={!chatInput.trim() || chatLoading}
-              >
-                <Ionicons name="send" size={16} color={colors.onPrimary} />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.chatHint}>
+              Describe your situation in the box below, then “Ask the assistant” or “Re-generate tags”.
+            </Text>
           </View>
 
           {/* Background Text */}
@@ -350,7 +377,7 @@ export function BackgroundOnboardingScreen() {
             <Text style={styles.charCount}>
               {profile.backgroundText.length}/2000
             </Text>
-            {/* Website parity: re-derive the tags from the background text */}
+            {/* Website parity: the single box drives both buttons. */}
             <View style={styles.regenRow}>
               <TouchableOpacity
                 style={[styles.regenButton, (regenLoading || profile.backgroundText.trim().length < 10) && styles.chatSendDisabled]}
@@ -359,6 +386,14 @@ export function BackgroundOnboardingScreen() {
               >
                 <Ionicons name="color-wand-outline" size={16} color={colors.onPrimary} />
                 <Text style={styles.regenButtonText}>{regenLoading ? 'Analyzing…' : 'Re-generate tags'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.askButton, (chatLoading || profile.backgroundText.trim().length < 1) && styles.chatSendDisabled]}
+                onPress={askAssistant}
+                disabled={chatLoading || profile.backgroundText.trim().length < 1}
+              >
+                <Ionicons name="sparkles-outline" size={16} color={colors.onSecondaryContainer} />
+                <Text style={styles.askButtonText}>Ask the assistant</Text>
               </TouchableOpacity>
               {!!regenNote && <Text style={styles.regenNote}>{regenNote}</Text>}
             </View>
@@ -398,7 +433,7 @@ export function BackgroundOnboardingScreen() {
             )}
           </View>
 
-          {/* Consulates */}
+          {/* Consulates — two-part: type a country, then pick a city */}
           <View style={styles.section}>
             <SectionHeader
               title="Consulate(s)"
@@ -406,17 +441,108 @@ export function BackgroundOnboardingScreen() {
               count={profile.consulates.length}
             />
             {expandedSections.consulates && (
-              <ChipSelector
-                label=""
-                options={consulateLabels}
-                selectedValues={profile.consulates.map((c) => consulateLabelByCode.get(c) || c)}
-                onSelectionChange={(labels) =>
-                  updateProfile(
-                    'consulates',
-                    labels.map((l) => consulateCodeByLabel.get(l) || l)
-                  )
-                }
-              />
+              <View style={styles.consulateBody}>
+                {/* Selected consulate chips (country-wide codes + city codes) */}
+                {profile.consulates.length > 0 && (
+                  <View style={styles.chipsWrap}>
+                    {profile.consulates.map((code) => (
+                      <TouchableOpacity
+                        key={code}
+                        style={styles.consChip}
+                        onPress={() => removeConsulate(code)}
+                      >
+                        <Text style={styles.consChipText}>{consulateLabelByCode.get(code) || code}</Text>
+                        <Ionicons name="close" size={14} color={colors.onSurfaceVariant} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {consulateTree.length > 0 ? (
+                  <>
+                    {/* 1) Country: type-to-filter (large list) */}
+                    <TextInput
+                      style={styles.consInput}
+                      value={consQuery}
+                      onChangeText={(t) => {
+                        setConsQuery(t);
+                        setConsCountry(null);
+                      }}
+                      placeholder="Type a country…"
+                      placeholderTextColor={colors.onSurfaceVariant}
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                    />
+                    {!consCountry && countryMatches.length > 0 && (
+                      <View style={styles.suggestWrap}>
+                        {countryMatches.map((c) => (
+                          <TouchableOpacity
+                            key={c.country_code || c.country}
+                            style={styles.suggestChip}
+                            onPress={() => {
+                              setConsCountry(c);
+                              setConsQuery(`${c.country} (${c.country_code})`);
+                            }}
+                          >
+                            <Text style={styles.suggestChipText}>
+                              {c.country} ({c.country_code})
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* 2) Country-wide add + fixed city dropdown (no typing) */}
+                    {consCountry && (
+                      <View style={styles.cityBlock}>
+                        {!!consCountry.country_code && (
+                          <TouchableOpacity
+                            style={styles.countryWideButton}
+                            onPress={() => selectCountryWide(consCountry)}
+                          >
+                            <Ionicons name="globe-outline" size={14} color={colors.onSecondaryContainer} />
+                            <Text style={styles.countryWideText}>
+                              Add {consCountry.country} (country-wide)
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        {consCountry.cities.length > 0 && (
+                          <>
+                            <Text style={styles.cityLabel}>Cities in {consCountry.country}</Text>
+                            <View style={styles.chipsWrap}>
+                              {consCountry.cities.map((city) => {
+                                const active = profile.consulates.includes(city.code);
+                                return (
+                                  <TouchableOpacity
+                                    key={city.code}
+                                    style={[styles.cityChip, active && styles.cityChipActive]}
+                                    onPress={() => selectCity(consCountry, city.code)}
+                                  >
+                                    <Text style={[styles.cityChipText, active && styles.cityChipTextActive]}>
+                                      {city.city} ({city.code})
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  /* Offline fallback: flat city list from the baked options */
+                  <ChipSelector
+                    label=""
+                    options={CONSULATE_OPTIONS.map((o) => o.label)}
+                    selectedValues={profile.consulates.map((c) => consulateLabelByCode.get(c) || c)}
+                    onSelectionChange={(labels) => {
+                      const codeByLabel = new Map(CONSULATE_OPTIONS.map((o) => [o.label, o.code]));
+                      updateProfile('consulates', labels.map((l) => codeByLabel.get(l) || l));
+                    }}
+                  />
+                )}
+              </View>
             )}
           </View>
 
@@ -664,6 +790,69 @@ const styles = StyleSheet.create({
   },
   regenButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 13 },
   regenNote: { fontSize: 12, color: colors.primary },
+  chatHint: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: spacing.base, fontStyle: 'italic' },
+  askButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: borderRadius.full,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+  },
+  askButtonText: { color: colors.onSecondaryContainer, fontWeight: '600', fontSize: 13 },
+  consulateBody: { marginTop: spacing.base, gap: spacing.base },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.base },
+  consChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: borderRadius.full,
+    paddingVertical: 5,
+    paddingHorizontal: spacing.md,
+  },
+  consChipText: { fontSize: 12, color: colors.onSecondaryContainer, fontWeight: '500' },
+  consInput: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: colors.onSurface,
+  },
+  suggestWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.base },
+  suggestChip: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.full,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+  },
+  suggestChipText: { fontSize: 13, color: colors.onSurface },
+  cityBlock: { gap: spacing.base },
+  countryWideButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: borderRadius.full,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+  },
+  countryWideText: { fontSize: 13, color: colors.onSecondaryContainer, fontWeight: '600' },
+  cityLabel: { fontSize: 11, textTransform: 'uppercase', color: colors.onSurfaceVariant },
+  cityChip: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.full,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+  },
+  cityChipActive: { backgroundColor: colors.primary },
+  cityChipText: { fontSize: 13, color: colors.onSurface },
+  cityChipTextActive: { color: colors.onPrimary, fontWeight: '600' },
   header: {
     marginBottom: spacing.md,
   },

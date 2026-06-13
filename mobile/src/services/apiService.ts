@@ -256,6 +256,51 @@ export interface PostingData {
   url: string;
   date: string;
   body: string; // full posting text (markdown on the website; rendered plain here)
+  author_id: string; // authoring app user (empty for reddit/unknown)
+}
+
+// A posting author's structured profile (the PII-free profile shown in setup).
+export interface PublicProfile {
+  username: string;
+  current_visa_or_greencard_category: string[];
+  visa_applying_for: string[];
+  primary_consulate: string;
+  consulates: string[];
+  tags: string[];
+  key_stages_or_info: Record<string, string>;
+  key_dates: Record<string, string>;
+  background_text: string;
+  journey: { milestone: string; date: string; experience: string; shared?: boolean }[];
+}
+
+export interface AuthorPostingCard {
+  case_id: string;
+  title: string;
+  visa: string[];
+  consulates: string[];
+  outcome: string;
+  date: string;
+}
+
+export async function getPublicProfile(uid: string): Promise<PublicProfile | null> {
+  try {
+    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/public-profile`);
+    if (!r.ok) return null;
+    return (await r.json()) as PublicProfile;
+  } catch {
+    return null;
+  }
+}
+
+export async function getUserPostings(uid: string): Promise<AuthorPostingCard[]> {
+  try {
+    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/postings`);
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.postings || []) as AuthorPostingCard[];
+  } catch {
+    return [];
+  }
 }
 
 export interface PostingGroups {
@@ -431,10 +476,17 @@ export async function searchPostings(
   };
 }
 
+export interface ConsulateCountry {
+  country: string;
+  country_code: string;
+  cities: { code: string; city: string }[];
+}
+
 export interface TagVocab {
   visa: string[];
   consulate: string[];
   consulate_options: { code: string; label: string }[];
+  consulate_tree: ConsulateCountry[];
   tag: string[];
   misc: string[];
   misc_options: { code: string; label: string }[];
@@ -460,6 +512,7 @@ export async function getTagVocab(): Promise<TagVocab | null> {
       visa: data.visa || [],
       consulate: data.consulate || [],
       consulate_options: data.consulate_options || [],
+      consulate_tree: data.consulate_tree || [],
       tag: data.tag || [],
       misc: data.misc || [],
       misc_options: data.misc_options || [],

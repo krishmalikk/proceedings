@@ -5,10 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import {
   SearchScreen,
-  CommunityScreen,
   CaseDetailsScreen,
-  AskProScreen,
-  NewsScreen,
+  AuthorScreen,
   FindScreen,
   PostScreen,
   GroupChatScreen,
@@ -27,11 +25,14 @@ const Stack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const OnboardingStackNav = createNativeStackNavigator();
 
+// "Community" mirrors the website's Community tab (the postings search/browse,
+// i.e. /search). The old mock forum screen navigated to fake case ids → 404.
 function CommunityStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="CommunityMain" component={CommunityScreen} />
+      <Stack.Screen name="CommunityMain" component={SearchScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
@@ -45,6 +46,7 @@ function HomeStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SearchMain" component={SearchScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
@@ -58,9 +60,22 @@ function FindStack() {
       <Stack.Screen name="FindMain" component={FindScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function ProfileStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
+      <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
+      <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="Author" component={AuthorScreen} />
     </Stack.Navigator>
   );
 }
@@ -83,14 +98,13 @@ function OnboardingStack() {
   );
 }
 
-type TabIconName = 'home' | 'document-text' | 'chatbubbles' | 'headset' | 'newspaper' | 'people' | 'create';
+type TabIconName = 'home' | 'document-text' | 'chatbubbles' | 'people' | 'person' | 'create';
 
 const tabIcons: Record<string, { focused: TabIconName; unfocused: `${TabIconName}-outline` }> = {
   Home: { focused: 'home', unfocused: 'home-outline' },
   Find: { focused: 'people', unfocused: 'people-outline' },
   Community: { focused: 'chatbubbles', unfocused: 'chatbubbles-outline' },
-  AskPro: { focused: 'headset', unfocused: 'headset-outline' },
-  News: { focused: 'newspaper', unfocused: 'newspaper-outline' },
+  Profile: { focused: 'person', unfocused: 'person-outline' },
 };
 
 function TabNavigator() {
@@ -124,7 +138,7 @@ function TabNavigator() {
           name="Find"
           component={FindStack}
           options={{
-            tabBarLabel: 'Find',
+            tabBarLabel: 'Groups',
           }}
         />
         <Tab.Screen
@@ -135,17 +149,10 @@ function TabNavigator() {
           }}
         />
         <Tab.Screen
-          name="AskPro"
-          component={AskProScreen}
+          name="Profile"
+          component={ProfileStack}
           options={{
-            tabBarLabel: 'Ask Pro',
-          }}
-        />
-        <Tab.Screen
-          name="News"
-          component={NewsScreen}
-          options={{
-            tabBarLabel: 'News',
+            tabBarLabel: 'Profile',
           }}
         />
       </Tab.Navigator>

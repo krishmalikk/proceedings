@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Markdown } from '../components';
+import { AuthorCard } from '../components/AuthorCard';
 import { VoteControl } from '../components/VoteControl';
 import { Replies } from '../components/Replies';
 import { colors, spacing, borderRadius } from '../constants/theme';
@@ -159,6 +160,15 @@ export function CaseDetailsScreen({ navigation, route }: any) {
               </View>
             </Card>
           )}
+
+          {/* Author profile + their other postings (app postings only) */}
+          <AuthorCard
+            authorId={data.author_id}
+            channel={data.channel}
+            currentCaseId={data.case_id}
+            onOpenPosting={(cid) => navigation.push('CaseDetails', { caseId: cid })}
+            onOpenAuthor={(uid) => navigation.navigate('Author', { uid })}
+          />
 
           {/* Source link — only for genuine Reddit-sourced posts (website parity) */}
           {isReddit && (

@@ -2,6 +2,7 @@ export { SearchScreen } from './SearchScreen';
 export { OnboardingScreen } from './OnboardingScreen';
 export { CommunityScreen } from './CommunityScreen';
 export { CaseDetailsScreen } from './CaseDetailsScreen';
+export { AuthorScreen } from './AuthorScreen';
 export { AskProScreen } from './AskProScreen';
 export { NewsScreen } from './NewsScreen';
 export { FindScreen } from './FindScreen';

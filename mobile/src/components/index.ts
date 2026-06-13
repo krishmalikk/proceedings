@@ -2,6 +2,7 @@ export { Badge } from './Badge';
 export { Button } from './Button';
 export { Card } from './Card';
 export { default as Markdown } from './Markdown';
+export { AuthorCard } from './AuthorCard';
 export { FilterChip } from './FilterChip';
 export { Header } from './Header';
 export { Input } from './Input';

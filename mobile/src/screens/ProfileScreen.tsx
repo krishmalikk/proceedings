@@ -43,6 +43,9 @@ interface UserProfile {
 
 export function ProfileScreen() {
   const navigation = useNavigation();
+  // Hidden when Profile is a bottom-tab root (nothing to go back to); shown when
+  // pushed from another stack via the header profile icon.
+  const canGoBack = navigation.canGoBack();
   const { user, signOut } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -168,7 +171,7 @@ export function ProfileScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <Header
           title="Profile"
-          showBack
+          showBack={canGoBack}
           onBack={() => navigation.goBack()}
         />
         <View style={styles.loadingContainer}>
@@ -184,7 +187,7 @@ export function ProfileScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <Header
           title="Profile"
-          showBack
+          showBack={canGoBack}
           onBack={() => navigation.goBack()}
         />
         <View style={styles.errorContainer}>
@@ -202,7 +205,7 @@ export function ProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Header
         title="Profile"
-        showBack
+        showBack={canGoBack}
         onBack={() => navigation.goBack()}
       />
       <ScrollView
