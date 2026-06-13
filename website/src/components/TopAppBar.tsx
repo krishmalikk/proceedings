@@ -7,10 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { USER_KEY } from '@/lib/activeUser';
 
 const navItems = [
-  { href: '/search', label: 'Case Search', icon: 'search' },
-  { href: '/find', label: 'Find Peers', icon: 'diversity_3' },
-  { href: '/news', label: 'News', icon: 'newspaper' },
-  // Removed for now (phase-H): 'Forum' (/community) and 'Ask a Pro' (/pro).
+  { href: '/search', label: 'Community', icon: 'search' },
+  { href: '/find', label: 'Groups', icon: 'diversity_3' },
+  // Removed for now: 'News' (/news), 'Forum' (/community), 'Ask a Pro' (/pro).
 ];
 
 export default function TopAppBar() {
