@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../constants/theme';
@@ -108,9 +109,23 @@ export function GroupChat({ groupId }: GroupChatProps) {
     loadInitial();
   }, [loadInitial]);
 
+  // Pause polling while the app is backgrounded (website parity: it skips the
+  // poll on `document.hidden`). On returning to the foreground, poll once
+  // immediately so the user sees new messages without waiting a full interval.
+  const appActiveRef = useRef(AppState.currentState === 'active');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      const active = state === 'active';
+      const wasActive = appActiveRef.current;
+      appActiveRef.current = active;
+      if (active && !wasActive && !denied) poll();
+    });
+    return () => sub.remove();
+  }, [poll, denied]);
+
   useEffect(() => {
     const id = setInterval(() => {
-      if (!denied) poll();
+      if (!denied && appActiveRef.current) poll();
     }, POLL_MS);
     return () => clearInterval(id);
   }, [poll, denied]);

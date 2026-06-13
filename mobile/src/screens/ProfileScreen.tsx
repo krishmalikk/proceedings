@@ -11,10 +11,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { Header, Card, Badge, Button } from '../components';
+import { Header, Card, Badge, Button, Markdown } from '../components';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { getProfile, getCachedProfile, clearProfileCache } from '../services/apiService';
+import { useExperienceFacets } from '../hooks/useExperienceFacets';
 
 // Profile data interface matching backend
 interface JourneyEntry {
@@ -50,6 +51,9 @@ export function ProfileScreen() {
   const [error, setError] = useState('');
   const [expandedMilestones, setExpandedMilestones] = useState<Set<number>>(new Set());
   const [signingOut, setSigningOut] = useState(false);
+
+  // Generated facets for each shared/published experience (website parity).
+  const expFacets = useExperienceFacets(profile?.journey);
 
   // Load profile with cache-first approach for faster initial display
   const loadProfile = useCallback(async (showRefreshing = false) => {
@@ -228,7 +232,42 @@ export function ProfileScreen() {
               )}
             </View>
           </View>
+          {/* Edit affordance (website parity: "Edit Profile" → onboarding) */}
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => (navigation as any).navigate('BackgroundOnboarding')}
+          >
+            <Ionicons name="create-outline" size={16} color={colors.onPrimary} />
+            <Text style={styles.editButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
         </Card>
+
+        {/* Empty state (website parity) */}
+        {!profile?.current_visa_or_greencard_category?.length &&
+          !profile?.visa_applying_for?.length &&
+          !profile?.consulates?.length &&
+          !profile?.tags?.length &&
+          !Object.keys(profile?.key_stages_or_info || {}).length &&
+          !Object.keys(profile?.key_dates || {}).length &&
+          !profile?.background_text &&
+          !profile?.journey?.length && (
+            <Card style={styles.section}>
+              <View style={styles.emptyState}>
+                <Ionicons name="person-add-outline" size={48} color={colors.onSurfaceVariant} />
+                <Text style={styles.emptyTitle}>No profile set up yet</Text>
+                <Text style={styles.emptyStateText}>
+                  Tell us about your immigration journey to get personalized help and connect with
+                  others in similar situations.
+                </Text>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => (navigation as any).navigate('BackgroundOnboarding')}
+                >
+                  <Text style={styles.editButtonText}>Set Up Your Profile</Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
+          )}
 
         {/* Visa Status Section */}
         <Card style={styles.section}>
@@ -345,7 +384,7 @@ export function ProfileScreen() {
         {profile?.background_text && (
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Background</Text>
-            <Text style={styles.backgroundText}>{profile.background_text}</Text>
+            <Markdown>{profile.background_text}</Markdown>
           </Card>
         )}
 
@@ -387,6 +426,33 @@ export function ProfileScreen() {
                     )}
                     {expandedMilestones.has(idx) && entry.experience && (
                       <Text style={styles.experienceText}>{entry.experience}</Text>
+                    )}
+                    {/* Generated facets — only for shared/published experiences */}
+                    {entry.experience_case_id && expFacets[entry.experience_case_id] && (
+                      <View style={styles.facetRow}>
+                        {expFacets[entry.experience_case_id].visa.map((v) => (
+                          <View key={`v${v}`} style={[styles.facetBadge, styles.facetVisa]}>
+                            <Text style={styles.facetVisaText}>{v}</Text>
+                          </View>
+                        ))}
+                        {expFacets[entry.experience_case_id].consulates.map((c) => (
+                          <View key={`c${c}`} style={[styles.facetBadge, styles.facetConsulate]}>
+                            <Text style={styles.facetConsulateText}>{c}</Text>
+                          </View>
+                        ))}
+                        {!!expFacets[entry.experience_case_id].outcome && (
+                          <View style={[styles.facetBadge, styles.facetOutcome]}>
+                            <Text style={styles.facetOutcomeText}>
+                              {expFacets[entry.experience_case_id].outcome}
+                            </Text>
+                          </View>
+                        )}
+                        {expFacets[entry.experience_case_id].tags.slice(0, 5).map((t) => (
+                          <View key={`t${t}`} style={[styles.facetBadge, styles.facetTag]}>
+                            <Text style={styles.facetTagText}>{t}</Text>
+                          </View>
+                        ))}
+                      </View>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -466,6 +532,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.onSurfaceVariant,
     marginBottom: spacing.xs,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+  },
+  editButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 14 },
+  emptyState: { alignItems: 'center', paddingVertical: spacing.md },
+  emptyTitle: { fontSize: 17, fontWeight: '600', color: colors.onSurface, marginTop: spacing.base },
+  emptyStateText: {
+    fontSize: 13,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    marginTop: spacing.base,
   },
   accountHeader: {
     flexDirection: 'row',
@@ -593,6 +679,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     alignSelf: 'flex-start',
   },
+  facetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: spacing.xs },
+  facetBadge: { borderRadius: borderRadius.full, paddingVertical: 2, paddingHorizontal: 8 },
+  facetVisa: { backgroundColor: colors.primaryContainer },
+  facetVisaText: { fontSize: 11, color: colors.onPrimaryContainer, fontWeight: '500' },
+  facetConsulate: { backgroundColor: colors.secondaryContainer },
+  facetConsulateText: { fontSize: 11, color: colors.onSecondaryContainer, fontWeight: '500' },
+  facetOutcome: { backgroundColor: colors.secondaryContainer },
+  facetOutcomeText: { fontSize: 11, color: colors.onSecondaryContainer, fontWeight: '500' },
+  facetTag: { backgroundColor: colors.surfaceContainerHigh },
+  facetTagText: { fontSize: 11, color: colors.onSurfaceVariant },
   experienceText: {
     fontSize: typography.bodyMd.fontSize,
     color: colors.onSurface,

@@ -1,398 +1,271 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Badge, Button } from '../components';
+import { Card, Markdown } from '../components';
+import { VoteControl } from '../components/VoteControl';
+import { Replies } from '../components/Replies';
 import { colors, spacing, borderRadius } from '../constants/theme';
-import { caseDetail } from '../data/mockData';
+import { getPosting, PostingData } from '../services/apiService';
 
-export function CaseDetailsScreen({ navigation }: any) {
-  const [expandedSources, setExpandedSources] = useState(false);
+type Tally = { up: number; down: number; score: number; your_vote: number };
+const ZERO_TALLY: Tally = { up: 0, down: 0, score: 0, your_vote: 0 };
+
+function outcomeBadgeStyle(outcome: string) {
+  const o = outcome.toLowerCase();
+  if (o === 'approved' || o === 'issued') {
+    return { backgroundColor: colors.secondaryContainer, color: colors.onSecondaryContainer };
+  }
+  return { backgroundColor: colors.surfaceContainerHigh, color: colors.onSurfaceVariant };
+}
+
+export function CaseDetailsScreen({ navigation, route }: any) {
+  const caseId: string = route?.params?.caseId || '';
+  const [data, setData] = useState<PostingData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [postingTally, setPostingTally] = useState<Tally>(ZERO_TALLY);
+
+  useEffect(() => {
+    if (!caseId) {
+      setError('No posting selected.');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    getPosting(caseId)
+      .then(setData)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load posting'))
+      .finally(() => setLoading(false));
+  }, [caseId]);
+
+  const onPostingTally = useCallback((t: Tally) => setPostingTally(t), []);
+
+  // Same gating as the website: only show the source link for genuine Reddit posts.
+  const isReddit =
+    !!data?.url && (data.channel === 'reddit' || !!data.subreddit || /reddit\.com/i.test(data.url));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Case Details</Text>
-        <TouchableOpacity style={styles.shareButton}>
-          <Ionicons name="share-outline" size={22} color={colors.onSurface} />
-        </TouchableOpacity>
+        <View style={styles.backButton} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Status Header */}
-        <View style={styles.statusHeader}>
-          <Badge variant="success">{caseDetail.status}</Badge>
-          <Text style={styles.category}>{caseDetail.category}</Text>
+      {loading && (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading posting…</Text>
         </View>
+      )}
+      {!!error && !loading && (
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={40} color={colors.error} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
 
-        {/* Title */}
-        <Text style={styles.title}>{caseDetail.title}</Text>
-        <Text style={styles.description}>{caseDetail.description}</Text>
-
-        {/* Verified By */}
-        <Card style={styles.verifiedCard}>
-          <View style={styles.verifiedRow}>
-            <View style={styles.verifiedInfo}>
-              <Text style={styles.verifiedLabel}>Verified by {caseDetail.verifiedBy}</Text>
-              <Text style={styles.verifiedTitle}>{caseDetail.verifiedTitle}</Text>
-              <Text style={styles.verifiedExp}>{caseDetail.verifiedExperience}</Text>
-            </View>
-            <Button variant="secondary" size="sm">View</Button>
-          </View>
-        </Card>
-
-        {/* What Worked Section */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="checkmark-circle" size={24} color={colors.statusResolved} />
-            <Text style={styles.sectionTitle}>What Worked</Text>
-          </View>
-          <Text style={styles.sectionText}>{caseDetail.whatWorked.summary}</Text>
-
-          <View style={styles.checklist}>
-            {caseDetail.whatWorked.checklist.map((item, index) => (
-              <View key={index} style={styles.checkItem}>
-                <Ionicons
-                  name={item.checked ? 'checkbox' : 'square-outline'}
-                  size={20}
-                  color={item.checked ? colors.statusResolved : colors.outline}
-                />
-                <Text style={styles.checkText}>{item.text}</Text>
-              </View>
-            ))}
-          </View>
-        </Card>
-
-        {/* Resolution Timeline */}
-        <Card style={styles.sectionCard}>
-          <Text style={styles.timelineTitle}>Resolution Timeline</Text>
-
-          {caseDetail.timeline.map((step, index) => (
-            <View key={index} style={styles.timelineStep}>
-              <View style={styles.timelineIndicator}>
-                <View style={styles.timelineDot} />
-                {index < caseDetail.timeline.length - 1 && (
-                  <View style={styles.timelineLine} />
+      {data && !loading && (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Vote rail + title block (website layout) */}
+          <View style={styles.titleRow}>
+            <VoteControl
+              contentId={data.case_id}
+              score={postingTally.score}
+              yourVote={postingTally.your_vote}
+            />
+            <View style={styles.titleBlock}>
+              <View style={styles.badgesRow}>
+                {!!data.outcome && (
+                  <View style={[styles.badge, { backgroundColor: outcomeBadgeStyle(data.outcome).backgroundColor }]}>
+                    <Text style={[styles.badgeText, { color: outcomeBadgeStyle(data.outcome).color }]}>
+                      {data.outcome}
+                    </Text>
+                  </View>
                 )}
+                {data.visa.map((v) => (
+                  <View key={v} style={[styles.badge, { backgroundColor: colors.primaryContainer }]}>
+                    <Text style={[styles.badgeText, { color: colors.onPrimaryContainer }]}>{v}</Text>
+                  </View>
+                ))}
+                {data.consulates.map((c) => (
+                  <View key={c} style={[styles.badge, styles.locationBadge]}>
+                    <Ionicons name="location-outline" size={12} color={colors.onSecondaryContainer} />
+                    <Text style={[styles.badgeText, { color: colors.onSecondaryContainer }]}>{c}</Text>
+                  </View>
+                ))}
               </View>
-              <View style={styles.timelineContent}>
-                <Text style={styles.stepTitle}>
-                  Step {step.step}: {step.title}
-                </Text>
-                <Text style={styles.stepDescription}>{step.description}</Text>
-              </View>
+              <Text style={styles.title}>{data.title}</Text>
+              {!!data.description && <Text style={styles.description}>{data.description}</Text>}
             </View>
-          ))}
-        </Card>
+          </View>
 
-        {/* Official Sources */}
-        <TouchableOpacity
-          style={styles.sourcesHeader}
-          onPress={() => setExpandedSources(!expandedSources)}
-        >
-          <Ionicons name="link-outline" size={20} color={colors.primary} />
-          <Text style={styles.sourcesTitle}>Official Sources & Links</Text>
-          <Ionicons
-            name={expandedSources ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={colors.onSurfaceVariant}
-          />
-        </TouchableOpacity>
-
-        {expandedSources && (
-          <Card style={styles.sourcesList} elevation={0}>
-            {caseDetail.officialSources.map((source, index) => (
-              <TouchableOpacity key={index} style={styles.sourceItem}>
-                <Ionicons
-                  name={source.icon === 'document' ? 'document-text-outline' : 'globe-outline'}
-                  size={18}
-                  color={colors.primary}
-                />
-                <Text style={styles.sourceText}>{source.title}</Text>
-                <Ionicons name="open-outline" size={16} color={colors.outline} />
-              </TouchableOpacity>
-            ))}
+          {/* Full posting body */}
+          <Card style={styles.bodyCard}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="chatbubbles-outline" size={18} color={colors.secondary} />
+              <Text style={styles.cardTitle}>Full Experience</Text>
+            </View>
+            {data.body ? (
+              <Markdown>{data.body}</Markdown>
+            ) : (
+              <Text style={styles.bodyText}>No content available.</Text>
+            )}
           </Card>
-        )}
 
-        {/* Stats Footer */}
-        <View style={styles.statsFooter}>
-          <View style={styles.stat}>
-            <Ionicons name="eye-outline" size={18} color={colors.onSurfaceVariant} />
-            <Text style={styles.statText}>{caseDetail.stats.views}</Text>
-          </View>
-          <View style={styles.stat}>
-            <Ionicons name="arrow-up" size={18} color={colors.onSurfaceVariant} />
-            <Text style={styles.statText}>{caseDetail.stats.upvotes}</Text>
-          </View>
-          <View style={styles.stat}>
-            <Ionicons name="chatbubble-outline" size={18} color={colors.onSurfaceVariant} />
-            <Text style={styles.statText}>{caseDetail.stats.comments}</Text>
-          </View>
-        </View>
+          {/* Details (website sidebar tile, inlined for mobile) */}
+          <Card style={styles.bodyCard}>
+            <Text style={styles.cardTitle}>Details</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailKey}>Source</Text>
+              <Text style={styles.detailValue}>
+                {data.subreddit ? `r/${data.subreddit}` : data.channel}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailKey}>Posted</Text>
+              <Text style={styles.detailValue}>{data.date || '—'}</Text>
+            </View>
+            {!!data.outcome && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailKey}>Outcome</Text>
+                <Text style={styles.detailValue}>{data.outcome}</Text>
+              </View>
+            )}
+          </Card>
 
-        {/* Disclaimer */}
-        <View style={styles.disclaimer}>
-          <Text style={styles.disclaimerTitle}>Documented: October 24, 2023</Text>
-          <Text style={styles.disclaimerText}>
-            This resolution post contains publicly available information from USCIS processing trends. This is not legal advice. Consult with a law firm or government agency. Consult with an attorney for your specific case.
-          </Text>
-          <View style={styles.footerLinks}>
-            <Text style={styles.footerLink}>Terms of Service</Text>
-            <Text style={styles.footerDivider}>•</Text>
-            <Text style={styles.footerLink}>Privacy Policy</Text>
+          {/* Topics */}
+          {data.tags.length > 0 && (
+            <Card style={styles.bodyCard}>
+              <Text style={styles.cardTitle}>Topics</Text>
+              <View style={styles.topicsWrap}>
+                {data.tags.map((t) => (
+                  <View key={t} style={styles.topicChip}>
+                    <Text style={styles.topicText}>{t}</Text>
+                  </View>
+                ))}
+              </View>
+            </Card>
+          )}
+
+          {/* Source link — only for genuine Reddit-sourced posts (website parity) */}
+          {isReddit && (
+            <TouchableOpacity style={styles.redditLink} onPress={() => Linking.openURL(data.url)}>
+              <Ionicons name="open-outline" size={18} color={colors.secondary} />
+              <Text style={styles.redditLinkText}>View original on Reddit</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Coming Soon tile (website parity) */}
+          <Card style={styles.comingSoon}>
+            <Text style={styles.comingSoonTitle}>Coming Soon</Text>
+            <Text style={styles.comingSoonText}>
+              Personalized guidance from a verified immigration attorney is coming soon.
+            </Text>
+          </Card>
+
+          {/* Replies — same component as the rest of the app */}
+          <View style={styles.repliesWrap}>
+            <Replies postingId={data.case_id} onPostingTally={onPostingTally} />
           </View>
-        </View>
-      </ScrollView>
+
+          <View style={{ height: spacing.xl }} />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.marginMobile,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.base,
   },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.onSurface,
-  },
-  shareButton: {
-    padding: 4,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.marginMobile,
-  },
-  statusHeader: {
+  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 16, fontWeight: '600', color: colors.onSurface },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  loadingText: { marginTop: spacing.base, color: colors.onSurfaceVariant },
+  errorText: { marginTop: spacing.base, color: colors.error, textAlign: 'center' },
+  content: { flex: 1, paddingHorizontal: spacing.md },
+  titleRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.base },
+  titleBlock: { flex: 1, minWidth: 0 },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.base },
+  badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    gap: 3,
+    borderRadius: borderRadius.full,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
   },
-  category: {
-    fontSize: 13,
-    color: colors.onSurfaceVariant,
-    marginLeft: spacing.base,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.onSurface,
-    lineHeight: 28,
-    marginBottom: spacing.base,
-  },
-  description: {
-    fontSize: 15,
-    color: colors.onSurfaceVariant,
-    lineHeight: 22,
-    marginBottom: spacing.md,
-  },
-  verifiedCard: {
-    marginBottom: spacing.md,
-  },
-  verifiedRow: {
+  locationBadge: { backgroundColor: colors.secondaryContainer },
+  badgeText: { fontSize: 12, fontWeight: '500' },
+  title: { fontSize: 20, fontWeight: '700', color: colors.onSurface, marginBottom: spacing.base },
+  description: { fontSize: 14, color: colors.onSurfaceVariant, lineHeight: 20 },
+  bodyCard: { marginTop: spacing.md, padding: spacing.md },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: colors.onSurface, marginBottom: spacing.base },
+  bodyText: { fontSize: 14, color: colors.onSurface, lineHeight: 21 },
+  detailRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  verifiedInfo: {
-    flex: 1,
-  },
-  verifiedLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.onSurface,
-  },
-  verifiedTitle: {
-    fontSize: 12,
-    color: colors.onSurfaceVariant,
-  },
-  verifiedExp: {
-    fontSize: 12,
-    color: colors.outline,
-  },
-  sectionCard: {
-    marginBottom: spacing.md,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.onSurface,
-    marginLeft: spacing.base,
-  },
-  sectionText: {
-    fontSize: 14,
-    color: colors.onSurfaceVariant,
-    lineHeight: 21,
-    marginBottom: spacing.md,
-  },
-  checklist: {
-    gap: spacing.sm,
-  },
-  checkItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  checkText: {
-    fontSize: 14,
-    color: colors.onSurface,
-    marginLeft: spacing.base,
-    flex: 1,
-  },
-  timelineTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.onSurface,
-    marginBottom: spacing.md,
-  },
-  timelineStep: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  timelineIndicator: {
-    alignItems: 'center',
-    marginRight: spacing.sm,
-  },
-  timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.primary,
-  },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: colors.outlineVariant,
-    marginTop: 4,
-  },
-  timelineContent: {
-    flex: 1,
-    paddingBottom: spacing.sm,
-  },
-  stepTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.onSurface,
-    marginBottom: 4,
-  },
-  stepDescription: {
-    fontSize: 14,
-    color: colors.onSurfaceVariant,
-    lineHeight: 20,
-  },
-  sourcesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
-  },
-  sourcesTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.onSurface,
-    marginLeft: spacing.base,
-    flex: 1,
-  },
-  sourcesList: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 0,
-    marginBottom: spacing.md,
-  },
-  sourceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.outlineVariant,
   },
-  sourceText: {
-    fontSize: 14,
-    color: colors.onSurface,
-    marginLeft: spacing.base,
-    flex: 1,
+  detailKey: { fontSize: 13, color: colors.onSurfaceVariant },
+  detailValue: { fontSize: 13, color: colors.onSurface, fontWeight: '500' },
+  topicsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  topicChip: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.sm,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
-  statsFooter: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
-    gap: spacing.lg,
-  },
-  stat: {
+  topicText: { fontSize: 12, color: colors.onSurfaceVariant },
+  redditLink: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.base,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
   },
-  statText: {
-    fontSize: 14,
-    color: colors.onSurfaceVariant,
-    marginLeft: 6,
-  },
-  disclaimer: {
+  redditLinkText: { color: colors.secondary, fontSize: 14, fontWeight: '500' },
+  comingSoon: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.primaryContainer,
     alignItems: 'center',
-    paddingVertical: spacing.lg,
-    paddingBottom: spacing.xl,
   },
-  disclaimerTitle: {
+  comingSoonTitle: { fontSize: 16, fontWeight: '700', color: colors.onPrimaryContainer },
+  comingSoonText: {
     fontSize: 13,
-    fontWeight: '500',
-    color: colors.onSurface,
-    marginBottom: spacing.base,
-  },
-  disclaimerText: {
-    fontSize: 12,
-    color: colors.outline,
+    color: colors.onPrimaryContainer,
     textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: spacing.sm,
+    marginTop: 4,
+    opacity: 0.9,
   },
-  footerLinks: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  footerLink: {
-    fontSize: 12,
-    color: colors.primary,
-    textDecorationLine: 'underline',
-  },
-  footerDivider: {
-    fontSize: 12,
-    color: colors.outline,
-    marginHorizontal: spacing.base,
-  },
+  repliesWrap: { marginTop: spacing.lg },
 });
 
 export default CaseDetailsScreen;

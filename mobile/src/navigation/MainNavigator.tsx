@@ -34,6 +34,8 @@ function CommunityStack() {
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
+      <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </Stack.Navigator>
   );
 }
@@ -44,6 +46,8 @@ function HomeStack() {
       <Stack.Screen name="SearchMain" component={SearchScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
+      <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </Stack.Navigator>
   );
 }
@@ -55,6 +59,8 @@ function FindStack() {
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
+      <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </Stack.Navigator>
   );
 }

@@ -2,7 +2,11 @@
 // Using Firebase JS SDK for cross-platform compatibility
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getReactNativePersistence, initializeAuth, getAuth, Auth } from 'firebase/auth';
+import { initializeAuth, getAuth, Auth } from 'firebase/auth';
+// @ts-expect-error — getReactNativePersistence is exported by the React Native
+// bundle of firebase/auth (which Metro resolves at runtime) but is missing from
+// the web type declarations that tsc sees.
+import { getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const firebaseConfig = {

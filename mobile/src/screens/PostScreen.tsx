@@ -21,8 +21,13 @@ import {
   getTagVocab,
   suggestTags,
   createPosting,
+  reconcile,
+  getProfile,
+  updateProfile,
+  getActiveUserId,
   TagVocab,
   PostingGroups,
+  ReconcileResult,
 } from '../services/apiService';
 
 const EMPTY_GROUPS: PostingGroups = {
@@ -41,6 +46,63 @@ const POSTING_TYPE_LABEL: Record<string, string> = {
   general_question: 'General question',
 };
 
+type TypeaheadOption = { value: string; label: string };
+
+// RN equivalent of the website's <datalist> add input: filter the section's
+// controlled vocab as the user types and surface tappable suggestions. Only
+// values from the list can be added (so submissions stay vocab-valid).
+function TagTypeahead({
+  options,
+  placeholder,
+  exclude,
+  onAdd,
+}: {
+  options: TypeaheadOption[];
+  placeholder: string;
+  exclude: string[];
+  onAdd: (value: string) => void;
+}) {
+  const [text, setText] = useState('');
+  const q = text.trim().toLowerCase();
+  const matches =
+    q.length === 0
+      ? []
+      : options
+          .filter((o) => !exclude.includes(o.value))
+          .filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q))
+          .slice(0, 6);
+  return (
+    <View style={styles.typeaheadWrap}>
+      <TextInput
+        style={styles.typeaheadInput}
+        value={text}
+        onChangeText={setText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.onSurfaceVariant}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      {matches.length > 0 && (
+        <View style={styles.suggestRow}>
+          {matches.map((o) => (
+            <TouchableOpacity
+              key={o.value}
+              style={styles.suggestChip}
+              onPress={() => {
+                onAdd(o.value);
+                setText('');
+              }}
+            >
+              <Ionicons name="add" size={13} color={colors.onSurfaceVariant} />
+              <Text style={styles.suggestChipText}>{o.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export function PostScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [title, setTitle] = useState('');
@@ -56,6 +118,19 @@ export function PostScreen() {
   const [error, setError] = useState('');
   const [done, setDone] = useState<{ case_id: string; author_handle: string } | null>(null);
 
+  // Profile reconciliation (phase-J, website parity): conflicts between the
+  // detected tags and the saved profile, with an offer to update the profile.
+  const [conflicts, setConflicts] = useState<ReconcileResult['conflicts']>([]);
+  const [explainer, setExplainer] = useState('');
+  const [prefilled, setPrefilled] = useState<string[]>([]);
+  const [profileUpdated, setProfileUpdated] = useState(false);
+
+  // Manual stage/date add (website parity: stage_key + value, date_key + date).
+  const [sKey, setSKey] = useState('');
+  const [sVal, setSVal] = useState('');
+  const [dKey, setDKey] = useState('');
+  const [dVal, setDVal] = useState('');
+
   useEffect(() => {
     getTagVocab().then(setVocab).catch(() => {});
   }, []);
@@ -65,8 +140,63 @@ export function PostScreen() {
     [vocab]
   );
 
+  // Typeahead option lists per vocab kind ({value=stored code, label=display}).
+  const visaOptions = useMemo<TypeaheadOption[]>(
+    () => (vocab?.visa || []).map((v) => ({ value: v, label: v })),
+    [vocab]
+  );
+  const tagOptions = useMemo<TypeaheadOption[]>(
+    () => (vocab?.tag || []).map((v) => ({ value: v, label: v })),
+    [vocab]
+  );
+  const consulateOptions = useMemo<TypeaheadOption[]>(
+    () => (vocab?.consulate_options || []).map((o) => ({ value: o.code, label: o.label })),
+    [vocab]
+  );
+
   const canPreview = title.trim().length >= 3 && description.trim().length >= 10;
   const hasVisa = groups.visa_applying_for.length > 0 || groups.current_visa_or_greencard_category.length > 0;
+
+  // Add a validated value (already from the vocab list) to a tag section.
+  const addToGroup = (field: keyof PostingGroups, value: string) => {
+    setError('');
+    setGroups((g) => {
+      const cur = g[field] as string[];
+      return cur.includes(value) ? g : { ...g, [field]: [...cur, value] };
+    });
+  };
+
+  const addStage = () => {
+    const k = sKey.trim();
+    const v = sVal.trim();
+    if (!k || !v) return;
+    if (vocab && vocab.stage_key.length > 0 && !vocab.stage_key.includes(k)) {
+      setError(`"${k}" is not a valid stage key.`);
+      return;
+    }
+    setError('');
+    setStages((s) => ({ ...s, [k]: v }));
+    setSKey('');
+    setSVal('');
+  };
+
+  const addDate = () => {
+    const k = dKey.trim();
+    const v = dVal.trim();
+    if (!k || !v) return;
+    if (vocab && vocab.date_key.length > 0 && !vocab.date_key.includes(k)) {
+      setError(`"${k}" is not a valid date key.`);
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      setError('Date must be YYYY-MM-DD.');
+      return;
+    }
+    setError('');
+    setDates((d) => ({ ...d, [k]: v }));
+    setDKey('');
+    setDVal('');
+  };
 
   const handlePreview = async () => {
     if (!canPreview) return;
@@ -74,15 +204,71 @@ export function PostScreen() {
     setError('');
     try {
       const data = await suggestTags(title, description);
-      setGroups({ ...EMPTY_GROUPS, ...(data.groups || {}) });
-      setStages(data.key_stages_or_info || {});
-      setDates(data.key_dates || {});
+      const g: PostingGroups = { ...EMPTY_GROUPS, ...(data.groups || {}) };
+      const st = data.key_stages_or_info || {};
+      const dt = data.key_dates || {};
       setPostingType(data.posting_type || '');
+      setConflicts([]);
+      setExplainer('');
+      setPrefilled([]);
+      setProfileUpdated(false);
+
+      // Reconcile against the saved profile (best-effort; website parity).
+      let applied = false;
+      if (getActiveUserId()) {
+        try {
+          const rd = await reconcile({ ...g, key_stages_or_info: st, key_dates: dt });
+          const m = (rd.merged || {}) as unknown as Record<string, unknown>;
+          setGroups({
+            ...EMPTY_GROUPS,
+            current_visa_or_greencard_category:
+              (m.current_visa_or_greencard_category as string[]) ?? g.current_visa_or_greencard_category,
+            visa_applying_for: (m.visa_applying_for as string[]) ?? g.visa_applying_for,
+            primary_consulate: (m.primary_consulate as string) ?? g.primary_consulate,
+            consulates: (m.consulates as string[]) ?? g.consulates,
+            tags: g.tags,
+            concerns_or_questions_tags: g.concerns_or_questions_tags,
+          });
+          setStages((m.key_stages_or_info as Record<string, string>) ?? st);
+          setDates((m.key_dates as Record<string, string>) ?? dt);
+          setConflicts(rd.conflicts || []);
+          setExplainer(rd.explainer || '');
+          setPrefilled(rd.prefilled || []);
+          applied = true;
+        } catch {
+          // no active user / reconcile unavailable — post without it
+        }
+      }
+      if (!applied) {
+        setGroups(g);
+        setStages(st);
+        setDates(dt);
+      }
       setPreviewed(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not analyze posting');
     } finally {
       setPreviewing(false);
+    }
+  };
+
+  // Apply the conflicting values to the saved profile (website parity).
+  const handleUpdateProfile = async () => {
+    try {
+      const cur = await getProfile();
+      const next: Record<string, unknown> = { ...cur };
+      for (const c of conflicts) {
+        if (c.field.includes('.')) {
+          const [mapF, key] = c.field.split('.');
+          next[mapF] = { ...((next[mapF] as Record<string, unknown>) || {}), [key]: c.message_value };
+        } else {
+          next[c.field] = c.message_value;
+        }
+      }
+      await updateProfile(next);
+      setProfileUpdated(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update profile');
     }
   };
 
@@ -237,6 +423,32 @@ export function PostScreen() {
                 )}
               </View>
 
+              {/* Profile reconciliation (website parity) */}
+              {prefilled.length > 0 && conflicts.length === 0 && (
+                <Text style={styles.prefilledNote}>
+                  Pre-filled from your profile: {prefilled.map((f) => f.replace(/_/g, ' ')).join(', ')}.
+                </Text>
+              )}
+              {conflicts.length > 0 && (
+                <View style={styles.conflictCard}>
+                  <Text style={styles.conflictText}>
+                    {explainer || 'Some details differ from your saved profile.'}
+                  </Text>
+                  {conflicts.map((c) => (
+                    <Text key={c.field} style={styles.conflictDetail}>
+                      · {c.field.replace(/_/g, ' ').replace('.', ': ')} — profile: {String(c.profile_value)} → this post: {String(c.message_value)}
+                    </Text>
+                  ))}
+                  {profileUpdated ? (
+                    <Text style={styles.profileUpdatedNote}>Profile updated ✓</Text>
+                  ) : (
+                    <TouchableOpacity style={styles.conflictButton} onPress={handleUpdateProfile}>
+                      <Text style={styles.conflictButtonText}>Update my profile to match</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
               {/* Visa applying for */}
               <View style={styles.tagSection}>
                 <Text style={styles.tagSectionLabel}>Visa / category applying for</Text>
@@ -256,6 +468,12 @@ export function PostScreen() {
                     ))
                   )}
                 </View>
+                <TagTypeahead
+                  options={visaOptions}
+                  placeholder="Add visa applying for…"
+                  exclude={groups.visa_applying_for}
+                  onAdd={(v) => addToGroup('visa_applying_for', v)}
+                />
               </View>
 
               {/* Current status */}
@@ -277,6 +495,12 @@ export function PostScreen() {
                     ))
                   )}
                 </View>
+                <TagTypeahead
+                  options={visaOptions}
+                  placeholder="Add current status…"
+                  exclude={groups.current_visa_or_greencard_category}
+                  onAdd={(v) => addToGroup('current_visa_or_greencard_category', v)}
+                />
               </View>
 
               {/* Consulates */}
@@ -301,12 +525,72 @@ export function PostScreen() {
                     ))
                   )}
                 </View>
+                <TagTypeahead
+                  options={consulateOptions}
+                  placeholder="Search by city or country…"
+                  exclude={groups.consulates}
+                  onAdd={(c) => addToGroup('consulates', c)}
+                />
               </View>
 
-              {/* Stages */}
-              {Object.keys(stages).length > 0 && (
-                <View style={styles.tagSection}>
-                  <Text style={styles.tagSectionLabel}>Process / outcome</Text>
+              {/* Background tags */}
+              <View style={styles.tagSection}>
+                <Text style={styles.tagSectionLabel}>Background tags</Text>
+                <View style={styles.tagsRow}>
+                  {groups.tags.length === 0 ? (
+                    <Text style={styles.noTags}>None</Text>
+                  ) : (
+                    groups.tags.map((t) => (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.tag, styles.tagSecondary]}
+                        onPress={() => removeTag('tags', t)}
+                      >
+                        <Text style={styles.tagTextSecondary}>{t}</Text>
+                        <Ionicons name="close" size={14} color={colors.onSurfaceVariant} />
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+                <TagTypeahead
+                  options={tagOptions}
+                  placeholder="Add background tags…"
+                  exclude={groups.tags}
+                  onAdd={(t) => addToGroup('tags', t)}
+                />
+              </View>
+
+              {/* Questions / concerns */}
+              <View style={styles.tagSection}>
+                <Text style={styles.tagSectionLabel}>Your questions / concerns</Text>
+                <View style={styles.tagsRow}>
+                  {groups.concerns_or_questions_tags.length === 0 ? (
+                    <Text style={styles.noTags}>None</Text>
+                  ) : (
+                    groups.concerns_or_questions_tags.map((t) => (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.tag, styles.tagSecondary]}
+                        onPress={() => removeTag('concerns_or_questions_tags', t)}
+                      >
+                        <Text style={styles.tagTextSecondary}>{t}</Text>
+                        <Ionicons name="close" size={14} color={colors.onSurfaceVariant} />
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+                <TagTypeahead
+                  options={tagOptions}
+                  placeholder="Add questions / concerns…"
+                  exclude={groups.concerns_or_questions_tags}
+                  onAdd={(t) => addToGroup('concerns_or_questions_tags', t)}
+                />
+              </View>
+
+              {/* Stages / outcomes (add-row always available so the first can be added) */}
+              <View style={styles.tagSection}>
+                <Text style={styles.tagSectionLabel}>Process / outcome</Text>
+                {Object.keys(stages).length > 0 && (
                   <View style={styles.tagsRow}>
                     {Object.entries(stages).map(([k, v]) => (
                       <TouchableOpacity
@@ -319,13 +603,34 @@ export function PostScreen() {
                       </TouchableOpacity>
                     ))}
                   </View>
+                )}
+                <View style={styles.kvRow}>
+                  <TextInput
+                    style={[styles.typeaheadInput, styles.kvInput]}
+                    value={sKey}
+                    onChangeText={setSKey}
+                    placeholder="stage key"
+                    placeholderTextColor={colors.onSurfaceVariant}
+                    autoCapitalize="none"
+                  />
+                  <TextInput
+                    style={[styles.typeaheadInput, styles.kvInput]}
+                    value={sVal}
+                    onChangeText={setSVal}
+                    placeholder="value"
+                    placeholderTextColor={colors.onSurfaceVariant}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity style={styles.kvAddButton} onPress={addStage}>
+                    <Text style={styles.kvAddText}>Add</Text>
+                  </TouchableOpacity>
                 </View>
-              )}
+              </View>
 
-              {/* Dates */}
-              {Object.keys(dates).length > 0 && (
-                <View style={styles.tagSection}>
-                  <Text style={styles.tagSectionLabel}>Key dates</Text>
+              {/* Key dates (add-row always available) */}
+              <View style={styles.tagSection}>
+                <Text style={styles.tagSectionLabel}>Key dates</Text>
+                {Object.keys(dates).length > 0 && (
                   <View style={styles.tagsRow}>
                     {Object.entries(dates).map(([k, v]) => (
                       <TouchableOpacity
@@ -338,8 +643,29 @@ export function PostScreen() {
                       </TouchableOpacity>
                     ))}
                   </View>
+                )}
+                <View style={styles.kvRow}>
+                  <TextInput
+                    style={[styles.typeaheadInput, styles.kvInput]}
+                    value={dKey}
+                    onChangeText={setDKey}
+                    placeholder="date key"
+                    placeholderTextColor={colors.onSurfaceVariant}
+                    autoCapitalize="none"
+                  />
+                  <TextInput
+                    style={[styles.typeaheadInput, styles.kvInput]}
+                    value={dVal}
+                    onChangeText={setDVal}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.onSurfaceVariant}
+                    keyboardType="numbers-and-punctuation"
+                  />
+                  <TouchableOpacity style={styles.kvAddButton} onPress={addDate}>
+                    <Text style={styles.kvAddText}>Add</Text>
+                  </TouchableOpacity>
                 </View>
-              )}
+              </View>
 
               {/* Submit */}
               <View style={styles.submitSection}>
@@ -456,6 +782,27 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.5,
   },
+  prefilledNote: { fontSize: 12, color: colors.onSurfaceVariant, marginBottom: spacing.base },
+  conflictCard: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  conflictText: { fontSize: 14, color: colors.onSurface },
+  conflictDetail: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 },
+  conflictButton: {
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: borderRadius.full,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    alignSelf: 'flex-start',
+    marginTop: spacing.base,
+  },
+  conflictButtonText: { color: colors.onSecondaryContainer, fontWeight: '600', fontSize: 13 },
+  profileUpdatedNote: { color: colors.primary, fontSize: 12, marginTop: spacing.base },
   tagsCard: {
     marginBottom: spacing.md,
   },
@@ -481,6 +828,37 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.onSurfaceVariant,
   },
+  typeaheadWrap: { marginTop: spacing.base },
+  typeaheadInput: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: colors.onSurface,
+  },
+  suggestRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.base, marginTop: spacing.base },
+  suggestChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.full,
+    paddingVertical: 5,
+    paddingHorizontal: spacing.base,
+  },
+  suggestChipText: { fontSize: 12, color: colors.onSurfaceVariant },
+  kvRow: { flexDirection: 'row', gap: spacing.base, marginTop: spacing.base, alignItems: 'center' },
+  kvInput: { flex: 1, marginTop: 0 },
+  kvAddButton: {
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+  },
+  kvAddText: { color: colors.onSecondaryContainer, fontWeight: '600', fontSize: 13 },
   tagSection: {
     marginBottom: spacing.sm,
   },

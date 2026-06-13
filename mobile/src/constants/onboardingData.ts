@@ -1,91 +1,84 @@
-// Static data for onboarding - based on backend/tags-cleaned vocabulary
+// Onboarding vocabulary — OFFLINE FALLBACKS only.
+//
+// The live vocabulary is fetched from GET /api/tag-vocab (see
+// services/apiService.getTagVocab) so mobile stays in sync with the backend
+// CSVs. Every value below is a VALID controlled-vocabulary code (the backend
+// silently drops invalid values on save, so labels like "Mumbai, India" or
+// "RFE Received" must never be sent — codes only).
 
 export const VISA_CATEGORIES = [
   'H-1B',
   'H-4',
   'F-1',
   'F-2',
+  'L-1',
   'L-1A',
   'L-1B',
   'L-2',
   'O-1',
   'J-1',
-  'B-1/B-2',
+  'B-1',
+  'B-2',
+  'K-1',
+  'TN',
+  'E-3',
+  'IR-1',
   'EB-1',
   'EB-2',
-  'EB-2-NIW',
   'EB-3',
-  'EB-4',
   'EB-5',
-  'Family-Based-GC',
-  'CR-1',
-  'IR-1',
-  'K-1',
-  'Diversity-Visa',
-  'Asylum',
-  'TPS',
-  'DACA',
-  'Green-Card',
-  'Citizen',
 ];
 
-export const CONSULATES = [
-  'Mumbai, India',
-  'Chennai, India',
-  'New Delhi, India',
-  'Hyderabad, India',
-  'Kolkata, India',
-  'Toronto, Canada',
-  'Vancouver, Canada',
-  'London, UK',
-  'Manila, Philippines',
-  'Mexico City, Mexico',
-  'Ciudad Juarez, Mexico',
-  'São Paulo, Brazil',
-  'Sydney, Australia',
-  'Seoul, South Korea',
-  'Beijing, China',
-  'Shanghai, China',
-  'Guangzhou, China',
-  'Tokyo, Japan',
-  'Frankfurt, Germany',
-  'Paris, France',
-  'Lagos, Nigeria',
-  'Accra, Ghana',
-  'Other',
+// Curated popular consulates as {code, label} — the CODE is what the backend
+// stores (1.4); the label is display-only.
+export interface ConsulateOption {
+  code: string;
+  label: string;
+}
+
+export const CONSULATE_OPTIONS: ConsulateOption[] = [
+  { code: 'BOM', label: 'Mumbai, India' },
+  { code: 'MAA', label: 'Chennai, India' },
+  { code: 'DEL', label: 'New Delhi, India' },
+  { code: 'HYD', label: 'Hyderabad, India' },
+  { code: 'CCU', label: 'Kolkata, India' },
+  { code: 'YYZ', label: 'Toronto, Canada' },
+  { code: 'YVR', label: 'Vancouver, Canada' },
+  { code: 'LHR', label: 'London, UK' },
+  { code: 'MNL', label: 'Manila, Philippines' },
+  { code: 'MEX', label: 'Mexico City, Mexico' },
+  { code: 'CJS', label: 'Ciudad Juarez, Mexico' },
+  { code: 'GRU', label: 'São Paulo, Brazil' },
+  { code: 'SYD', label: 'Sydney, Australia' },
+  { code: 'ICN', label: 'Seoul, South Korea' },
+  { code: 'PEK', label: 'Beijing, China' },
+  { code: 'PVG', label: 'Shanghai, China' },
+  { code: 'CAN', label: 'Guangzhou, China' },
+  { code: 'HND', label: 'Tokyo, Japan' },
+  { code: 'FRA', label: 'Frankfurt, Germany' },
+  { code: 'PAR', label: 'Paris, France' },
+  { code: 'LOS', label: 'Lagos, Nigeria' },
+  { code: 'ACC', label: 'Accra, Ghana' },
 ];
 
+// Miscellaneous tags & topics — valid 1.3 abbreviations + 1.10 topics only
+// (forms and outcomes live under key stages, mirroring the website).
 export const TAGS = [
-  'PERM',
-  'RFE',
-  'RFE-Response',
   'NIW',
-  'Premium-Processing',
-  'Consular-Processing',
-  'Adjustment-of-Status',
-  'H-1B-Lottery',
-  'H-1B-Cap',
-  'H-1B-Transfer',
+  'premium-processing',
+  'consular-processing',
+  'adjustment-of-status-AOS',
   'OPT',
-  'STEM-OPT',
-  'Cap-Gap',
   'EAD',
-  'Advance-Parole',
-  'Biometrics',
-  '221g',
-  'Administrative-Processing',
-  'Port-of-Entry',
-  'Travel',
-  'Stamping',
-  'Interview',
-  'Denial',
-  'Appeal',
-  'USCIS',
   'NVC',
-  'Priority-Date',
-  'Retrogression',
+  'PERM',
+  'cap-gap',
+  'cap-subject',
+  'port-of-entry',
+  'travel-ban',
 ];
 
+// Forms used as key_stages_or_info KEYS (1.5/1.3); their VALUE is an outcome.
 export const KEY_STAGES = [
   { key: 'I-140', label: 'I-140' },
   { key: 'I-485', label: 'I-485' },
@@ -98,31 +91,37 @@ export const KEY_STAGES = [
   { key: 'PERM', label: 'PERM' },
 ];
 
+// Valid 1.9 outcomes (the value domain for form keys).
 export const STAGE_OUTCOMES = [
-  'Not Started',
-  'Filed',
-  'Pending',
-  'RFE Received',
-  'RFE Responded',
-  'Approved',
-  'Denied',
-  'Withdrawn',
+  'not-filed-yet',
+  'filed',
+  'received',
+  'pending',
+  'in-progress',
+  'RFE',
+  'approved',
+  'denied',
+  'refused',
+  'issued',
+  'withdrawn',
 ];
 
+// Valid 1.8 date keys.
 export const KEY_DATE_TYPES = [
   { key: 'priority_date', label: 'Priority Date' },
   { key: 'i140_filed_date', label: 'I-140 Filed' },
   { key: 'i140_approved_date', label: 'I-140 Approved' },
   { key: 'i485_filed_date', label: 'I-485 Filed' },
-  { key: 'perm_filed_date', label: 'PERM Filed' },
+  { key: 'labor_cert_filed_date', label: 'PERM Filed' },
   { key: 'perm_approved_date', label: 'PERM Approved' },
   { key: 'visa_interview_date', label: 'Visa Interview' },
-  { key: 'visa_stamping_date', label: 'Visa Stamping' },
-  { key: 'arrival_date', label: 'US Arrival' },
+  { key: 'visa_stamp_date', label: 'Visa Stamping' },
+  { key: 'admission_date', label: 'US Arrival' },
   { key: 'ead_approved_date', label: 'EAD Approved' },
-  { key: 'biometrics_date', label: 'Biometrics' },
+  { key: 'biometrics_appointment_date', label: 'Biometrics' },
 ];
 
+// Journey milestones — free-form: the backend slugifies and accepts any value.
 export const MILESTONES = [
   { key: 'visa_interview', label: 'Visa Interview' },
   { key: 'visa_stamping', label: 'Visa Stamping' },
@@ -156,7 +155,7 @@ export interface OnboardingProfile {
   backgroundText: string;
   currentStatus: string[];
   applyingFor: string[];
-  consulates: string[];
+  consulates: string[]; // 1.4 CODES (labels are display-only)
   tags: string[];
   keyStages: { [key: string]: string };
   keyDates: { [key: string]: string };
@@ -167,6 +166,9 @@ export interface JourneyEntry {
   date: string;
   experience: string;
   shared: boolean;
+  // Set by the backend when a shared experience has been published; MUST be
+  // carried through edits or re-saving would re-publish duplicates.
+  experience_case_id?: string;
 }
 
 export const createEmptyProfile = (): OnboardingProfile => ({
@@ -178,3 +180,63 @@ export const createEmptyProfile = (): OnboardingProfile => ({
   keyStages: {},
   keyDates: {},
 });
+
+// ---------------------------------------------------------------------------
+// Mapping between the mobile OnboardingProfile shape and the backend
+// ProfilePayload shape (used by PUT /api/profile and POST /api/onboard).
+// ---------------------------------------------------------------------------
+
+export interface BackendProfileShape {
+  username?: string;
+  current_visa_or_greencard_category: string[];
+  visa_applying_for: string[];
+  primary_consulate: string;
+  consulates: string[];
+  tags: string[];
+  key_stages_or_info: Record<string, string>;
+  key_dates: Record<string, string>;
+  background_text: string;
+  journey?: JourneyEntry[];
+}
+
+export function toBackendProfile(
+  p: OnboardingProfile,
+  journey: JourneyEntry[] = []
+): BackendProfileShape {
+  return {
+    current_visa_or_greencard_category: p.currentStatus,
+    visa_applying_for: p.applyingFor,
+    consulates: p.consulates,
+    primary_consulate: p.consulates[0] || '',
+    tags: p.tags,
+    key_stages_or_info: p.keyStages,
+    key_dates: p.keyDates,
+    background_text: p.backgroundText,
+    journey,
+  };
+}
+
+export function fromBackendProfile(
+  b:
+    | {
+        background_text?: string;
+        current_visa_or_greencard_category?: string[];
+        visa_applying_for?: string[];
+        consulates?: string[];
+        tags?: string[];
+        key_stages_or_info?: Record<string, string>;
+        key_dates?: Record<string, string>;
+      }
+    | null
+    | undefined
+): OnboardingProfile {
+  return {
+    backgroundText: b?.background_text || '',
+    currentStatus: b?.current_visa_or_greencard_category || [],
+    applyingFor: b?.visa_applying_for || [],
+    consulates: b?.consulates || [],
+    tags: b?.tags || [],
+    keyStages: b?.key_stages_or_info || {},
+    keyDates: b?.key_dates || {},
+  };
+}

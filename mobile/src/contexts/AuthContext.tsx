@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { auth } from '../config/firebase';
+import { registerBackendUser, setActiveUserId } from '../services/apiService';
 
 // Required for web browser auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -42,11 +43,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDevMode, setIsDevMode] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
 
-  // Google Auth configuration
-  // expoClientId is used for Expo Go (uses Expo auth proxy with web client ID)
-  // iosClientId/androidClientId are for standalone/development builds
+  // Google Auth configuration. (`expoClientId` was removed from expo-auth-session
+  // in SDK 50+ — the web client id covers the Expo Go / proxy case via `clientId`.)
+  // iosClientId/androidClientId are for standalone/development builds.
   const [request, response, promptAsync] = Google.useAuthRequest({
-    expoClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
@@ -86,9 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen for auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       setUser(firebaseUser);
       setLoading(false);
+      if (firebaseUser) {
+        // Register the uid with the backend (idempotent) and use it as X-User-Id.
+        const username =
+          firebaseUser.displayName?.trim() || firebaseUser.email?.split('@')[0] || '';
+        void registerBackendUser(firebaseUser.uid, username);
+      }
     });
 
     return unsubscribe;
@@ -126,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await firebaseSignOut(auth);
       await disableDevMode();
+      await setActiveUserId(null); // stop sending the old uid as X-User-Id
       // Reset onboarding state for next user
       await AsyncStorage.removeItem(ONBOARDING_COMPLETE_KEY);
       setHasCompletedOnboarding(false);

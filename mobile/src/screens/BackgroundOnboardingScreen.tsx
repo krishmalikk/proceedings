@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,16 +15,42 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import { ChipSelector } from '../components/ChipSelector';
+import Markdown from '../components/Markdown';
 import {
   VISA_CATEGORIES,
-  CONSULATES,
+  CONSULATE_OPTIONS,
   TAGS,
   KEY_STAGES,
   STAGE_OUTCOMES,
   KEY_DATE_TYPES,
   OnboardingProfile,
+  JourneyEntry,
   createEmptyProfile,
+  toBackendProfile,
+  fromBackendProfile,
 } from '../constants/onboardingData';
+import {
+  getTagVocab,
+  getProfile,
+  updateProfile as saveProfileToBackend,
+  onboardTurn,
+  getActiveUserId,
+  TagVocab,
+} from '../services/apiService';
+import { ActivityIndicator, Alert } from 'react-native';
+
+type Turn = { id: string; role: 'user' | 'ai'; content: string };
+
+// Same greetings as the website's onboarding chat.
+const GREETING_SETUP =
+  "Hi! Let's set up the basics of your immigration profile — your current situation, journey and key dates. " +
+  'Tell me about your situation (or fill in the sections below) and I\'ll turn it into tags. ' +
+  "Please don't share personal details like your name, date of birth, or passport number.";
+
+const GREETING_RETURNING =
+  'Welcome back! Your current tags are below. Update them directly, edit your background and tap ' +
+  '"Re-generate tags", or just tell me what changed (e.g. "my I-140 was approved on March 1") and ' +
+  "I'll update the tags for you.";
 
 export function BackgroundOnboardingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -39,6 +65,111 @@ export function BackgroundOnboardingScreen() {
   });
   const [selectedStageKey, setSelectedStageKey] = useState('');
   const [selectedDateKey, setSelectedDateKey] = useState('');
+
+  // Live controlled vocabulary (falls back to the baked constants offline).
+  const [vocab, setVocab] = useState<TagVocab | null>(null);
+  useEffect(() => {
+    getTagVocab().then(setVocab);
+  }, []);
+
+  // AI onboarding chat (website parity: POST /api/onboard, stage 'basics').
+  const [messages, setMessages] = useState<Turn[]>([
+    { id: 'greet', role: 'ai', content: GREETING_SETUP },
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [regenLoading, setRegenLoading] = useState(false);
+  const [regenNote, setRegenNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  // Existing journey is carried through so edits never wipe published experiences.
+  const [journey, setJourney] = useState<JourneyEntry[]>([]);
+
+  // Prefill from the saved profile (returning users get the "welcome back" greeting).
+  useEffect(() => {
+    if (!getActiveUserId()) return;
+    getProfile()
+      .then((p) => {
+        const mapped = fromBackendProfile(p as never);
+        const hasData =
+          mapped.currentStatus.length > 0 ||
+          mapped.applyingFor.length > 0 ||
+          mapped.consulates.length > 0 ||
+          mapped.tags.length > 0 ||
+          Object.keys(mapped.keyStages).length > 0 ||
+          Object.keys(mapped.keyDates).length > 0 ||
+          mapped.backgroundText.trim().length > 0;
+        if (hasData) {
+          setProfile(mapped);
+          setMessages([{ id: 'greet', role: 'ai', content: GREETING_RETURNING }]);
+        }
+        const j = (p as { journey?: JourneyEntry[] }).journey;
+        if (Array.isArray(j)) setJourney(j);
+      })
+      .catch(() => {
+        // New/unregistered user — keep the empty form + setup greeting.
+      });
+  }, []);
+
+  // One assistant turn: the AI updates the tags below from the conversation.
+  const sendChat = async () => {
+    const t = chatInput.trim();
+    if (!t || chatLoading) return;
+    setChatInput('');
+    const history = messages.map((m) => ({ role: m.role, content: m.content }));
+    setMessages((prev) => [...prev, { id: `${Date.now()}-u`, role: 'user', content: t }]);
+    setChatLoading(true);
+    try {
+      const data = await onboardTurn(
+        'basics',
+        [...history, { role: 'user', content: t }],
+        toBackendProfile(profile, journey)
+      );
+      setMessages((prev) => [...prev, { id: `${Date.now()}-a`, role: 'ai', content: data.reply }]);
+      setProfile(fromBackendProfile(data.profile));
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { id: `${Date.now()}-x`, role: 'ai', content: e instanceof Error ? e.message : 'Assistant error' },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Re-derive the tags from the free-text background (one-shot; website parity).
+  const regenTags = async () => {
+    const text = profile.backgroundText.trim();
+    if (text.length < 10 || regenLoading) return;
+    setRegenLoading(true);
+    setRegenNote('');
+    try {
+      const data = await onboardTurn(
+        'basics',
+        [{ role: 'user', content: text }],
+        toBackendProfile(profile, journey)
+      );
+      const mapped = fromBackendProfile(data.profile);
+      setProfile({ ...mapped, backgroundText: mapped.backgroundText || text });
+      setRegenNote('Tags updated from your background ✓');
+    } catch (e) {
+      setRegenNote(e instanceof Error ? e.message : 'Could not re-generate tags');
+    } finally {
+      setRegenLoading(false);
+    }
+  };
+  const visaOptions = vocab?.visa?.length ? vocab.visa : VISA_CATEGORIES;
+  const outcomeOptions = vocab?.outcome?.length ? vocab.outcome : STAGE_OUTCOMES;
+  // Consulates: curated list for mobile chips, but store the 1.4 CODE in the
+  // profile (the backend drops anything that isn't a valid code).
+  const consulateLabelByCode = useMemo(
+    () => new Map(CONSULATE_OPTIONS.map((o) => [o.code, o.label])),
+    []
+  );
+  const consulateCodeByLabel = useMemo(
+    () => new Map(CONSULATE_OPTIONS.map((o) => [o.label, o.code])),
+    []
+  );
+  const consulateLabels = CONSULATE_OPTIONS.map((o) => o.label);
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
@@ -87,12 +218,26 @@ export function BackgroundOnboardingScreen() {
     });
   };
 
-  const handleContinue = () => {
-    navigation.navigate('ExperiencesOnboarding', { profile });
+  // Website parity: stage 1 SAVES the basics before moving on to experiences
+  // (existing journey is preserved in the payload).
+  const handleContinue = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await saveProfileToBackend(toBackendProfile(profile, journey) as unknown as Record<string, unknown>);
+      navigation.navigate('ExperiencesOnboarding', { profile, journey });
+    } catch (e) {
+      Alert.alert(
+        'Could not save your profile',
+        e instanceof Error ? e.message : 'Please check your connection and try again.'
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSkip = () => {
-    navigation.navigate('ExperiencesOnboarding', { profile, skipped: true });
+    navigation.navigate('ExperiencesOnboarding', { profile, journey, skipped: true });
   };
 
   const SectionHeader = ({
@@ -144,6 +289,48 @@ export function BackgroundOnboardingScreen() {
             </Text>
           </View>
 
+          {/* AI assistant chat (website parity: chat → tags update below) */}
+          <View style={styles.chatCard}>
+            <View style={styles.chatHeader}>
+              <Ionicons name="sparkles-outline" size={16} color={colors.secondary} />
+              <Text style={styles.chatTitle}>AI assistant</Text>
+            </View>
+            <View style={styles.chatThread}>
+              {messages.map((m) =>
+                m.role === 'user' ? (
+                  <View key={m.id} style={styles.chatBubbleUserWrap}>
+                    <View style={styles.chatBubbleUser}>
+                      <Text style={styles.chatBubbleUserText}>{m.content}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View key={m.id} style={styles.chatBubbleAi}>
+                    <Markdown>{m.content}</Markdown>
+                  </View>
+                )
+              )}
+              {chatLoading && <ActivityIndicator size="small" color={colors.primary} style={{ alignSelf: 'flex-start' }} />}
+            </View>
+            <View style={styles.chatInputRow}>
+              <TextInput
+                style={styles.chatInput}
+                value={chatInput}
+                onChangeText={setChatInput}
+                placeholder="Describe your situation…"
+                placeholderTextColor={colors.onSurfaceVariant}
+                onSubmitEditing={sendChat}
+                returnKeyType="send"
+              />
+              <TouchableOpacity
+                style={[styles.chatSend, (!chatInput.trim() || chatLoading) && styles.chatSendDisabled]}
+                onPress={sendChat}
+                disabled={!chatInput.trim() || chatLoading}
+              >
+                <Ionicons name="send" size={16} color={colors.onPrimary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Background Text */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Describe your situation</Text>
@@ -163,6 +350,18 @@ export function BackgroundOnboardingScreen() {
             <Text style={styles.charCount}>
               {profile.backgroundText.length}/2000
             </Text>
+            {/* Website parity: re-derive the tags from the background text */}
+            <View style={styles.regenRow}>
+              <TouchableOpacity
+                style={[styles.regenButton, (regenLoading || profile.backgroundText.trim().length < 10) && styles.chatSendDisabled]}
+                onPress={regenTags}
+                disabled={regenLoading || profile.backgroundText.trim().length < 10}
+              >
+                <Ionicons name="color-wand-outline" size={16} color={colors.onPrimary} />
+                <Text style={styles.regenButtonText}>{regenLoading ? 'Analyzing…' : 'Re-generate tags'}</Text>
+              </TouchableOpacity>
+              {!!regenNote && <Text style={styles.regenNote}>{regenNote}</Text>}
+            </View>
           </View>
 
           {/* Current Status */}
@@ -175,7 +374,7 @@ export function BackgroundOnboardingScreen() {
             {expandedSections.status && (
               <ChipSelector
                 label=""
-                options={VISA_CATEGORIES}
+                options={visaOptions}
                 selectedValues={profile.currentStatus}
                 onSelectionChange={(values) => updateProfile('currentStatus', values)}
               />
@@ -192,7 +391,7 @@ export function BackgroundOnboardingScreen() {
             {expandedSections.applying && (
               <ChipSelector
                 label=""
-                options={VISA_CATEGORIES}
+                options={visaOptions}
                 selectedValues={profile.applyingFor}
                 onSelectionChange={(values) => updateProfile('applyingFor', values)}
               />
@@ -209,9 +408,14 @@ export function BackgroundOnboardingScreen() {
             {expandedSections.consulates && (
               <ChipSelector
                 label=""
-                options={CONSULATES}
-                selectedValues={profile.consulates}
-                onSelectionChange={(values) => updateProfile('consulates', values)}
+                options={consulateLabels}
+                selectedValues={profile.consulates.map((c) => consulateLabelByCode.get(c) || c)}
+                onSelectionChange={(labels) =>
+                  updateProfile(
+                    'consulates',
+                    labels.map((l) => consulateCodeByLabel.get(l) || l)
+                  )
+                }
               />
             )}
           </View>
@@ -282,7 +486,7 @@ export function BackgroundOnboardingScreen() {
                   {selectedStageKey && (
                     <View style={styles.outcomeRow}>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {STAGE_OUTCOMES.map((outcome) => (
+                        {outcomeOptions.map((outcome) => (
                           <TouchableOpacity
                             key={outcome}
                             style={styles.outcomeChip}
@@ -365,8 +569,8 @@ export function BackgroundOnboardingScreen() {
 
           {/* Buttons */}
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleContinue}>
-              <Text style={styles.primaryButtonText}>Continue</Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleContinue} disabled={saving}>
+              <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Continue'}</Text>
               <Ionicons name="arrow-forward" size={20} color={colors.onPrimary} />
             </TouchableOpacity>
 
@@ -398,6 +602,68 @@ const styles = StyleSheet.create({
     padding: spacing.marginMobile,
     paddingBottom: spacing.xl,
   },
+  chatCard: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  chatHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
+  chatTitle: { fontSize: 13, fontWeight: '600', color: colors.onSurface },
+  chatThread: { gap: spacing.base, maxHeight: 280 },
+  chatBubbleUserWrap: { alignItems: 'flex-end' },
+  chatBubbleUser: {
+    backgroundColor: colors.primaryContainer,
+    borderRadius: borderRadius.md,
+    borderTopRightRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    maxWidth: '85%',
+  },
+  chatBubbleUserText: { fontSize: 14, color: colors.onPrimaryContainer },
+  chatBubbleAi: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.md,
+    borderTopLeftRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    maxWidth: '90%',
+    alignSelf: 'flex-start',
+  },
+  chatBubbleAiText: { fontSize: 14, color: colors.onSurface, lineHeight: 20 },
+  chatInputRow: { flexDirection: 'row', gap: spacing.base, marginTop: spacing.md },
+  chatInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: colors.onSurface,
+  },
+  chatSend: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatSendDisabled: { opacity: 0.4 },
+  regenRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.base, marginTop: spacing.base, flexWrap: 'wrap' },
+  regenButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.secondary,
+    borderRadius: borderRadius.full,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+  },
+  regenButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 13 },
+  regenNote: { fontSize: 12, color: colors.primary },
   header: {
     marginBottom: spacing.md,
   },
