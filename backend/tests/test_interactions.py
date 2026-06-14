@@ -82,6 +82,82 @@ def group_a_pure() -> None:
 
 
 # ---------------------------------------------------------------------------
+# A2 — list_user_replies query logic, exercised against a fake Firestore
+#      (no network): filtering by author, dropping deletes, newest-first,
+#      field projection, and the empty-uid / no-db short-circuits.
+# ---------------------------------------------------------------------------
+
+class _FakeDoc:
+    def __init__(self, doc_id: str, data: dict):
+        self.id = doc_id
+        self._data = data
+
+    def to_dict(self) -> dict:
+        return dict(self._data)
+
+
+class _FakeQuery:
+    """Honors a single FieldFilter('user_id','==',value) equality, like the real query."""
+    def __init__(self, docs: list, value):
+        self._docs = docs
+        self._value = value
+
+    def stream(self):
+        for d in self._docs:
+            if d._data.get("user_id") == self._value:
+                yield d
+
+
+class _FakeCollection:
+    def __init__(self, docs: list):
+        self._docs = docs
+
+    def where(self, filter=None):  # noqa: A002 — mirror Firestore's kwarg name
+        value = getattr(filter, "value", None)
+        return _FakeQuery(self._docs, value)
+
+
+class _FakeDB:
+    def __init__(self, docs: list):
+        self._docs = docs
+
+    def collection(self, name: str):
+        assert name == "replies"
+        return _FakeCollection(self._docs)
+
+
+def group_a2_user_replies() -> None:
+    print("\nA2 — list_user_replies (fake Firestore, no network)")
+
+    docs = [
+        _FakeDoc("r-old", {"user_id": "demo-arjun", "parent_case_id": "p1", "body": "older",
+                           "created_at": "2026-06-01T00:00:00Z"}),
+        _FakeDoc("r-new", {"user_id": "demo-arjun", "parent_case_id": "p2", "body": "newer",
+                           "created_at": "2026-06-09T00:00:00Z"}),
+        _FakeDoc("r-del", {"user_id": "demo-arjun", "parent_case_id": "p3", "body": "gone",
+                           "created_at": "2026-06-10T00:00:00Z", "deleted": True}),
+        _FakeDoc("r-other", {"user_id": "demo-mei", "parent_case_id": "p4", "body": "not mine",
+                             "created_at": "2026-06-11T00:00:00Z"}),
+    ]
+    db = _FakeDB(docs)
+
+    out = I.list_user_replies(db, "demo-arjun")
+    ids = [r["id"] for r in out]
+    check("A2.1 only the author's non-deleted replies", ids == ["r-new", "r-old"], str(ids))
+    check("A2.2 newest-first ordering", out[0]["id"] == "r-new")
+    check("A2.3 deleted reply excluded", "r-del" not in ids)
+    check("A2.4 other users' replies excluded", "r-other" not in ids)
+    check("A2.5 projected fields only",
+          set(out[0]) == {"id", "parent_case_id", "body", "created_at"}, str(set(out[0])))
+    check("A2.6 parent_case_id carried for back-link", out[0]["parent_case_id"] == "p2")
+
+    check("A2.7 limit truncates after sort", [r["id"] for r in I.list_user_replies(db, "demo-arjun", limit=1)] == ["r-new"])
+    check("A2.8 empty uid short-circuits to []", I.list_user_replies(db, "") == [])
+    check("A2.9 None db short-circuits to []", I.list_user_replies(None, "demo-arjun") == [])
+    check("A2.10 unknown author yields []", I.list_user_replies(db, "nobody") == [])
+
+
+# ---------------------------------------------------------------------------
 # B — live Firestore: replies + votes
 # ---------------------------------------------------------------------------
 
@@ -301,13 +377,14 @@ def group_c_api() -> None:
 
 
 def main() -> int:
-    if not PROJECT:
+    only = sys.argv[1] if len(sys.argv) > 1 else "all"
+    if not PROJECT and only != "unit":
         print("GCP_PROJECT_ID must be set")
         return 2
-    only = sys.argv[1] if len(sys.argv) > 1 else "all"
-    print(f"Interactions tests — project={PROJECT}  (scope={only})")
+    print(f"Interactions tests — project={PROJECT or '(none)'}  (scope={only})")
 
     group_a_pure()
+    group_a2_user_replies()
     if only in ("all", "integration"):
         group_b_firestore()
         group_c_api()

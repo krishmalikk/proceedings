@@ -355,6 +355,17 @@ class AuthorPostingsResponse(BaseModel):
     postings: list[AuthorPostingCard]
 
 
+class UserReplyCard(BaseModel):
+    id: str
+    parent_case_id: str
+    body: str
+    created_at: str = ""
+
+
+class UserRepliesResponse(BaseModel):
+    replies: list[UserReplyCard]
+
+
 # --- Replies + voting (phase-L) ---
 class ReplyCreate(BaseModel):
     body: str = Field(..., min_length=1, max_length=5000)
@@ -1114,6 +1125,15 @@ async def user_postings(uid: str):
         for r in rows if r.get("case_id")
     ]
     return AuthorPostingsResponse(postings=cards)
+
+
+@app.get("/api/users/{uid}/replies", response_model=UserRepliesResponse)
+async def user_replies(uid: str):
+    """All replies a user has authored (newest first) — the profile 'your
+    activity' section. Each carries the parent posting id for linking."""
+    import interactions
+    rows = _guard(lambda: interactions.list_user_replies(_db, uid))
+    return UserRepliesResponse(replies=[UserReplyCard(**r) for r in rows])
 
 
 # ---------------------------------------------------------------------------

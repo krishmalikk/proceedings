@@ -14,8 +14,9 @@ import { useNavigation } from '@react-navigation/native';
 import { Header, Card, Badge, Button, Markdown } from '../components';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
-import { getProfile, getCachedProfile, clearProfileCache } from '../services/apiService';
+import { getProfile, getCachedProfile, clearProfileCache, getActiveUserId } from '../services/apiService';
 import { useExperienceFacets } from '../hooks/useExperienceFacets';
+import { ProfileActivity } from '../components/ProfileActivity';
 
 // Profile data interface matching backend
 interface JourneyEntry {
@@ -463,6 +464,13 @@ export function ProfileScreen() {
             </View>
           </Card>
         )}
+
+        {/* The logged-in user's own activity on the portal */}
+        <ProfileActivity
+          uid={getActiveUserId() || ''}
+          onOpenPosting={(cid) => (navigation as any).navigate('CaseDetails', { caseId: cid })}
+          onOpenGroup={(gid, name) => (navigation as any).navigate('GroupChat', { groupId: gid, groupName: name })}
+        />
 
         {/* Sign Out Button */}
         <View style={styles.signOutContainer}>

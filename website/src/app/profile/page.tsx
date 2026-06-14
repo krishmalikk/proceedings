@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getActiveUser, userHeaders } from '@/lib/activeUser'
+import { useAuth } from '@/contexts/AuthContext'
 import Markdown from '@/components/Markdown'
+import ProfileActivity from '@/components/ProfileActivity'
 
 type JourneyEntry = { milestone: string; date: string; experience: string; shared?: boolean; experience_case_id?: string }
 type Profile = {
@@ -34,6 +36,7 @@ type Vocab = {
 
 export default function ProfilePage() {
   const router = useRouter()
+  const { loading: authLoading } = useAuth()
   const [profile, setProfile] = useState<Profile>(EMPTY)
   const [vocab, setVocab] = useState<Vocab>({ consulate_options: [] })
   const [loading, setLoading] = useState(true)
@@ -41,6 +44,9 @@ export default function ProfilePage() {
   const [expandedJourney, setExpandedJourney] = useState<Set<number>>(new Set())
 
   useEffect(() => {
+    // Wait for Firebase to restore the session before deciding — otherwise a
+    // logged-in user could be bounced to /login during the restore window.
+    if (authLoading) return
     const uid = getActiveUser()
     if (!uid) {
       router.push('/login')
@@ -64,7 +70,7 @@ export default function ProfilePage() {
       .then((r) => r.json())
       .then((d) => setVocab({ consulate_options: d.consulate_options || [] }))
       .catch(() => {})
-  }, [router])
+  }, [router, authLoading])
 
   const consulateByCode = new Map(vocab.consulate_options.map((o) => [o.code, o.label]))
 
@@ -326,6 +332,11 @@ export default function ProfilePage() {
           )}
         </div>
       )}
+
+      {/* The logged-in user's own activity on the portal */}
+      <div className="mt-6">
+        <ProfileActivity uid={getActiveUser()} />
+      </div>
     </div>
   )
 }

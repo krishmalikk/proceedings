@@ -11,6 +11,7 @@ import {
   AuthError,
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
+import { clearActiveUser } from '@/lib/activeUser';
 
 interface AuthContextType {
   user: User | null;
@@ -84,7 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
-      if (firebaseUser) void registerBackendUser(firebaseUser);
+      if (firebaseUser) {
+        // Mutual exclusivity: a real session wins, so drop any stale demo-user
+        // selection that could otherwise shadow/race the Firebase uid.
+        clearActiveUser();
+        void registerBackendUser(firebaseUser);
+      }
     });
 
     return unsubscribe;

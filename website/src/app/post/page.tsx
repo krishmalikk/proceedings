@@ -212,7 +212,8 @@ export default function PostPage() {
     setSubmitting(true); setError('')
     try {
       const res = await fetch('/api/postings', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        // Send the active user so the backend records the posting↔author link.
+        method: 'POST', headers: userHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ title, description, tags: groups, key_stages_or_info: stages, key_dates: dates }),
       })
       const data = await res.json()

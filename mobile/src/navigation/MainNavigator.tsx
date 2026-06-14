@@ -32,6 +32,7 @@ function CommunityStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="CommunityMain" component={SearchScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -46,6 +47,7 @@ function HomeStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SearchMain" component={SearchScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
@@ -75,6 +77,7 @@ function ProfileStack() {
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
     </Stack.Navigator>
   );
@@ -106,6 +109,11 @@ const tabIcons: Record<string, { focused: TabIconName; unfocused: `${TabIconName
   Community: { focused: 'chatbubbles', unfocused: 'chatbubbles-outline' },
   Profile: { focused: 'person', unfocused: 'person-outline' },
 };
+
+// The global AI chat is DISABLED to match the website, where the equivalent
+// "AI mode" answer panel is gated off (UnifiedSearch.tsx `AI_MODE_ENABLED = false`,
+// per posting-specs.md §2). Flip both to re-enable the AI assistant together.
+const AI_CHAT_ENABLED = false;
 
 function TabNavigator() {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -157,15 +165,20 @@ function TabNavigator() {
         />
       </Tab.Navigator>
 
-      {/* AI Chat Floating Button and Modal */}
-      <FloatingChatButton
-        onPress={() => setIsChatOpen(true)}
-        isOpen={isChatOpen}
-      />
-      <ChatModal
-        visible={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-      />
+      {/* AI Chat Floating Button and Modal — disabled to match the website
+          (AI_MODE_ENABLED = false there). Re-enable via AI_CHAT_ENABLED above. */}
+      {AI_CHAT_ENABLED && (
+        <>
+          <FloatingChatButton
+            onPress={() => setIsChatOpen(true)}
+            isOpen={isChatOpen}
+          />
+          <ChatModal
+            visible={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+          />
+        </>
+      )}
     </View>
   );
 }

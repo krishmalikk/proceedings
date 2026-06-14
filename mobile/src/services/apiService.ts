@@ -303,6 +303,25 @@ export async function getUserPostings(uid: string): Promise<AuthorPostingCard[]>
   }
 }
 
+export interface UserReplyCard {
+  id: string;
+  parent_case_id: string;
+  body: string;
+  created_at: string;
+}
+
+// All replies a user has authored (their 'activity'), newest first.
+export async function getUserReplies(uid: string): Promise<UserReplyCard[]> {
+  try {
+    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/replies`);
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.replies || []) as UserReplyCard[];
+  } catch {
+    return [];
+  }
+}
+
 export interface PostingGroups {
   visa_applying_for: string[];
   current_visa_or_greencard_category: string[];

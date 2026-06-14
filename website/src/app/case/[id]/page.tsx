@@ -140,18 +140,10 @@ export default function CaseDetailsPage() {
             {/* Author profile + their other postings (app postings only) */}
             <AuthorSection authorId={data.author_id} channel={data.channel} currentCaseId={data.case_id} />
 
-            {/* Only show for genuine Reddit-sourced posts (otherwise the link goes nowhere useful) */}
-            {data.url && (data.channel === 'reddit' || !!data.subreddit || /reddit\.com/i.test(data.url)) && (
-              <a href={data.url} target="_blank" rel="noopener noreferrer" className="card-hover flex items-center gap-2 text-secondary">
-                <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-                View original on Reddit
-              </a>
-            )}
-
             <div className="bg-gradient-to-br from-primary to-primary-container rounded-xl p-6 text-center">
               <h3 className="text-headline-md text-on-primary mb-2">Coming Soon</h3>
               <p className="text-body-md text-on-primary opacity-90 mb-4">
-                Personalized guidance from a verified immigration attorney is coming soon.
+                Connect with verified immigration attorney
               </p>
               <button disabled className="btn-primary bg-white text-primary opacity-70 cursor-not-allowed">
                 Consult an Attorney
