@@ -948,6 +948,14 @@ def _write_bigquery(canonical: dict) -> None:
 def publish_posting(title: str, description: str, tags: dict,
                     key_stages: dict | None = None, key_dates: dict | None = None) -> dict:
     """Full publish path. Returns {case_id, gcs_path, indexed, author_handle}."""
+    # Redact PII (email / phone / A-number) before anything is tagged, written to
+    # GCS, indexed, or sent to BigQuery — postings are read by other users, so
+    # contact info must never survive into the stored content. Local import
+    # avoids a module-load cycle (profile imports posting at top level).
+    from profile import scrub_pii
+    title = scrub_pii(title or "")
+    description = scrub_pii(description or "")
+
     extracted = None
     try:
         extracted = _extract(title, description)  # for summaries/severity/context

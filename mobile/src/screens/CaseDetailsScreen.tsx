@@ -147,28 +147,62 @@ export function CaseDetailsScreen({ navigation, route }: any) {
             )}
           </Card>
 
-          {/* Topics */}
-          {data.tags.length > 0 && (
-            <Card style={styles.bodyCard}>
-              <Text style={styles.cardTitle}>Topics</Text>
-              <View style={styles.topicsWrap}>
-                {data.tags.map((t) => (
-                  <View key={t} style={styles.topicChip}>
-                    <Text style={styles.topicText}>{t}</Text>
+          {/* Tags — every category as its own labeled section (website parity).
+              Falls back to the flat `tags` list under "Topics" for older data. */}
+          {(() => {
+            const sections =
+              data.tag_sections && data.tag_sections.length > 0
+                ? data.tag_sections
+                : data.tags.length > 0
+                  ? [{ label: 'Topics', tags: data.tags }]
+                  : [];
+            if (sections.length === 0) return null;
+            return (
+              <Card style={styles.bodyCard}>
+                <Text style={styles.cardTitle}>Tags</Text>
+                {sections.map((sec) => (
+                  <View key={sec.label} style={styles.tagSection}>
+                    <Text style={styles.tagSectionLabel}>{sec.label}</Text>
+                    <View style={styles.topicsWrap}>
+                      {sec.tags.map((t) => (
+                        <View key={t} style={styles.topicChip}>
+                          <Text style={styles.topicText}>{t}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
                 ))}
-              </View>
-            </Card>
-          )}
+              </Card>
+            );
+          })()}
 
-          {/* Author profile + their other postings (app postings only) */}
-          <AuthorCard
-            authorId={data.author_id}
-            channel={data.channel}
-            currentCaseId={data.case_id}
-            onOpenPosting={(cid) => navigation.push('CaseDetails', { caseId: cid })}
-            onOpenAuthor={(uid) => navigation.navigate('Author', { uid })}
-          />
+          {/* Author. A real in-app author (uid) gets the rich profile card;
+              otherwise a first-party posting links its handle to the
+              author-by-handle screen. External postings show nothing. */}
+          {data.author_id ? (
+            <AuthorCard
+              authorId={data.author_id}
+              channel={data.channel}
+              currentCaseId={data.case_id}
+              onOpenPosting={(cid) => navigation.push('CaseDetails', { caseId: cid })}
+              onOpenAuthor={(uid) => navigation.navigate('Author', { uid })}
+            />
+          ) : data.author_handle ? (
+            <Card style={styles.bodyCard}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="person-circle-outline" size={20} color={colors.secondary} />
+                <Text style={styles.cardTitle}>Author</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.authorHandleRow}
+                onPress={() => navigation.navigate('AuthorByHandle', { handle: data.author_handle })}
+              >
+                <Text style={styles.authorHandleText}>{data.author_handle}</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+              </TouchableOpacity>
+              <Text style={styles.authorHandleHint}>See all postings by this author</Text>
+            </Card>
+          ) : null}
 
           {/* Source link — only for genuine Reddit-sourced posts (website parity) */}
           {isReddit && (
@@ -249,6 +283,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   topicText: { fontSize: 12, color: colors.onSurfaceVariant },
+  tagSection: { marginBottom: spacing.base },
+  tagSectionLabel: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    color: colors.onSurfaceVariant,
+    letterSpacing: 0.4,
+    marginBottom: 5,
+  },
+  authorHandleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  authorHandleText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  authorHandleHint: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 },
   redditLink: {
     flexDirection: 'row',
     alignItems: 'center',

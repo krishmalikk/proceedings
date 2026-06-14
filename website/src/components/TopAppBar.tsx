@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { USER_KEY } from '@/lib/activeUser';
+import BrandMark from '@/components/BrandMark';
 
 const navItems = [
   { href: '/search', label: 'Community', icon: 'search' },
@@ -18,12 +18,6 @@ export default function TopAppBar() {
   const { user, loading, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  // Dev-mode impersonation (demo-user picker) — read directly from localStorage,
-  // re-checked on navigation, so posting stays available without Firebase login.
-  const [devUid, setDevUid] = useState('');
-  useEffect(() => {
-    if (typeof window !== 'undefined') setDevUid(localStorage.getItem(USER_KEY) || '');
-  }, [pathname]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -53,9 +47,13 @@ export default function TopAppBar() {
         {/* Logo */}
         <Link
           href="/"
-          className="text-headline-md font-bold text-primary hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          aria-label="Proceedings home"
         >
-          Proceedings
+          <BrandMark size={30} />
+          <span className="text-headline-md font-bold text-primary tracking-tight">
+            Proceedings
+          </span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -80,18 +78,6 @@ export default function TopAppBar() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {/* Post button — shown for Firebase users AND dev-mode (demo picker) users */}
-          {(user || devUid) && (
-            <Link
-              href="/post"
-              className="btn-primary flex items-center gap-1.5 rounded-full text-label-md"
-            >
-              <span className="material-symbols-outlined text-[20px]">edit_square</span>
-              <span className="hidden sm:inline">Post a new message</span>
-              <span className="sm:hidden">Post</span>
-            </Link>
-          )}
-
           {/* Auth section */}
           {loading ? (
             <div className="w-10 h-10 flex items-center justify-center">

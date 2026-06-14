@@ -12,6 +12,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://proceedings.ai'),
   title: {
     default: 'Proceedings | Your Immigration Assistant',
     template: '%s | Proceedings',
@@ -69,13 +70,16 @@ export default function RootLayout({
           </main>
           <MobileBottomNav />
           {/* Footer - shown on desktop, hidden on mobile due to bottom nav */}
-          <footer className="hidden md:block w-full py-8 px-margin-desktop bg-surface-container-low border-t border-outline-variant">
-            <div className="max-w-7xl mx-auto text-center space-y-4">
+          <footer className="hidden md:block w-full py-5 px-margin-desktop bg-surface-container-low border-t border-outline-variant">
+            <div className="max-w-7xl mx-auto text-center space-y-3">
               <div className="text-label-md font-semibold text-on-surface">Proceedings</div>
               <p className="text-caption text-on-surface-variant max-w-lg mx-auto">
                 © 2024 Proceedings Inc. Not legal advice. Proceedings is not a law firm or government agency.
               </p>
               <div className="flex justify-center gap-6">
+                <a href="/disclaimer" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
+                  Legal Disclaimer
+                </a>
                 <a href="#" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
                   Terms of Service
                 </a>

@@ -7,12 +7,14 @@ import {
   SearchScreen,
   CaseDetailsScreen,
   AuthorScreen,
+  AuthorByHandleScreen,
   FindScreen,
   PostScreen,
   GroupChatScreen,
   LoginScreen,
   SignupScreen,
   ProfileScreen,
+  DisclaimerScreen,
   BackgroundOnboardingScreen,
   ExperiencesOnboardingScreen,
 } from '../screens';
@@ -34,8 +36,10 @@ function CommunityStack() {
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
+      <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
       <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </Stack.Navigator>
@@ -46,10 +50,13 @@ function HomeStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SearchMain" component={SearchScreen} />
+      <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
+      <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </Stack.Navigator>
@@ -63,7 +70,9 @@ function FindStack() {
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
+      <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </Stack.Navigator>
@@ -79,6 +88,8 @@ function ProfileStack() {
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
+      <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
     </Stack.Navigator>
   );
 }

@@ -1,0 +1,70 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import CaseDetailsPage from '../page'
+
+// Route param + Link (→ plain anchor so we can read hrefs) + the heavy children
+// the case page composes (each of which fetches on its own — stub them out).
+vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'app-1' }) }))
+vi.mock('next/link', () => ({
+  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
+    <a href={href} className={className}>{children}</a>
+  ),
+}))
+vi.mock('@/components/Markdown', () => ({ default: ({ children }: { children: string }) => <div>{children}</div> }))
+vi.mock('@/components/VoteControl', () => ({ default: () => <div data-testid="vote" /> }))
+vi.mock('@/components/Replies', () => ({ default: () => <div data-testid="replies" /> }))
+vi.mock('@/components/AuthorSection', () => ({
+  default: ({ authorId }: { authorId: string }) => <div data-testid="author-section">AS:{authorId}</div>,
+}))
+
+const BASE = {
+  case_id: 'app-1', title: 'My H-1B experience', description: '', visa: ['H-1B'],
+  consulates: [], outcome: '', subreddit: '', channel: 'app', tags: [], url: '',
+  date: '2026-06-13', body: 'hello', author_id: '', author_handle: '', tag_sections: [],
+}
+
+function mockPosting(overrides: Record<string, unknown>) {
+  global.fetch = vi.fn(async () => ({
+    ok: true, status: 200, json: async () => ({ ...BASE, ...overrides }),
+  })) as unknown as typeof fetch
+}
+
+const handleLink = () => document.querySelector('a[href^="/author-by-handle/"]') as HTMLAnchorElement | null
+
+describe('CaseDetailsPage — author panel', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  it('first-party posting (handle, no captured uid): shows the handle as a clickable author link', async () => {
+    mockPosting({ channel: 'app', author_id: '', author_handle: 'brave-maple-3272' })
+    render(<CaseDetailsPage />)
+
+    const link = await waitFor(() => {
+      const l = handleLink()
+      expect(l).not.toBeNull()
+      return l!
+    })
+    expect(link).toHaveAttribute('href', '/author-by-handle/brave-maple-3272')
+    expect(link.textContent).toContain('brave-maple-3272')
+    // the rich uid-based profile section must NOT render in this case
+    expect(screen.queryByTestId('author-section')).toBeNull()
+  })
+
+  it('in-app author (real uid): renders the rich AuthorSection, not the handle link', async () => {
+    mockPosting({ channel: 'app', author_id: 'user-9', author_handle: 'brave-maple-3272' })
+    render(<CaseDetailsPage />)
+
+    const section = await screen.findByTestId('author-section')
+    expect(section).toHaveTextContent('AS:user-9')
+    expect(handleLink()).toBeNull()
+  })
+
+  it('external (Reddit) posting: shows no author link and no AuthorSection', async () => {
+    mockPosting({ channel: 'reddit', author_id: '', author_handle: '' })
+    render(<CaseDetailsPage />)
+
+    // wait until the posting has loaded (title rendered), then assert no author UI
+    await screen.findByText('My H-1B experience')
+    expect(handleLink()).toBeNull()
+    expect(screen.queryByTestId('author-section')).toBeNull()
+  })
+})

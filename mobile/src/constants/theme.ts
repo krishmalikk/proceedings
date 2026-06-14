@@ -1,19 +1,26 @@
-// Proceedings Design System - Steady Path Theme
-// Based on DESIGN.md specifications
+// Proceedings Design System — USA-flag brand identity
+// flag navy (dominant) · liberty blue · flame red (accent only) · crisp
+// near-white ground. Reference: logo3-vivid.jpeg. Mirrors website/tailwind.config.ts.
 
 export const colors = {
-  // Primary
-  primary: '#0e3b69',
+  // Primary (flag navy)
+  primary: '#15487e',
   onPrimary: '#ffffff',
-  primaryContainer: '#2c5282',
-  onPrimaryContainer: '#a2c6fd',
-  inversePrimary: '#a5c8ff',
+  primaryContainer: '#2d5c90',
+  onPrimaryContainer: '#c6dbf7',
+  inversePrimary: '#a8c7f0',
 
-  // Secondary (Teal)
-  secondary: '#006a68',
+  // Secondary (liberty blue — replaces the retired teal)
+  secondary: '#2c6fb5',
   onSecondary: '#ffffff',
-  secondaryContainer: '#91f0ed',
-  onSecondaryContainer: '#006e6d',
+  secondaryContainer: '#d4e3f6',
+  onSecondaryContainer: '#103f6e',
+
+  // Accent (flame red — reserved for the mark, highlights & emphasis)
+  accent: '#d62828',
+  onAccent: '#ffffff',
+  accentContainer: '#fbe0de',
+  onAccentContainer: '#8e1b1b',
 
   // Tertiary
   tertiary: '#353b41',
@@ -21,21 +28,21 @@ export const colors = {
   tertiaryContainer: '#4b5258',
   onTertiaryContainer: '#bfc5cd',
 
-  // Surface
-  surface: '#f9f9ff',
+  // Surface (crisp, cool near-white ground)
+  surface: '#fbfcff',
   surfaceDim: '#d4daea',
-  surfaceBright: '#f9f9ff',
+  surfaceBright: '#fbfcff',
   surfaceContainerLowest: '#ffffff',
-  surfaceContainerLow: '#f1f3ff',
-  surfaceContainer: '#e8eeff',
-  surfaceContainerHigh: '#e3e8f9',
-  surfaceContainerHighest: '#dde2f3',
-  onSurface: '#161c27',
+  surfaceContainerLow: '#f1f4fb',
+  surfaceContainer: '#e8eef8',
+  surfaceContainerHigh: '#e1e8f4',
+  surfaceContainerHighest: '#dae1f0',
+  onSurface: '#15202e',
   onSurfaceVariant: '#43474f',
   inverseSurface: '#2a303d',
   inverseOnSurface: '#ecf0ff',
   surfaceVariant: '#dde2f3',
-  surfaceTint: '#3b6090',
+  surfaceTint: '#15487e',
 
   // Outline
   outline: '#737780',
@@ -48,66 +55,68 @@ export const colors = {
   onErrorContainer: '#93000a',
 
   // Background
-  background: '#f9f9ff',
-  onBackground: '#161c27',
+  background: '#fbfcff',
+  onBackground: '#15202e',
 
   // Status colors
-  statusResolved: '#059669', // Emerald
+  statusResolved: '#0f7b53', // Green
   statusInProgress: '#d97706', // Amber
-  statusVerified: '#2563eb', // Sapphire
+  statusVerified: '#2c6fb5', // Liberty blue
 
   // Fixed colors
-  primaryFixed: '#d4e3ff',
-  primaryFixedDim: '#a5c8ff',
-  secondaryFixed: '#94f2f0',
-  secondaryFixedDim: '#77d6d3',
+  primaryFixed: '#d7e4f8',
+  primaryFixedDim: '#a8c7f0',
+  secondaryFixed: '#d4e3f6',
+  secondaryFixedDim: '#a8c7ec',
 };
 
+// Type scale tightened per UI-beautify.md §3.1 (smaller) — larger sizes
+// trimmed more, body −1px, caption held at 12px for legibility.
 export const typography = {
   displayLg: {
     fontFamily: 'Inter-Bold',
-    fontSize: 48,
+    fontSize: 40,
     fontWeight: '700' as const,
-    lineHeight: 56,
-    letterSpacing: -0.96, // -0.02em * 48
+    lineHeight: 46,
+    letterSpacing: -0.8, // -0.02em * 40
   },
   headlineLg: {
     fontFamily: 'Inter-SemiBold',
-    fontSize: 32,
+    fontSize: 27,
     fontWeight: '600' as const,
-    lineHeight: 40,
-    letterSpacing: -0.32, // -0.01em * 32
+    lineHeight: 34,
+    letterSpacing: -0.27, // -0.01em * 27
   },
   headlineLgMobile: {
     fontFamily: 'Inter-SemiBold',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '600' as const,
-    lineHeight: 36,
+    lineHeight: 31,
   },
   headlineMd: {
     fontFamily: 'Inter-SemiBold',
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '600' as const,
-    lineHeight: 32,
+    lineHeight: 27,
   },
   bodyLg: {
     fontFamily: 'Inter-Regular',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '400' as const,
-    lineHeight: 28,
+    lineHeight: 26,
   },
   bodyMd: {
     fontFamily: 'Inter-Regular',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '400' as const,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   labelMd: {
     fontFamily: 'Inter-Medium',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500' as const,
-    lineHeight: 20,
-    letterSpacing: 0.14, // 0.01em * 14
+    lineHeight: 18,
+    letterSpacing: 0.13, // 0.01em * 13
   },
   caption: {
     fontFamily: 'Inter-Regular',
@@ -117,16 +126,17 @@ export const typography = {
   },
 };
 
+// Spacing tightened per UI-beautify.md §3.2 (less white space).
 export const spacing = {
   base: 8,
   xs: 4,
-  sm: 12,
-  md: 24,
-  lg: 40,
-  xl: 64,
-  gutter: 24,
-  marginMobile: 16,
-  marginDesktop: 48,
+  sm: 10,
+  md: 16,
+  lg: 24,
+  xl: 36,
+  gutter: 16,
+  marginMobile: 14,
+  marginDesktop: 32,
   maxWidthContent: 720,
 };
 

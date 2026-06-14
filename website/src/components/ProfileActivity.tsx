@@ -22,7 +22,7 @@ function SectionCard({
 }: { icon: string; title: string; count: number; empty: string; children: React.ReactNode }) {
   return (
     <div className="card">
-      <h3 className="text-title-md text-on-surface mb-4 flex items-center gap-2">
+      <h3 className="text-title-md text-on-surface mb-3 flex items-center gap-2">
         <span className="material-symbols-outlined text-secondary">{icon}</span>
         {title}
         {count > 0 && <span className="text-caption text-on-surface-variant">({count})</span>}
@@ -52,7 +52,7 @@ export default function ProfileActivity({ uid }: { uid: string }) {
   }, [uid])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 1) Your postings */}
       <SectionCard icon="article" title="Your Postings" count={postings.length} empty="You haven’t posted anything yet.">
         <ul className="space-y-2">

@@ -71,6 +71,7 @@ jobs:
           python tests/test_profile_vocab.py
           python tests/test_reconcile.py unit
           python tests/test_interactions.py unit
+          python tests/test_author_handle.py unit
 
   website:
     needs: changes

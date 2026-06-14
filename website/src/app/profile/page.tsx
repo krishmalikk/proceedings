@@ -134,8 +134,8 @@ export default function ProfilePage() {
     !hasData(profile.journey as unknown as string[])
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+    <div className="max-w-4xl mx-auto px-4 py-5">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <h1 className="text-headline-md text-on-surface">Your Profile</h1>
         <button onClick={() => router.push('/onboarding')} className="btn-primary flex items-center gap-2">
           <span className="material-symbols-outlined text-[20px]">edit</span>
@@ -144,10 +144,10 @@ export default function ProfilePage() {
       </div>
 
       {isEmpty ? (
-        <div className="card text-center py-12">
-          <span className="material-symbols-outlined text-[64px] text-on-surface-variant mb-4">person_add</span>
+        <div className="card text-center py-8">
+          <span className="material-symbols-outlined text-[64px] text-on-surface-variant mb-3">person_add</span>
           <h2 className="text-title-lg text-on-surface mb-2">No profile set up yet</h2>
-          <p className="text-body-md text-on-surface-variant mb-6">
+          <p className="text-body-md text-on-surface-variant mb-5">
             Tell us about your immigration journey to get personalized help and connect with others in similar situations.
           </p>
           <button onClick={() => router.push('/onboarding')} className="btn-primary">
@@ -155,10 +155,10 @@ export default function ProfilePage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Account Info */}
           <div className="card">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-[56px] text-primary">account_circle</span>
               <div>
                 <h2 className="text-title-lg text-on-surface">{profile.username || 'Anonymous User'}</h2>
@@ -179,7 +179,7 @@ export default function ProfilePage() {
           {/* Visa Status */}
           {(hasData(profile.current_visa_or_greencard_category) || hasData(profile.visa_applying_for)) && (
             <div className="card">
-              <h3 className="text-title-md text-on-surface mb-4 flex items-center gap-2">
+              <h3 className="text-title-md text-on-surface mb-3 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">badge</span>
                 Visa Status
               </h3>
@@ -209,7 +209,7 @@ export default function ProfilePage() {
           {/* Consulates */}
           {hasData(profile.consulates) && (
             <div className="card">
-              <h3 className="text-title-md text-on-surface mb-4 flex items-center gap-2">
+              <h3 className="text-title-md text-on-surface mb-3 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">location_on</span>
                 Consulates
               </h3>
@@ -229,13 +229,13 @@ export default function ProfilePage() {
           {/* Key Stages / Info */}
           {hasObject(profile.key_stages_or_info) && (
             <div className="card">
-              <h3 className="text-title-md text-on-surface mb-4 flex items-center gap-2">
+              <h3 className="text-title-md text-on-surface mb-3 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">checklist</span>
                 Key Stages
               </h3>
               <div className="space-y-2">
                 {Object.entries(profile.key_stages_or_info).map(([k, v], i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-outline-variant last:border-0">
+                  <div key={i} className="flex items-center justify-between py-1.5 border-b border-outline-variant last:border-0">
                     <span className="text-body-md text-on-surface-variant">{formatLabel(k)}</span>
                     <span className="badge-default">{v}</span>
                   </div>
@@ -247,13 +247,13 @@ export default function ProfilePage() {
           {/* Key Dates */}
           {hasObject(profile.key_dates) && (
             <div className="card">
-              <h3 className="text-title-md text-on-surface mb-4 flex items-center gap-2">
+              <h3 className="text-title-md text-on-surface mb-3 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">calendar_month</span>
                 Key Dates
               </h3>
               <div className="space-y-2">
                 {Object.entries(profile.key_dates).map(([k, v], i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-outline-variant last:border-0">
+                  <div key={i} className="flex items-center justify-between py-1.5 border-b border-outline-variant last:border-0">
                     <span className="text-body-md text-on-surface-variant">{formatLabel(k)}</span>
                     <span className="text-body-md font-medium text-on-surface">{formatDate(v)}</span>
                   </div>
@@ -265,7 +265,7 @@ export default function ProfilePage() {
           {/* Tags */}
           {hasData(profile.tags) && (
             <div className="card">
-              <h3 className="text-title-md text-on-surface mb-4 flex items-center gap-2">
+              <h3 className="text-title-md text-on-surface mb-3 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">sell</span>
                 Topics & Tags
               </h3>
@@ -280,7 +280,7 @@ export default function ProfilePage() {
           {/* Background */}
           {profile.background_text && (
             <div className="card">
-              <h3 className="text-title-md text-on-surface mb-4 flex items-center gap-2">
+              <h3 className="text-title-md text-on-surface mb-3 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">description</span>
                 Background
               </h3>
@@ -293,11 +293,11 @@ export default function ProfilePage() {
           {/* Journey / Experiences */}
           {profile.journey && profile.journey.length > 0 && (
             <div className="card">
-              <h3 className="text-title-md text-on-surface mb-4 flex items-center gap-2">
+              <h3 className="text-title-md text-on-surface mb-3 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">timeline</span>
                 Immigration Journey
               </h3>
-              <ol className="relative border-l border-outline-variant ml-2 space-y-4">
+              <ol className="relative border-l border-outline-variant ml-2 space-y-3">
                 {profile.journey.map((entry, idx) => (
                   <li key={idx} className="ml-4">
                     <span className="absolute -left-[5px] mt-1 w-2.5 h-2.5 rounded-full bg-primary" />
@@ -334,7 +334,7 @@ export default function ProfilePage() {
       )}
 
       {/* The logged-in user's own activity on the portal */}
-      <div className="mt-6">
+      <div className="mt-4">
         <ProfileActivity uid={getActiveUser()} />
       </div>
     </div>

@@ -31,6 +31,7 @@ from query import (
 from search_client import (
     answer_query,
     get_posting,
+    postings_by_handle,
     search_postings,
     search_with_strictness,
     suggested_filters,
@@ -333,6 +334,12 @@ class SearchResponse(BaseModel):
     suggested_filters: list[SuggestedFilter] = []
 
 
+class TagSection(BaseModel):
+    """One labeled tag category for the detail view (e.g. 'Applying for')."""
+    label: str
+    tags: list[str]
+
+
 class PostingDetail(PostingCard):
     body: str
     # The authoring app user's id, resolved from the Firestore posting↔author
@@ -340,6 +347,14 @@ class PostingDetail(PostingCard):
     # before author capture (kept OUT of the search datastore — anonymity there
     # is preserved; the link lives only in Firestore for this author view).
     author_id: str = ""
+    # First-party author handle (synthetic or username). Present for app/website
+    # postings, empty for external (Reddit) ingests. Links to the author-by-handle
+    # page. Distinct from author_id (the real app uid, only for in-app authoring).
+    author_handle: str = ""
+    # All tag categories kept SEPARATE (the card's `visa`/`consulates`/`tags`
+    # collapse several facet groups into one). Detail view only; empty for
+    # postings whose metadata carries no recognised tag groups.
+    tag_sections: list[TagSection] = []
 
 
 class AuthorPostingCard(BaseModel):
@@ -1082,6 +1097,26 @@ async def posting_detail(case_id: str):
     # Resolve the author only for first-party app postings (Reddit/others omit).
     card["author_id"] = _posting_author_uid(case_id) if card.get("channel") == "app" else ""
     return PostingDetail(**card)
+
+
+@app.get("/api/authors/by-handle/{handle}/postings", response_model=AuthorPostingsResponse)
+async def author_postings_by_handle(handle: str):
+    """All first-party postings authored under `handle` (newest first). Powers the
+    public author-by-handle page; works for every first-party posting since they
+    all carry an author_handle. Empty for unknown/blank handles."""
+    cards = postings_by_handle(handle, _project_id, _ds_location, _datastore_id)
+    items = [
+        AuthorPostingCard(
+            case_id=c.get("case_id", ""),
+            title=c.get("title", ""),
+            visa=c.get("visa", []),
+            consulates=c.get("consulates", []),
+            outcome=c.get("outcome", ""),
+            date=c.get("date", ""),
+        )
+        for c in cards
+    ]
+    return AuthorPostingsResponse(postings=items)
 
 
 @app.get("/api/users/{uid}/public-profile")

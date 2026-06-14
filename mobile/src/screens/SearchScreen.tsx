@@ -104,7 +104,20 @@ export function SearchScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Header showLogo showProfile onProfile={() => navigation.navigate('Profile')} />
+      <Header
+        showLogo
+        showProfile
+        onProfile={() => navigation.navigate('Profile')}
+        rightAction={
+          <TouchableOpacity
+            style={styles.postButton}
+            onPress={() => navigation.navigate('Post')}
+            accessibilityLabel="Post a new message"
+          >
+            <Ionicons name="create-outline" size={20} color={colors.onPrimary} />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Search box */}
@@ -253,6 +266,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   searchButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 14 },
+  postButton: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
   strictnessRow: {
     flexDirection: 'row',
     alignItems: 'center',

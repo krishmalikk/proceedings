@@ -27,6 +27,8 @@ from datetime import datetime, timezone
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 
+import profile  # reuse scrub_pii (single source of truth for PII redaction)
+
 MAX_BODY = 5000
 _ZERO = {"up": 0, "down": 0, "score": 0}
 
@@ -182,6 +184,11 @@ def add_reply(db, parent_case_id: str, body: str, user_id: str, author_handle: s
         raise ValueError(f"Reply is too long (max {MAX_BODY} characters).")
     if not user_id:
         raise ValueError("A user id is required to reply.")
+
+    # Redact PII (email / phone / A-number) before storing — same defensive
+    # scrub applied to profiles and group messages, so a reply can never expose
+    # contact info to other users. Validation above runs on the raw input.
+    body = profile.scrub_pii(body)
 
     doc = {
         "parent_case_id": parent_case_id,

@@ -486,6 +486,19 @@ export function ProfileScreen() {
           </Button>
         </View>
 
+        {/* Legal */}
+        <TouchableOpacity
+          style={styles.legalRow}
+          onPress={() => (navigation as any).navigate('Disclaimer')}
+        >
+          <Ionicons name="shield-outline" size={18} color={colors.onSurfaceVariant} />
+          <Text style={styles.legalRowText}>Legal Disclaimer</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
+        </TouchableOpacity>
+        <Text style={styles.legalNote}>
+          Not legal advice. Proceedings is not a law firm or government agency.
+        </Text>
+
         <View style={styles.bottomPadding} />
       </ScrollView>
     </SafeAreaView>
@@ -556,6 +569,29 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   editButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 14 },
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    marginTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant,
+  },
+  legalRowText: {
+    flex: 1,
+    fontSize: typography.bodyMd.fontSize,
+    color: colors.onSurface,
+    fontWeight: '500',
+  },
+  legalNote: {
+    fontSize: typography.caption.fontSize,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
   emptyState: { alignItems: 'center', paddingVertical: spacing.md },
   emptyTitle: { fontSize: 17, fontWeight: '600', color: colors.onSurface, marginTop: spacing.base },
   emptyStateText: {
