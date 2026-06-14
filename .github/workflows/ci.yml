@@ -1,0 +1,135 @@
+name: CI
+
+# Tier-1 PR gate: fast, no GCP credentials, safe on forks.
+# Runs only the no-network test tiers so a check-in is verified in the cloud
+# without touching live Firestore / Vertex / Cloud Run. The GCP-credentialed
+# integration + E2E suites run later (see deploy.yml / a future ci-integration
+# workflow) once the CI GCP project + Workload Identity Federation are decided.
+on:
+  pull_request:
+  push:
+    branches: [main, proceedings-app]
+
+# A newer push to the same branch/PR cancels the in-flight run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Detect which surfaces changed so we only run the relevant jobs.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      website: ${{ steps.filter.outputs.website }}
+      mobile: ${{ steps.filter.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            website:
+              - 'website/**'
+              - '.github/workflows/ci.yml'
+            mobile:
+              - 'mobile/**'
+              - '.github/workflows/ci.yml'
+
+  backend:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Compile-check all sources
+        run: python -m compileall -q api.py *.py tests
+      # No-GCP test tiers only. Each script exits non-zero on failure, so
+      # `set -e` (default) fails the job. GCP_PROJECT_ID is left empty to prove
+      # these never reach for live cloud resources.
+      - name: Unit / pure suites (no GCP)
+        env:
+          GCP_PROJECT_ID: ''
+        run: |
+          python tests/test_profile_edge.py
+          python tests/test_profile_vocab.py
+          python tests/test_reconcile.py
+          python tests/test_interactions.py unit
+
+  website:
+    needs: changes
+    if: ${{ needs.changes.outputs.website == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Unit tests (Vitest)
+        run: npm run test
+      - name: Production build
+        run: npm run build
+
+  mobile:
+    needs: changes
+    if: ${{ needs.changes.outputs.mobile == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Unit tests (Jest)
+        run: npm test
+
+  # A single required status check to wire into branch protection. Stays green
+  # when a surface is skipped (path-filtered out), red if any ran job failed.
+  ci-gate:
+    needs: [backend, website, mobile]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify no required job failed
+        run: |
+          results='${{ needs.backend.result }} ${{ needs.website.result }} ${{ needs.mobile.result }}'
+          echo "job results: $results"
+          for r in $results; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "A required CI job did not pass."; exit 1
+            fi
+          done
+          echo "All ran CI jobs passed (skipped surfaces are OK)."
