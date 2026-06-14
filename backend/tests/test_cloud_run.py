@@ -459,7 +459,9 @@ def group_l_user_replies() -> None:
     print("\nL — User replies feed (deployed)")
     uid = "demo-arjun"
     parent = KNOWN_CASE_ID
-    marker = f"e2e-reply-{int(time.time())}"
+    # Hex marker (not a digit run): reply bodies are PII-scrubbed on write, and a
+    # 10+ digit token (e.g. a unix timestamp) would be redacted to "[number removed]".
+    marker = f"e2e-reply-{secrets.token_hex(5)}"
     reply_id = ""
     try:
         r = post(f"/api/postings/{parent}/replies", {"body": f"{marker} — E2E activity-feed reply."},

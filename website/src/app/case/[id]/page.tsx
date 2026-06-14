@@ -25,6 +25,8 @@ type PostingDetail = {
   date: string
   body: string
   author_id: string
+  author_handle?: string
+  tag_sections?: { label: string; tags: string[] }[]
 }
 
 function outcomeBadge(outcome: string) {
@@ -126,19 +128,58 @@ export default function CaseDetailsPage() {
               </details>
             </div>
 
-            {data.tags.length > 0 && (
-              <div className="card">
-                <h3 className="text-label-md font-semibold text-on-surface mb-3">Topics</h3>
-                <div className="flex flex-wrap gap-2">
-                  {data.tags.map((t) => (
-                    <span key={t} className="text-caption text-on-surface-variant bg-surface-container px-2 py-1 rounded">{t}</span>
+            {(() => {
+              // Show every tag category as its own labeled section. Fall back to
+              // the flat `tags` (older API / Reddit postings) under "Topics".
+              const sections =
+                data.tag_sections && data.tag_sections.length > 0
+                  ? data.tag_sections
+                  : data.tags.length > 0
+                    ? [{ label: 'Topics', tags: data.tags }]
+                    : []
+              if (sections.length === 0) return null
+              return (
+                <div className="card space-y-3">
+                  <h3 className="text-label-md font-semibold text-on-surface">Tags</h3>
+                  {sections.map((sec) => (
+                    <div key={sec.label}>
+                      <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1.5">
+                        {sec.label}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {sec.tags.map((t) => (
+                          <span key={t} className="text-caption text-on-surface-variant bg-surface-container px-2 py-1 rounded">{t}</span>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
-            {/* Author profile + their other postings (app postings only) */}
-            <AuthorSection authorId={data.author_id} channel={data.channel} currentCaseId={data.case_id} />
+            {/* Author. A real in-app author (uid) gets the rich profile card;
+                otherwise a first-party posting links its anonymous handle to the
+                author-by-handle page. External (Reddit) postings show nothing. */}
+            {data.author_id ? (
+              <AuthorSection authorId={data.author_id} channel={data.channel} currentCaseId={data.case_id} />
+            ) : data.author_handle ? (
+              <div className="card">
+                <h3 className="text-label-md font-semibold text-on-surface mb-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-[20px]">account_circle</span>
+                  Author
+                </h3>
+                <Link
+                  href={`/author-by-handle/${encodeURIComponent(data.author_handle)}`}
+                  className="inline-flex items-center gap-1.5 text-body-md font-medium text-primary hover:underline"
+                >
+                  {data.author_handle}
+                  <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                </Link>
+                <p className="text-caption text-on-surface-variant mt-1">
+                  See all postings by this author
+                </p>
+              </div>
+            ) : null}
 
             <div className="bg-gradient-to-br from-primary to-primary-container rounded-xl p-6 text-center">
               <h3 className="text-headline-md text-on-primary mb-2">Coming Soon</h3>

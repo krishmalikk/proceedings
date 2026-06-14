@@ -243,6 +243,12 @@ export async function deleteReply(postingId: string, replyId: string): Promise<v
 
 // ============= Postings =============
 
+// One labeled tag category on the detail view (mirrors the website right panel).
+export interface TagSection {
+  label: string;
+  tags: string[];
+}
+
 export interface PostingData {
   case_id: string;
   title: string;
@@ -257,6 +263,8 @@ export interface PostingData {
   date: string;
   body: string; // full posting text (markdown on the website; rendered plain here)
   author_id: string; // authoring app user (empty for reddit/unknown)
+  author_handle?: string; // first-party author handle (empty for external ingests)
+  tag_sections?: TagSection[]; // every tag category kept separate (detail view)
 }
 
 // A posting author's structured profile (the PII-free profile shown in setup).
@@ -295,6 +303,19 @@ export async function getPublicProfile(uid: string): Promise<PublicProfile | nul
 export async function getUserPostings(uid: string): Promise<AuthorPostingCard[]> {
   try {
     const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/postings`);
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.postings || []) as AuthorPostingCard[];
+  } catch {
+    return [];
+  }
+}
+
+// All first-party postings authored under a given handle (newest first). Powers
+// the author-by-handle screen (mirrors the website /author-by-handle/[handle]).
+export async function getPostingsByHandle(handle: string): Promise<AuthorPostingCard[]> {
+  try {
+    const r = await fetch(`${API_URL}/api/authors/by-handle/${encodeURIComponent(handle)}/postings`);
     if (!r.ok) return [];
     const d = await r.json();
     return (d.postings || []) as AuthorPostingCard[];

@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
+import { USER_KEY } from '@/lib/activeUser'
 import PostingCard, { type PostingCardData } from '@/components/PostingCard'
 import Markdown from '@/components/Markdown'
 import StrictnessSlider, { useStrictness, AppliedFilters } from '@/components/StrictnessSlider'
@@ -23,6 +26,15 @@ const EXAMPLES = [
 export default function UnifiedSearch() {
   const router = useRouter()
   const params = useSearchParams()
+
+  // Post entry lives here now (moved off the top bar): shown for Firebase users
+  // AND dev-mode (demo picker) users — same gating the TopAppBar used.
+  const { user } = useAuth()
+  const [devUid, setDevUid] = useState('')
+  useEffect(() => {
+    if (typeof window !== 'undefined') setDevUid(localStorage.getItem(USER_KEY) || '')
+  }, [])
+  const canPost = !!(user || devUid)
 
   const [input, setInput] = useState(params.get('q') || '')
   const [query, setQuery] = useState(params.get('q') || '')
@@ -168,33 +180,51 @@ export default function UnifiedSearch() {
     if (query) runSearch(query, next)   // refines MIDDLE only
   }
 
+  // Persistent top-right Post action (both landing & results). Gated like the
+  // old TopAppBar button (Firebase user OR dev-mode picker). Collapses to "Post".
+  const postButton = canPost ? (
+    <Link
+      href="/post"
+      className="btn-primary rounded-full flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+    >
+      <span className="material-symbols-outlined text-[20px]">edit_square</span>
+      <span className="hidden sm:inline">Post a new message</span>
+      <span className="sm:hidden">Post</span>
+    </Link>
+  ) : null
+
   // ---------------- LANDING ----------------
   if (!started) {
     return (
-      <div className="max-w-2xl mx-auto px-4 flex flex-col items-center justify-center min-h-[60vh]">
-        <h1 className="text-display-lg md:text-headline-lg text-primary mb-6 text-center">
-          Search immigration experiences
-        </h1>
-        <form
-          onSubmit={(e) => { e.preventDefault(); submit(input) }}
-          className="w-full relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-full focus-within:border-primary transition-all shadow-sm"
-        >
-          <span className="material-symbols-outlined text-on-surface-variant ml-4">search</span>
-          <input
-            autoFocus
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Search a posting or ask a question…"
-            className="flex-1 px-4 py-4 bg-transparent border-none focus:ring-0 focus:outline-none text-body-lg text-on-surface"
-          />
-          <button type="submit" disabled={input.trim().length < 3} className="btn-primary rounded-full mr-2 my-2 disabled:opacity-40">
-            Search
-          </button>
-        </form>
-        <div className="flex flex-wrap gap-2 mt-6 justify-center">
-          {EXAMPLES.map((ex) => (
-            <button key={ex} onClick={() => { setInput(ex); submit(ex) }} className="pill">{ex}</button>
-          ))}
+      <div className="max-w-3xl mx-auto px-4">
+        {/* Persistent top-right Post action */}
+        <div className="flex justify-end pt-4 min-h-[2.5rem]">{postButton}</div>
+
+        <div className="flex flex-col items-center justify-center min-h-[55vh] -mt-10">
+          <h1 className="text-display-lg md:text-headline-lg text-primary mb-6 text-center">
+            Search immigration experiences
+          </h1>
+          <form
+            onSubmit={(e) => { e.preventDefault(); submit(input) }}
+            className="w-full max-w-2xl relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-full focus-within:border-primary transition-all shadow-sm"
+          >
+            <span className="material-symbols-outlined text-on-surface-variant ml-4">search</span>
+            <input
+              autoFocus
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Search a posting or ask a question…"
+              className="flex-1 px-4 py-4 bg-transparent border-none focus:ring-0 focus:outline-none text-body-lg text-on-surface"
+            />
+            <button type="submit" disabled={input.trim().length < 3} className="btn-primary rounded-full mr-2 my-2 disabled:opacity-40">
+              Search
+            </button>
+          </form>
+          <div className="flex flex-wrap gap-2 mt-6 justify-center">
+            {EXAMPLES.map((ex) => (
+              <button key={ex} onClick={() => { setInput(ex); submit(ex) }} className="pill">{ex}</button>
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -203,20 +233,23 @@ export default function UnifiedSearch() {
   // ---------------- RESULTS (3 panels) ----------------
   return (
     <div className="max-w-[90rem] mx-auto px-4 py-6">
-      {/* search bar (top) */}
-      <form
-        onSubmit={(e) => { e.preventDefault(); submit(input) }}
-        className="max-w-3xl relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-full focus-within:border-primary transition-all shadow-sm mb-6"
-      >
-        <span className="material-symbols-outlined text-on-surface-variant ml-4">search</span>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Search a posting or ask a question…"
-          className="flex-1 px-4 py-3 bg-transparent border-none focus:ring-0 focus:outline-none text-body-lg text-on-surface"
-        />
-        <button type="submit" disabled={input.trim().length < 3} className="btn-primary rounded-full mr-2 my-2 disabled:opacity-40">Search</button>
-      </form>
+      {/* search bar (top) + persistent top-right Post action */}
+      <div className="flex items-center gap-3 mb-6">
+        <form
+          onSubmit={(e) => { e.preventDefault(); submit(input) }}
+          className="flex-1 max-w-3xl relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-full focus-within:border-primary transition-all shadow-sm"
+        >
+          <span className="material-symbols-outlined text-on-surface-variant ml-4">search</span>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Search a posting or ask a question…"
+            className="flex-1 px-4 py-3 bg-transparent border-none focus:ring-0 focus:outline-none text-body-lg text-on-surface"
+          />
+          <button type="submit" disabled={input.trim().length < 3} className="btn-primary rounded-full mr-2 my-2 disabled:opacity-40">Search</button>
+        </form>
+        <div className="ml-auto">{postButton}</div>
+      </div>
 
       {error && <div className="card text-error mb-4">{error}</div>}
 

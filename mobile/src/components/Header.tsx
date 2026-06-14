@@ -42,7 +42,7 @@ export function Header({
           {showLogo && !showBack && (
             <View style={styles.logoContainer}>
               <View style={styles.logoIcon}>
-                <Ionicons name="shield-checkmark" size={20} color={colors.onPrimary} />
+                <Ionicons name="flame" size={18} color={colors.accent} />
               </View>
               <Text style={styles.logoText}>Proceedings</Text>
             </View>
@@ -100,14 +100,16 @@ const styles = StyleSheet.create({
   logoIcon: {
     width: 28,
     height: 28,
-    borderRadius: 6,
-    backgroundColor: colors.primary,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 2.5,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
   logoText: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '700',
     color: colors.primary,
   },

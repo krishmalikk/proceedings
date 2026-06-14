@@ -506,6 +506,36 @@ def search_with_strictness(
     return _wrap(data, "balanced", False)
 
 
+# Tag categories surfaced on the posting-detail page, in display order. Each is
+# a distinct facet group; the card's `visa`/`consulates`/`tags` collapse them.
+_TAG_SECTION_FIELDS = [
+    ("Current status", "current_visa_or_greencard_category"),
+    ("Applying for", "visa_applying_for"),
+    ("Consulates", "consulates"),
+    ("Concerns & questions", "concerns_or_questions_tags"),
+    ("Topics", "tags"),
+    ("Related topics", "derived_topic_cluster"),
+]
+
+
+def _tag_sections_from_meta(meta: dict) -> list[dict]:
+    """Distinct, labeled tag groups for the detail view: non-empty groups only,
+    de-duplicated within each group, display order preserved. Kept separate from
+    the card's collapsed `tags`/`visa`/`consulates` fields."""
+    sections: list[dict] = []
+    for label, field in _TAG_SECTION_FIELDS:
+        vals = _as_list(meta.get(field))
+        if field == "consulates":
+            primary = str(meta.get("primary_consulate") or "").strip()
+            if primary and primary not in vals:
+                vals = [primary, *vals]
+        seen: set[str] = set()
+        uniq = [v for v in vals if v and not (v in seen or seen.add(v))]
+        if uniq:
+            sections.append({"label": label, "tags": uniq})
+    return sections
+
+
 def get_posting(case_id: str, project_id: str, location: str, datastore_id: str) -> dict | None:
     """
     Fetch one posting's full detail: structData card fields + the Markdown body
@@ -526,6 +556,10 @@ def get_posting(case_id: str, project_id: str, location: str, datastore_id: str)
 
     meta = _struct_to_dict(doc.struct_data)
     card = _card_from_struct(case_id, meta)
+    card["tag_sections"] = _tag_sections_from_meta(meta)
+    # First-party author identity (synthetic handle or username). Empty for
+    # external (Reddit/other) ingests — they carry no author_handle.
+    card["author_handle"] = str(meta.get("author_handle") or "").strip()
 
     # Body lives in the GCS sidecar (.md), referenced by content.uri / gcs_path.
     body = ""
@@ -540,6 +574,55 @@ def get_posting(case_id: str, project_id: str, location: str, datastore_id: str)
 
     card["body"] = body
     return card
+
+
+# ---------------------------------------------------------------------------
+# Postings by author handle (first-party authorship)
+#
+# `author_handle` is NOT a filterable datastore field, so we can't query it via
+# search. Instead we enumerate the branch's documents once and build a
+# handle → [cards] index, cached briefly (the datastore is small — ~hundreds of
+# docs, sub-2s to list). This powers the public "author by handle" page, which
+# works for EVERY first-party posting (seeded/imported or app-authored) since
+# they all carry an author_handle in structData.
+# ---------------------------------------------------------------------------
+
+_HANDLE_INDEX_TTL = 120.0  # seconds
+_handle_index: dict = {"built_at": 0.0, "map": {}}
+
+
+def _build_handle_index(project_id: str, location: str, datastore_id: str) -> dict:
+    dc = de.DocumentServiceClient(client_options=ClientOptions(quota_project_id=project_id))
+    parent = (
+        f"projects/{project_id}/locations/{location}/collections/default_collection"
+        f"/dataStores/{datastore_id}/branches/default_branch"
+    )
+    idx: dict[str, list[dict]] = {}
+    for doc in dc.list_documents(request=de.ListDocumentsRequest(parent=parent, page_size=100)):
+        meta = _struct_to_dict(doc.struct_data)
+        handle = str(meta.get("author_handle") or "").strip()
+        if not handle:
+            continue
+        idx.setdefault(handle, []).append(_card_from_struct(doc.id, meta))
+    for cards in idx.values():  # newest first within each handle
+        cards.sort(key=lambda c: c.get("date") or "", reverse=True)
+    return idx
+
+
+def postings_by_handle(handle: str, project_id: str, location: str, datastore_id: str) -> list[dict]:
+    """All postings authored under `handle` (newest first). Empty for unknown or
+    blank handles. Backed by a short-lived in-process index of the datastore."""
+    handle = (handle or "").strip()
+    if not handle:
+        return []
+    now = time.time()
+    if not _handle_index["map"] or now - _handle_index["built_at"] > _HANDLE_INDEX_TTL:
+        try:
+            _handle_index["map"] = _build_handle_index(project_id, location, datastore_id)
+            _handle_index["built_at"] = now
+        except Exception as e:  # noqa: BLE001 - best-effort; serve stale/empty on failure
+            print(f"postings_by_handle: index build failed: {e}")
+    return list(_handle_index["map"].get(handle, []))
 
 
 # --- Context-aware dynamic filter suggestions (tag hierarchy + live counts) --

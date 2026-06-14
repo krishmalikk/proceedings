@@ -62,24 +62,24 @@
   }
 
   .section-padding {
-    @apply py-16 sm:py-20 lg:py-24;
+    @apply py-6 sm:py-8 lg:py-10;
   }
 
   .section-padding-sm {
-    @apply py-10 sm:py-12 lg:py-16;
+    @apply py-3 sm:py-4 lg:py-6;
   }
 
   /* Card styles */
   .card {
-    @apply bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm;
+    @apply bg-surface-container-lowest border border-outline-variant rounded-xl p-3.5 shadow-sm;
   }
 
   .card-hover {
-    @apply bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-outline hover:-translate-y-0.5;
+    @apply bg-surface-container-lowest border border-outline-variant rounded-xl p-3.5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-outline hover:-translate-y-0.5;
   }
 
   .card-elevated {
-    @apply bg-surface-container-low rounded-xl p-6 shadow-md;
+    @apply bg-surface-container-low rounded-xl p-3.5 shadow-md;
   }
 
   /* Nav link styles */
@@ -105,7 +105,11 @@
   }
 
   .badge-success {
-    @apply badge bg-secondary-container text-secondary;
+    @apply badge bg-success-container text-on-success-container;
+  }
+
+  .badge-accent {
+    @apply badge bg-accent-container text-on-accent-container;
   }
 
   .badge-error {
