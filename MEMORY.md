@@ -803,6 +803,24 @@ Five spec refinements on top of D-051 (`phase-M-find-users-in-same-boat`):
 
 **Affected docs / status:** Done on `fix-channel-app-domain-config`. New env vars documented in `CLAUDE.md` + `docs/DEPLOYMENT.md`.
 
+## D-056 — 2026-06-13 — CI/CD on GitHub Actions: no-creds PR gate + manual-approval deploy
+
+**Decision:** Stood up CI/CD so tests run in the cloud on check-in. Two workflows: **`.github/workflows/ci.yml`** (the gate) and **`.github/workflows/deploy.yml`** (manual-approval deploy scaffold). Full write-up + setup + follow-ups in **[docs/CI-CD.md](docs/CI-CD.md)** (cross-linked from `CLAUDE.md`).
+
+**Locked choices:** (1) **GitHub Actions** (repo is on GitHub); (2) **tier tests by dependency** — Tier-1 unit/pure (no GCP) on every PR; Tier-2 integration (live Firestore) and Tier-3 E2E (deployed backend) stay **off the PR gate** (need creds → unsafe on forks, slow, costly, write data); (3) deploy is **never automatic** — `workflow_dispatch` (manual start) **+** `environment: production` required-reviewer approval, then a **canary**: `--no-traffic` candidate revision → `test_cloud_run.py` smoke → promote traffic only if green.
+
+**CI gate (active):** path-filtered (`dorny/paths-filter`) per surface. `backend` = `compileall` + no-GCP suites run with `GCP_PROJECT_ID=''` (`test_profile_edge`, `test_profile_vocab`, `test_reconcile unit`, `test_interactions unit`); `website` = lint + tsc + Vitest + `next build`; `mobile` = Jest; `ci-gate` aggregates into one required status check (green when a surface is filtered out). First run surfaced + fixed two gate issues: `test_reconcile.py` got a **`unit` scope** (it defaulted to `all` → live group E + hard `PROJECT` guard → exit 2); mobile **`tsc --noEmit` dropped** (pre-existing strict-TS errors in `Button.tsx`/`Input.tsx`; Metro/Babel never typecheck).
+
+**Verification:** CI run on `proceedings-app` green across all jobs (website 1m11s, mobile 41s, backend 36s, ci-gate). `test_reconcile.py unit` = 60/60 with no project/creds; `test_interactions.py unit` = 20/20. Docs-only pushes confirm path filters skip all surface jobs while `ci-gate` stays green.
+
+**Deferred (GCP tiers):** the one open decision is **which GCP project CI uses** (dedicated staging — recommended — vs prod `proceedings-490601`) and auth via **Workload Identity Federation** (keyless OIDC, no JSON key). The `deploy.yml` GCP-auth/`gcloud run deploy`/E2E steps are **commented `TODO` blocks** until then — nothing touches GCP yet.
+
+**Follow-up tasks** (full list in `docs/CI-CD.md`):
+- _CI/CD:_ one-time GitHub setup (branch protection requiring `ci-gate`; `production` environment + required reviewers) → decide CI GCP project → WIF (pool/provider + deploy SA + repo secrets) → activate `deploy.yml` → add **`ci-integration.yml`** (Tier-2 on merge/nightly, WIF-authed) → bump `actions/*` off the deprecated Node-20 runner → optional Artifact Registry image build.
+- _Test-debt surfaced by CI:_ fix mobile strict-TS (`Button.tsx`/`Input.tsx`) then restore the mobile `tsc` step; fix `test_profile.py` **B16** stale assertion (asserts the profile has no `tags`/`concerns_or_questions_tags` field, but the schema now has `tags`); add a `unit` scope to `test_search_features.py` so its pure groups can join the gate while the `/api/chat` integration groups stay deferred.
+
+**Affected docs / status:** Done on `proceedings-app` (commits through `19ce032`). New doc `docs/CI-CD.md`; `CLAUDE.md` Commands ▸ CI/CD pointer added. `test_reconcile.py` gained a `unit` scope.
+
 ---
 
 # Session summaries
