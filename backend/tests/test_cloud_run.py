@@ -20,6 +20,11 @@ import time
 import requests
 from dotenv import load_dotenv
 
+# Put the backend package dir on the path so local modules (e.g. `posting`,
+# which performs datastore-side cleanup) import regardless of the CWD the test
+# is launched from.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Load the repo `.env` so GCP_PROJECT_ID (→ proceedings-490601) drives the
 # Firestore cleanup client explicitly, instead of silently falling back to
 # whatever project ADC / gcloud config happens to default to.
