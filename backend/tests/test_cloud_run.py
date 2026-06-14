@@ -18,6 +18,17 @@ import sys
 import time
 
 import requests
+from dotenv import load_dotenv
+
+# Put the backend package dir on the path so local modules (e.g. `posting`,
+# which performs datastore-side cleanup) import regardless of the CWD the test
+# is launched from.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Load the repo `.env` so GCP_PROJECT_ID (→ proceedings-490601) drives the
+# Firestore cleanup client explicitly, instead of silently falling back to
+# whatever project ADC / gcloud config happens to default to.
+load_dotenv()
 
 BASE = os.getenv("CLOUD_RUN_URL", "https://immiguide-api-971592620882.us-central1.run.app").rstrip("/")
 KNOWN_CASE_ID = "reddit-2026-04-11-USVisas-1socshn"
@@ -316,6 +327,213 @@ def group_i_chat() -> None:
         print("  cleaned up chat test docs")
 
 
+def _cleanup_posting(case_id: str) -> None:
+    """Best-effort removal of a posting this run created: the datastore doc +
+    GCS sidecars (via posting.delete_content, available in CI/deployed envs) and
+    the Firestore posting↔author link. No-op if those deps are unavailable."""
+    try:
+        from google.cloud import firestore
+        db = firestore.Client(project=os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT"))
+        db.collection("posting_authors").document(case_id).delete()
+    except Exception as e:  # noqa: BLE001
+        print(f"  cleanup note (firestore): {e}")
+    try:
+        import posting  # imports discoveryengine — may be absent locally
+        posting.delete_content(case_id)
+    except Exception as e:  # noqa: BLE001
+        print(f"  cleanup note (datastore): {e}")
+
+
+def group_j_author() -> None:
+    """End-to-end posting author flow across two users (item: author profiles):
+      - User-1 publishes a posting (success)
+      - User-1 finds it in search and opens it, sees themselves as the owner
+      - User-2 opens the same posting and sees User-1 as the author
+      - User-2 opens the author's profile and sees User-1's profile
+      - User-2 sees all of User-1's postings
+    Author attribution is viewer-independent and resolved from the Firestore
+    posting↔author link (immediate); search is eventually-consistent so the
+    'find in search' step is retried and reported as a soft check.
+    """
+    print("\nJ — Posting author profile (two users, deployed)")
+    user1, user2 = "demo-arjun", "demo-mei"
+    marker = f"e2e-author-{int(time.time())}"
+    case_id = ""
+    try:
+        # 1) User-1 publishes a posting with a unique keyword.
+        r = post("/api/postings", {
+            "title": f"E2E author test {marker} — H-1B stamping at Mumbai",
+            "description": f"End-to-end author-flow test {marker}. H-1B visa stamping experience at the Mumbai consulate.",
+            "tags": {"visa_applying_for": ["H-1B"], "current_visa_or_greencard_category": ["H-1B"],
+                     "consulates": ["BOM"], "tags": ["premium-processing"], "concerns_or_questions_tags": []},
+            "key_stages_or_info": {"outcome_status": "approved"}, "key_dates": {},
+        }, headers=hdr(user1))
+        case_id = r.json().get("case_id", "") if r.status_code == 200 else ""
+        check("J1 user-1 publishes a posting", r.status_code == 200 and bool(case_id),
+              f"status={r.status_code} case_id={case_id}")
+
+        # 2) User-1 opens it → owner is user-1 (author attribution, immediate).
+        d1 = get(f"/api/postings/{case_id}", headers=hdr(user1)).json() if case_id else {}
+        check("J2 user-1 sees themselves as the owner", d1.get("author_id") == user1,
+              f"author_id={d1.get('author_id')}")
+
+        # 3) User-2 opens the SAME posting → author is user-1 (viewer-independent).
+        d2 = get(f"/api/postings/{case_id}", headers=hdr(user2)).json() if case_id else {}
+        check("J3 user-2 sees user-1 as the author", d2.get("author_id") == user1,
+              f"author_id={d2.get('author_id')}")
+
+        # 4) User-2 opens the author's profile → user-1's profile.
+        prof = get(f"/api/users/{user1}/public-profile", headers=hdr(user2))
+        pj = prof.json() if prof.status_code == 200 else {}
+        check("J4 user-2 sees user-1's profile", prof.status_code == 200 and bool(pj.get("username")),
+              f"status={prof.status_code} username={pj.get('username')}")
+
+        # 5) User-2 sees all of user-1's postings (includes the new one).
+        lst = get(f"/api/users/{user1}/postings", headers=hdr(user2))
+        ids = [p["case_id"] for p in (lst.json().get("postings", []) if lst.status_code == 200 else [])]
+        check("J5 user-2 sees user-1's postings (incl. the new one)",
+              lst.status_code == 200 and case_id in ids, f"count={len(ids)} has_new={case_id in ids}")
+
+        # 6) (soft) the posting is findable in search by its keyword — eventually consistent.
+        found = False
+        for _ in range(6):
+            res = get("/api/search", params={"q": marker, "page_size": "20"})
+            ids_s = [p.get("case_id") for p in (res.json().get("results", []) if res.status_code == 200 else [])]
+            if case_id in ids_s:
+                found = True
+                break
+            time.sleep(10)
+        print(f"  [{'PASS' if found else 'SOFT'}] J6 posting indexed + findable in search "
+              f"(soft — search is eventually-consistent)")
+    finally:
+        if case_id:
+            _cleanup_posting(case_id)
+
+
+def group_k_profile_and_author_consistency() -> None:
+    """Profile update from the posting flow persists, and what another user sees
+    of an author's profile is exactly that author's own profile (same tags)."""
+    print("\nK — Profile update persists + author-profile consistency")
+    u1, viewer = "demo-arjun", "demo-mei"  # demo-arjun has a current visa set (so a real conflict can arise)
+    orig = get("/api/profile", headers=hdr(u1)).json()
+    orig_visa = orig.get("current_visa_or_greencard_category", []) or ["H-1B"]
+    new_visa = ["F-1"] if orig_visa != ["F-1"] else ["O-1"]
+    # Ensure the profile has the baseline visa so the conflict is deterministic.
+    if orig.get("current_visa_or_greencard_category") != orig_visa:
+        seed = dict(orig); seed["current_visa_or_greencard_category"] = orig_visa
+        req("PUT", "/api/profile", json=seed, headers=hdr(u1))
+        orig = get("/api/profile", headers=hdr(u1)).json()
+    try:
+        # reconcile a message that disagrees with the saved profile → a conflict.
+        rec = post("/api/reconcile", {"message": {
+            "current_visa_or_greencard_category": new_visa, "visa_applying_for": [],
+            "consulates": [], "tags": [], "concerns_or_questions_tags": [],
+            "key_stages_or_info": {}, "key_dates": {}}}, headers=hdr(u1)).json()
+        check("K1 reconcile flags the profile↔message conflict",
+              any(c.get("field") == "current_visa_or_greencard_category" for c in rec.get("conflicts", [])),
+              str(rec.get("conflicts")))
+        # apply the conflict ("update my profile to match") and confirm it PERSISTS.
+        upd = dict(orig); upd["current_visa_or_greencard_category"] = new_visa
+        r = req("PUT", "/api/profile", json=upd, headers=hdr(u1))
+        after = get("/api/profile", headers=hdr(u1)).json()
+        check("K2 profile update from posting persists on re-read",
+              r.status_code == 200 and after.get("current_visa_or_greencard_category") == new_visa,
+              f"status={r.status_code} after={after.get('current_visa_or_greencard_category')}")
+    finally:
+        req("PUT", "/api/profile", json=orig, headers=hdr(u1))  # restore
+
+    # Consistency: a viewer's public-profile view == the author's own profile tags.
+    own = get("/api/profile", headers=hdr(u1)).json()
+    pub = get(f"/api/users/{u1}/public-profile", headers=hdr(viewer)).json()
+    fields = ["username", "current_visa_or_greencard_category", "visa_applying_for",
+              "consulates", "tags", "key_stages_or_info", "key_dates"]
+    diffs = [f for f in fields if own.get(f) != pub.get(f)]
+    check("K3 viewer's author-profile view matches the author's own profile (tags)",
+          not diffs, "diffs=" + str({f: (own.get(f), pub.get(f)) for f in diffs}) if diffs else "all match")
+
+
+def group_l_user_replies() -> None:
+    """The profile 'your activity' feed: a user's authored replies surface at
+    GET /api/users/{uid}/replies (newest-first, with parent posting id), and a
+    soft-deleted reply drops out of the feed."""
+    print("\nL — User replies feed (deployed)")
+    uid = "demo-arjun"
+    parent = KNOWN_CASE_ID
+    marker = f"e2e-reply-{int(time.time())}"
+    reply_id = ""
+    try:
+        r = post(f"/api/postings/{parent}/replies", {"body": f"{marker} — E2E activity-feed reply."},
+                 headers=hdr(uid))
+        reply_id = r.json().get("id", "") if r.status_code == 200 else ""
+        check("L1 user posts a reply", r.status_code == 200 and bool(reply_id),
+              f"status={r.status_code} id={reply_id}")
+
+        feed = get(f"/api/users/{uid}/replies", headers=hdr(uid))
+        rows = feed.json().get("replies", []) if feed.status_code == 200 else []
+        mine = next((x for x in rows if x.get("id") == reply_id), None)
+        check("L2 reply appears in the user's activity feed",
+              feed.status_code == 200 and mine is not None, f"status={feed.status_code} count={len(rows)}")
+        check("L3 feed item carries the parent posting id for linking",
+              bool(mine) and mine.get("parent_case_id") == parent,
+              f"parent={mine.get('parent_case_id') if mine else None}")
+        check("L4 feed item carries the reply body",
+              bool(mine) and marker in (mine.get("body") or ""), "")
+        # Newest-first: the just-created reply should be at (or near) the top.
+        check("L5 feed is newest-first", bool(rows) and rows[0].get("id") == reply_id,
+              f"top={rows[0].get('id') if rows else None}")
+
+        # Soft-delete → it leaves the feed.
+        d = delete(f"/api/postings/{parent}/replies/{reply_id}", headers=hdr(uid))
+        feed2 = get(f"/api/users/{uid}/replies", headers=hdr(uid))
+        ids2 = [x.get("id") for x in (feed2.json().get("replies", []) if feed2.status_code == 200 else [])]
+        check("L6 soft-deleted reply drops out of the feed",
+              d.status_code == 200 and reply_id not in ids2, f"delete={d.status_code} still_present={reply_id in ids2}")
+        reply_id = ""  # already removed
+    finally:
+        if reply_id:
+            _cleanup_interactions(parent, [reply_id])
+
+
+def group_m_uid_registration() -> None:
+    """The X-User-Id auth gate: a fresh uid is rejected (404) until it is
+    registered via POST /api/users, after which authed endpoints accept it.
+    Registration is idempotent and never overwrites an existing profile."""
+    print("\nM — uid registration gate (deployed)")
+    import secrets
+    uid = "e2euid" + secrets.token_hex(6)  # matches [A-Za-z0-9_-]{6,128}, not a seed / not 'new-'
+    try:
+        # Unknown uid → the gate rejects it on an authed endpoint.
+        before = get("/api/profile", headers=hdr(uid))
+        check("M1 unknown uid rejected by the auth gate (404)", before.status_code == 404,
+              f"status={before.status_code}")
+
+        # Register the uid.
+        reg = post("/api/users", {"uid": uid, "username": "E2E Reg User"})
+        body = reg.json() if reg.status_code == 200 else {}
+        check("M2 POST /api/users registers the uid", reg.status_code == 200 and body.get("id") == uid,
+              f"status={reg.status_code} id={body.get('id')}")
+
+        # Now the same uid is accepted.
+        after = get("/api/profile", headers=hdr(uid))
+        check("M3 registered uid is accepted by the auth gate (200)", after.status_code == 200,
+              f"status={after.status_code}")
+        check("M4 registered profile carries the chosen username",
+              after.json().get("username") == "E2E Reg User", f"username={after.json().get('username')}")
+
+        # Idempotent: a second register returns the existing account, no overwrite.
+        reg2 = post("/api/users", {"uid": uid, "username": "Should Not Overwrite"})
+        check("M5 re-registration is idempotent (keeps the original username)",
+              reg2.status_code == 200 and reg2.json().get("username") == "E2E Reg User",
+              f"status={reg2.status_code} username={reg2.json().get('username')}")
+    finally:
+        try:
+            from google.cloud import firestore
+            db = firestore.Client(project=os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT"))
+            db.collection("users").document(uid).delete()
+        except Exception as e:  # noqa: BLE001
+            print(f"  cleanup note (firestore): {e}")
+
+
 def main() -> int:
     print(f"Cloud Run E2E — {BASE}")
     group_a_health()
@@ -327,6 +545,10 @@ def main() -> int:
     group_g_interactions()
     group_h_matching()
     group_i_chat()
+    group_j_author()
+    group_k_profile_and_author_consistency()
+    group_l_user_replies()
+    group_m_uid_registration()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)

@@ -216,6 +216,24 @@ def list_replies(db, parent_case_id: str, viewer_id: str = "", sort: str = "top"
     return views
 
 
+def list_user_replies(db, user_id: str, limit: int = 50) -> list[dict]:
+    """All non-deleted replies AUTHORED by a user, newest first. Each item carries
+    the parent posting id so the client can link back to the posting. Powers the
+    profile 'your activity' section."""
+    if not user_id or db is None:
+        return []
+    q = db.collection("replies").where(filter=FieldFilter("user_id", "==", user_id))
+    docs = [{**d.to_dict(), "id": d.id} for d in q.stream()]
+    docs = [d for d in docs if not d.get("deleted")]
+    docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
+    return [{
+        "id": d["id"],
+        "parent_case_id": d.get("parent_case_id", ""),
+        "body": d.get("body", ""),
+        "created_at": d.get("created_at", ""),
+    } for d in docs[:limit]]
+
+
 def delete_reply(db, reply_id: str, user_id: str) -> None:
     """Soft-delete a reply. Author-only: raises PermissionError otherwise,
     KeyError if the reply does not exist."""

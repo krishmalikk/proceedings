@@ -21,6 +21,9 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
+# test coverage (jest --coverage)
+/coverage
+
 # debug
 npm-debug.*
 yarn-debug.*
@@ -39,3 +42,4 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+.env

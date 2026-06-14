@@ -375,10 +375,13 @@ def group_f() -> None:
 
 
 def main() -> int:
-    if not PROJECT:
-        print("GCP_PROJECT_ID must be set"); return 2
     only = sys.argv[1] if len(sys.argv) > 1 else "all"
-    print(f"Reconcile/experience tests — project={PROJECT}  (scope={only})")
+    # `unit` runs only the no-GCP groups (A–D/F); the integration group E is
+    # already gated below, so it needs no project/credentials. Every other
+    # scope still requires a project.
+    if not PROJECT and only != "unit":
+        print("GCP_PROJECT_ID must be set"); return 2
+    print(f"Reconcile/experience tests — project={PROJECT or '(none)'}  (scope={only})")
     # Mark every BQ row this run's live publishes write so they're purgeable.
     os.environ["POSTING_PIPELINE_RUN_ID"] = "test-e2e"
     if only in ("all", "integration"):

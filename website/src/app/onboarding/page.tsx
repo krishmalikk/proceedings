@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Markdown from '@/components/Markdown'
+import { useAuth } from '@/contexts/AuthContext'
 import { getActiveUser, setActiveUser, userHeaders } from '@/lib/activeUser'
 
 type JourneyEntry = { milestone: string; date: string; experience: string; shared?: boolean; experience_case_id?: string }
@@ -24,8 +25,10 @@ type SeedUser = { id: string; username: string; label?: string }
 type Turn = { id: string; role: 'user' | 'ai'; content: string }
 type Stage = 'basics' | 'experiences'
 type ConsulateOption = { code: string; label: string }
+type ConsulateCountry = { country: string; country_code: string; cities: { code: string; city: string }[] }
 type Vocab = {
   visa: string[]; consulate: string[]; consulate_options: ConsulateOption[]; tag: string[]
+  consulate_tree: ConsulateCountry[]
   stage_key: string[]; date_key: string[]; outcome: string[]; country: string[]
   misc: string[]; misc_options: ConsulateOption[]; profile_stage_key: string[]
   stage_value_domains: Record<string, string>
@@ -37,7 +40,7 @@ const EMPTY: Profile = {
   background_text: '', journey: [], created_at: '', updated_at: '',
 }
 const EMPTY_VOCAB: Vocab = {
-  visa: [], consulate: [], consulate_options: [], tag: [], stage_key: [], date_key: [],
+  visa: [], consulate: [], consulate_options: [], consulate_tree: [], tag: [], stage_key: [], date_key: [],
   outcome: [], country: [], misc: [], misc_options: [], profile_stage_key: [], stage_value_domains: {},
 }
 
@@ -68,6 +71,7 @@ const LIST_SECTIONS: { field: ListField; label: string; kind: TagKind }[] = [
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const { user: authUser } = useAuth()
   const [users, setUsers] = useState<SeedUser[]>([])
   const [activeId, setActiveId] = useState('')
   const [stage, setStage] = useState<Stage>('basics')
@@ -86,6 +90,8 @@ export default function OnboardingPage() {
   // KV add inputs (key stages / key dates)
   const [sKey, setSKey] = useState(''); const [sVal, setSVal] = useState('')
   const [dKey, setDKey] = useState(''); const [dVal, setDVal] = useState('')
+  // Two-part consulate picker: type-to-filter a country, then pick a city.
+  const [consCountry, setConsCountry] = useState<ConsulateCountry | null>(null)
   // Generated facets for each SHARED/published experience (the experience JSON), fetched from its doc.
   type ExpFacets = { visa: string[]; consulates: string[]; outcome: string; tags: string[]; date: string }
   const [expFacets, setExpFacets] = useState<Record<string, ExpFacets>>({})
@@ -103,6 +109,7 @@ export default function OnboardingPage() {
     }).catch(() => {})
     fetch('/api/tag-vocab').then((r) => r.json()).then((d) => setVocab({
       visa: d.visa || [], consulate: d.consulate || [], consulate_options: d.consulate_options || [],
+      consulate_tree: d.consulate_tree || [],
       tag: d.tag || [], stage_key: d.stage_key || [], date_key: d.date_key || [],
       outcome: d.outcome || [], country: d.country || [],
       misc: d.misc || [], misc_options: d.misc_options || [], profile_stage_key: d.profile_stage_key || [],
@@ -340,15 +347,23 @@ export default function OnboardingPage() {
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
         <h1 className="text-headline-md text-on-surface">{savedAt ? 'Your profile' : 'Set up your profile'}</h1>
-        <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
-          <span className="material-symbols-outlined text-[20px]">switch_account</span>
-          Demo user:
-          <select value={activeId} onChange={(e) => { const v = e.target.value; if (v === '__new__') createNewUser(); else switchUser(v) }}
-            className="bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-body-md focus:outline-none focus:border-primary">
-            {users.map((u) => <option key={u.id} value={u.id}>{u.label || u.username}</option>)}
-            <option value="__new__">➕ New user…</option>
-          </select>
-        </label>
+        {authUser ? (
+          /* Firebase-authenticated — the demo picker is inert (the uid wins), so show identity instead. */
+          <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
+            <span className="material-symbols-outlined text-[20px]">account_circle</span>
+            Signed in as {authUser.displayName || authUser.email}
+          </span>
+        ) : (
+          <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
+            <span className="material-symbols-outlined text-[20px]">switch_account</span>
+            Demo user:
+            <select value={activeId} onChange={(e) => { const v = e.target.value; if (v === '__new__') createNewUser(); else switchUser(v) }}
+              className="bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1 text-body-md focus:outline-none focus:border-primary">
+              {users.map((u) => <option key={u.id} value={u.id}>{u.label || u.username}</option>)}
+              <option value="__new__">➕ New user…</option>
+            </select>
+          </label>
+        )}
       </div>
 
       {/* stepper */}
@@ -444,28 +459,82 @@ export default function OnboardingPage() {
                         </span>
                       ))}
                     </div>
-                    <input list={listId}
-                      placeholder={s.kind === 'consulate' ? 'Add a consulate (search city/country)…' : `Add ${s.label.toLowerCase()}…`}
-                      onChange={(e) => {
-                        // Auto-add as soon as a valid value is chosen from the dropdown
-                        // (or fully typed). No error on partial input — Enter handles that.
-                        const val = e.target.value
-                        const valid = s.kind === 'consulate' ? consulateByLabel.has(val)
-                          : s.kind === 'misc' ? miscByLabel.has(val)
-                          : vocabSets[s.kind].has(val)
-                        if (valid) { addTag(s.field, s.kind, val); e.target.value = '' }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          addTag(s.field, s.kind, (e.target as HTMLInputElement).value)
-                          ;(e.target as HTMLInputElement).value = ''
-                        }
-                      }}
-                      className="mt-1 w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                    {s.kind === 'consulate' ? (
+                      /* Two-part picker: 1) type-to-filter country, 2) fixed city dropdown.
+                         Picking a country alone is allowed (stores the country code). */
+                      <div className="mt-1 space-y-2">
+                        <input
+                          list="ob-consulate-country"
+                          placeholder="Type a country…"
+                          value={consCountry ? `${consCountry.country} (${consCountry.country_code})` : ''}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            const match = vocab.consulate_tree.find(
+                              (c) => `${c.country} (${c.country_code})` === v || c.country === v
+                            )
+                            setConsCountry(match || null)
+                          }}
+                          className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary"
+                        />
+                        {consCountry && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {consCountry.country_code && (
+                              <button
+                                onClick={() => { addTag(s.field, s.kind, consCountry.country_code); setConsCountry(null) }}
+                                className="btn-secondary text-label-md whitespace-nowrap"
+                              >
+                                Add {consCountry.country} (country-wide)
+                              </button>
+                            )}
+                            {consCountry.cities.length > 0 && (
+                              <select
+                                value=""
+                                onChange={(e) => {
+                                  if (!e.target.value) return
+                                  // Selecting a city marks BOTH its country and the city, then closes the picker.
+                                  if (consCountry.country_code) addTag(s.field, s.kind, consCountry.country_code)
+                                  addTag(s.field, s.kind, e.target.value)
+                                  setConsCountry(null)
+                                }}
+                                className="flex-1 min-w-[10rem] bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary"
+                              >
+                                <option value="">Add a city in {consCountry.country}…</option>
+                                {consCountry.cities.map((c) => (
+                                  <option key={c.code} value={c.code}>{c.city} ({c.code})</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <input list={listId}
+                        placeholder={`Add ${s.label.toLowerCase()}…`}
+                        onChange={(e) => {
+                          // Auto-add as soon as a valid value is chosen from the dropdown
+                          // (or fully typed). No error on partial input — Enter handles that.
+                          const val = e.target.value
+                          const valid = s.kind === 'misc' ? miscByLabel.has(val) : vocabSets[s.kind].has(val)
+                          if (valid) { addTag(s.field, s.kind, val); e.target.value = '' }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            addTag(s.field, s.kind, (e.target as HTMLInputElement).value)
+                            ;(e.target as HTMLInputElement).value = ''
+                          }
+                        }}
+                        className="mt-1 w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                    )}
                   </div>
                 )
               })}
+              {/* country list is large — a datalist lets the user type to filter */}
+              <datalist id="ob-consulate-country">
+                {vocab.consulate_tree.map((c) => (
+                  <option key={c.country_code || c.country} value={`${c.country} (${c.country_code})`} />
+                ))}
+              </datalist>
               <datalist id="ob-visa">{vocab.visa.map((v) => <option key={v} value={v} />)}</datalist>
               <datalist id="ob-consulate">{vocab.consulate_options.map((o) => <option key={o.code} value={o.label} />)}</datalist>
               <datalist id="ob-misc">{vocab.misc_options.map((o) => <option key={o.code} value={o.label} />)}</datalist>

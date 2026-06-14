@@ -54,6 +54,13 @@ gcloud auth application-default login
 bash gcp_setup.sh
 ```
 
+### CI/CD
+GitHub Actions runs a no-credentials test gate on every push/PR
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)); Cloud Run deploys are
+manual-approval only ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)).
+See [`docs/CI-CD.md`](docs/CI-CD.md) for the tiering model, one-time GitHub
+setup, the deferred GCP/WIF work, and the follow-up task list.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env`. Key variables:

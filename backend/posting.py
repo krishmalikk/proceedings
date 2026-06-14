@@ -119,6 +119,47 @@ def _load_consulate_options() -> list[dict]:
     return out
 
 
+def _load_consulate_tree() -> list[dict]:
+    """Grouped consulates for a two-part (country → city) picker.
+
+    Returns ``[{country, country_code, cities: [{code, city}]}]`` sorted by
+    country, cities sorted by name. `country_code` is the 1.4 country-type code
+    (storable on its own when the user picks a country but no specific city);
+    each city `code` is the consulate code. Built from the structured CSV columns
+    so it is robust to country names that contain commas."""
+    path = os.path.join(_TAGS_DIR, "1.4-consulates.csv")
+    country_code: dict[str, str] = {}
+    cities: dict[str, list[dict]] = {}
+    try:
+        with open(path, newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            next(reader, None)  # header: tag,Type,Country,City
+            for row in reader:
+                if not row or not row[0].strip():
+                    continue
+                code = row[0].strip()
+                typ = row[1].strip() if len(row) > 1 else ""
+                country = row[2].strip() if len(row) > 2 else ""
+                city = row[3].strip() if len(row) > 3 else ""
+                if not country:
+                    continue
+                if typ == "country":
+                    country_code.setdefault(country, code)
+                elif typ == "city" and city:
+                    cities.setdefault(country, []).append({"code": code, "city": city})
+    except FileNotFoundError:
+        print("posting: vocab CSV missing: 1.4-consulates.csv")
+        return []
+    out: list[dict] = []
+    for country in sorted(set(country_code) | set(cities)):
+        out.append({
+            "country": country,
+            "country_code": country_code.get(country, ""),
+            "cities": sorted(cities.get(country, []), key=lambda c: c["city"]),
+        })
+    return out
+
+
 def _load_pairs(filename: str, desc_col: int = 1) -> list[tuple[str, str]]:
     """Return [(tag, description)] for a tags-cleaned CSV (header skipped)."""
     path = os.path.join(_TAGS_DIR, filename)
@@ -195,6 +236,7 @@ class _Vocab:
     _tag_plain_list: list[str] = []          # 1.3,1.5,1.6,1.9 names (self-explanatory)
     _misc_pairs: list[tuple[str, str]] = []   # 1.10 (tag, description) — ambiguous, needs meaning
     _consulate_opts: list[dict] = []          # [{code, label}] for the place-name dropdown
+    _consulate_tree: list[dict] = []          # [{country, country_code, cities:[{code, city}]}]
 
     @classmethod
     def load(cls) -> None:
@@ -203,6 +245,7 @@ class _Vocab:
         cls._visa_list = _load_col("1.1-non-immigration-visas.csv") + _load_col("1.2-greencard-categories.csv")
         cls._consulate_list = _load_col("1.4-consulates.csv")
         cls._consulate_opts = _load_consulate_options()
+        cls._consulate_tree = _load_consulate_tree()
         cls._tag_plain_list = (
             _load_col("1.3-abbreviations.csv")
             + _load_col("1.5-forms.csv")
@@ -267,6 +310,7 @@ def vocab_lists() -> dict:
         "visa": _uniq(_Vocab._visa_list),
         "consulate": _uniq(_Vocab._consulate_list),
         "consulate_options": _Vocab._consulate_opts,
+        "consulate_tree": _Vocab._consulate_tree,  # grouped country → cities (two-part picker)
         "tag": _uniq(_Vocab._tag_list),
         "stage_key": _uniq(_Vocab._stage_list),
         "date_key": _uniq(_Vocab._date_list),

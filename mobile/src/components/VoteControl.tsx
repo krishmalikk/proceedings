@@ -1,0 +1,129 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, spacing } from '../constants/theme';
+import { castVote, getActiveUserId } from '../services/apiService';
+
+interface VoteControlProps {
+  contentId: string;
+  score: number;
+  yourVote?: number; // -1 | 0 | 1
+  orientation?: 'vertical' | 'horizontal';
+  onScoreChange?: (score: number) => void;
+}
+
+export function VoteControl({
+  contentId,
+  score,
+  yourVote = 0,
+  orientation = 'vertical',
+  onScoreChange,
+}: VoteControlProps) {
+  const [currentScore, setCurrentScore] = useState(score);
+  const [currentVote, setCurrentVote] = useState(yourVote);
+  const [busy, setBusy] = useState(false);
+
+  // Resync when props change
+  useEffect(() => {
+    setCurrentScore(score);
+    setCurrentVote(yourVote);
+  }, [score, yourVote, contentId]);
+
+  async function handleVote(dir: 1 | -1) {
+    if (busy) return;
+
+    const userId = getActiveUserId();
+    if (!userId) {
+      Alert.alert('Select User', 'Please select a user in onboarding to vote.');
+      return;
+    }
+
+    const target = currentVote === dir ? 0 : dir;
+    const optimisticScore = currentScore - currentVote + target;
+    const prevState = { score: currentScore, vote: currentVote };
+
+    // Optimistic update
+    setCurrentScore(optimisticScore);
+    setCurrentVote(target);
+    setBusy(true);
+    onScoreChange?.(optimisticScore);
+
+    try {
+      const result = await castVote(contentId, target);
+      setCurrentScore(result.score);
+      setCurrentVote(result.your_vote);
+      onScoreChange?.(result.score);
+    } catch (error) {
+      // Revert on error
+      setCurrentScore(prevState.score);
+      setCurrentVote(prevState.vote);
+      onScoreChange?.(prevState.score);
+      Alert.alert('Vote Failed', error instanceof Error ? error.message : 'Could not vote');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isVertical = orientation === 'vertical';
+
+  const getUpColor = () => (currentVote === 1 ? colors.primary : colors.onSurfaceVariant);
+  const getDownColor = () => (currentVote === -1 ? colors.error : colors.onSurfaceVariant);
+  const getScoreColor = () => {
+    if (currentVote === 1) return colors.primary;
+    if (currentVote === -1) return colors.error;
+    return colors.onSurface;
+  };
+
+  return (
+    <View style={[styles.container, isVertical ? styles.vertical : styles.horizontal]}>
+      <TouchableOpacity
+        onPress={() => handleVote(1)}
+        disabled={busy}
+        style={[styles.button, busy && styles.disabled]}
+        accessibilityLabel="Upvote"
+        accessibilityRole="button"
+      >
+        <Ionicons name="arrow-up" size={20} color={getUpColor()} />
+      </TouchableOpacity>
+
+      <Text style={[styles.score, { color: getScoreColor() }]}>{currentScore}</Text>
+
+      <TouchableOpacity
+        onPress={() => handleVote(-1)}
+        disabled={busy}
+        style={[styles.button, busy && styles.disabled]}
+        accessibilityLabel="Downvote"
+        accessibilityRole="button"
+      >
+        <Ionicons name="arrow-down" size={20} color={getDownColor()} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  vertical: {
+    flexDirection: 'column',
+  },
+  horizontal: {
+    flexDirection: 'row',
+  },
+  button: {
+    padding: 4,
+  },
+  disabled: {
+    opacity: 0.4,
+  },
+  score: {
+    fontSize: 14,
+    fontWeight: '600',
+    minWidth: 24,
+    textAlign: 'center',
+  },
+});
+
+export default VoteControl;

@@ -1,0 +1,117 @@
+name: Deploy (manual approval)
+
+# Continuous Delivery — gated on an explicit human approval, never automatic.
+#
+# Two layers of manual control:
+#   1. `workflow_dispatch` — the run only ever STARTS when someone clicks
+#      "Run workflow" in the Actions tab (and picks what to deploy).
+#   2. `environment: production` — before the deploy job runs, GitHub PAUSES and
+#      waits for a designated reviewer to APPROVE it. Configure the gate once in
+#      GitHub:  Settings ▸ Environments ▸ "production" ▸ Required reviewers.
+#      (Optionally restrict it to the main / proceedings-app branches there too.)
+#
+# Flow:  dispatch ▶ verify (no-GCP unit gate) ▶ ⏸ approval ▶ deploy ▶ E2E smoke.
+#
+# DEFERRED: the GCP auth + `gcloud run deploy` + E2E steps below are scaffolded
+# but commented out, because the CI GCP project + auth method (Workload Identity
+# Federation vs key) are still to be decided. Fill the two TODO blocks and
+# remove the `echo "TODO"` placeholders to make this live. Nothing here touches
+# GCP until then.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What to deploy
+        type: choice
+        options: [backend, website, both]
+        default: both
+      ref:
+        description: Git ref to deploy (branch, tag, or SHA)
+        type: string
+        default: proceedings-app
+
+permissions:
+  contents: read
+  id-token: write   # required for keyless GCP auth via Workload Identity Federation
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false   # never interrupt an in-flight deploy
+
+jobs:
+  # Re-prove the no-GCP gate on the exact ref being shipped before asking for
+  # approval. (Cheap insurance; mirrors ci.yml's backend tier.)
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend deps
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Unit / pure suites (no GCP)
+        working-directory: backend
+        env:
+          GCP_PROJECT_ID: ''
+        run: |
+          python tests/test_profile_edge.py
+          python tests/test_profile_vocab.py
+          python tests/test_reconcile.py unit
+          python tests/test_interactions.py unit
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    # 🔒 The manual approval gate. The job blocks here until a required reviewer
+    #    approves the run in the GitHub UI.
+    environment:
+      name: production
+      url: https://immiguide-api-971592620882.us-central1.run.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      # ── TODO(GCP auth) — DEFERRED until project + WIF are decided ────────────
+      # Recommended: keyless OIDC via Workload Identity Federation (no JSON key).
+      #
+      # - id: auth
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+      #     service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      # - uses: google-github-actions/setup-gcloud@v2
+      # ────────────────────────────────────────────────────────────────────────
+
+      - name: Deploy backend → Cloud Run
+        if: ${{ inputs.target == 'backend' || inputs.target == 'both' }}
+        run: |
+          echo "TODO: gcloud run deploy immiguide-api --source backend \\"
+          echo "        --region us-central1 --no-traffic --tag candidate"
+          # Deploy as a no-traffic 'candidate' revision so we can smoke-test it
+          # before sending live traffic (safe canary; instant rollback).
+
+      - name: Deploy website → Cloud Run
+        if: ${{ inputs.target == 'website' || inputs.target == 'both' }}
+        run: |
+          echo "TODO: gcloud run deploy proceedings-web --source website \\"
+          echo "        --region us-central1 --no-traffic --tag candidate"
+
+      # ── TODO(E2E smoke) — point at the candidate revision's tagged URL ──────
+      - name: E2E smoke against the new revision
+        if: ${{ inputs.target == 'backend' || inputs.target == 'both' }}
+        run: |
+          echo "TODO: CLOUD_RUN_URL=<candidate-tag-url> python backend/tests/test_cloud_run.py"
+          # Only promote traffic if this passes.
+
+      - name: Promote traffic (100%) to the verified revision
+        run: |
+          echo "TODO: gcloud run services update-traffic <service> \\"
+          echo "        --region us-central1 --to-latest"

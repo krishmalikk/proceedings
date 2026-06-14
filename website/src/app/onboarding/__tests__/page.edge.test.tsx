@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import OnboardingPage from '../page'
 
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false, signOut: vi.fn() }) }))
 vi.mock('@/lib/activeUser', () => ({
   getActiveUser: vi.fn(() => 'demo-arjun'),
   setActiveUser: vi.fn(),
@@ -11,8 +12,9 @@ vi.mock('@/components/Markdown', () => ({ default: ({ children }: { children: st
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 const VOCAB = {
-  visa: ['H-1B', 'EB-2'], consulate: ['BOM'],
-  consulate_options: [{ code: 'BOM', label: 'Mumbai, India (BOM)' }],
+  visa: ['H-1B', 'EB-2'], consulate: ['BOM', 'IN'],
+  consulate_options: [{ code: 'BOM', label: 'Mumbai, India (BOM)' }, { code: 'IN', label: 'India (IN)' }],
+  consulate_tree: [{ country: 'India', country_code: 'IN', cities: [{ code: 'BOM', city: 'Mumbai' }] }],
   tag: [], stage_key: [], date_key: ['h1b_filed_date'],
   outcome: ['filed', 'approved'], country: ['IN'],
   misc: ['NIW', 'premium-processing'],
@@ -74,13 +76,23 @@ describe('OnboardingPage — edge cases', () => {
     expect(await screen.findByText('h1b_filed_date: 2026-10-01')).toBeInTheDocument()
   })
 
-  it('maps a consulate place-name to its code on add', async () => {
+  it('two-part consulate picker: country then a city dropdown (code-mapped, no dup)', async () => {
     render(<OnboardingPage />)
     await screen.findByText('H-1B')
-    const input = screen.getByPlaceholderText('Add a consulate (search city/country)…')
-    fireEvent.change(input, { target: { value: 'Mumbai, India (BOM)' } })  // label -> code BOM
-    // BOM already present from PROFILE; adding by label must not create a 2nd chip
+    // 1) type-to-filter the country, then 2) pick a city from the fixed dropdown.
+    fireEvent.change(screen.getByPlaceholderText('Type a country…'), { target: { value: 'India (IN)' } })
+    const citySelect = document.querySelector('select') as HTMLSelectElement
+    fireEvent.change(citySelect, { target: { value: 'BOM' } })  // city code
+    // BOM already present from PROFILE; adding it again must not create a 2nd chip
     expect(screen.getAllByText('Mumbai, India (BOM)')).toHaveLength(1)
+  })
+
+  it('two-part consulate picker: a country can be added on its own (country-wide)', async () => {
+    render(<OnboardingPage />)
+    await screen.findByText('H-1B')
+    fireEvent.change(screen.getByPlaceholderText('Type a country…'), { target: { value: 'India (IN)' } })
+    fireEvent.click(screen.getByText(/Add India \(country-wide\)/))
+    expect(await screen.findByText('India (IN)')).toBeInTheDocument()  // stored as the country code IN
   })
 
   it('still renders the profile when /api/tag-vocab fails', async () => {
