@@ -1,4 +1,4 @@
-// API Service for Proceedings Mobile
+// API Service for usajourney.ai Mobile
 // Connects to the same backend API as the website
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -470,6 +470,7 @@ export interface SearchResultItem {
   tags: string[];
   url: string;
   date: string;
+  timestamp?: string; // full ingestion timestamp (for relative "X ago")
 }
 
 export interface SearchFacetValue {

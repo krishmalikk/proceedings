@@ -26,7 +26,7 @@ export default function Header() {
                 <span className="text-cream-50 text-sm font-medium">P</span>
               </div>
               <span className="font-serif text-xl text-ink-900">
-                Proceedings
+                usajourney.ai
               </span>
             </Link>
           </div>
@@ -79,7 +79,7 @@ export default function Header() {
                   <span className="text-cream-50 text-sm font-medium">P</span>
                 </div>
                 <span className="font-serif text-xl text-ink-900">
-                  Proceedings
+                  usajourney.ai
                 </span>
               </Link>
               <button

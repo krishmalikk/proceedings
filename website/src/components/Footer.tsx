@@ -27,7 +27,7 @@ export default function Footer() {
                 <span className="text-ink-900 text-sm font-medium">P</span>
               </div>
               <span className="font-serif text-xl text-cream-100">
-                Proceedings
+                usajourney.ai
               </span>
             </div>
             <p className="text-cream-400 text-sm leading-relaxed max-w-sm">
@@ -96,7 +96,7 @@ export default function Footer() {
         <div className="mt-12 pt-8 border-t border-ink-800">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-xs text-cream-500">
-              &copy; {new Date().getFullYear()} Proceedings. All rights reserved.
+              &copy; {new Date().getFullYear()} usajourney.ai. All rights reserved.
             </p>
             <p className="text-xs text-cream-600 text-center sm:text-right max-w-md">
               This service provides intake support and general information only. It is not a law firm and does not provide legal advice.
@@ -109,7 +109,7 @@ export default function Footer() {
       <div className="overflow-hidden border-t border-ink-800">
         <div className="container-wide py-8">
           <p className="font-serif text-6xl sm:text-8xl lg:text-9xl text-ink-800 select-none">
-            Proceedings
+            usajourney.ai
           </p>
         </div>
       </div>

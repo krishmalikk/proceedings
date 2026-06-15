@@ -186,8 +186,8 @@ def group_e_build() -> None:
     check("E1 primary_consulate derived from consulates[0]", c["primary_consulate"] == "BOM", c["primary_consulate"])
     check("E2 case_id format app-YYYY-MM-DD-xxxx",
           bool(re.match(r"^app-\d{4}-\d{2}-\d{2}-[0-9a-f]{8}$", c["case_id"])), c["case_id"])
-    check("E3 channel=app, source_system=unclesamcalling",
-          c["channel"] == "app" and c["source_system"] == "unclesamcalling")
+    check("E3 channel=app, source_system=usajourney",
+          c["channel"] == "app" and c["source_system"] == "usajourney")
     check("E4 synthetic author_handle present", bool(c["author_handle"]), c["author_handle"])
     check("E5 user stages/dates carried through",
           c["key_stages_or_info"] == {"visa_status": "approved"} and c["key_dates"] == {"visa_interview_date": "2026-05-20"})

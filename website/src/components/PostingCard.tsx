@@ -12,12 +12,28 @@ export type PostingCardData = {
   tags: string[]
   url: string
   date: string
+  timestamp?: string // full ingestion timestamp (for relative "X ago")
 }
 
 export function outcomeBadge(outcome: string) {
   const o = outcome.toLowerCase()
   if (o === 'approved' || o === 'issued') return 'badge-success'
   return 'badge-secondary'
+}
+
+// Relative "X ago" for data-freshness (mirrors ReplyItem/GroupChat).
+function timeAgo(iso: string): string {
+  const t = Date.parse(iso)
+  if (isNaN(t)) return ''
+  const sec = Math.floor((Date.now() - t) / 1000)
+  if (sec < 60) return 'just now'
+  const m = Math.floor(sec / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d}d ago`
+  return new Date(t).toLocaleDateString()
 }
 
 export default function PostingCard({ r }: { r: PostingCardData }) {
@@ -46,7 +62,9 @@ export default function PostingCard({ r }: { r: PostingCardData }) {
       )}
 
       <div className="flex items-center justify-between text-caption text-on-surface-variant">
-        <span>{r.subreddit ? `r/${r.subreddit}` : r.channel} · {r.date}</span>
+        <span title={r.date}>
+          {r.subreddit ? `r/${r.subreddit}` : r.channel} · {timeAgo(r.timestamp || r.date) || r.date}
+        </span>
         <span className="flex items-center gap-1 text-primary">
           View experience
           <span className="material-symbols-outlined text-[16px]">arrow_forward</span>

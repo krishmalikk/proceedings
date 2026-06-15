@@ -29,10 +29,18 @@ import json
 import os
 import re
 import secrets
+import time
 from datetime import datetime, timezone
 
 from google import genai
 from google.api_core.client_options import ClientOptions
+from google.api_core.exceptions import (
+    Aborted,
+    DeadlineExceeded,
+    InternalServerError,
+    ResourceExhausted,
+    ServiceUnavailable,
+)
 from google.cloud import discoveryengine_v1 as de
 from google.cloud import storage
 
@@ -43,8 +51,8 @@ from google.cloud import storage
 CHANNEL = "app"  # controlled pathway token (channel field + case_id prefix + GCS segment) — the domain NEVER goes here
 # The website's provenance identity. Env-driven so registering a domain later is a
 # config flip (set APP_SOURCE_SYSTEM=<domain>, APP_BASE_URL=https://<domain>) — no code/redeploy of logic.
-SOURCE_SYSTEM = os.getenv("APP_SOURCE_SYSTEM", "unclesamcalling")
-APP_BASE_URL = os.getenv("APP_BASE_URL", "https://proceedings.app").rstrip("/")
+SOURCE_SYSTEM = os.getenv("APP_SOURCE_SYSTEM", "usajourney")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "https://usajourney.ai").rstrip("/")
 _TAGS_DIR = os.path.join(os.path.dirname(__file__), "tags-cleaned")
 
 
@@ -739,7 +747,7 @@ def build_canonical(title: str, description: str, tags: dict,
         "last_updated_timestamp": ts,
         # quality
         "tagging_confidence": float(ex.get("tagging_confidence") or 0.9),
-        "source_metadata": "Submitted via proceedings web composer",
+        "source_metadata": "Submitted via usajourney.ai web composer",
         "gcs_path": prefix,
         # summaries
         "background_summary": bg,
@@ -792,8 +800,38 @@ def _write_gcs(canonical: dict, md_body: str) -> tuple[str, str]:
     return f"gs://{bucket_name}/{base}.md", f"gs://{bucket_name}/{base}.json"
 
 
+# Transient GCP errors worth retrying on the import critical path. App postings
+# reach Vertex AI Search ONLY via this inline documents.import (the datastore's
+# daily GCS auto-sync is scoped to the reddit/ prefix), so a transient blip must
+# not silently drop a user's post — retry with exponential backoff, then surface.
+_IMPORT_RETRYABLE = (ServiceUnavailable, DeadlineExceeded, InternalServerError, ResourceExhausted, Aborted)
+
+
+def _retry(fn, attempts: int = 4, base_delay: float = 1.0):
+    """Call fn(), retrying transient GCP errors with exponential backoff."""
+    last: Exception | None = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except _IMPORT_RETRYABLE as e:  # noqa: PERF203
+            last = e
+            if i < attempts - 1:
+                wait = base_delay * (2 ** i)
+                print(f"posting: transient import error ({type(e).__name__}); "
+                      f"retry {i + 1}/{attempts - 1} in {wait:.1f}s")
+                time.sleep(wait)
+    print(f"posting: datastore import failed after {attempts} attempts: {last}")
+    raise last  # type: ignore[misc]
+
+
 def _import_to_datastore(canonical: dict, md_uri: str) -> None:
-    """Upsert one document (struct_data + .md content) into DS-1 via documents.import."""
+    """Upsert one document (struct_data + .md content) into DS-1 via documents.import.
+
+    Retries transient GCP errors with backoff: this inline import is the ONLY path
+    app postings take into Vertex AI Search, so a momentary blip must not silently
+    drop the post. The upsert is idempotent (INCREMENTAL reconciliation, keyed by
+    case_id), so re-issuing is safe; a persistent failure still raises so the
+    publish call surfaces the error rather than reporting a false `indexed: True`."""
     project, location, datastore = _project(), _ds_location(), _datastore()
     doc_client = de.DocumentServiceClient(client_options=ClientOptions(quota_project_id=project))
     parent = (
@@ -810,8 +848,11 @@ def _import_to_datastore(canonical: dict, md_uri: str) -> None:
         inline_source=de.ImportDocumentsRequest.InlineSource(documents=[document]),
         reconciliation_mode=de.ImportDocumentsRequest.ReconciliationMode.INCREMENTAL,
     )
-    op = doc_client.import_documents(request=request)
-    op.result(timeout=120)
+
+    def _do_import():
+        return doc_client.import_documents(request=request).result(timeout=120)
+
+    _retry(_do_import)
 
 
 _BQ_SCHEMA_FIELDS = [
@@ -1055,7 +1096,7 @@ def build_experience_canonical(profile: dict, entry: dict, extracted: dict | Non
     short = secrets.token_hex(4)
     c["doc_kind"] = "experience"
     c["case_id"] = f"{CHANNEL}-exp-{c['posting_date']}-{short}"
-    c["full_url"] = f"https://proceedings.app/case/{c['case_id']}"
+    c["full_url"] = f"{APP_BASE_URL}/case/{c['case_id']}"
     c["post_title"] = title
     c["ingestion_method"] = "user_experience"
     c["source_metadata"] = "User milestone experience (phase-J), consent-shared"
@@ -1101,7 +1142,7 @@ def publish_connect_card(profile: dict, note: str = "") -> dict:
     short = secrets.token_hex(4)
     c["doc_kind"] = "connect_card"
     c["case_id"] = f"{CHANNEL}-connect-{c['posting_date']}-{short}"
-    c["full_url"] = f"https://proceedings.app/case/{c['case_id']}"
+    c["full_url"] = f"{APP_BASE_URL}/case/{c['case_id']}"
     c["post_title"] = title
     c["ingestion_method"] = "user_connect_card"
     c["source_metadata"] = "Connect card (phase-J), user-published"

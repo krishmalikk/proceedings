@@ -134,7 +134,7 @@ export default function AskForm({ initialQuestion }: AskFormProps) {
               <div className="w-8 h-8 bg-ink-900 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-cream-50 text-xs font-medium">P</span>
               </div>
-              <span className="text-sm font-medium text-ink-500">Proceedings Assistant</span>
+              <span className="text-sm font-medium text-ink-500">usajourney.ai Assistant</span>
             </div>
 
             <div className="prose prose-ink max-w-none">

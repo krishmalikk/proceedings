@@ -1,4 +1,4 @@
-// Gemini AI Service for Proceedings
+// Gemini AI Service for usajourney.ai
 import { GoogleGenerativeAI, ChatSession, Content } from '@google/generative-ai';
 
 // Initialize with API key from environment
@@ -7,7 +7,7 @@ const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 let genAI: GoogleGenerativeAI | null = null;
 let chatSession: ChatSession | null = null;
 
-const SYSTEM_PROMPT = `You are Proceedings AI, a helpful assistant for US immigration questions. You help users:
+const SYSTEM_PROMPT = `You are usajourney.ai AI, a helpful assistant for US immigration questions. You help users:
 1. Search for immigration experiences (visa interviews, case timelines, etc.)
 2. Draft posts about their immigration journey
 3. Answer general immigration questions
@@ -71,11 +71,11 @@ export async function startChat(): Promise<void> {
     history: [
       {
         role: 'user',
-        parts: [{ text: 'You are Proceedings AI assistant. Follow these instructions: ' + SYSTEM_PROMPT }],
+        parts: [{ text: 'You are usajourney.ai AI assistant. Follow these instructions: ' + SYSTEM_PROMPT }],
       },
       {
         role: 'model',
-        parts: [{ text: 'I understand. I\'m Proceedings AI, ready to help with US immigration questions, searching experiences, and drafting posts. How can I assist you today?' }],
+        parts: [{ text: 'I understand. I\'m usajourney.ai AI, ready to help with US immigration questions, searching experiences, and drafting posts. How can I assist you today?' }],
       },
     ],
     generationConfig: {

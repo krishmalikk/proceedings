@@ -1,5 +1,5 @@
 """
-api.py — FastAPI Server for Proceedings RAG Pipeline
+api.py — FastAPI Server for usajourney.ai RAG Pipeline
 =====================================================
 Exposes the RAG query engine as HTTP endpoints for the Next.js frontend.
 
@@ -99,7 +99,7 @@ async def lifespan(app: FastAPI):
 # App
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Proceedings API", lifespan=lifespan)
+app = FastAPI(title="usajourney.ai API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -309,6 +309,7 @@ class PostingCard(BaseModel):
     tags: list[str]
     url: str
     date: str
+    timestamp: str = ""  # full ingestion timestamp (for relative "X ago" + recency sort)
 
 
 class FacetValue(BaseModel):

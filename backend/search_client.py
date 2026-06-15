@@ -279,6 +279,9 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
         "tags": tags[:8],
         "url": str(meta.get("full_url") or meta.get("source_uri") or ""),
         "date": str(meta.get("posting_date") or ""),
+        # Full ingestion timestamp for relative "X ago" display + recency sort;
+        # falls back to the day-granular posting_date when absent.
+        "timestamp": str(meta.get("ingestion_timestamp") or meta.get("posting_date") or ""),
     }
 
 
@@ -431,6 +434,9 @@ def search_postings(
         page_size=page_size,
         page_token=page_token or "",
         filter=filter_expr or "",
+        # Most-recent-first: matching postings are returned ordered by ingestion
+        # time (descending), so the freshest content leads every result page.
+        order_by="ingestion_timestamp desc",
         content_search_spec=de.SearchRequest.ContentSearchSpec(
             snippet_spec=de.SearchRequest.ContentSearchSpec.SnippetSpec(return_snippet=True),
         ),

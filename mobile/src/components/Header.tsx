@@ -44,7 +44,7 @@ export function Header({
               <View style={styles.logoIcon}>
                 <Ionicons name="flame" size={18} color={colors.accent} />
               </View>
-              <Text style={styles.logoText}>Proceedings</Text>
+              <Text style={styles.logoText}>usajourney.ai</Text>
             </View>
           )}
           {title && !showLogo && (

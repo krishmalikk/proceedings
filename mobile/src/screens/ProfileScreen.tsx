@@ -496,7 +496,7 @@ export function ProfileScreen() {
           <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
         <Text style={styles.legalNote}>
-          Not legal advice. Proceedings is not a law firm or government agency.
+          Not legal advice. usajourney.ai is not a law firm or government agency.
         </Text>
 
         <View style={styles.bottomPadding} />

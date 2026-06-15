@@ -48,11 +48,11 @@ export default function TopAppBar() {
         <Link
           href="/"
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          aria-label="Proceedings home"
+          aria-label="usajourney.ai home"
         >
           <BrandMark size={30} />
           <span className="text-headline-md font-bold text-primary tracking-tight">
-            Proceedings
+            usajourney.ai
           </span>
         </Link>
 

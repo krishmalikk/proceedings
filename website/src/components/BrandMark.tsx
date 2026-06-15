@@ -1,9 +1,9 @@
 /**
- * BrandMark — the Proceedings flame-in-ring glyph.
+ * BrandMark — the usajourney.ai flame-in-ring glyph.
  *
  * USA-flag identity: a flag-navy ring around a flame-red flame, with a row of
  * navy stars beneath (echoes logo3-vivid.jpeg). Crisp transparent SVG so it
- * sits cleanly on the near-white header. Pair with the "Proceedings" wordmark.
+ * sits cleanly on the near-white header. Pair with the "usajourney.ai" wordmark.
  */
 type BrandMarkProps = {
   size?: number;

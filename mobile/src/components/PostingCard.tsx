@@ -16,11 +16,27 @@ export type PostingCardData = {
   tags: string[];
   url: string;
   date: string;
+  timestamp?: string; // full ingestion timestamp (for relative "X ago")
 };
 
 interface PostingCardProps {
   posting: PostingCardData;
   onPress?: () => void;
+}
+
+// Relative "X ago" for data-freshness (mirrors ReplyItem/GroupChat).
+function timeAgo(iso: string): string {
+  const t = Date.parse(iso);
+  if (isNaN(t)) return '';
+  const sec = Math.floor((Date.now() - t) / 1000);
+  if (sec < 60) return 'just now';
+  const m = Math.floor(sec / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return new Date(t).toLocaleDateString();
 }
 
 function getOutcomeBadgeStyle(outcome: string) {
@@ -74,7 +90,8 @@ export function PostingCard({ posting, onPress }: PostingCardProps) {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.source}>
-            {posting.subreddit ? `r/${posting.subreddit}` : posting.channel} · {posting.date}
+            {posting.subreddit ? `r/${posting.subreddit}` : posting.channel} ·{' '}
+            {timeAgo(posting.timestamp || posting.date) || posting.date}
           </Text>
           <View style={styles.viewMore}>
             <Text style={styles.viewMoreText}>View experience</Text>
