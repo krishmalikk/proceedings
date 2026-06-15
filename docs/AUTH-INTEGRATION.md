@@ -99,6 +99,7 @@ suites keep working unchanged.
 3. ✅ Sign-in guards: `useRequireUser()` hook (`lib/useRequireUser.ts`) on `/post`,`/onboarding`,`/find`,`/groups/[id]` — redirects to `/login` in prod when there's no Firebase session; **no-op in dev/test** (the demo picker supplies identity there). `/profile` keeps its existing guard.
 
 ### C. Mobile (`mobile/`)
+> **Detailed C1–C6 steps + the login-verification procedure/token-fixture:** see **[`AUTH-NEXT-STEPS.md`](AUTH-NEXT-STEPS.md)**.
 1. `services/apiService.ts` `userHeaders()` → attach `Authorization: Bearer <idToken>` (cache + refresh).
 2. **Remove the "Skip Authentication (Dev Mode)" button** (`LoginScreen.tsx`, `SignupScreen.tsx`) and the `isDevMode` branch in `MainNavigator.tsx` for prod builds (gate behind `__DEV__` if kept for local).
 3. **Sign in with Apple** (Apple Guideline 4.8 — required alongside Google sign-in).
