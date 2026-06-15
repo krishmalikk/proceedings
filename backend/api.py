@@ -573,9 +573,59 @@ def _guard(fn):
         )
 
 
-# Dev-only user impersonation via X-User-Id. When real auth lands this is turned
-# off and the uid comes only from a verified Firebase token (same users/{id} schema).
+# Dev-only user impersonation via X-User-Id. In prod this is set to 0; the uid
+# then comes ONLY from a verified Firebase ID token (same users/{id} schema).
 ALLOW_USER_IMPERSONATION = os.getenv("ALLOW_USER_IMPERSONATION", "1") == "1"
+
+# --- Firebase ID-token verification (BLOCKER-0 / docs/AUTH-INTEGRATION.md).
+# Optional import so local/dev without the dep still runs on the X-User-Id path;
+# on Cloud Run the dep is installed and bearer tokens are verified via ADC. ---
+try:
+    import firebase_admin as _fb
+    from firebase_admin import auth as _fb_auth
+except ImportError:  # dep absent (dev) → token path disabled, header path stays
+    _fb = None
+    _fb_auth = None
+
+_fb_inited = False
+
+
+def _firebase_ready() -> bool:
+    """Lazily initialize the Admin SDK once (ADC; no key file). False if
+    firebase-admin isn't installed or init fails — callers then fall back."""
+    global _fb_inited
+    if _fb is None:
+        return False
+    if _fb_inited:
+        return True
+    try:
+        if not _fb._apps:
+            proj = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT")
+            _fb.initialize_app(options={"projectId": proj} if proj else None)
+        _fb_inited = True
+    except Exception as e:  # noqa: BLE001
+        print(f"firebase init failed: {e}")
+        return False
+    return True
+
+
+def _verify_bearer(request: Request) -> tuple[str, str] | None:
+    """Verify `Authorization: Bearer <Firebase ID token>`. Returns (uid, name_hint)
+    or None when the header is absent / malformed / invalid / expired."""
+    hdr = request.headers.get("authorization", "")
+    if len(hdr) < 8 or hdr[:7].lower() != "bearer ":
+        return None
+    token = hdr[7:].strip()
+    if not token or not _firebase_ready():
+        return None
+    try:
+        d = _fb_auth.verify_id_token(token)
+    except Exception as e:  # noqa: BLE001 — invalid/expired → caller returns 401
+        print(f"_verify_bearer: rejected ({type(e).__name__})")
+        return None
+    uid = d.get("uid") or d.get("sub") or ""
+    name = d.get("name") or (d.get("email", "") or "").split("@")[0] or ""
+    return (uid, name) if uid else None
 
 # Registered uids (e.g. Firebase accounts) accepted by the X-User-Id gate.
 # Source of truth is the Firestore users/{uid} doc created by POST /api/users;
@@ -605,24 +655,53 @@ def _uid_accepted(uid: str) -> bool:
     return uid in profile.seed_ids() or uid.startswith("new-") or _uid_registered(uid)
 
 
+def _ensure_registered(uid: str, name_hint: str = "") -> None:
+    """Create a minimal users/{uid} profile for a freshly-verified Firebase uid
+    (idempotent; never blocks the request)."""
+    if not uid or _db is None or _uid_registered(uid):
+        return
+    import profile
+    username = (name_hint or "").strip()[:40] or f"member-{uid[:6]}"
+    try:
+        profile.save_profile(_db, uid, {"username": username})
+        _KNOWN_UIDS.add(uid)
+    except Exception as e:  # noqa: BLE001 — registration must not 500 the request
+        print(f"_ensure_registered({uid}): {e}")
+
+
+def _resolve_uid(request: Request, *, required: bool) -> str:
+    """Identity resolution. Prefers a VERIFIED Firebase ID token; falls back to the
+    unverified `X-User-Id` header ONLY when `ALLOW_USER_IMPERSONATION` (dev/test).
+    In prod (impersonation off) a request without a valid token is unauthenticated."""
+    verified = _verify_bearer(request)
+    if verified:
+        uid, name = verified
+        _ensure_registered(uid, name)
+        return uid
+    if ALLOW_USER_IMPERSONATION:
+        hdr = request.headers.get("x-user-id", "").strip()
+        if hdr and _uid_accepted(hdr):
+            return hdr
+        if not required:
+            return ""
+        if not hdr:
+            raise HTTPException(status_code=400, detail="X-User-Id header is required (pick a user).")
+        raise HTTPException(status_code=404, detail=f"Unknown user '{hdr}'.")
+    if not required:
+        return ""
+    raise HTTPException(status_code=401, detail="Authentication required.")
+
+
 def _active_user(request: Request) -> str:
-    """Resolve the active user id from the X-User-Id header (dev impersonation)."""
-    if not ALLOW_USER_IMPERSONATION:
-        raise HTTPException(status_code=403, detail="User impersonation is disabled.")
-    uid = request.headers.get("x-user-id", "").strip()
-    if not uid:
-        raise HTTPException(status_code=400, detail="X-User-Id header is required (pick a user).")
-    if not _uid_accepted(uid):
-        raise HTTPException(status_code=404, detail=f"Unknown user '{uid}'.")
-    return uid
+    """Verified-token uid (preferred) or, in dev, the X-User-Id header. Raises 401/400/404."""
+    return _resolve_uid(request, required=True)
 
 
 def _optional_user(request: Request) -> str:
-    """Like `_active_user` but never raises — returns '' when no/unknown user.
+    """Like `_active_user` but never raises — returns '' when unauthenticated.
     Used by read endpoints that personalize (e.g. the viewer's own votes) but
     are still usable anonymously."""
-    uid = request.headers.get("x-user-id", "").strip()
-    return uid if uid and _uid_accepted(uid) else ""
+    return _resolve_uid(request, required=False)
 
 
 @app.post("/api/ask", response_model=AskResponse)

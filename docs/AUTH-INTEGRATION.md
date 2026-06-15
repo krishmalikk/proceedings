@@ -82,13 +82,16 @@ suites keep working unchanged.
 
 ## 5. Implementation steps
 
-### A. Backend (`backend/`)
-1. Add **`firebase-admin`** to `requirements.txt` and the Dockerfile install; add it to the `COPY` set if a new module is created.
-2. Initialize the Admin SDK once at startup using **ADC** (no key file — Cloud Run's attached SA; `firebase_admin.initialize_app()` with the project).
-3. Add `_verify_bearer(request) -> str|None`: parse `Authorization: Bearer <tok>`, call `auth.verify_id_token(tok)` (catches expired/invalid → return `None`), return `uid`.
-4. Refactor `_active_user`/`_optional_user` into a single `_resolve_user`: **prefer the verified token**; fall back to `X-User-Id` **only when `ALLOW_USER_IMPERSONATION`**; else `401`.
-5. **Auto-register**: on a first verified uid with no `users/{uid}` doc, create the profile (so `POST /api/users` becomes optional). Keep the controlled username mint.
-6. (Same pass) move the rate limiter to keyed-by-uid where authed; honor `X-Forwarded-For`.
+### A. Backend (`backend/`) — ✅ IMPLEMENTED (commit on `prepare-for-prod`)
+1. ✅ Added **`firebase-admin`** to `requirements.txt` (Dockerfile already `pip install`s it; no new module → COPY unchanged).
+2. ✅ Lazy Admin-SDK init via **ADC** (`_firebase_ready()`, `api.py`) — `initialize_app(projectId=GCP_PROJECT_ID)`, no key file.
+3. ✅ `_verify_bearer(request) -> (uid, name) | None` — parses `Authorization: Bearer`, `auth.verify_id_token` (expired/invalid → `None`).
+4. ✅ `_resolve_uid(request, required)` — **prefers the verified token**; falls back to `X-User-Id` **only when `ALLOW_USER_IMPERSONATION`**; else `401`. `_active_user`/`_optional_user` now delegate to it.
+5. ✅ `_ensure_registered(uid, name)` — auto-creates the `users/{uid}` profile on first verified uid (idempotent; no-op when `_db` is None).
+   - **Test:** `tests/test_auth_gate.py` (8/8, wired into the no-GCP CI gate) covers all branches; existing unit suites still green.
+6. ⏳ Deferred (hardening): move the rate limiter to keyed-by-uid + honor `X-Forwarded-For`.
+
+> The backend is ready: with `ALLOW_USER_IMPERSONATION=1` (dev/CI/local, the default) the X-User-Id flow is unchanged; setting `=0` in prod makes it **token-only**. **Do NOT flip `=0` until the clients send bearer tokens (B1/C1)** or the apps lock out.
 
 ### B. Website (`website/`)
 1. `lib/activeUser.ts` `userHeaders()` → **async**, attach `Authorization: Bearer ${await auth.currentUser.getIdToken()}` (Firebase auto-refreshes hourly tokens). Update all call sites (proxy routes + client fetches) to await it / forward the header.
