@@ -21,6 +21,7 @@ then execute against those.
 A code-level audit of all three surfaces. **Verdict: NOT production-ready.** One cross-cutting blocker (auth) plus per-surface blockers. Foundation is otherwise solid (no committed server secrets; PII scrub at every write; backend Dockerfile COPY complete; import retry; recency ordering).
 
 ### 🔴 BLOCKER-0 (cross-cutting) — no real authentication; full account-takeover
+> Full design + steps + risk: **[`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md)**.
 Identity is an **unverified `X-User-Id` header**. `_active_user` (`api.py:606`) trusts the raw header; `ALLOW_USER_IMPERSONATION` defaults to `"1"` (`api.py:576`) and is **not** set to `0` in any deploy config. Both clients send the Firebase uid as a plaintext header that the server **never verifies** (web `activeUser.ts:23-27`, mobile `apiService.ts:37-43`). Anyone can `X-User-Id: <victim-uid>` (uids are public via `/api/postings/{id}.author_id`) and post/vote/delete, read+send **private group messages**, and overwrite a victim's profile. **The integration that unblocks launch:** server-side **Firebase ID-token verification** in `_active_user` (verify `Authorization: Bearer <idToken>` via `firebase-admin`), have web+mobile send the token, then set `ALLOW_USER_IMPERSONATION=0`.
 
 | # | Surface | Blocker | Evidence |
