@@ -105,9 +105,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://*.vercel.app",
+        "https://usajourney.ai",
+        "https://www.usajourney.ai",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    # Vercel preview deploys (anchored so it can't match e.g. attacker.vercel.app.evil.com).
+    allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app$",
     allow_methods=["*"],
     allow_headers=["*"],
 )

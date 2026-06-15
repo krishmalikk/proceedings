@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -494,6 +495,22 @@ export function ProfileScreen() {
           <Ionicons name="shield-outline" size={18} color={colors.onSurfaceVariant} />
           <Text style={styles.legalRowText}>Legal Disclaimer</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.legalRow}
+          onPress={() => Linking.openURL('https://usajourney.ai/privacy')}
+        >
+          <Ionicons name="lock-closed-outline" size={18} color={colors.onSurfaceVariant} />
+          <Text style={styles.legalRowText}>Privacy Policy</Text>
+          <Ionicons name="open-outline" size={16} color={colors.onSurfaceVariant} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.legalRow}
+          onPress={() => Linking.openURL('https://usajourney.ai/terms')}
+        >
+          <Ionicons name="document-text-outline" size={18} color={colors.onSurfaceVariant} />
+          <Text style={styles.legalRowText}>Terms of Service</Text>
+          <Ionicons name="open-outline" size={16} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
         <Text style={styles.legalNote}>
           Not legal advice. usajourney.ai is not a law firm or government agency.

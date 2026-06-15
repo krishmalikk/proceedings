@@ -9,9 +9,12 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.krishmalik.proceedings"
+      "bundleIdentifier": "com.krishmalik.proceedings",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.krishmalik.proceedings",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#F6F2E9",
         "foregroundImage": "./assets/android-icon-foreground.png",

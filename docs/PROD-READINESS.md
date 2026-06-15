@@ -50,6 +50,10 @@ Identity is an **unverified `X-User-Id` header**. `_active_user` (`api.py:606`) 
 ### ✅ Already solid (no action)
 No committed server secrets (ADC only); backend `Dockerfile` COPY includes all 8 modules; **PII scrub** at every write; inline-import **retry** re-raises on persistent failure; BigQuery best-effort; facet-filter injection guarded; web `metadataBase`/OG on `usajourney.ai`; `/privacy`+`/terms` pages exist (web).
 
+### ✅ Resolved (quick-win pass, 2026-06-15)
+W3 CORS now includes `usajourney.ai` + anchored vercel regex · W2 Dockerfile URL aligned to the live backend · W5 Dockerfile copies `public/` · W4 case-page debug-JSON block removed · web security headers added (`next.config.js` — HSTS/X-Frame/nosniff/Referrer/Permissions; CSP still deferred) · signup dead links → `/terms`,`/privacy` · stale `Footer.tsx`/`Header.tsx` deleted · `not-found.tsx`+`error.tsx` added · M1 `eas.json` scaffolded · M5 Android `package` + version codes set · M4 (partial) Privacy/Terms links wired into mobile Profile (→ web pages).
+**Still open (the auth project + store work):** BLOCKER-0 auth (token verification + remove dev bypasses W1/M2 + `ALLOW_USER_IMPERSONATION=0`), M3 account deletion, M6 Sign in with Apple, shared rate limiter, body-size cap, brand icon PNGs, counsel review.
+
 ---
 
 ## 0. Open decisions (need owner sign-off before executing)
