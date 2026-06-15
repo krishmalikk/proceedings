@@ -7,6 +7,7 @@ import Markdown from '@/components/Markdown'
 import MatchCard, { MatchData } from '@/components/MatchCard'
 import { useAuth } from '@/contexts/AuthContext'
 import { getActiveUser, setActiveUser, userHeaders, DEMO_PICKER_ENABLED } from '@/lib/activeUser'
+import { useRequireUser } from '@/lib/useRequireUser'
 
 type Criteria = {
   current_visa_or_greencard_category: string[]
@@ -61,6 +62,7 @@ function hasCriteria(c: Criteria): boolean {
 export default function FindPage() {
   const router = useRouter()
   const { user: authUser } = useAuth()
+  useRequireUser()
   const [users, setUsers] = useState<SeedUser[]>([])
   const [activeId, setActiveId] = useState('')
   const [tab, setTab] = useState<'find' | 'browse'>('browse')  // land on existing groups

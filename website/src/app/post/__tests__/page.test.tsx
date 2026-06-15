@@ -3,9 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import PostPage from '../page'
 
 // Active user = demo-arjun; userHeaders forwards it as X-User-Id (as the real lib does).
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false, signOut: vi.fn() }) }))
 vi.mock('@/lib/activeUser', () => ({
   getActiveUser: vi.fn(() => 'demo-arjun'),
   userHeaders: vi.fn((h?: Record<string, string>) => ({ ...(h || {}), 'X-User-Id': 'demo-arjun' })),
+  DEMO_PICKER_ENABLED: true,
 }))
 
 const json = (data: unknown, ok = true, status = 200) =>

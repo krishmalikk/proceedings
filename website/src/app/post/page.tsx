@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getActiveUser, userHeaders } from '@/lib/activeUser'
+import { useRequireUser } from '@/lib/useRequireUser'
 
 type Conflict = { field: string; profile_value: unknown; message_value: unknown }
 
@@ -50,6 +51,7 @@ const POSTING_TYPE_LABEL: Record<string, string> = {
 }
 
 export default function PostPage() {
+  useRequireUser()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [groups, setGroups] = useState<Groups>(EMPTY)

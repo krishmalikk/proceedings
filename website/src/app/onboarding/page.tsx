@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Markdown from '@/components/Markdown'
 import { useAuth } from '@/contexts/AuthContext'
 import { getActiveUser, setActiveUser, userHeaders, DEMO_PICKER_ENABLED } from '@/lib/activeUser'
+import { useRequireUser } from '@/lib/useRequireUser'
 
 type JourneyEntry = { milestone: string; date: string; experience: string; shared?: boolean; experience_case_id?: string }
 type Profile = {
@@ -72,6 +73,7 @@ const LIST_SECTIONS: { field: ListField; label: string; kind: TagKind }[] = [
 export default function OnboardingPage() {
   const router = useRouter()
   const { user: authUser } = useAuth()
+  useRequireUser()
   const [users, setUsers] = useState<SeedUser[]>([])
   const [activeId, setActiveId] = useState('')
   const [stage, setStage] = useState<Stage>('basics')
