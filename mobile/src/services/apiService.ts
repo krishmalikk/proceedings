@@ -8,6 +8,17 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://immiguide-api-971592
 // Active user management (stored in AsyncStorage)
 let activeUserId: string | null = null;
 
+// Firebase ID token for Authorization header (kept fresh by AuthContext via onIdTokenChanged)
+let idToken: string | null = null;
+
+/**
+ * Set the Firebase ID token for API calls. Called by AuthContext's onIdTokenChanged.
+ * This token is sent as `Authorization: Bearer` on every authed request.
+ */
+export function setIdToken(token: string | null): void {
+  idToken = token;
+}
+
 export function getActiveUserId(): string | null {
   return activeUserId;
 }
@@ -36,6 +47,11 @@ export async function setActiveUserId(id: string | null): Promise<void> {
 
 function userHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
+  // Attach the Firebase ID token as Bearer auth (prod requires this; backend verifies)
+  if (idToken) {
+    headers['Authorization'] = `Bearer ${idToken}`;
+  }
+  // Keep X-User-Id for backward compat (backend uses it as fallback when ALLOW_USER_IMPERSONATION=1)
   if (activeUserId) {
     headers['X-User-Id'] = activeUserId;
   }

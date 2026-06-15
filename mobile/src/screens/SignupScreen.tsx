@@ -246,11 +246,13 @@ export function SignupScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Developer Mode button */}
-          <TouchableOpacity style={styles.devButton} onPress={handleDevMode}>
-            <Ionicons name="code-slash-outline" size={18} color={colors.onSurfaceVariant} />
-            <Text style={styles.devButtonText}>Skip Authentication (Dev Mode)</Text>
-          </TouchableOpacity>
+          {/* Developer Mode button - only show in dev builds */}
+          {__DEV__ && (
+            <TouchableOpacity style={styles.devButton} onPress={handleDevMode}>
+              <Ionicons name="code-slash-outline" size={18} color={colors.onSurfaceVariant} />
+              <Text style={styles.devButtonText}>Skip Authentication (Dev Mode)</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Terms notice */}
           <Text style={styles.termsText}>

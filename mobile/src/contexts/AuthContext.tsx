@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import {
   User,
   onAuthStateChanged,
+  onIdTokenChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -10,13 +11,20 @@ import {
   AuthError,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import { auth } from '../config/firebase';
-import { registerBackendUser, setActiveUserId } from '../services/apiService';
+import { registerBackendUser, setActiveUserId, setIdToken } from '../services/apiService';
 
-// Required for web browser auth session
-WebBrowser.maybeCompleteAuthSession();
+// Configure Google Sign-In
+GoogleSignin.configure({
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+});
 
 interface AuthContextType {
   user: User | null;
@@ -42,27 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isDevMode, setIsDevMode] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-
-  // Google Auth configuration. (`expoClientId` was removed from expo-auth-session
-  // in SDK 50+ — the web client id covers the Expo Go / proxy case via `clientId`.)
-  // iosClientId/androidClientId are for standalone/development builds.
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  });
-
-  // Handle Google Sign-In response
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      const credential = GoogleAuthProvider.credential(id_token);
-      signInWithCredential(auth, credential).catch((error) => {
-        console.error('Firebase credential sign-in error:', error);
-      });
-    }
-  }, [response]);
 
   // Check for dev mode and onboarding status on mount
   useEffect(() => {
@@ -101,6 +88,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
+  // Keep the ID token fresh for API calls (fires on sign-in/out AND hourly refresh)
+  useEffect(() => {
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser: User | null) => {
+      if (firebaseUser) {
+        try {
+          const token = await firebaseUser.getIdToken();
+          setIdToken(token);
+        } catch (error) {
+          console.error('Error getting ID token:', error);
+          setIdToken(null);
+        }
+      } else {
+        setIdToken(null);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
   const signInWithEmail = async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -118,14 +124,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    if (!request) {
-      throw new Error('Google Sign-In is not configured. Please add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to your .env file.');
-    }
     try {
-      await promptAsync();
+      // Check if Google Play Services are available (Android only, no-op on iOS)
+      await GoogleSignin.hasPlayServices();
+
+      // Sign in with Google
+      const response = await GoogleSignin.signIn();
+
+      if (isSuccessResponse(response)) {
+        const { idToken } = response.data;
+        if (idToken) {
+          // Create Firebase credential and sign in
+          const credential = GoogleAuthProvider.credential(idToken);
+          await signInWithCredential(auth, credential);
+        } else {
+          throw new Error('No ID token received from Google');
+        }
+      }
     } catch (error) {
-      console.error('Google Sign-In error:', error);
-      throw new Error('Google Sign-In failed. Please try again.');
+      if (isErrorWithCode(error)) {
+        switch (error.code) {
+          case statusCodes.SIGN_IN_CANCELLED:
+            console.log('Google Sign-In cancelled by user');
+            return; // Don't throw, user cancelled
+          case statusCodes.IN_PROGRESS:
+            throw new Error('Google Sign-In is already in progress');
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            throw new Error('Google Play Services not available');
+          default:
+            console.error('Google Sign-In error:', error);
+            throw new Error('Google Sign-In failed. Please try again.');
+        }
+      } else {
+        console.error('Google Sign-In error:', error);
+        throw new Error('Google Sign-In failed. Please try again.');
+      }
     }
   };
 

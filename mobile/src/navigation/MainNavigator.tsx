@@ -197,6 +197,9 @@ function TabNavigator() {
 export function MainNavigator() {
   const { user, loading, isDevMode, hasCompletedOnboarding } = useAuth();
 
+  // Dev mode bypass only works in __DEV__ builds; production builds always require auth
+  const allowDevMode = __DEV__ && isDevMode;
+
   // Show loading screen while checking auth state
   if (loading) {
     return (
@@ -206,17 +209,17 @@ export function MainNavigator() {
     );
   }
 
-  // Show auth screens if not authenticated and not in dev mode
-  if (!user && !isDevMode) {
+  // Show auth screens if not authenticated (dev mode only works in __DEV__ builds)
+  if (!user && !allowDevMode) {
     return <AuthNavigator />;
   }
 
-  // Show onboarding if user hasn't completed it (and not in dev mode)
-  if (!hasCompletedOnboarding && !isDevMode) {
+  // Show onboarding if user hasn't completed it (dev mode only works in __DEV__ builds)
+  if (!hasCompletedOnboarding && !allowDevMode) {
     return <OnboardingStack />;
   }
 
-  // Show main app if authenticated and onboarding complete (or in dev mode)
+  // Show main app if authenticated and onboarding complete (or in dev mode during __DEV__)
   return <TabNavigator />;
 }
 

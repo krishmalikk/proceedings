@@ -17,8 +17,6 @@
     }
   },
   "submit": {
-    "production": {
-      "//": "Fill before submitting: Apple ASC API key (ascApiKeyPath/ascAppId) + Google service-account key (serviceAccountKeyPath, track)."
-    }
+    "production": {}
   }
 }
