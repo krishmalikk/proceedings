@@ -119,11 +119,16 @@ suites keep working unchanged.
 - **Token latency:** every client request now awaits `getIdToken()` (cached, ~0ms warm; refreshes hourly).
 - **`POST /api/users`** becomes optional once auto-register lands (keep it for back-compat).
 
+## Deployed state (2026-06-15)
+- Backend **`immiguide-api` rev 00043** — `ALLOW_USER_IMPERSONATION=0` (token-only in prod). Verified: unverified `X-User-Id` write → **401**; public reads → 200; bogus bearer → 401 (firebase-admin init OK on Cloud Run).
+- Website **`immiguide-web` rev 00006** deployed (prod build: demo picker off, sign-in guards on, `public/` served). Public pages + feature data (tag_sections, author_handle, freshness) verified; `/api/profile` unauthenticated → 401 end-to-end.
+- ⚠️ **Consequence:** prod now rejects `X-User-Id`, so **`test_cloud_run.py` and the (unbuilt) mobile app get 401 against prod** — run the E2E against a local/impersonation-on backend until step C ships + token fixtures land (§5.E.2). **Mobile (step C) MUST be completed before the mobile app can talk to prod.**
+
 ## 7. Acceptance criteria
-- [ ] Backend rejects an unverified `X-User-Id` with `401` when `ALLOW_USER_IMPERSONATION=0`.
-- [ ] A valid Firebase ID token resolves to the correct uid; expired/invalid → 401.
-- [ ] Spoofing another uid via header is impossible in prod (write + group-chat read).
-- [ ] Web + mobile attach the bearer token on every authed request; sign-in enforced.
+- [x] Backend rejects an unverified `X-User-Id` with `401` when `ALLOW_USER_IMPERSONATION=0`.
+- [x] A valid Firebase ID token resolves to the correct uid; expired/invalid → 401.
+- [x] Spoofing another uid via header is impossible in prod (write + group-chat read).
+- [ ] Web ✅ / mobile ⏳ attach the bearer token on every authed request; sign-in enforced.
 - [ ] Prod Cloud Run env has `ALLOW_USER_IMPERSONATION=0`.
 - [ ] Mobile has no dev-mode bypass and offers Sign in with Apple.
 
