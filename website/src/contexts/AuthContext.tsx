@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import {
   User,
   onAuthStateChanged,
+  onIdTokenChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
@@ -11,7 +12,7 @@ import {
   AuthError,
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
-import { clearActiveUser } from '@/lib/activeUser';
+import { clearActiveUser, setIdToken } from '@/lib/activeUser';
 
 interface AuthContextType {
   user: User | null;
@@ -93,7 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return unsubscribe;
+    // Keep the cached ID token fresh (fires on sign-in/out AND hourly refresh) so
+    // userHeaders() can attach the Bearer token synchronously.
+    const unsubToken = onIdTokenChanged(auth, (u) => {
+      if (u) void u.getIdToken().then(setIdToken).catch(() => setIdToken(null));
+      else setIdToken(null);
+    });
+
+    return () => { unsubscribe(); unsubToken(); };
   }, []);
 
   const signInWithEmail = async (email: string, password: string) => {

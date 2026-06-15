@@ -20,9 +20,14 @@ export async function POST(request: NextRequest) {
     // Forward the active user so the backend records the posting↔author link
     // (the case-page author section depends on it). Anonymous if absent.
     const uid = request.headers.get('x-user-id') || ''
+    const tok = request.headers.get('authorization') || ''
     const res = await fetch(`${PYTHON_API_URL}/api/postings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(uid ? { 'X-User-Id': uid } : {}) },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(uid ? { 'X-User-Id': uid } : {}),
+        ...(tok ? { Authorization: tok } : {}),
+      },
       body: JSON.stringify({
         title,
         description,

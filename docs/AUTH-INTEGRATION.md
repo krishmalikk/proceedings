@@ -93,10 +93,10 @@ suites keep working unchanged.
 
 > The backend is ready: with `ALLOW_USER_IMPERSONATION=1` (dev/CI/local, the default) the X-User-Id flow is unchanged; setting `=0` in prod makes it **token-only**. **Do NOT flip `=0` until the clients send bearer tokens (B1/C1)** or the apps lock out.
 
-### B. Website (`website/`)
-1. `lib/activeUser.ts` `userHeaders()` → **async**, attach `Authorization: Bearer ${await auth.currentUser.getIdToken()}` (Firebase auto-refreshes hourly tokens). Update all call sites (proxy routes + client fetches) to await it / forward the header.
-2. **Remove dev impersonation**: the seed-persona auto-adopt in `onboarding/page.tsx`, the demo-user `<select>` (onboarding/find), and `GET /api/users` roster use in prod.
-3. **Enforce sign-in**: redirect-to-`/login` guards on `/post`, `/onboarding`, `/find`, `/profile`, `/groups/*` when not authed (only `/profile` guards today).
+### B. Website (`website/`) — ✅ B1/B2 IMPLEMENTED
+1. ✅ Token attached **synchronously**: `lib/activeUser.ts` caches the ID token (`setIdToken`, kept fresh by AuthContext's `onIdTokenChanged`) and `userHeaders()` adds `Authorization: Bearer`. All 14 identity-forwarding proxy routes now forward the `Authorization` header (no async refactor / call-site churn).
+2. ✅ Dev impersonation **gated off in prod**: `DEMO_PICKER_ENABLED = NODE_ENV !== 'production'` gates the seed-persona auto-adopt **and** the demo `<select>` in `onboarding`/`find` (stays on in dev + test). Prod visitors are never silently impersonated.
+3. ⏳ **Remaining:** redirect-to-`/login` guards on `/post`,`/onboarding`,`/find`,`/groups/*` when unauthenticated (only `/profile` guards today). Lower-risk UX — the backend 401 already protects data once impersonation is off.
 
 ### C. Mobile (`mobile/`)
 1. `services/apiService.ts` `userHeaders()` → attach `Authorization: Bearer <idToken>` (cache + refresh).

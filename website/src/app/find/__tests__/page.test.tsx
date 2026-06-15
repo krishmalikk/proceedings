@@ -8,6 +8,7 @@ vi.mock('@/lib/activeUser', () => ({
   getActiveUser: vi.fn(() => ''),
   setActiveUser: vi.fn(),
   userHeaders: vi.fn((h?: Record<string, string>) => h || {}),
+  DEMO_PICKER_ENABLED: true,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/components/Markdown', () => ({
