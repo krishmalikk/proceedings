@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Parents B1B2 visa approved Mumbai India. The parents of a U.S. worker attended their B1/B2 visa interview at the Mumbai consulate. They prepared using information from this subreddit and shared their first-hand experience. The poster initially had doubts about their parents' visa approval due to the high rejection rate observed, but their B1/B2 visas were ultimately approved. Tags: experience-posting, visa-interview, consulate, visa-stamping, required-documents, family-ties, nonimmigrant-intent, translator, visa-application, tips. Stages: consulate_assigned: BOM, outcome_status: approved, visa_type: B-1/B-2, visa_status: approved, citizen_of_country: IN, resident_of_country: IN, travel_country: IN. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "family-ties",
+          "visa-application",
+          "translator",
+          "B-2",
+          "visa-interview"
+        ]
+      }
+    }
+  ]
+}

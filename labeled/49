@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "US Visa Scheduling Middle Name in the first name?. The applicant incorrectly entered their middle name into the 'given name' field during visa registration, leading to a mismatch with their DS-160. The user is concerned about the name mismatch between their visa registration and DS-160, asking for advice on whether to amend it and the implications of removing the middle name. Tags: DS-160, form-mistake, ds160-question, visa-application, visa-interview-scheduling. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "ds160-question",
+          "visa-application",
+          "visa-interview-scheduling",
+          "DS-160",
+          "form-mistake"
+        ]
+      }
+    }
+  ]
+}

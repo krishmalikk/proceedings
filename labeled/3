@@ -1,0 +1,19 @@
+{
+  "task": {
+    "data": {
+      "text": "expect more tightening to h1b and OPT programs. The user shares news links suggesting potential tightening of H1B and OPT programs and invites discussion. The post raises a general concern about future policy changes affecting H1B and OPT programs and seeks community discussion. Tags: OPT, news-update, discussion, bill. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "bill",
+          "OPT",
+          "news-update"
+        ]
+      }
+    }
+  ]
+}

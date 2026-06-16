@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H-1B COS (from B-2) approved with new i-94, but offer rescinded. The applicant's H-1B Change of Status from B-2 was approved with a new I-94, but the employer (ABC) rescinded the job offer. The applicant's previous H-1B employment ended in August 2025, and a B-2 COS was applied for in October 2025. The applicant is within the 60-day grace period but has no pay stubs from the rescinded offer. A new employer (XYZ) requires pay stubs for an H-1B transfer, and the applicant is asking for options on how to proceed without employment records or pay stubs. Tags: change-of-status-COS, h1b-approval, I-797A, I-94, job-offer, h1b-petition, RFE, h1b-rfe, approved, processing-delay. Stages: employer_name: XYZ, visa_status: H-1B, case_status: approved, petition_status: approved. Dates: employment_end_date: 2025-08-31, i539_filing: 2025-10-31, h1b_filed_date: 2026-02-29, rfe_response_date: 2026-03-31, h1b_approved_date: 2026-04-30, i94_expire_date: 2029-04-30, 60day_grace_period_expire_date: 2026-06-29."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "legal-status",
+          "h1b-rfe",
+          "offer-rescinded",
+          "h1b-approval",
+          "h1b-transfer"
+        ]
+      }
+    }
+  ]
+}

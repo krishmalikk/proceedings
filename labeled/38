@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "B1B2 experience at Delhi consulate India. The user shares their experience applying for a B1/B2 visa, including securing an appointment, attending biometrics in Chennai, and the consulate interview in Delhi. They provide tips on finding appointment slots and managing the interview day logistics. The post is an experience sharing, offering advice on securing B1/B2 visa appointments, biometrics, and the interview process at the Delhi consulate, including tips on cash handling and hotel recommendations. Tags: experience-posting, approved, first-time-visa, visa-issued, visa-stamping, discussion, timeline, VO, CO, OFC, visa-interview-scheduling, emergency-visa-appointment, biometrics, visa-interview, nonimmigrant-intent, 214b, tips, no-slot, processing-delay, consulate. Stages: travel_country: IN, consulate_assigned: DEL. Dates: biometrics_completed_date: 2026-04-11, visa_interview_date: 2026-04-11, visa_issued_date: 2026-04-11."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "B-2",
+          "emergency-visa-appointment",
+          "visa-stamping",
+          "visa-interview"
+        ]
+      }
+    }
+  ]
+}

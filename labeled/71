@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B Visa Stamping Experience – Hyderabad Consulate. The user shares a first-hand account of their H1B visa stamping experience at the Hyderabad consulate, detailing the timeline, documents requested, consulate process, interview questions, and the initial 221(g) refusal that eventually resolved to an issued visa without further action. The post provides takeaways and tips for others undergoing H1B stamping, addressing common concerns such as the meaning of a 'Refused' CEAC status, social media profile requirements, necessary documents, and interview preparation. Tags: experience-posting, visa-stamping, consular-processing, visa-interview, visa-interview-scheduling, 221g, 221g-white, social-media, I-797, DS-160, re-entry, processing-delay, required-documents, tips, discussion. Stages: consulate_assigned:HYD, ceac_status:Issued, visa_type:H-1B, travel_country:IN. Dates: slot_booked_date:2026-03-29, biometrics_appointment_date:2026-04-23, visa_interview_date:2026-04-30, visa_refused_date:2026-04-30, h1b_approved_date:2026-05-05, visa_issued_date:2026-05-06."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "I-797",
+          "discussion",
+          "221g",
+          "consular-processing",
+          "visa-interview"
+        ]
+      }
+    }
+  ]
+}

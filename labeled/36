@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Laid off right after H1B lottery picked. The applicant, currently on OPT, had their H1B lottery picked but was subsequently laid off on performance grounds. They describe a history of being assigned undesirable 'tech debt' work despite requests for AI-related tasks, feeling used and betrayed by their manager. The applicant is concerned about finding a new job within the 60-day grace period to maintain their H1B eligibility, expressing hopelessness due to increasing wage brackets and potential H1B bans. They are actively applying and interviewing but find the process difficult. Tags: F-1, H-1B, layoff, h1b-lottery, opt-application, employment-based-immigration, job-search, h1b-transfer, h1b-denial, h1b-cap-gap, wage-level-compliance, country-ban, grace-period, out-of-status, visa-expiring, status-expiring. Stages: visa_status:F-1. Dates: opt_expire_date:2027-04-11, 60day_grace_period_expire_date:2026-06-10."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "grace-period",
+          "h1b-lottery",
+          "visa-expiring",
+          "h1b-transfer",
+          "wage-level-compliance"
+        ]
+      }
+    }
+  ]
+}

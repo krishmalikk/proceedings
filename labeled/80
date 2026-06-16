@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B Transfer Application Delay from outside US. The applicant was working in the U.S. on an H1B visa but was laid off last year and returned to India. A new employer filed an H1B transfer petition in January under premium processing, but there have been no updates, and the applicant is seeking advice on next steps for the delay. Tags: layoff, re-entry, premium-processing, employment-based-immigration, temporary-work-visas, h1b-transfer, processing-delay, endless-wait, h1b-petition, change-of-employer-COE. Stages: resident_of_country: IN, visa_type: H-1B, case_status: pending. Dates: h1b_filed_date: 2026-01-01."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "premium-processing",
+          "h1b-transfer",
+          "temporary-work-visas",
+          "endless-wait",
+          "layoff"
+        ]
+      }
+    }
+  ]
+}

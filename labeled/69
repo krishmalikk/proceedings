@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Silently stagnating. An H-1B visa holder expresses frustration over perceived stagnation in compensation and promotion opportunities, feeling overlooked compared to U.S. citizens or permanent residents. The user is seeking advice and shared experiences on how to cope mentally with career stagnation and the difficulty of finding new employment as an Indian H-1B worker, despite strong performance. Tags: employment-based-immigration, promotion, wage-level-compliance, processing-delay, layoff, job-search, country-of-birth-screening, discussion. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "wage-level-compliance",
+          "country-of-birth-screening",
+          "job-search",
+          "layoff"
+        ]
+      }
+    }
+  ]
+}

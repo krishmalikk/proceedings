@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Tips for F1 Applicants struggling with the May, June 2026 Slot Scarcity in India. This post offers advice to F1 visa applicants, especially Indian students, who are encountering difficulties with visa interview slot availability for May and June 2026. Key issues discussed include the scarcity of F1 visa interview slots, a high rejection rate for Indian students due to strict immigrant intent assessment, system timeouts on the scheduling portal, and the discontinuation of third-country stamping options. Tags: consular-processing, visa-interview, visa-stamping, tips, visa-application, student-visa, news-update, discussion, visa-interview-scheduling, processing-delay, no-slot, visa-refused, nonimmigrant-intent, third-country, DS-160. Stages: visa_type:F-1, resident_of_country:IN. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "visa-refused",
+          "student-visa",
+          "F-1",
+          "visa-application"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Got a $200k startup offer but visa expires in 7 weeks. The applicant has a work authorization expiring in 7 weeks (June 12) and has received a $200k job offer from a startup. They have exhausted their H-1B attempts. The applicant is seeking advice on the safest path to maintain continuous work authorization, considering options like Day 1 CPT or working until expiration and then remote work. Tags: H-1B, F-1, startup, day1-cpt, visa-expiring, status-expiring, job-offer, grace-period, re-entry, out-of-status, maintenance-of-status, change-status-options, legal-status. Stages: visa_type:H-1B. Dates: visa_expire_date:2026-06-12."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "startup",
+          "grace-period",
+          "legal-status",
+          "visa-expiring",
+          "F-1"
+        ]
+      }
+    }
+  ]
+}

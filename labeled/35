@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Who tf is hiring with H1B. The user, an H1B holder, is facing difficulty finding employment due to companies stating they cannot sponsor H1B visas. The user is seeking advice on effective job search strategies, specific roles or companies that hire H1B workers, and whether others have recently secured H1B-sponsored employment, especially given their final H1B attempt is in March 2027. Tags: job-search, employment-based-immigration, h1b-cap-subject, job-offer, h1b-transfer, h1b-extension, h1b-6-year-rule, ac21-extension, status-expiring, visa-renewal, maintenance-of-status, out-of-status. Stages: visa_type:H-1B, visa_status:valid. Dates: h1b_expire_date:2027-03-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "ac21-extension",
+          "h1b-transfer",
+          "visa-renewal",
+          "job-offer",
+          "job-search"
+        ]
+      }
+    }
+  ]
+}

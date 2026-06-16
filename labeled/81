@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "B1/B2 Interview Experience - Australia. The applicant shares a casual B1/B2 visa interview experience in Australia, highlighting the officer's focus on personal travel history and ties to Australia. The applicant, with extensive travel history and strong ties, was approved. The post offers tips for future applicants, emphasizing preparation and clear communication. It also notes an observation of another applicant being denied, possibly due to misunderstanding the process or applying for the wrong visa. Tags: visa-interview, tips, required-documents, travel-history-disclosure, experience-posting, nonimmigrant-intent, refused, visa-application. Stages: resident_of_country:AU, citizen_of_country:AU, visa_status:B-1, outcome_status:approved. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "travel-history-disclosure",
+          "visa-application",
+          "B-2",
+          "visa-interview",
+          "required-documents"
+        ]
+      }
+    }
+  ]
+}

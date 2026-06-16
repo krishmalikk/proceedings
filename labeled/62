@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Waiting for H1B approval. The applicant is currently on STEM OPT. Their H1B petition was approved for consular processing in February 2025. The employer later filed for an H1B change of status in November 2025, and the applicant is concerned about the 6.5-month processing delay and seeks similar timelines from others. Tags: stem-opt, consular-processing, h1b-approval, processing-delay, change-of-status-COS, h1b-petition, timeline. Stages: visa_status:F-1, case_status:approved, petition_status:pending. Dates: h1b_approved_date:2025-02-28, i129_filed_date:2025-11-20."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-approval",
+          "stem-opt",
+          "F-1",
+          "change-of-status-COS",
+          "consular-processing"
+        ]
+      }
+    }
+  ]
+}

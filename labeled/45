@@ -1,0 +1,19 @@
+{
+  "task": {
+    "data": {
+      "text": "Tax filing F1 to H1B transition in 2025. The user transitioned from F-1 to H-1B status and was on H-1B for 90 days. They are researching tax filing requirements. The user seeks confirmation on filing as a non-resident, given they don't meet the Substantial Presence Test due to F-1 exemptions, and their eligibility for the US-India tax treaty. Tags: change-of-status-COS, tax-filing. Stages: visa_status:H-1B. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "change-of-status-COS",
+          "H-1B",
+          "tax-filing",
+          "F-1"
+        ]
+      }
+    }
+  ]
+}

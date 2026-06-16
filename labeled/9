@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Feeling lost and hopeless on H1-B. An H1B holder is maxing out their visa in August, and their company has paused all PERM processes, offering an India office transfer. The applicant's boyfriend has an H1B but no I-140, so dependent status is not an option. The applicant has no PR, financial debt in the US, and financial responsibilities for parents in India. They have been applying for jobs in Canada but without success for work permit sponsorship. The applicant is seeking advice on how to navigate their situation, specifically exploring options for moving to Canada or Mexico, and looking for hope amidst their challenges. Tags: employment-based-immigration, income-issue, green-card-status, legal-status, residency, offer-rescinded, processing-delay, h1b-6-year-rule, perm-filing, job-search, change-status-options, out-of-status, maintenance-of-status, third-country, job-offer, h1b-extension, 60day-grace-period, tips. Stages: country_of_chargeability: IN. Dates: h1b_expire_date: 2026-08-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "green-card-status",
+          "h1b-6-year-rule",
+          "change-status-options",
+          "third-country",
+          "offer-rescinded"
+        ]
+      }
+    }
+  ]
+}

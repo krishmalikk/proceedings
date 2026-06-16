@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "RFE case denied for H1B. An H1B petition for a Mechanical Engineer working as a Category Manager at an elevator company was denied after an RFE, likely due to insufficient justification for specialty occupation. The applicant holds degrees from India and the US, and previously worked as a Procurement Manager with the same SOC codes. The applicant is seeking advice on options following the H1B RFE denial, including appeal, litigation, or re-application. They have also requested a change of status to B2 while their attorneys explore other employment opportunities. Tags: RFE, denied, specialty-occupation, h1b-denial, i129-rfe, rfe-denied, 60day-grace-period, out-of-status, maintenance-of-status, job-description, discussion, tips, change-of-status-COS, re-apply, lawyer-recommendation, unlawful-presence, overstay. Stages: born_in_country:IN, citizen_of_country:IN, resident_of_country:US, employer_name:elevator company, visa_status:H-1B, case_status:denied, petition_status:denied, application_status:denied. Dates: h1b_denied_date:2026-04-17."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "denied",
+          "B-2",
+          "overstay",
+          "rfe-denied"
+        ]
+      }
+    }
+  ]
+}

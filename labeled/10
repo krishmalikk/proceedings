@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Is having a H1B of any use anymore?. The applicant, an H1B holder, had their B-2 visa denied after a visit to India. Subsequently, their H1B petition received an RFE demanding a $100k fee, leading to their job offer being rescinded. The applicant questions the value of their H1B given a recent $100k fee RFE and rescinded job offer, despite having a valid H1B stamp, and seeks clarity on the new fee's impact. Tags: H-1B, B-2, offer-rescinded, visa-stamping, 100k-fee, h1b-denial, RFE, IN. Stages: travel_country:IN, visa_status:H-1B, case_status:RFE. Dates: rfe_date:2026-05-06, visa_expire_date:2027-12-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "offer-rescinded",
+          "B-2",
+          "visa-stamping",
+          "h1b-denial",
+          "100k-fee"
+        ]
+      }
+    }
+  ]
+}

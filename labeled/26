@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Is my understanding correct about F1 to H4?. An F-1 OPT holder is planning to change status to H-4, as their spouse's H-1B petition was selected in the lottery. They are bundling the H-1B, H-4 COS, and H-4 EAD applications. The user seeks to confirm their understanding regarding the activation date of H-4 status (October 1), the ability to continue working on F-1 OPT until September 30, and the potential for a work gap if the H-4 EAD is not approved before October 1. Tags: OPT, COS, EAD, cap-subject, h1b-lottery, change-of-status-COS, f1-to-h4, h1b-cap-gap, h4-work-auth, processing-delay, status-expiring. Stages: visa_status:F-1, spouse_status:O-1, petition_status:approved, application_status:not-filed-yet. Dates: h1b_processing_start_date:2026-10-01, opt_expire_date:2026-09-30."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "status-expiring",
+          "H-4",
+          "h1b-lottery",
+          "H-1B",
+          "cap-subject"
+        ]
+      }
+    }
+  ]
+}

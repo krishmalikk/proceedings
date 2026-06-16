@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "B1/B2 Visa in Delhi for my parents. The poster's parents, aged 62-65, are active in farming in India with no regular income, though their local expenses are covered. Two of their children are in the US on H1B and J1 visas. The parents have limited international travel history, having visited Singapore in 2017 and Nepal for a day trip. The poster is seeking advice on what their parents should be careful about to avoid B1/B2 visa rejection for a planned three-week visit to the US to see their children and local places. Tags: consular-processing, visa-interview, visa-interview-scheduling, re-entry, first-time-visa, visa-application, visa-refused, nonimmigrant-intent, family-ties, income-issue, travel-concern, tips. Stages: travel_country:US. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "family-ties",
+          "visa-refused",
+          "visa-application",
+          "first-time-visa",
+          "consular-processing"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "task": {
+    "data": {
+      "text": "I94 validity. The user is asking about options to address I-94 validity. The user is asking for options to update their I-94, specifically mentioning H1B extension or re-entry to the US. Tags: H-1B, I-94, h1b-extension, re-entry. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-extension",
+          "H-1B",
+          "I-94",
+          "re-entry"
+        ]
+      }
+    }
+  ]
+}

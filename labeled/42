@@ -1,0 +1,19 @@
+{
+  "task": {
+    "data": {
+      "text": "H1b + H4 Visa Appointment. The user is asking about the availability of joint H1B and H4 visa appointment slots. The user wants to know if joint H1B and H4 visa appointment slots are available or if separate appointments are typically booked. Tags: visa-interview-scheduling, h1b-stamping. Stages: {}. Dates: {}."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "H-4",
+          "H-1B",
+          "h1b-stamping",
+          "visa-interview-scheduling"
+        ]
+      }
+    }
+  ]
+}

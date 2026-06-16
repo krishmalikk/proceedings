@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Recent H1B port of entry experience. The applicant is an H1B holder with a visa stamp expiring in August 2026 and has a green card application in progress, with I485 filing imminent. The applicant is concerned about traveling to Mexico with a pending green card application and potential issues at the Port of Entry, seeking recent travel experiences. Tags: H-1B, MX, visa-expiring, green-card-application, i485-filing, travel-concern, port-of-entry. Stages: visa_type: H-1B, travel_country: MX, application_status: in-progress. Dates: visa_expire_date: 2026-08-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "visa-expiring",
+          "i485-filing",
+          "port-of-entry",
+          "green-card-application",
+          "travel-concern"
+        ]
+      }
+    }
+  ]
+}

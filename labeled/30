@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Will H1B $100k fee apply?. The user worked on H1B from 2015-2024, has an approved I-140, and their H1B has expired. They are currently in their home country.. The user is asking if the $100k H1B fee would apply if a new employer sponsors their H1B.. Tags: H-1B, I-140, visa-expired, re-entry, 100k-fee, h1b-petition. Stages: petition_status:approved, visa_type:H-1B. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "visa-expired",
+          "re-entry",
+          "h1b-petition",
+          "100k-fee",
+          "I-140"
+        ]
+      }
+    }
+  ]
+}

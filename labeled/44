@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Reapplying for B2 visa for FIFA World Cup 2026 after 214(b) denial — Uzbekistan, need advice. A 20-year-old male university student from Uzbekistan, employed at a bank, was denied a B-2 visa under Section 214(b) after an interview. He planned to travel with his father to watch the FIFA World Cup 2026, for which he has two tickets. His mother and father both have U.S. visas, and his father was going to cover the trip costs. The applicant is seeking advice on how to successfully reapply for a B-2 visa after a 214(b) denial, specifically asking for insights from individuals with similar profiles from Central Asia and what documents might be most helpful. Tags: fifa-world-cup, visa-interview, VO, experience-posting, 214b, visa-refused, re-apply, required-documents, discussion. Stages: citizen_of_country:UZ, born_in_country:UZ, resident_of_country:UZ, outcome_status:refused, visa_type:B-2, travel_country:UZ. Dates: visa_refused_date:2026-04-11."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "re-apply",
+          "visa-refused",
+          "discussion",
+          "fifa-world-cup",
+          "B-2"
+        ]
+      }
+    }
+  ]
+}

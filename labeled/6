@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B - H4 filed, new offer + transfer in grace period. The user is an H1B holder who filed for H4 status during their grace period. They have since received a new job offer and are considering an H1B transfer. The user is asking whether they are considered to be in H4 pending or H1B status during the new H1B transfer process, if a company can file a Change of Employer (COE) instead of Change of Status (COS) and withdraw the H4, and if delaying H4 filing within the grace period increases the risk of receiving a Notice to Appear (NTA) if the previous company revokes the H1B. Tags: grace-period, legal-status, h1b-revocation, petition-withdrawal, out-of-status, h1b-transfer, change-of-employer-COE, change-of-status-COS, NTA. Stages: visa_type:H-4, case_status:pending. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "grace-period",
+          "legal-status",
+          "H-4",
+          "h1b-transfer",
+          "change-of-status-COS"
+        ]
+      }
+    }
+  ]
+}

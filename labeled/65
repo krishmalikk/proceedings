@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Planning to travel to US on B1/B2 visa but have H1B approval. Applicant is in India, employer filed an H1B petition in June 2025 which was approved in April 2026. They previously visited the US on a B1/B2 visa. The applicant wants to know if it is safe to visit the US on a B1/B2 tourist visa in the coming two months, given their H1B approval, and if it will affect future H1B stamping or cause issues with being flagged. Tags: h1b-approval, prior-visa, job-offer, visa-stamping, travel-concern, visa-interview-scheduling, nonimmigrant-intent. Stages: outcome_status: approved, resident_of_country: IN, travel_country: US. Dates: h1b_filed_date: 2025-06-01, h1b_approved_date: 2026-04-01."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "prior-visa",
+          "h1b-approval",
+          "job-offer",
+          "B-2",
+          "visa-stamping"
+        ]
+      }
+    }
+  ]
+}

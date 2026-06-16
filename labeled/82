@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Indian citizen living in Maldives on a work visa. The user is an Indian citizen currently residing in Maldives on a work visa, who has previously traveled to the US multiple times on a US visa without issues. The user is inquiring about the process of applying for a US visa at the Colombo consulate as an Indian national residing in Maldives, specifically asking about acceptance of such applications, potential document or portal issues, and current visa wait times. They clarify their genuine residency in Maldives. Tags: prior-visa, travel-history-disclosure, consular-processing, third-country, visa-application, consulate-eligibility, required-documents, processing-time, visa-interview-scheduling, no-slot, processing-delay. Stages: citizen_of_country: IN, resident_of_country: MV, travel_country: US, visa_status: prior-visa. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "prior-visa",
+          "travel-history-disclosure",
+          "processing-delay",
+          "visa-application",
+          "no-slot"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "F1 visa revoked a year after short summer program. In 2017, the applicant completed a short summer F-1 program in the U.S. and left on time without violations. A year later, in late 2018, their F-1 visa was revoked by the U.S. embassy due to 'additional information'. The applicant is confused about the F-1 visa revocation, especially since it occurred after they left the U.S. and completed their program. They are now planning to apply for a B1/B2 tourist visa and are seeking insights on whether such revocations are routine, if they affect future visa applications, and if others have experienced similar situations. Tags: consular-processing, visa-stamping, re-entry, travel-concern, discussion, visa-revoked, visa-application, visa-refused, administrative-processing, prior-visa-rejection. Stages: visa_type:F-1, outcome_status:revoked, travel_country:US. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "visa-refused",
+          "F-1",
+          "administrative-processing",
+          "visa-application"
+        ]
+      }
+    }
+  ]
+}

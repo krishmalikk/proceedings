@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Key_Election_8698. The applicant's H1B visa, approved in 2024, was refused during an interview in Hyderabad on April 23, 2026, which was delayed due to a family medical issue. The applicant is seeking clarification on the refusal, which stemmed from a DS-160 typo, an outdated vendor letter, missing client documents, and questions about salary deductions and attorney fees. They are advised to track the status daily. Tags: experience-posting, consulate, h1b-approval, DS-160, employer-letter, VO, visa-interview, visa-stamping, h1b-stamping, visa-refused, form-mistake, required-documents, income-issue, processing-time, processing-delay, attorney-fee, refused, h1b-denial. Stages: consulate_assigned: HYD, visa_type: H-1B, outcome_status: refused, case_status: refused, travel_country: IN. Dates: visa_interview_date: 2026-04-23."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "visa-interview",
+          "visa-stamping",
+          "h1b-stamping",
+          "employer-letter",
+          "processing-time"
+        ]
+      }
+    }
+  ]
+}

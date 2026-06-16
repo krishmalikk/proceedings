@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Has anyone's employer started H1B petition for FY 2027?. The user was selected in the H-1B lottery for FY 2027, but their employer plans to file the petition around June. Their STEM OPT is expiring next month. The user is concerned about the H-1B petition filing timeline, preparation time, total costs including premium processing, and whether to request earlier filing due to expiring STEM OPT and cap-gap extension needs. Tags: stem-opt, employment-based-immigration, h1b-petition, h1b-filing, h1b-lottery, h1b-cap-gap, opt-extension, premium-processing, regular-processing, regular-vs-premium-processing, processing-time, attorney-fee. Stages: visa_status:F-1. Dates: opt_expire_date:2026-05-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-lottery",
+          "H-1B",
+          "stem-opt",
+          "h1b-filing",
+          "premium-processing"
+        ]
+      }
+    }
+  ]
+}

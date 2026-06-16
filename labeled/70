@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Consular page blank. The user is trying to book an H1B appointment in India and is encountering a blank consular page after selecting an OFC appointment. This has happened multiple times. The user is asking for advice on what to do about the blank consular page preventing them from booking their H1B appointment. Tags: OFC, discussion, visa-interview-scheduling, stamping-delay, consulate, h1b-stamping. Stages: visa_type:H-1B, consulate_assigned:IN, visa_status:H-1B. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "OFC",
+          "discussion",
+          "visa-interview-scheduling",
+          "h1b-stamping",
+          "consulate"
+        ]
+      }
+    }
+  ]
+}

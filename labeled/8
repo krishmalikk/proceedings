@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1b timeline. The user's grace period expires on June 24th. The user is asking if three weeks is enough time for a company to file an H1B petition before their grace period ends. Tags: grace-period, h1b-petition, h1b-filing, processing-time. Stages: . Dates: 60day_grace_period_expire_date:2026-06-24."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "grace-period",
+          "h1b-filing",
+          "processing-time",
+          "h1b-petition",
+          "H-1B"
+        ]
+      }
+    }
+  ]
+}

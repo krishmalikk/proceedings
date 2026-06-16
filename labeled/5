@@ -1,0 +1,18 @@
+{
+  "task": {
+    "data": {
+      "text": "Just Abolish the H-1B Visa. The post title expresses a strong opinion regarding the H-1B visa program. Tags: H-1B, temporary-work-visas, employment-based-immigration. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "employment-based-immigration",
+          "temporary-work-visas",
+          "H-1B"
+        ]
+      }
+    }
+  ]
+}

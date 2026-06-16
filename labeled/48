@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "B1B2 visa rejected for my parents in delhi. They did not get telugu translator. Parents (father and grandmother, 75) from Andhra Pradesh, India, applied for B1/B2 visas at the New Delhi consulate to visit their daughter (H1B holder) in the US. They only speak Telugu and were denied a requested interpreter, leading to an interview in English they didn't understand, and a quick refusal without document review. The daughter's sister is on OPT in the US. The user is asking if the lack of a Telugu interpreter impacted the B1/B2 visa refusal, how long to wait before reapplying, what changes to make for better chances, and if reapplying separately for the father and grandmother would help. Tags: visa-interview, consular-processing, prior-visa-rejection, first-time-visa, DS-160, 214b, family-ties, visa-refused, re-apply, translator, nonimmigrant-intent, tips. Stages: citizen_of_country:IN, born_in_country:IN, resident_of_country:IN, travel_country:IN, consulate_assigned:DEL, outcome_status:refused, visa_status:refused, case_status:refused, visa_type:B-1/B-2. Dates: visa_interview_date:2026-04-21, visa_refused_date:2026-04-21."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "family-ties",
+          "re-apply",
+          "visa-refused",
+          "first-time-visa",
+          "consular-processing"
+        ]
+      }
+    }
+  ]
+}

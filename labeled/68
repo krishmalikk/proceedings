@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B premium processing timeline - Texas center. The user is sharing a timeline for an H1B petition filed with premium processing at the Texas Service Center. The user is providing updates on their H1B premium processing case, noting that it is still being processed after several days. Tags: H-1B, premium-processing, processing-time, timeline, SRC, processing-delay, discussion. Stages: service_center_assigned:SRC, case_status:in-progress. Dates: h1b_filed_date:2026-04-27, h1b_receipt_date:2026-04-29."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "premium-processing",
+          "processing-delay",
+          "timeline",
+          "SRC"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "J1 visa renewal refused 214(b) PGY1 resident need advice. A PGY1 resident on a J1 visa, sponsored by ECFMG, had her J1 renewal refused under 214(b) at the Mumbai consulate after her previous visa stamp expired. She is seeking advice on why her J1 physician renewal was refused under 214(b), whether her spouse's H1B status negatively impacted her case, and how to strengthen ties to her home country for a potential reapplication, given the time-sensitive nature of needing to return to her program. Tags: physician, ECFMG, j1-2-year-rule, passport-expired, re-entry, legal-status, employment-based-immigration, experience-posting, visa-stamping, 214b, visa-refused, j1-renewal, h1b, family-ties, nonimmigrant-intent, re-apply, visa-interview. Stages: citizen_of_country:IN, born_in_country:IN, resident_of_country:US, spouse_status:H-1B, travel_country:IN, case_status:refused, consulate_assigned:BOM, visa_status:J-1. Dates: visa_refused_date:2026-04-11, visa_interview_date:2026-04-11."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "ECFMG",
+          "j1-2-year-rule",
+          "legal-status",
+          "visa-refused",
+          "family-ties"
+        ]
+      }
+    }
+  ]
+}

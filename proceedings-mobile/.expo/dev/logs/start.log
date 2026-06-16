@@ -1,0 +1,52 @@
+{"_e":"root:init","_t":1780361301231,"format":"v0-jsonl","version":"56.1.12"}
+{"_e":"env:mode","_t":1780361301231,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1780361301233,"mode":"development","files":["../../../.env"],"env":{"EXPO_PUBLIC_API_URL":"https://immiguide-api-971592620882.us-central1.run.app"}}
+{"_e":"root:init","_t":1780361422972,"format":"v0-jsonl","version":"56.1.12"}
+{"_e":"env:mode","_t":1780361422972,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1780361422975,"mode":"development","files":["../../../.env"],"env":{"EXPO_PUBLIC_API_URL":"https://immiguide-api-971592620882.us-central1.run.app"}}
+{"_e":"devserver:start","_t":1780361423162,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1780361423399,"serverRoot":"../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1780361423770,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"metro:bundling:started","_t":1780361447975,"id":"1","platform":"ios","environment":null,"entry":"index.ts"}
+{"_e":"metro:bundling:done","_t":1780361448784,"id":"1","total":1053,"ms":808.353917}
+{"_e":"metro:client_log","_t":1780361449403,"level":"warn","data":["SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context"]}
+{"_e":"root:init","_t":1780367805581,"format":"v0-jsonl","version":"56.1.12"}
+{"_e":"env:mode","_t":1780367805583,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1780367805585,"mode":"development","files":["../../../.env"],"env":{"EXPO_PUBLIC_API_URL":"https://immiguide-api-971592620882.us-central1.run.app"}}
+{"_e":"devserver:start","_t":1780367805769,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1780367806061,"serverRoot":"../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1780367806435,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"root:init","_t":1780367998140,"format":"v0-jsonl","version":"56.1.12"}
+{"_e":"env:mode","_t":1780367998140,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1780367998142,"mode":"development","files":["../../../.env"],"env":{"EXPO_PUBLIC_API_URL":"https://immiguide-api-971592620882.us-central1.run.app"}}
+{"_e":"root:init","_t":1780368273013,"format":"v0-jsonl","version":"56.1.12"}
+{"_e":"env:mode","_t":1780368273014,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1780368273017,"mode":"development","files":["../../../.env"],"env":{"EXPO_PUBLIC_API_URL":"https://immiguide-api-971592620882.us-central1.run.app"}}
+{"_e":"devserver:start","_t":1780368273181,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1780368273422,"serverRoot":"../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1780368273743,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"root:init","_t":1780368745866,"format":"v0-jsonl","version":"56.1.12"}
+{"_e":"env:mode","_t":1780368745867,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1780368745869,"mode":"development","files":["../../../.env"],"env":{"EXPO_PUBLIC_API_URL":"https://immiguide-api-971592620882.us-central1.run.app"}}
+{"_e":"devserver:start","_t":1780368746058,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1780368746311,"serverRoot":"../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1780368746702,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"root:init","_t":1780368848098,"format":"v0-jsonl","version":"56.1.12"}
+{"_e":"env:mode","_t":1780368848098,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1780368848100,"mode":"development","files":["../../../.env"],"env":{"EXPO_PUBLIC_API_URL":"https://immiguide-api-971592620882.us-central1.run.app"}}
+{"_e":"root:init","_t":1780368945923,"format":"v0-jsonl","version":"56.1.12"}
+{"_e":"env:mode","_t":1780368945924,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1780368945926,"mode":"development","files":["../../../.env"],"env":{"EXPO_PUBLIC_API_URL":"https://immiguide-api-971592620882.us-central1.run.app"}}
+{"_e":"devserver:start","_t":1780368946089,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1780368946319,"serverRoot":"../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1780368946727,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"root:init","_t":1780369548886,"format":"v0-jsonl","version":"56.1.12"}
+{"_e":"env:mode","_t":1780369548887,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1780369548889,"mode":"development","files":["../../../.env"],"env":{"EXPO_PUBLIC_API_URL":"https://immiguide-api-971592620882.us-central1.run.app"}}
+{"_e":"devserver:start","_t":1780369550819,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../../../app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1780369551030,"serverRoot":"../../..","projectRoot":"../../..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1780369551307,"atlas":false,"workers":8,"host":"::","port":8082}
+{"_e":"metro:client_log","_t":1780369562548,"level":"error","data":["Project is incompatible with this version of Expo Go\n\nThe project you requested requires a newer version of Expo Go.\n\nHow to fix this error:\n\nDownload the latest version of Expo Go from the App Store."]}
+{"_e":"metro:client_log","_t":1780369589117,"level":"error","data":["Project is incompatible with this version of Expo Go\n\nThe project you requested requires a newer version of Expo Go.\n\nHow to fix this error:\n\nDownload the latest version of Expo Go from the App Store."]}
+{"_e":"metro:client_log","_t":1780369633717,"level":"error","data":["Project is incompatible with this version of Expo Go\n\nThe project you requested requires a newer version of Expo Go.\n\nHow to fix this error:\n\nDownload the latest version of Expo Go from the App Store."]}
+{"_e":"metro:client_log","_t":1780369685078,"level":"error","data":["Project is incompatible with this version of Expo Go\n\nThe project you requested requires a newer version of Expo Go.\n\nHow to fix this error:\n\nDownload the latest version of Expo Go from the App Store."]}

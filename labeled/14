@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Need advice — K1 approval expiration is the 29th. The applicant's K-1 visa I-129 petition was approved, but the approval is set to expire on April 29th, while their interview is scheduled for June 23rd. They have attempted to contact the embassy via phone and email but received no clear answers, being directed to an unresponsive online portal. The applicant is seeking advice on whether an extension of the K-1 approval is necessary or automatic, and how to prevent having to restart the entire process due to the expiration before the interview. Tags: I-129, visa-interview, consulate, form-mistake, visa-application, stamping-delay, emergency-visa-appointment, visa-expiring, processing-delay, visa-interview-scheduling, re-apply, petition-withdrawal, open-for-attorney, administrative-processing, no-slot. Stages: visa_type:K-1, petition_status:approved, interview_status:scheduled. Dates: visa_expire_date:2026-04-29, visa_interview_date:2026-06-23."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "re-apply",
+          "visa-expiring",
+          "administrative-processing",
+          "visa-application",
+          "no-slot"
+        ]
+      }
+    }
+  ]
+}

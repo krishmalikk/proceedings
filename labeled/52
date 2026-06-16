@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Risk if Visa stamped exceeded more than 6+months. The user's H-1B visa was stamped in September 2025, but travel was delayed until March 2026 due to a client project renewal that finalized in January 2026. The user is asking if a delay of more than six months between visa stamping and travel poses a risk at the port of entry, including potential rejection by an immigration officer. Tags: visa-stamping, re-entry, travel-concern, processing-delay, stamping-delay, port-of-entry, visa-expiring, visa-refused, 214b. Stages: visa_type:H-1B, case_status:approved. Dates: visa_stamp_date:2025-09-17."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "visa-refused",
+          "visa-expiring",
+          "visa-stamping",
+          "re-entry",
+          "port-of-entry"
+        ]
+      }
+    }
+  ]
+}

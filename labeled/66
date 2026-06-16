@@ -1,0 +1,19 @@
+{
+  "task": {
+    "data": {
+      "text": "Slots not available or rescheduling. The user is inquiring about the current status of visa slot availability and rescheduling in India. The user wants to know if visa slots in India are genuinely unavailable or if existing appointments are being rescheduled. Tags: H-1B, IN, visa-interview-scheduling, no-slot, stamping-delay. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "H-1B",
+          "no-slot",
+          "visa-interview-scheduling",
+          "stamping-delay"
+        ]
+      }
+    }
+  ]
+}

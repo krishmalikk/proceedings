@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Emergency H1B Visa Appointment Denied at Hyderabad Consulate — Father Critical with Cancer — Feeling Completely Lost. The applicant traveled to India due to their father's critical condition with advanced stage colon cancer. They are an H1B visa holder who needs to return to the US for work but requires a visa stamp. The applicant's emergency H1B visa appointment at the Hyderabad consulate was denied despite submitting medical and employer support letters. They are seeking advice on how to strengthen their case for a second emergency appointment request to facilitate their urgent return to the US. Tags: experience-posting, h1b-stamping, required-documents, employer-letter, emergency-visa-appointment, humanitarian, denied, no-slot, travel-concern. Stages: consulate_assigned: HYD, outcome_status: denied, travel_country: IN. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "denied",
+          "humanitarian",
+          "emergency-visa-appointment",
+          "experience-posting",
+          "required-documents"
+        ]
+      }
+    }
+  ]
+}

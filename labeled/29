@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B pending but STEM OPT just approved - safe to withdraw?. The applicant is an F-1 student with an approved STEM OPT valid until January 2028. Their employer filed an H-1B change of status petition in September 2025, which is currently pending. The applicant is asking if withdrawing the pending H-1B petition would keep their STEM OPT and F-1 status intact, and if there are any risks to their SEVIS record, especially as they want to move to a new E-Verify employer. Tags: STEM-OPT, OPT, change-of-status-COS, employment-based-immigration, student-visa, pending, petition-withdrawal, h1b-withdrawal, legal-status, maintenance-of-status, SEVIS, change-of-employer-COE, job-search, EAD, cap-gap. Stages: visa_status:F-1, employer_name:Education Employer, petition_status:pending, application_status:approved. Dates: opt_expire_date:2028-01-31, h1b_filed_date:2025-09-01."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "legal-status",
+          "h1b-withdrawal",
+          "student-visa",
+          "pending",
+          "change-of-status-COS"
+        ]
+      }
+    }
+  ]
+}

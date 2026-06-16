@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "USMLE B1/B2 visa. The applicant's husband was refused a B1/B2 visa for a 4-week clinical observership in Hematology and Oncology at Lyndon B Johnson Hospital, receiving a 214(b) refusal. He was not given a chance to present his letter. The user is asking what went wrong, what they can do now, and if they should reapply with the same reason, after Step 1 (as graduates), with family for vacation, or based on Step 3. They are concerned if their USMLE journey is over without a visa and seek advice on the best way to get approval. Tags: B-1, B-2, USMLE, visa-interview, 214b, visa-refused, experience-posting, physician, job-offer, re-apply, change-status-options, nonimmigrant-intent, visa-interview-scheduling. Stages: employer_name: Lyndon B Johnson Hospital, outcome_status: refused, visa_type: B-1, case_status: refused. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "re-apply",
+          "visa-refused",
+          "USMLE",
+          "job-offer",
+          "B-2"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Lost i797 before consulate appointment. The user has lost their I-797 document and has a consulate appointment in a week. They are panicking and asking if a scanned copy of the I-797 will be accepted for their upcoming visa interview. Tags: I-797, lost-document, consulate, visa-interview, required-documents. Stages: visa_type:H-1B, interview_status:scheduled. Dates: visa_interview_date:2026-04-18."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "I-797",
+          "visa-interview",
+          "required-documents",
+          "lost-document",
+          "consulate"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B 221(g) US embassy Pakistan - need some guidance. The applicant is experiencing stress due to a prolonged USCIS H1B approval process, which was followed by a 221(g) refusal at the U.S. Embassy in Pakistan. The applicant is seeking guidance and shared experiences regarding the duration of 221(g) administrative processing, whether the status remains 'Refused' throughout, and how updates are typically received. Tags: consulate, 221g, refused, administrative-processing, processing-delay, discussion, tips. Stages: petition_status:approved, outcome_status:refused, consulate_assigned:PK, visa_type:H-1B, case_status:administrative-processing. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "221g",
+          "administrative-processing",
+          "tips",
+          "processing-delay"
+        ]
+      }
+    }
+  ]
+}

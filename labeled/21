@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "What are my options?. An H1B holder is facing an imminent layoff and is seeking options to maintain their immigration status after their employment ends. The user is asking about the viability and implications of Day 1 CPT as a bridge after H1B layoff, including its scrutiny by USCIS and timing for H1B transfer. They also seek attorney recommendations. Tags: layoff, legal-status, maintenance-of-status, day1-cpt, h1b-transfer, grace-period, lawyer-recommendation, green-card-status, h1b-renewal, nonimmigrant-intent, change-of-status-COS, out-of-status. Stages: visa_status:H-1B, case_status:active. Dates: h1b_expire_date:2026-12-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "legal-status",
+          "grace-period",
+          "h1b-transfer",
+          "green-card-status",
+          "day1-cpt"
+        ]
+      }
+    }
+  ]
+}
