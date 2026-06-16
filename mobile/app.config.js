@@ -12,7 +12,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.krishmalik.proceedings",
       buildNumber: "1",
-      googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || "./ios/GoogleService-Info.plist",
+      googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || "./config/GoogleService-Info.plist",
       infoPlist: {
         CFBundleURLTypes: [
           {
