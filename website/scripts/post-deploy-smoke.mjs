@@ -49,19 +49,27 @@ async function main() {
   // 2. THE regression guard: the client JS bundle must contain the Firebase web
   //    config. If NEXT_PUBLIC_FIREBASE_* weren't baked at build time, the bundle
   //    has apiKey=undefined and the app throws on getAuth() in the browser.
+  //    The Firebase config is inlined into the shared layout + auth-page chunks,
+  //    so scan the auth routes (which reliably reference them), not just `/`
+  //    (which 308-redirects to /search and exposes only a few chunks).
+  const scanPages = ['/', '/search', '/login', '/post'];
+  const htmls = (await Promise.all(scanPages.map((p) => get(p)))).map((r) => r.body);
   const chunkPaths = [...new Set(
-    (home.body.match(/\/_next\/static\/chunks\/[^"']+\.js/g) || [])
-  )].slice(0, 25);
-  check('Home references JS chunks', chunkPaths.length > 0, `${chunkPaths.length} chunks`);
+    htmls.join('').match(/\/_next\/static\/[^"'\\]+?\.js/g) || []
+  )].slice(0, 50);
+  check('Pages reference JS chunks', chunkPaths.length > 0, `${chunkPaths.length} chunks`);
 
   let foundApiKey = false;
   let foundAuthDomain = false;
+  let foundUndef = false;
   for (const c of chunkPaths) {
     const js = (await get(c)).body;
     if (/AIza[0-9A-Za-z_-]{20,}/.test(js)) foundApiKey = true;
     if (/[a-z0-9-]+\.firebaseapp\.com/i.test(js)) foundAuthDomain = true;
+    if (/apiKey:\s*(void 0|undefined)/.test(js)) foundUndef = true;
     if (foundApiKey && foundAuthDomain) break;
   }
+  check('No apiKey:undefined in bundle (build env present)', !foundUndef);
   check('Firebase apiKey baked into client bundle', foundApiKey,
         foundApiKey ? '' : 'NEXT_PUBLIC_FIREBASE_API_KEY missing from build — client will crash');
   check('Firebase authDomain baked into client bundle', foundAuthDomain);
