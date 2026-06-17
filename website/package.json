@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "smoke": "node scripts/post-deploy-smoke.mjs"
   },
   "dependencies": {
     "firebase": "^12.14.0",
