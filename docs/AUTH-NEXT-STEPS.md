@@ -115,3 +115,44 @@ Mirror the website's synchronous-cache approach (no async churn).
 2. **C1** — unblocks the mobile app against prod (highest priority in C).
 3. **C2** — remove dev bypass (before any store build).
 4. **C3 + C4 + C5** — Apple sign-in, native config, EAS build → TestFlight/Play internal.
+
+---
+
+# Part 3 — Review findings & remaining fixes (2026-06-17)
+
+Code review of the mobile Firebase work (commits `e23cab7`…`6ab0c31`). Builds clean
+(`tsc`) and tests pass (`jest` 18/18).
+
+## Done ✅
+- **C1 token flow** — `AuthContext` `onIdTokenChanged` → `getIdToken()` → `apiService.setIdToken()`; `userHeaders()` sends `Authorization: Bearer` (+ `X-User-Id` fallback). Correct.
+- **C2 dev bypass** — "Skip Authentication" is now `{__DEV__ && …}`-gated in `LoginScreen`/`SignupScreen` (absent in production builds).
+- **Native Google Sign-In** — `@react-native-google-signin` → `GoogleAuthProvider.credential` → `signInWithCredential`; Email/password; `getReactNativePersistence` session persistence; `registerBackendUser` on sign-in. Config via `app.config.js` (replaced `app.json`): `googleServicesFile`, iOS reversed-client-id URL scheme, google-signin plugin, bundle id/package + version codes, `ITSAppUsesNonExemptEncryption=false`.
+
+## 🔴 F1 — iOS Google OAuth client-ID mismatch (will likely break iOS Google sign-in)
+Two **different** iOS OAuth clients are referenced:
+| Where | iOS client id |
+|---|---|
+| `mobile/config/GoogleService-Info.plist` (`CLIENT_ID`/`REVERSED_CLIENT_ID`) | `…-s40vq9s0j2dskitsk4g0n7sshpioek7g` |
+| `mobile/app.config.js` (`iosUrlScheme` + `CFBundleURLSchemes`) **and** `.env EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | `…-mvj696meur8j54ibu82egpl2dmvha0nf` |
+
+The registered iOS **URL scheme must match the iOS client used for sign-in**; these differ, so the OAuth redirect can fail on iOS.
+- [ ] **Fix:** choose ONE iOS OAuth client (most safely the one in the Firebase-issued plist) and make **all three identical** — `GoogleService-Info.plist` `CLIENT_ID`/`REVERSED_CLIENT_ID`, `app.config.js` `iosUrlScheme` + `infoPlist.CFBundleURLTypes[].CFBundleURLSchemes`, and `.env EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. Confirm the chosen iOS client exists under the Firebase iOS app (`com.krishmalik.proceedings`, project `proceedings-490601`).
+- *(Note: the web client `…el3u8…` and the differing per-platform `API_KEY`s are expected — not a bug.)*
+
+## 🔴 F2 — Sign in with Apple still missing (iOS App Store blocker)
+Offering Google sign-in on iOS **requires** Sign in with Apple (Apple Guideline 4.8) → guaranteed rejection without it. Implement per **§C3** (expo-apple-authentication, Apple Services ID + key, Firebase Apple provider, `OAuthProvider('apple.com')` + nonce, iOS-only button).
+
+## 🟠 F3 — Runtime caveats (verify before trusting it works)
+- [ ] **Won't run in Expo Go** — `@react-native-google-signin` is native. Use an **EAS dev/prod build** (`eas build --profile development` / `expo run:ios`) to exercise Google sign-in. (Email/password works in Expo Go.)
+- [ ] **Firebase console:** Google provider **enabled**; **Android SHA-1/256** fingerprints (from the EAS keystore: `eas credentials`) added to the Firebase Android app — Android Google sign-in fails silently without them.
+- [ ] **Prove the round-trip** with Part 1.2's token-mint check (signs in via REST → `Authorization: Bearer` → backend **200**), independent of a device build.
+
+## 🟡 F4 — Repo hygiene (stray files committed in `d8b159f`)
+- [ ] `git rm -r --cached labeled/` — 82 legacy training-data files swept in by `git add -A`.
+- [ ] `git rm -r --cached proceedings-mobile/` — 4-file stray Expo dir (`proceedings-mobile` ≠ `mobile`; a wrong-directory artifact).
+- [ ] Reconcile the **two** committed plists (`mobile/config/GoogleService-Info.plist` + `mobile/ios/GoogleService-Info.plist`) — keep one; `app.config.js` already supports the `GOOGLE_SERVICES_PLIST` EAS secret, so the committed copy can be dropped in favor of the secret.
+- [ ] Add `labeled/`, `proceedings-mobile/`, `proceedings-mobile/.expo/` to `.gitignore`.
+- [ ] Remove the now-unused `expo-auth-session` dep (replaced by native google-signin).
+
+## Priority order
+**F1** (else iOS Google login is broken) → **F4** (clean the branch) → **F3** (console config + EAS build to actually test) → **F2** (Apple sign-in, required before any iOS store submission).
