@@ -3,11 +3,11 @@ import { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
-    'How usajourney.ai (usajourney.ai) collects, uses, shares, and protects your information.',
+    'How meridianjourney.ai (meridianjourney.ai) collects, uses, shares, and protects your information.',
 }
 
 const LAST_UPDATED = 'June 14, 2026'
-const SUPPORT_EMAIL = 'support@usajourney.ai'
+const SUPPORT_EMAIL = 'support@meridianjourney.ai'
 
 // SCAFFOLD — standard boilerplate. NOT legal advice; counsel MUST review and
 // tailor (entity name, jurisdiction, data-processor list, retention periods,
@@ -16,7 +16,7 @@ const SECTIONS: { heading: string; body: string[] }[] = [
   {
     heading: '1. Introduction',
     body: [
-      'This Privacy Policy explains how usajourney.ai (the “Service,” accessible at usajourney.ai and via our mobile app) collects, uses, discloses, and safeguards your information. By using the Service you agree to this policy. If you do not agree, do not use the Service.',
+      'This Privacy Policy explains how meridianjourney.ai (the “Service,” accessible at meridianjourney.ai and via our mobile app) collects, uses, discloses, and safeguards your information. By using the Service you agree to this policy. If you do not agree, do not use the Service.',
     ],
   },
   {

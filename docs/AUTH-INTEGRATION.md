@@ -105,8 +105,8 @@ suites keep working unchanged.
 3. **Sign in with Apple** (Apple Guideline 4.8 — required alongside Google sign-in).
 
 ### D. Firebase / Google config
-1. OAuth consent screen: app name, **support email `support@usajourney.ai`**, privacy/terms URLs; promote to "in production".
-2. Auth → Authorized domains: add `usajourney.ai`, `www.usajourney.ai`.
+1. OAuth consent screen: app name, **support email `support@meridianjourney.ai`**, privacy/terms URLs; promote to "in production".
+2. Auth → Authorized domains: add `meridianjourney.ai`, `www.meridianjourney.ai`.
 3. Mobile: iOS/Android Google client IDs + Android SHA-1/256 (from the EAS keystore); iOS reversed-client-id URL scheme.
 
 ### E. CI / tests / deploy

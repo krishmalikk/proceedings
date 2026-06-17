@@ -1,4 +1,4 @@
-// Vertex AI Search Service for usajourney.ai
+// Vertex AI Search Service for meridianjourney.ai
 // This service handles semantic search over immigration experiences
 
 export interface Experience {
