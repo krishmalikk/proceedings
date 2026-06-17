@@ -4,24 +4,41 @@ Companion to [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md). Two paused workstream
 documented in full so they can be picked up cleanly.
 
 **Context:** prod backend `immiguide-api` is **token-only** (`ALLOW_USER_IMPERSONATION=0`,
-rev 00043); website `immiguide-web` (rev 00006) sends the Firebase ID token and guards
+rev 00044); website `immiguide-web` (rev 00007) sends the Firebase ID token and guards
 authed pages. Backend verification (step A) and website token plumbing (step B) are
-**done and deployed**. What remains: (1) *prove* a real Firebase login round-trips to a
-backend 200, and (2) bring the mobile app onto the token model (step C).
+**done and deployed**. The site is live on **`meridianjourney.ai` / `www.meridianjourney.ai`**.
+What remains: (1) ~~*prove* a real Firebase login round-trips to a backend 200~~ — **DONE
+(2026-06-17), see §1 below**; the open sub-items are the **Google-specific** OAuth consent
+publish + the E2E token fixture; and (2) bring the mobile app onto the token model (step C).
 
 ---
 
 # Part 1 — Firebase-login verification (website)
 
-We've unit-tested the gate and confirmed a **bogus** token is rejected (401) and
-`firebase-admin` initializes on Cloud Run. What's unverified: a **real** signed-in user's
-token → backend **200** end-to-end. Firebase project = **`proceedings-490601`** (web client
-config in `website/.env.local` `NEXT_PUBLIC_FIREBASE_*`; backend verifies with `projectId=GCP_PROJECT_ID`).
+> **✅ VERIFIED on the live domain (2026-06-17).** A real Firebase ID token (Email/Password,
+> minted via the Identity Toolkit REST API) was round-tripped through the **live website proxy**
+> `https://www.meridianjourney.ai/api/*` against the token-only prod backend (`immiguide-api-00044`):
+>
+> | Call (through `www.meridianjourney.ai/api/*`) | Result |
+> |---|---|
+> | real token → `GET /api/profile` (read) | **200** |
+> | real token → `PUT /api/profile` (write) | **200** |
+> | no token → `GET /api/profile` | **401** |
+> | bogus/tampered token → `GET /api/profile` | **401** |
+>
+> This proves the full chain: signed-in user → proxy forwards `Authorization: Bearer` →
+> backend `verify_id_token` → auto-register → authed write 200; unauth/forged → 401. The
+> throwaway account was deleted afterward. **Still open:** Google-specific sign-in depends on
+> the OAuth consent screen being published to "In production" (Email/Password is unaffected),
+> and the E2E token fixture (§1.2) is not yet wired into `test_cloud_run.py`.
+
+Firebase project = **`proceedings-490601`** (web client config in `website/.env.local`
+`NEXT_PUBLIC_FIREBASE_*`; backend verifies with `projectId=GCP_PROJECT_ID`).
 
 ## 1.1 Firebase / Google console prerequisites (one-time)
-- [ ] **Authentication → Sign-in method:** enable **Email/Password** and **Google** (and **Apple** for iOS, Part 2).
-- [ ] **Authentication → Settings → Authorized domains:** add `meridianjourney.ai`, `www.meridianjourney.ai`, and the live web origin `immiguide-web-971592620882.us-central1.run.app` (Google sign-in popups are blocked on un-listed domains).
-- [ ] **Google Cloud → OAuth consent screen:** app name, **support email `support@meridianjourney.ai`**, app domain `meridianjourney.ai`, privacy (`/privacy`) + terms (`/terms`) URLs; **publish to "In production"** (while in "Testing", only allow-listed test users can sign in).
+- [x] **Authentication → Sign-in method:** **Email/Password enabled** (verified working §1, above). **Google** still to confirm; **Apple** for iOS (Part 2).
+- [x] **Authentication → Settings → Authorized domains:** `meridianjourney.ai` + `www.meridianjourney.ai` **added** (2026-06-17, via Identity Toolkit admin API). Live `*.run.app` origin already covered by default Firebase domains.
+- [ ] **Google Cloud → OAuth consent screen:** app name, **support email `support@meridianjourney.ai`**, app domain `meridianjourney.ai`, privacy (`/privacy`) + terms (`/terms`) URLs; **publish to "In production"** (while in "Testing", only allow-listed test users can sign in). — **REQUIRED for Google sign-in; not yet confirmed.**
 - [ ] **OAuth 2.0 Web client:** Authorized JS origins + redirect URIs include the web origin(s) above.
 
 ## 1.2 Automated verification (no browser — recommended; also the E2E token fixture)
@@ -55,10 +72,10 @@ curl -s -o /dev/null -w "no-token: %{http_code}\n" "$B/api/profile"             
 6. **Token refresh:** keep the tab open >1h (or revoke+refresh) → authed actions still 200 (`onIdTokenChanged` refreshes the cached token in `AuthContext` → `setIdToken`).
 
 ## 1.4 Acceptance
-- [ ] Real Email + Google sign-in → backend 200 on an authed write.
-- [ ] No-token / tampered-token → 401.
-- [ ] Sign-out enforced by the guard; token refresh keeps sessions working.
-- [ ] Token fixture added to the E2E suite.
+- [x] Real **Email/Password** sign-in → backend **200** on an authed write (verified live, §1). **Google** sign-in pending OAuth-consent publish (§1.1).
+- [x] No-token / tampered-token → **401** (verified live, §1).
+- [ ] Sign-out enforced by the guard; token refresh keeps sessions working — *covered by client guards/`onIdTokenChanged`; not yet exercised in a live browser session (manual §1.3).*
+- [ ] Token fixture added to the E2E suite (§1.2 / `AUTH-INTEGRATION.md §5.E.2`).
 
 ## 1.5 Rollback / safety valve
 If login isn't ready and the live site must be usable without it:
