@@ -1,4 +1,4 @@
-// API Service for usajourney.ai Mobile
+// API Service for meridianjourney.ai Mobile
 // Connects to the same backend API as the website
 
 import AsyncStorage from '@react-native-async-storage/async-storage';

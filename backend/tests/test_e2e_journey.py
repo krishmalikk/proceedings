@@ -134,7 +134,7 @@ def main() -> int:
                 assert_subset("2b experience JSON matches expected (stable fields)", ej, {
                     "doc_kind": "experience",
                     "channel": "app",
-                    "source_system": "usajourney",
+                    "source_system": "meridianjourney",
                     "concerns_or_questions_tags": [],                    # rule: never concerns
                     "parent_case_id": ej.get("author_handle"),          # linked by handle (no PII)
                 })
@@ -163,7 +163,7 @@ def main() -> int:
                 assert_subset("3b posting JSON matches expected (controlled fields)", pj, {
                     "doc_kind": "post",
                     "channel": "app",
-                    "source_system": "usajourney",
+                    "source_system": "meridianjourney",
                     "current_visa_or_greencard_category": [],
                     "visa_applying_for": ["L-1B"],
                     "consulates": ["MAA"],

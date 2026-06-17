@@ -2,11 +2,11 @@ import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
-  description: 'The terms governing your use of usajourney.ai (usajourney.ai) and our mobile app.',
+  description: 'The terms governing your use of meridianjourney.ai (meridianjourney.ai) and our mobile app.',
 }
 
 const LAST_UPDATED = 'June 14, 2026'
-const SUPPORT_EMAIL = 'support@usajourney.ai'
+const SUPPORT_EMAIL = 'support@meridianjourney.ai'
 
 // SCAFFOLD — standard boilerplate. NOT legal advice; counsel MUST review and
 // tailor (entity name, governing law/venue, arbitration, liability caps) before
@@ -15,7 +15,7 @@ const SECTIONS: { heading: string; body: string[] }[] = [
   {
     heading: '1. Acceptance of These Terms',
     body: [
-      'These Terms of Service (“Terms”) govern your access to and use of usajourney.ai (the “Service,” at usajourney.ai and via our mobile app). By accessing or using the Service, you agree to be bound by these Terms and by our Privacy Policy and Legal Disclaimer. If you do not agree, do not use the Service.',
+      'These Terms of Service (“Terms”) govern your access to and use of meridianjourney.ai (the “Service,” at meridianjourney.ai and via our mobile app). By accessing or using the Service, you agree to be bound by these Terms and by our Privacy Policy and Legal Disclaimer. If you do not agree, do not use the Service.',
     ],
   },
   {

@@ -12,33 +12,33 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://usajourney.ai'),
+  metadataBase: new URL('https://meridianjourney.ai'),
   title: {
-    default: 'usajourney.ai | Your Immigration Assistant',
-    template: '%s | usajourney.ai',
+    default: 'meridianjourney.ai | Your Immigration Assistant',
+    template: '%s | meridianjourney.ai',
   },
   description: 'AI-powered immigration guidance with official citations. Get answers to your US immigration questions with confidence.',
   keywords: ['immigration', 'visa', 'green card', 'H-1B', 'immigration lawyer', 'USCIS', 'immigration assistant'],
-  authors: [{ name: 'usajourney.ai' }],
+  authors: [{ name: 'meridianjourney.ai' }],
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://usajourney.ai',
-    siteName: 'usajourney.ai',
-    title: 'usajourney.ai | Your Immigration Assistant',
+    url: 'https://meridianjourney.ai',
+    siteName: 'meridianjourney.ai',
+    title: 'meridianjourney.ai | Your Immigration Assistant',
     description: 'AI-powered immigration guidance with official citations.',
     images: [
       {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'usajourney.ai',
+        alt: 'meridianjourney.ai',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'usajourney.ai | Your Immigration Assistant',
+    title: 'meridianjourney.ai | Your Immigration Assistant',
     description: 'AI-powered immigration guidance with official citations.',
     images: ['/og-image.jpg'],
   },
@@ -72,9 +72,9 @@ export default function RootLayout({
           {/* Footer - shown on desktop, hidden on mobile due to bottom nav */}
           <footer className="hidden md:block w-full py-5 px-margin-desktop bg-surface-container-low border-t border-outline-variant">
             <div className="max-w-7xl mx-auto text-center space-y-3">
-              <div className="text-label-md font-semibold text-on-surface">usajourney.ai</div>
+              <div className="text-label-md font-semibold text-on-surface">meridianjourney.ai</div>
               <p className="text-caption text-on-surface-variant max-w-lg mx-auto">
-                © 2024 usajourney.ai Inc. Not legal advice. usajourney.ai is not a law firm or government agency.
+                © 2024 meridianjourney.ai Inc. Not legal advice. meridianjourney.ai is not a law firm or government agency.
               </p>
               <div className="flex justify-center gap-6">
                 <a href="/disclaimer" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
@@ -86,7 +86,7 @@ export default function RootLayout({
                 <a href="/privacy" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
                   Privacy Policy
                 </a>
-                <a href="mailto:support@usajourney.ai" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
+                <a href="mailto:support@meridianjourney.ai" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
                   Contact Support
                 </a>
               </div>

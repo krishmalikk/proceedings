@@ -1,4 +1,4 @@
-// usajourney.ai Design System — USA-flag brand identity
+// meridianjourney.ai Design System — USA-flag brand identity
 // flag navy (dominant) · liberty blue · flame red (accent only) · crisp
 // near-white ground. Reference: logo3-vivid.jpeg. Mirrors website/tailwind.config.ts.
 

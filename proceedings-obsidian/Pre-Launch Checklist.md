@@ -7,7 +7,7 @@ Complete checklist for launching Meridian (web + mobile) to production.
 ## 1. Branding & Identity Updates
 
 ### App Name Change
-- [x] Mobile: Change "usajourney.ai" to "Meridian" throughout
+- [x] Mobile: Change "meridianjourney.ai" to "Meridian" throughout
 - [ ] Website: Update all references to "Meridian"
   - [ ] TopAppBar logo/brand text
   - [ ] Page titles and meta tags

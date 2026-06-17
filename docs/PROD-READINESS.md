@@ -1,7 +1,7 @@
-# Production readiness & go-live prerequisites — `usajourney.ai`
+# Production readiness & go-live prerequisites — `meridianjourney.ai`
 
 What must be in place to take the **website** and **mobile app** to production on the
-newly-obtained domain **`usajourney.ai`** (support email **`support@usajourney.ai`**).
+newly-obtained domain **`meridianjourney.ai`** (support email **`support@meridianjourney.ai`**).
 
 This is the *prerequisites + ordered plan*. The *how-to-deploy* mechanics already
 live in [`DEPLOYMENT.md`](DEPLOYMENT.md) (Cloud Run runbook) and
@@ -28,7 +28,7 @@ Identity is an **unverified `X-User-Id` header**. `_active_user` (`api.py:606`) 
 |---|---|---|---|
 | W1 | Web | Anon visitors **auto-impersonate a seed persona**; demo-user picker still rendered in prod; `/post`,`/onboarding`,`/find` have no login gate | `onboarding/page.tsx:101-109`, `find/page.tsx:317`; only `/profile` gates |
 | W2 | Web | Dockerfile **bakes the wrong/old backend URL** (`fbtmilucfq…`, the retired Vector-Search build) into the build | `website/Dockerfile:16,26` vs `.env.local:7` |
-| W3 | Web | **CORS omits `https://usajourney.ai`** (functional break) + over-broad `*.vercel.app` regex | `api.py:104-113` |
+| W3 | Web | **CORS omits `https://meridianjourney.ai`** (functional break) + over-broad `*.vercel.app` regex | `api.py:104-113` |
 | W4 | Web | Raw **posting JSON debug block** shown to every user (`<details open>` dumps `author_id`/internal fields) | `case/[id]/page.tsx:122-128` |
 | W5 | Web | Standalone build **drops `public/`** → `og-image.jpg`/favicon 404 | `website/Dockerfile:27` |
 | M1 | Mobile | **No `eas.json`** — no production build pipeline exists | (absent) |
@@ -49,10 +49,10 @@ Identity is an **unverified `X-User-Id` header**. `_active_user` (`api.py:606`) 
 - Mobile: **mock data in shipping screens** (`mockData.ts` → Community/News/AskPro/Onboarding); no splash plugin/config; verify icon/splash are the new brand; reconcile portrait-vs-iPad-landscape.
 
 ### ✅ Already solid (no action)
-No committed server secrets (ADC only); backend `Dockerfile` COPY includes all 8 modules; **PII scrub** at every write; inline-import **retry** re-raises on persistent failure; BigQuery best-effort; facet-filter injection guarded; web `metadataBase`/OG on `usajourney.ai`; `/privacy`+`/terms` pages exist (web).
+No committed server secrets (ADC only); backend `Dockerfile` COPY includes all 8 modules; **PII scrub** at every write; inline-import **retry** re-raises on persistent failure; BigQuery best-effort; facet-filter injection guarded; web `metadataBase`/OG on `meridianjourney.ai`; `/privacy`+`/terms` pages exist (web).
 
 ### ✅ Resolved (quick-win pass, 2026-06-15)
-W3 CORS now includes `usajourney.ai` + anchored vercel regex · W2 Dockerfile URL aligned to the live backend · W5 Dockerfile copies `public/` · W4 case-page debug-JSON block removed · web security headers added (`next.config.js` — HSTS/X-Frame/nosniff/Referrer/Permissions; CSP still deferred) · signup dead links → `/terms`,`/privacy` · stale `Footer.tsx`/`Header.tsx` deleted · `not-found.tsx`+`error.tsx` added · M1 `eas.json` scaffolded · M5 Android `package` + version codes set · M4 (partial) Privacy/Terms links wired into mobile Profile (→ web pages).
+W3 CORS now includes `meridianjourney.ai` + anchored vercel regex · W2 Dockerfile URL aligned to the live backend · W5 Dockerfile copies `public/` · W4 case-page debug-JSON block removed · web security headers added (`next.config.js` — HSTS/X-Frame/nosniff/Referrer/Permissions; CSP still deferred) · signup dead links → `/terms`,`/privacy` · stale `Footer.tsx`/`Header.tsx` deleted · `not-found.tsx`+`error.tsx` added · M1 `eas.json` scaffolded · M5 Android `package` + version codes set · M4 (partial) Privacy/Terms links wired into mobile Profile (→ web pages).
 **Still open (the auth project + store work):** BLOCKER-0 auth (token verification + remove dev bypasses W1/M2 + `ALLOW_USER_IMPERSONATION=0`), M3 account deletion, M6 Sign in with Apple, shared rate limiter, body-size cap, brand icon PNGs, counsel review.
 
 ---
@@ -61,30 +61,30 @@ W3 CORS now includes `usajourney.ai` + anchored vercel regex · W2 Dockerfile UR
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D1 | Canonical host: apex `usajourney.ai` vs `www` | Apex for the site, `www` 301→apex |
+| D1 | Canonical host: apex `meridianjourney.ai` vs `www` | Apex for the site, `www` 301→apex |
 | D2 | API hostname | **DECIDED: keep `*.run.app`** — backend stays on its Cloud Run URL; no `api.` subdomain |
-| D3 | `APP_SOURCE_SYSTEM` value | **DECIDED: `usajourney`** going forward (provenance label only; the small old corpus keeps `unclesamcalling`, ranking unaffected) |
+| D3 | `APP_SOURCE_SYSTEM` value | **DECIDED: `meridianjourney`** going forward (provenance label only; the small old corpus keeps `unclesamcalling`, ranking unaffected) |
 | D4 | Mobile bundle IDs (hard to change post-publish) | **DEFERRED** to the mobile build phase (§6/F); current `com.krishmalik.proceedings` |
 | D5 | Auth for launch | **Require Firebase Auth + turn off impersonation** before public launch (see §3, §8) |
 | D6 | iOS "Sign in with Apple" | Required by Apple if offering Google sign-in → add, or restrict sign-in options |
-| D7 | Support mailbox provider for `support@usajourney.ai` | Google Workspace / Zoho / forwarding-only |
+| D7 | Support mailbox provider for `support@meridianjourney.ai` | Google Workspace / Zoho / forwarding-only |
 
 ---
 
-## 1. Domain, DNS & email (`usajourney.ai`)
+## 1. Domain, DNS & email (`meridianjourney.ai`)
 
 **Hostname plan**
 
 | Host | Serves | Target |
 |---|---|---|
-| `usajourney.ai` | Website | Cloud Run `immiguide-web` (domain mapping) |
-| `www.usajourney.ai` | redirect → apex | 301 |
-| `support@usajourney.ai` | Support inbox | mailbox or forwarding |
+| `meridianjourney.ai` | Website | Cloud Run `immiguide-web` (domain mapping) |
+| `www.meridianjourney.ai` | redirect → apex | 301 |
+| `support@meridianjourney.ai` | Support inbox | mailbox or forwarding |
 
-> **Backend (D2):** stays on its Cloud Run `*.run.app` URL — **no `api.usajourney.ai`**. The website reaches it **server-side** (the `/api/*` proxy routes), and the mobile app calls it directly (native → run.app). Only the **website** gets a custom domain.
+> **Backend (D2):** stays on its Cloud Run `*.run.app` URL — **no `api.meridianjourney.ai`**. The website reaches it **server-side** (the `/api/*` proxy routes), and the mobile app calls it directly (native → run.app). Only the **website** gets a custom domain.
 
 **Prerequisites / actions**
-- [ ] Access to the registrar's DNS for `usajourney.ai`.
+- [ ] Access to the registrar's DNS for `meridianjourney.ai`.
 - [ ] **Cloud Run domain mapping** for the **site only** (`gcloud run domain-mappings create --service immiguide-web`), then add the **verification TXT** and the returned **A/AAAA/CNAME** records. Managed TLS certs are auto-provisioned (allow up to ~24h).
 - [ ] Verify domain ownership in **Google Search Console / Webmaster** (required for Cloud Run domain mapping on a root domain).
 - [ ] **Email DNS**: `MX` (provider), `SPF` (`TXT v=spf1 …`), `DKIM` (provider key), `DMARC` (`TXT _dmarc`). Needed both to **receive** support mail and to **send** transactional/auth email without spam-foldering.
@@ -99,16 +99,16 @@ old domain. Update these (config flips where possible, code edits where not):
 
 | Location | Current | Change to |
 |---|---|---|
-| `backend/posting.py:46-47` | defaults `unclesamcalling` / `https://proceedings.app` | **✅ applied** — code defaults now `usajourney` / `https://usajourney.ai` (D3); env override optional per-env |
+| `backend/posting.py:46-47` | defaults `unclesamcalling` / `https://proceedings.app` | **✅ applied** — code defaults now `meridianjourney` / `https://meridianjourney.ai` (D3); env override optional per-env |
 | `backend/posting.py:1058,1104` | **hardcoded** `https://proceedings.app/case/…` | **✅ applied** — now use `APP_BASE_URL` |
-| `backend/tests/*` (4 `source_system` asserts/seeds) | `unclesamcalling` | **✅ applied** — `usajourney` |
+| `backend/tests/*` (4 `source_system` asserts/seeds) | `unclesamcalling` | **✅ applied** — `meridianjourney` |
 | `backend/api.py` CORS `allow_origins` | `localhost:3000` + `*.vercel.app` | **No change needed** (D2) — the website proxies server-side and mobile is native, so no browser cross-origin call to the backend. Add the site origin only if a *direct browser→backend* call is ever introduced. |
-| `website/src/app/layout.tsx` | `https://proceedings.ai` (metadataBase + OG url) | **✅ applied** — `https://usajourney.ai` |
-| `website/src/app/disclaimer/page.tsx` | `support@proceedings.app` | **✅ applied** — `support@usajourney.ai` |
-| `mobile/src/screens/DisclaimerScreen.tsx` | `support@proceedings.app` | **✅ applied** — `support@usajourney.ai` |
+| `website/src/app/layout.tsx` | `https://proceedings.ai` (metadataBase + OG url) | **✅ applied** — `https://meridianjourney.ai` |
+| `website/src/app/disclaimer/page.tsx` | `support@proceedings.app` | **✅ applied** — `support@meridianjourney.ai` |
+| `mobile/src/screens/DisclaimerScreen.tsx` | `support@proceedings.app` | **✅ applied** — `support@meridianjourney.ai` |
 | **Cloud Run env** `immiguide-web` `PYTHON_API_URL` | `…run.app` | **unchanged** — keep the `immiguide-api` `*.run.app` URL (D2) |
 | **Mobile env** `EXPO_PUBLIC_API_URL` | `…run.app` | **unchanged** — `immiguide-api` `*.run.app` URL (D2) |
-| `website` footer (`layout.tsx`) | Terms/Privacy/Contact = `#` | **✅ applied** — `/terms`, `/privacy`, `mailto:support@usajourney.ai` (pages scaffolded) |
+| `website` footer (`layout.tsx`) | Terms/Privacy/Contact = `#` | **✅ applied** — `/terms`, `/privacy`, `mailto:support@meridianjourney.ai` (pages scaffolded) |
 
 > Tip: consider a single `SUPPORT_EMAIL` constant per app to avoid future drift.
 
@@ -120,9 +120,9 @@ The app today runs on **`X-User-Id` impersonation** — anyone can act as any se
 user. **This must not ship to a public production audience.** Before launch:
 
 - [ ] **Enable the real Firebase Auth path** and set `ALLOW_USER_IMPERSONATION=0` on the backend.
-- [ ] Firebase (project `proceedings-490601`) → **Authentication → Settings → Authorized domains**: add `usajourney.ai`, `www.usajourney.ai`.
-- [ ] **OAuth consent screen** (Google Cloud): app name, logo, **support email `support@usajourney.ai`**, authorized domain `usajourney.ai`, privacy/terms URLs; move from "testing" to "in production".
-- [ ] Web Google sign-in: add `https://usajourney.ai` to **Authorized JavaScript origins** and redirect URIs.
+- [ ] Firebase (project `proceedings-490601`) → **Authentication → Settings → Authorized domains**: add `meridianjourney.ai`, `www.meridianjourney.ai`.
+- [ ] **OAuth consent screen** (Google Cloud): app name, logo, **support email `support@meridianjourney.ai`**, authorized domain `meridianjourney.ai`, privacy/terms URLs; move from "testing" to "in production".
+- [ ] Web Google sign-in: add `https://meridianjourney.ai` to **Authorized JavaScript origins** and redirect URIs.
 - [ ] Mobile Google sign-in: iOS + Android OAuth client IDs (`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` / `…_WEB_CLIENT_ID`), Android **SHA-1/256** fingerprints (from the EAS keystore), iOS **reversed-client-id URL scheme**.
 - [ ] **Sign in with Apple** (D6) if Google sign-in is offered on iOS.
 
@@ -140,15 +140,15 @@ user. **This must not ship to a public production audience.** Before launch:
 - [ ] **Observability**: uptime check on `/api/health`, error-rate + latency alerts, log-based metrics.
 - [ ] **Firestore**: scheduled **export/backup**; review security rules (the BFF mediates, but lock down direct client access if Auth/SDK is added).
 - [ ] **Dockerfile COPY**: any new backend module must be added to `backend/Dockerfile` (known gotcha).
-- ✅ **GCS ingestion layout — verified, no change (decision: keep as-is).** Sidecars are written to `gs://imm-postings-ingestion/<YYYY-MM-DD>/<channel>/` — already **date-partitioned + source-segmented** (`reddit/`, `app/`). The date folder is computed at publish time (`datetime.now(timezone.utc)`, `posting.py:691`) and auto-created on the first write of the day — **no cron / pre-creation needed** (GCS folders are virtual prefixes; a day with zero postings simply has no folder). The first-party segment stays the controlled `channel` token **`app`** (search boost / filter chips / schema validator key on it, D-036/D-038); the brand/domain is carried in the `source_system` field (now `usajourney`), **not** the path. Note: the day boundary is **UTC** — switch `date_str` to a fixed US tz if local-day folders are ever required.
+- ✅ **GCS ingestion layout — verified, no change (decision: keep as-is).** Sidecars are written to `gs://imm-postings-ingestion/<YYYY-MM-DD>/<channel>/` — already **date-partitioned + source-segmented** (`reddit/`, `app/`). The date folder is computed at publish time (`datetime.now(timezone.utc)`, `posting.py:691`) and auto-created on the first write of the day — **no cron / pre-creation needed** (GCS folders are virtual prefixes; a day with zero postings simply has no folder). The first-party segment stays the controlled `channel` token **`app`** (search boost / filter chips / schema validator key on it, D-036/D-038); the brand/domain is carried in the `source_system` field (now `meridianjourney`), **not** the path. Note: the day boundary is **UTC** — switch `date_str` to a fixed US tz if local-day folders are ever required.
 
 ---
 
 ## 5. Website (`immiguide-web`) production prerequisites
 
-- [ ] **Domain mapping** `usajourney.ai` + `www` (301 to apex, D1).
+- [ ] **Domain mapping** `meridianjourney.ai` + `www` (301 to apex, D1).
 - [ ] **Build-time `PYTHON_API_URL`** baked in the Dockerfile = the `immiguide-api` `*.run.app` URL (D2; read at build for ISR routes), plus the runtime env var.
-- [ ] **SEO/metadata**: `metadataBase`/OG → `usajourney.ai` (§2); replace the **placeholder OG image** (currently the logo JPEG) with a real 1200×630; add `robots.txt` + `sitemap`.
+- [ ] **SEO/metadata**: `metadataBase`/OG → `meridianjourney.ai` (§2); replace the **placeholder OG image** (currently the logo JPEG) with a real 1200×630; add `robots.txt` + `sitemap`.
 - [ ] **Real footer links**: `/terms`, `/privacy` pages (currently `#`); disclaimer is done.
 - [ ] **Consent/analytics**: cookie-consent banner if serving EU; wire analytics if desired.
 - [ ] **Security headers** (CSP, HSTS, etc.) via `next.config.js` headers.
@@ -167,14 +167,14 @@ user. **This must not ship to a public production audience.** Before launch:
 - [ ] Create **`mobile/eas.json`** (absent) with `development` / `preview` / `production` build profiles + `submit` config.
 - [ ] Finalize **bundle IDs** (D4): iOS `bundleIdentifier`, Android `package`, `version`, `ios.buildNumber`, `android.versionCode`.
 - [ ] **Icons/splash**: regenerate `assets/icon.png`, `splash`, and the **adaptive-icon foreground** from a transparent brand asset (flame-in-ring). *(Only the adaptive background color is on-brand today.)*
-- [ ] **Env**: `EXPO_PUBLIC_API_URL=https://api.usajourney.ai`, Firebase config, Google client IDs (§3) — set as EAS build secrets, not committed.
+- [ ] **Env**: `EXPO_PUBLIC_API_URL=https://api.meridianjourney.ai`, Firebase config, Google client IDs (§3) — set as EAS build secrets, not committed.
 - [ ] **Permissions strings**: iOS `Info.plist` `NS*UsageDescription` for any camera/photo/notification use; Android permissions in `app.json`.
-- [ ] **Deep links / universal links**: keep/replace the `proceedings` scheme; host **`apple-app-site-association`** and **`assetlinks.json`** on `usajourney.ai` to enable iOS Universal Links / Android App Links.
+- [ ] **Deep links / universal links**: keep/replace the `proceedings` scheme; host **`apple-app-site-association`** and **`assetlinks.json`** on `meridianjourney.ai` to enable iOS Universal Links / Android App Links.
 - [ ] **Push (FCM/APNs)** keys/certs **if** notifications are enabled (currently the AI-chat/FCM path is off).
 
 **Store listing assets** (both stores)
 - [ ] Name, subtitle, description, keywords, **screenshots** (per device size), app preview, **category**, **content/age rating**, marketing URL.
-- [ ] **Support URL/email** = `support@usajourney.ai`; **Privacy Policy URL** = `https://usajourney.ai/privacy` (must exist — §5).
+- [ ] **Support URL/email** = `support@meridianjourney.ai`; **Privacy Policy URL** = `https://meridianjourney.ai/privacy` (must exist — §5).
 - [ ] **Apple Privacy "nutrition labels"** + **Google Play Data Safety** form (declare PII collected; we PII-scrub user content — document it).
 - [ ] **In-app account deletion** flow — **required** by Apple (and Google) when accounts exist → currently **missing**, build it.
 - [ ] iOS **export-compliance** answer (uses HTTPS only → usually "exempt").
@@ -221,7 +221,7 @@ Quick commands:
 # BigQuery — posts per day (filter app via source_system or case_id prefix)
 bq query --use_legacy_sql=false 'SELECT posting_date, COUNT(*) AS posts
   FROM `proceedings-490601.postings.postings_metadata`
-  WHERE source_system="usajourney" GROUP BY posting_date ORDER BY posting_date DESC LIMIT 14'
+  WHERE source_system="meridianjourney" GROUP BY posting_date ORDER BY posting_date DESC LIMIT 14'
 
 # GCS — today's landed posts (UTC date)
 gcloud storage ls gs://imm-postings-ingestion/$(date -u +%F)/app/ | grep -c '\.json$'
@@ -249,14 +249,14 @@ gcloud logging read 'resource.labels.service_name="immiguide-api"
 4. **D — Auth hardening**: Firebase Auth live, impersonation off, OAuth consent + authorized domains (§3, §8).
 5. **E — Backend/website prod hardening**: scaling, monitoring, backups, security headers, WIF deploy gate (§4, §5, §8).
 6. **F — Mobile**: accounts, `eas.json`, bundle IDs, icons, env, account-deletion, store assets → TestFlight/Play internal → review (§6).
-7. **G — Launch**: cut over DNS, smoke (`test_cloud_run.py` against `api.usajourney.ai`), monitor; submit mobile for public release.
+7. **G — Launch**: cut over DNS, smoke (`test_cloud_run.py` against `api.meridianjourney.ai`), monitor; submit mobile for public release.
 
 ---
 
 ## 10. Quick prerequisite checklist (high-signal)
 
-- [ ] DNS + Cloud Run domain mapping (`usajourney.ai`, `www`; backend stays on `*.run.app`) + TLS
-- [ ] Email (`support@usajourney.ai`) with SPF/DKIM/DMARC
+- [ ] DNS + Cloud Run domain mapping (`meridianjourney.ai`, `www`; backend stays on `*.run.app`) + TLS
+- [ ] Email (`support@meridianjourney.ai`) with SPF/DKIM/DMARC
 - [ ] §2 domain/email code+env swaps applied & redeployed; backend CORS updated
 - [ ] Firebase Auth live, **impersonation off**, OAuth consent + authorized domains
 - [ ] `/privacy` + `/terms` pages live; counsel-reviewed

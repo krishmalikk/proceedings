@@ -85,9 +85,9 @@ export function CommunityScreen({ navigation }: any) {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerTitle}>usajourney.ai Community</Text>
+          <Text style={styles.footerTitle}>meridianjourney.ai Community</Text>
           <Text style={styles.footerText}>
-            Not legal advice. usajourney.ai is not a law firm or government agency.
+            Not legal advice. meridianjourney.ai is not a law firm or government agency.
           </Text>
           <View style={styles.footerLinks}>
             <Text style={styles.footerLink}>Terms of Service</Text>

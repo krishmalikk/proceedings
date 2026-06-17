@@ -1,4 +1,4 @@
-// Mock data for usajourney.ai screens
+// Mock data for meridianjourney.ai screens
 
 export const pathwayOptions = [
   { label: 'Employment-Based (H-1B, L-1, etc.)', value: 'employment' },

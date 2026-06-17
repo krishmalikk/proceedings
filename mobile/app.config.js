@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "usajourney.ai",
+    name: "meridianjourney.ai",
     slug: "proceedings",
     owner: "krishmalik",
     version: "1.0.0",

@@ -3,7 +3,7 @@ import { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Legal Disclaimer',
   description:
-    'usajourney.ai provides general immigration information and a community platform only. It is not a law firm and does not provide legal advice.',
+    'meridianjourney.ai provides general immigration information and a community platform only. It is not a law firm and does not provide legal advice.',
 }
 
 const LAST_UPDATED = 'June 14, 2026'
@@ -21,7 +21,7 @@ export default function DisclaimerPage() {
 
         <div className="space-y-6 text-body-md text-on-surface-variant leading-relaxed">
           <p className="text-body-md text-on-surface">
-            Please read this disclaimer carefully before using usajourney.ai (the
+            Please read this disclaimer carefully before using meridianjourney.ai (the
             &ldquo;Site,&rdquo; &ldquo;App,&rdquo; or &ldquo;Service&rdquo;). By accessing or using
             the Service, you acknowledge that you have read, understood, and agree to be bound by
             this disclaimer. If you do not agree, do not use the Service.
@@ -45,7 +45,7 @@ export default function DisclaimerPage() {
             <h2 className="text-headline-md text-on-surface mb-2">2. No Attorney–Client Relationship</h2>
             <p>
               Use of the Service does not create an attorney–client relationship between you and
-              usajourney.ai, its owners, operators, employees, contributors, or any other user.
+              meridianjourney.ai, its owners, operators, employees, contributors, or any other user.
               Communications made through the Service are not protected by the attorney–client
               privilege or any other privilege, and are not confidential. Do not send or post
               sensitive, privileged, or personally identifying information through the Service.
@@ -57,7 +57,7 @@ export default function DisclaimerPage() {
             <p>
               The Service includes content created by other users, such as postings, replies,
               group messages, and shared experiences. This content reflects the personal views and
-              experiences of the individuals who posted it. usajourney.ai does not author, verify,
+              experiences of the individuals who posted it. meridianjourney.ai does not author, verify,
               endorse, or guarantee the accuracy, completeness, or reliability of any user-generated
               content. Other users are not attorneys acting on your behalf, and any guidance they
               offer is peer commentary — not legal advice. You rely on user-generated content at
@@ -80,8 +80,8 @@ export default function DisclaimerPage() {
           <section>
             <h2 className="text-headline-md text-on-surface mb-2">5. Not a Law Firm or Government Agency</h2>
             <p>
-              usajourney.ai is not a law firm, is not a substitute for an attorney or law firm, and
-              does not practice law. usajourney.ai is not affiliated with, endorsed by, or acting on
+              meridianjourney.ai is not a law firm, is not a substitute for an attorney or law firm, and
+              does not practice law. meridianjourney.ai is not affiliated with, endorsed by, or acting on
               behalf of U.S. Citizenship and Immigration Services (USCIS), the U.S. Department of
               State, any court, or any other government agency. Official information should always
               be confirmed with the relevant government source.
@@ -115,7 +115,7 @@ export default function DisclaimerPage() {
           <section>
             <h2 className="text-headline-md text-on-surface mb-2">8. Limitation of Liability</h2>
             <p>
-              To the fullest extent permitted by law, usajourney.ai and its owners, operators,
+              To the fullest extent permitted by law, meridianjourney.ai and its owners, operators,
               employees, and contributors shall not be liable for any loss, damage, or harm of any
               kind arising out of or in connection with your use of, or reliance on, the Service or
               any content provided through it. Your use of the Service is entirely at your own risk.
@@ -145,8 +145,8 @@ export default function DisclaimerPage() {
           <div className="divider pt-6">
             <p className="text-caption text-on-surface-variant">
               Questions about this disclaimer? Contact us at{' '}
-              <a href="mailto:support@usajourney.ai" className="text-primary hover:underline">
-                support@usajourney.ai
+              <a href="mailto:support@meridianjourney.ai" className="text-primary hover:underline">
+                support@meridianjourney.ai
               </a>
               .
             </p>

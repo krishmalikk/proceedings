@@ -51,8 +51,8 @@ from google.cloud import storage
 CHANNEL = "app"  # controlled pathway token (channel field + case_id prefix + GCS segment) — the domain NEVER goes here
 # The website's provenance identity. Env-driven so registering a domain later is a
 # config flip (set APP_SOURCE_SYSTEM=<domain>, APP_BASE_URL=https://<domain>) — no code/redeploy of logic.
-SOURCE_SYSTEM = os.getenv("APP_SOURCE_SYSTEM", "usajourney")
-APP_BASE_URL = os.getenv("APP_BASE_URL", "https://usajourney.ai").rstrip("/")
+SOURCE_SYSTEM = os.getenv("APP_SOURCE_SYSTEM", "meridianjourney")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "https://meridianjourney.ai").rstrip("/")
 _TAGS_DIR = os.path.join(os.path.dirname(__file__), "tags-cleaned")
 
 
@@ -747,7 +747,7 @@ def build_canonical(title: str, description: str, tags: dict,
         "last_updated_timestamp": ts,
         # quality
         "tagging_confidence": float(ex.get("tagging_confidence") or 0.9),
-        "source_metadata": "Submitted via usajourney.ai web composer",
+        "source_metadata": "Submitted via meridianjourney.ai web composer",
         "gcs_path": prefix,
         # summaries
         "background_summary": bg,

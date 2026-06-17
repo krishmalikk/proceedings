@@ -87,7 +87,7 @@ export default function SignupPage() {
           </div>
           <h1 className="text-headline-md font-semibold text-on-surface">Create your account</h1>
           <p className="text-body-md text-on-surface-variant mt-2">
-            Start your immigration journey with usajourney.ai
+            Start your immigration journey with meridianjourney.ai
           </p>
         </div>
 

@@ -20,8 +20,8 @@ config in `website/.env.local` `NEXT_PUBLIC_FIREBASE_*`; backend verifies with `
 
 ## 1.1 Firebase / Google console prerequisites (one-time)
 - [ ] **Authentication → Sign-in method:** enable **Email/Password** and **Google** (and **Apple** for iOS, Part 2).
-- [ ] **Authentication → Settings → Authorized domains:** add `usajourney.ai`, `www.usajourney.ai`, and the live web origin `immiguide-web-971592620882.us-central1.run.app` (Google sign-in popups are blocked on un-listed domains).
-- [ ] **Google Cloud → OAuth consent screen:** app name, **support email `support@usajourney.ai`**, app domain `usajourney.ai`, privacy (`/privacy`) + terms (`/terms`) URLs; **publish to "In production"** (while in "Testing", only allow-listed test users can sign in).
+- [ ] **Authentication → Settings → Authorized domains:** add `meridianjourney.ai`, `www.meridianjourney.ai`, and the live web origin `immiguide-web-971592620882.us-central1.run.app` (Google sign-in popups are blocked on un-listed domains).
+- [ ] **Google Cloud → OAuth consent screen:** app name, **support email `support@meridianjourney.ai`**, app domain `meridianjourney.ai`, privacy (`/privacy`) + terms (`/terms`) URLs; **publish to "In production"** (while in "Testing", only allow-listed test users can sign in).
 - [ ] **OAuth 2.0 Web client:** Authorized JS origins + redirect URIs include the web origin(s) above.
 
 ## 1.2 Automated verification (no browser — recommended; also the E2E token fixture)
@@ -35,7 +35,7 @@ B=https://immiguide-api-971592620882.us-central1.run.app
 # 2) sign in → ID token:
 ID_TOKEN=$(curl -s "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$API_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"email":"e2e-auth@usajourney.test","password":"<pw>","returnSecureToken":true}' \
+  -d '{"email":"e2e-auth@meridianjourney.test","password":"<pw>","returnSecureToken":true}' \
   | python3 -c "import sys,json;print(json.load(sys.stdin)['idToken'])")
 # 3) call the backend with the Bearer token (prod, impersonation off):
 curl -s -o /dev/null -w "profile: %{http_code}\n" -H "Authorization: Bearer $ID_TOKEN" "$B/api/profile"   # expect 200
@@ -47,7 +47,7 @@ curl -s -o /dev/null -w "no-token: %{http_code}\n" "$B/api/profile"             
 - [ ] **Wire this into `backend/tests/test_cloud_run.py`** as the token fixture (resolves `AUTH-INTEGRATION.md §5.E.2`): a `--auth` mode that mints a token and runs the suite with `Authorization: Bearer` instead of `X-User-Id`, so the deployed token-only backend can be E2E-tested. Keep the X-User-Id mode for a local impersonation-on backend.
 
 ## 1.3 Manual verification (the live site, real browser)
-1. Open `https://immiguide-web-…run.app` (or `usajourney.ai` once mapped) **incognito**.
+1. Open `https://immiguide-web-…run.app` (or `meridianjourney.ai` once mapped) **incognito**.
 2. Anonymous: `/search`, `/case/*`, `/privacy` load; visiting `/post` or `/profile` **redirects to `/login`** (the `useRequireUser` guard).
 3. **Sign up / sign in** (Email and Google). Expect to land back in the app, header shows "Signed in as …".
 4. Authed action: post a reply / save a profile → **succeeds (200)**. (Network tab: the request to `/api/*` carries `Authorization: Bearer …`; the proxy forwards it.)
