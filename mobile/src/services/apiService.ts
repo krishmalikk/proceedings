@@ -1,4 +1,4 @@
-// API Service for usajourney.ai Mobile
+// API Service for Meridian Mobile
 // Connects to the same backend API as the website
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -70,7 +70,7 @@ export async function registerBackendUser(uid: string, username: string): Promis
       body: JSON.stringify({ uid, username }),
     });
   } catch {
-    // Best-effort — re-run on the next auth-state change; calls 404 until then.
+    // Best-effort - re-run on the next auth-state change; calls 404 until then.
   }
   await setActiveUserId(uid);
 }
@@ -508,7 +508,7 @@ export interface SearchResponse {
   suggested_filters: SuggestedFilterGroup[];
 }
 
-// Selection id used for the backend `facet` param — mirrors the website's facetId().
+// Selection id used for the backend `facet` param - mirrors the website's facetId().
 export const facetId = (field: string, code: string) => `${field}:${code}`;
 
 export async function searchPostings(
@@ -705,6 +705,17 @@ export async function joinGroup(groupId: string): Promise<void> {
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.detail || 'Could not join group');
+  }
+}
+
+export async function leaveGroup(groupId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/leave`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || 'Could not leave group');
   }
 }
 

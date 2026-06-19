@@ -11,25 +11,39 @@ import {
   AuthError,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  GoogleSignin,
-  isSuccessResponse,
-  isErrorWithCode,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
 import { auth } from '../config/firebase';
 import { registerBackendUser, setActiveUserId, setIdToken } from '../services/apiService';
 
-// Configure Google Sign-In
-GoogleSignin.configure({
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-});
+// Dev mode uses a consistent mock user ID so API calls work during testing
+const DEV_MODE_USER_ID = 'dev-mode-user-12345';
+
+// Dynamically import Google Sign-In to avoid crashes in Expo Go
+let GoogleSignin: any = null;
+let isSuccessResponse: any = null;
+let isErrorWithCode: any = null;
+let statusCodes: any = null;
+
+try {
+  const googleSignIn = require('@react-native-google-signin/google-signin');
+  GoogleSignin = googleSignIn.GoogleSignin;
+  isSuccessResponse = googleSignIn.isSuccessResponse;
+  isErrorWithCode = googleSignIn.isErrorWithCode;
+  statusCodes = googleSignIn.statusCodes;
+
+  // Configure Google Sign-In only if available
+  GoogleSignin.configure({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  });
+} catch (e) {
+  console.log('Google Sign-In not available (running in Expo Go)');
+}
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   isDevMode: boolean;
+  hasSeenWelcome: boolean;
   hasCompletedOnboarding: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
@@ -37,30 +51,42 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   enableDevMode: () => Promise<void>;
   disableDevMode: () => Promise<void>;
+  completeWelcome: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const DEV_MODE_KEY = 'proceedings_dev_mode';
+const WELCOME_SEEN_KEY = 'proceedings_welcome_seen';
 const ONBOARDING_COMPLETE_KEY = 'proceedings_onboarding_complete';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDevMode, setIsDevMode] = useState(false);
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
 
   // Check for dev mode and onboarding status on mount
   useEffect(() => {
     async function checkStoredState() {
       try {
-        const [devMode, onboardingComplete] = await Promise.all([
+        const [devMode, welcomeSeen, onboardingComplete] = await Promise.all([
           AsyncStorage.getItem(DEV_MODE_KEY),
+          AsyncStorage.getItem(WELCOME_SEEN_KEY),
           AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY),
         ]);
         if (devMode === 'true') {
           setIsDevMode(true);
+          // Restore the dev mode user ID so API calls work
+          await setActiveUserId(DEV_MODE_USER_ID);
+          // In dev mode, there's no Firebase user so onAuthStateChanged won't set loading=false
+          // We need to set it here so the app doesn't stay on the loading screen
+          setLoading(false);
+        }
+        if (welcomeSeen === 'true') {
+          setHasSeenWelcome(true);
         }
         if (onboardingComplete === 'true') {
           setHasCompletedOnboarding(true);
@@ -124,6 +150,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    // Check if Google Sign-In is available (not in Expo Go)
+    if (!GoogleSignin) {
+      throw new Error('Google Sign-In is not available in Expo Go. Use email login or Dev Mode, or create a development build.');
+    }
+
     try {
       // Check if Google Play Services are available (Android only, no-op on iOS)
       await GoogleSignin.hasPlayServices();
@@ -141,15 +172,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('No ID token received from Google');
         }
       }
-    } catch (error) {
-      if (isErrorWithCode(error)) {
+    } catch (error: any) {
+      if (isErrorWithCode && isErrorWithCode(error)) {
         switch (error.code) {
-          case statusCodes.SIGN_IN_CANCELLED:
+          case statusCodes?.SIGN_IN_CANCELLED:
             console.log('Google Sign-In cancelled by user');
             return; // Don't throw, user cancelled
-          case statusCodes.IN_PROGRESS:
+          case statusCodes?.IN_PROGRESS:
             throw new Error('Google Sign-In is already in progress');
-          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+          case statusCodes?.PLAY_SERVICES_NOT_AVAILABLE:
             throw new Error('Google Play Services not available');
           default:
             console.error('Google Sign-In error:', error);
@@ -164,21 +195,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      await firebaseSignOut(auth);
-      await disableDevMode();
-      await setActiveUserId(null); // stop sending the old uid as X-User-Id
-      // Reset onboarding state for next user
+      // Clear all local state BEFORE Firebase sign-out to avoid race conditions.
+      // Firebase sign-out triggers onAuthStateChanged which causes navigation,
+      // so we need everything cleaned up before that happens.
       await AsyncStorage.removeItem(ONBOARDING_COMPLETE_KEY);
+      await AsyncStorage.removeItem(WELCOME_SEEN_KEY);
+      await AsyncStorage.removeItem(DEV_MODE_KEY);
+      await setActiveUserId(null); // stop sending the old uid as X-User-Id
+
+      // Update React state before sign-out
       setHasCompletedOnboarding(false);
+      setHasSeenWelcome(false);
+      setIsDevMode(false);
+
+      // Only call Firebase sign-out if there's actually a Firebase user
+      // In dev mode, user is null so we skip this to avoid unnecessary errors
+      if (user) {
+        await firebaseSignOut(auth);
+      }
     } catch (error) {
       console.error('Sign out error:', error);
-      throw new Error('Failed to sign out');
+      // Don't throw - the sign-out may have partially completed
+      // and throwing would leave the app in an inconsistent state
     }
   };
 
   const enableDevMode = async () => {
     try {
       await AsyncStorage.setItem(DEV_MODE_KEY, 'true');
+      // Set a mock user ID so API calls work in dev mode
+      await setActiveUserId(DEV_MODE_USER_ID);
       setIsDevMode(true);
     } catch (error) {
       console.error('Error enabling dev mode:', error);
@@ -191,6 +237,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsDevMode(false);
     } catch (error) {
       console.error('Error disabling dev mode:', error);
+    }
+  };
+
+  const completeWelcome = async () => {
+    try {
+      await AsyncStorage.setItem(WELCOME_SEEN_KEY, 'true');
+      setHasSeenWelcome(true);
+    } catch (error) {
+      console.error('Error completing welcome:', error);
     }
   };
 
@@ -209,6 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         isDevMode,
+        hasSeenWelcome,
         hasCompletedOnboarding,
         signInWithEmail,
         signUpWithEmail,
@@ -216,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         enableDevMode,
         disableDevMode,
+        completeWelcome,
         completeOnboarding,
       }}
     >

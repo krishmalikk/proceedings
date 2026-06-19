@@ -1,10 +1,10 @@
-// Onboarding vocabulary — OFFLINE FALLBACKS only.
+// Onboarding vocabulary - OFFLINE FALLBACKS only.
 //
 // The live vocabulary is fetched from GET /api/tag-vocab (see
 // services/apiService.getTagVocab) so mobile stays in sync with the backend
 // CSVs. Every value below is a VALID controlled-vocabulary code (the backend
 // silently drops invalid values on save, so labels like "Mumbai, India" or
-// "RFE Received" must never be sent — codes only).
+// "RFE Received" must never be sent - codes only).
 
 export const VISA_CATEGORIES = [
   'H-1B',
@@ -29,7 +29,7 @@ export const VISA_CATEGORIES = [
   'EB-5',
 ];
 
-// Curated popular consulates as {code, label} — the CODE is what the backend
+// Curated popular consulates as {code, label} - the CODE is what the backend
 // stores (1.4); the label is display-only.
 export interface ConsulateOption {
   code: string;
@@ -61,7 +61,7 @@ export const CONSULATE_OPTIONS: ConsulateOption[] = [
   { code: 'ACC', label: 'Accra, Ghana' },
 ];
 
-// Miscellaneous tags & topics — valid 1.3 abbreviations + 1.10 topics only
+// Miscellaneous tags & topics - valid 1.3 abbreviations + 1.10 topics only
 // (forms and outcomes live under key stages, mirroring the website).
 export const TAGS = [
   'NIW',
@@ -121,7 +121,7 @@ export const KEY_DATE_TYPES = [
   { key: 'biometrics_appointment_date', label: 'Biometrics' },
 ];
 
-// Journey milestones — free-form: the backend slugifies and accepts any value.
+// Journey milestones - free-form: the backend slugifies and accepts any value.
 export const MILESTONES = [
   { key: 'visa_interview', label: 'Visa Interview' },
   { key: 'visa_stamping', label: 'Visa Stamping' },

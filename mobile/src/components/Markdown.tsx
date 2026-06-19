@@ -3,7 +3,7 @@ import { Linking } from 'react-native';
 import MarkdownDisplay from 'react-native-markdown-display';
 import { colors, spacing } from '../constants/theme';
 
-// Mirrors website/src/components/Markdown.tsx — maps Markdown elements onto the
+// Mirrors website/src/components/Markdown.tsx - maps Markdown elements onto the
 // design system so AI replies, posting bodies and background text render the
 // same on mobile (bold, lists, links, quotes) instead of showing raw syntax.
 //

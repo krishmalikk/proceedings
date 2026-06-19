@@ -87,14 +87,14 @@ export function AskProScreen() {
             <Text style={styles.guaranteeTitle}>Professional Standard Guarantee</Text>
           </View>
           <Text style={styles.guaranteeText}>
-            All professionals listed on usajourney.ai undergo a rigorous background check and license verification process. Consultations provided through this platform are encrypted and strictly confidential.
+            All professionals listed on Meridian undergo a rigorous background check and license verification process. Consultations provided through this platform are encrypted and strictly confidential.
           </Text>
         </Card>
 
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Not legal advice. usajourney.ai is not a law firm or government agency.
+            Not legal advice. Meridian is not a law firm or government agency.
           </Text>
           <View style={styles.footerLinks}>
             <Text style={styles.footerLink}>Terms of Service</Text>

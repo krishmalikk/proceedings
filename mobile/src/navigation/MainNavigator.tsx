@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { createNativeStackNavigator, NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import {
   SearchScreen,
   CaseDetailsScreen,
@@ -17,9 +16,14 @@ import {
   DisclaimerScreen,
   BackgroundOnboardingScreen,
   ExperiencesOnboardingScreen,
+  AIChatScreen,
+  HomeScreen,
+  VisaExperiencesScreen,
+  WelcomeScreen,
 } from '../screens';
 import { colors, spacing } from '../constants/theme';
 import { FloatingChatButton, ChatModal } from '../components/chat';
+import { FloatingTabBar } from '../components/FloatingTabBar';
 import { useAuth } from '../contexts/AuthContext';
 
 const Tab = createBottomTabNavigator();
@@ -27,19 +31,43 @@ const Stack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const OnboardingStackNav = createNativeStackNavigator();
 
+// Polished screen transition options
+const screenTransitionOptions: NativeStackNavigationOptions = {
+  headerShown: false,
+  animation: Platform.OS === 'ios' ? 'ios_from_right' : 'slide_from_right',
+  animationDuration: 300,
+  gestureEnabled: true,
+  fullScreenGestureEnabled: true,
+};
+
+// Modal presentation options
+const modalTransitionOptions: NativeStackNavigationOptions = {
+  headerShown: false,
+  presentation: 'modal',
+  animation: 'slide_from_bottom',
+  gestureEnabled: true,
+};
+
+// Fade transition for auth flow
+const fadeTransitionOptions: NativeStackNavigationOptions = {
+  headerShown: false,
+  animation: 'fade',
+  animationDuration: 250,
+};
+
 // "Community" mirrors the website's Community tab (the postings search/browse,
 // i.e. /search). The old mock forum screen navigated to fake case ids → 404.
 function CommunityStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={screenTransitionOptions}>
       <Stack.Screen name="CommunityMain" component={SearchScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
-      <Stack.Screen name="Post" component={PostScreen} />
+      <Stack.Screen name="Post" component={PostScreen} options={modalTransitionOptions} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} options={modalTransitionOptions} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </Stack.Navigator>
@@ -48,15 +76,17 @@ function CommunityStack() {
 
 function HomeStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="SearchMain" component={SearchScreen} />
-      <Stack.Screen name="Post" component={PostScreen} />
+    <Stack.Navigator screenOptions={screenTransitionOptions}>
+      <Stack.Screen name="HomeMain" component={HomeScreen} />
+      <Stack.Screen name="VisaExperiences" component={VisaExperiencesScreen} />
+      <Stack.Screen name="AIChat" component={AIChatScreen} />
+      <Stack.Screen name="Post" component={PostScreen} options={modalTransitionOptions} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} options={modalTransitionOptions} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </Stack.Navigator>
@@ -65,14 +95,14 @@ function HomeStack() {
 
 function FindStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={screenTransitionOptions}>
       <Stack.Screen name="FindMain" component={FindScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} options={modalTransitionOptions} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </Stack.Navigator>
@@ -81,7 +111,7 @@ function FindStack() {
 
 function ProfileStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={screenTransitionOptions}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
@@ -89,14 +119,17 @@ function ProfileStack() {
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
-      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} options={modalTransitionOptions} />
     </Stack.Navigator>
   );
 }
 
-function AuthNavigator() {
+function AuthNavigator({ showWelcome }: { showWelcome: boolean }) {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Navigator screenOptions={fadeTransitionOptions}>
+      {showWelcome && (
+        <AuthStack.Screen name="Welcome" component={WelcomeScreen} />
+      )}
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Signup" component={SignupScreen} />
     </AuthStack.Navigator>
@@ -105,25 +138,15 @@ function AuthNavigator() {
 
 function OnboardingStack() {
   return (
-    <OnboardingStackNav.Navigator screenOptions={{ headerShown: false }}>
+    <OnboardingStackNav.Navigator screenOptions={screenTransitionOptions}>
       <OnboardingStackNav.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
       <OnboardingStackNav.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
     </OnboardingStackNav.Navigator>
   );
 }
 
-type TabIconName = 'home' | 'document-text' | 'chatbubbles' | 'people' | 'person' | 'create';
-
-const tabIcons: Record<string, { focused: TabIconName; unfocused: `${TabIconName}-outline` }> = {
-  Home: { focused: 'home', unfocused: 'home-outline' },
-  Find: { focused: 'people', unfocused: 'people-outline' },
-  Community: { focused: 'chatbubbles', unfocused: 'chatbubbles-outline' },
-  Profile: { focused: 'person', unfocused: 'person-outline' },
-};
-
-// The global AI chat is DISABLED to match the website, where the equivalent
-// "AI mode" answer panel is gated off (UnifiedSearch.tsx `AI_MODE_ENABLED = false`,
-// per posting-specs.md §2). Flip both to re-enable the AI assistant together.
+// The floating AI chat button is disabled - we now use an inline card on the Home screen
+// that navigates to a full AIChatScreen instead.
 const AI_CHAT_ENABLED = false;
 
 function TabNavigator() {
@@ -132,19 +155,10 @@ function TabNavigator() {
   return (
     <View style={styles.container}>
       <Tab.Navigator
-        screenOptions={({ route }) => ({
+        tabBar={(props) => <FloatingTabBar {...props} />}
+        screenOptions={{
           headerShown: false,
-          tabBarIcon: ({ focused, color, size }) => {
-            const icons = tabIcons[route.name];
-            const iconName = focused ? icons.focused : icons.unfocused;
-            return <Ionicons name={iconName} size={22} color={color} />;
-          },
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.outline,
-          tabBarStyle: styles.tabBar,
-          tabBarLabelStyle: styles.tabBarLabel,
-          tabBarItemStyle: styles.tabBarItem,
-        })}
+        }}
       >
         <Tab.Screen
           name="Home"
@@ -176,7 +190,7 @@ function TabNavigator() {
         />
       </Tab.Navigator>
 
-      {/* AI Chat Floating Button and Modal — disabled to match the website
+      {/* AI Chat Floating Button and Modal - disabled to match the website
           (AI_MODE_ENABLED = false there). Re-enable via AI_CHAT_ENABLED above. */}
       {AI_CHAT_ENABLED && (
         <>
@@ -195,7 +209,7 @@ function TabNavigator() {
 }
 
 export function MainNavigator() {
-  const { user, loading, isDevMode, hasCompletedOnboarding } = useAuth();
+  const { user, loading, isDevMode, hasSeenWelcome, hasCompletedOnboarding } = useAuth();
 
   // Dev mode bypass only works in __DEV__ builds; production builds always require auth
   const allowDevMode = __DEV__ && isDevMode;
@@ -211,7 +225,7 @@ export function MainNavigator() {
 
   // Show auth screens if not authenticated (dev mode only works in __DEV__ builds)
   if (!user && !allowDevMode) {
-    return <AuthNavigator />;
+    return <AuthNavigator showWelcome={!hasSeenWelcome} />;
   }
 
   // Show onboarding if user hasn't completed it (dev mode only works in __DEV__ builds)
@@ -226,28 +240,13 @@ export function MainNavigator() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
-  },
-  tabBar: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
-    paddingTop: spacing.base,
-    paddingBottom: spacing.sm,
-    height: 70,
-  },
-  tabBarLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  tabBarItem: {
-    paddingVertical: 4,
   },
 });
 

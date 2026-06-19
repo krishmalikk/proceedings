@@ -7,16 +7,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 
 const LAST_UPDATED = 'June 14, 2026';
-const SUPPORT_EMAIL = 'support@usajourney.ai';
+const SUPPORT_EMAIL = 'support@Meridian';
 
-// Standard legal disclaimer — mirrors the website /disclaimer page. Plain,
+// Standard legal disclaimer - mirrors the website /disclaimer page. Plain,
 // static content. NOTE: boilerplate; have counsel review before public launch.
 const SECTIONS: { heading: string; body: string }[] = [
   {
     heading: '1. No Legal Advice',
     body:
-      'The information provided on or through the Service — including articles, search results, ' +
-      'AI-generated responses, tags, summaries, and any content posted by users — is provided for ' +
+      'The information provided on or through the Service - including articles, search results, ' +
+      'AI-generated responses, tags, summaries, and any content posted by users - is provided for ' +
       'general informational purposes only and does NOT constitute legal advice. Nothing on the ' +
       'Service is intended to be, and should not be relied upon as, a substitute for advice from a ' +
       'licensed attorney regarding your specific situation. Any message, response, opinion, ' +
@@ -24,11 +24,11 @@ const SECTIONS: { heading: string; body: string }[] = [
       'legal advice and must not be treated as such.',
   },
   {
-    heading: '2. No Attorney–Client Relationship',
+    heading: '2. No Attorney-Client Relationship',
     body:
-      'Use of the Service does not create an attorney–client relationship between you and ' +
-      'usajourney.ai, its owners, operators, employees, contributors, or any other user. ' +
-      'Communications made through the Service are not protected by the attorney–client privilege ' +
+      'Use of the Service does not create an attorney-client relationship between you and ' +
+      'Meridian, its owners, operators, employees, contributors, or any other user. ' +
+      'Communications made through the Service are not protected by the attorney-client privilege ' +
       'or any other privilege, and are not confidential. Do not send or post sensitive, ' +
       'privileged, or personally identifying information through the Service.',
   },
@@ -37,9 +37,9 @@ const SECTIONS: { heading: string; body: string }[] = [
     body:
       'The Service includes content created by other users, such as postings, replies, group ' +
       'messages, and shared experiences. This content reflects the personal views and experiences ' +
-      'of the individuals who posted it. usajourney.ai does not author, verify, endorse, or guarantee ' +
+      'of the individuals who posted it. Meridian does not author, verify, endorse, or guarantee ' +
       'the accuracy, completeness, or reliability of any user-generated content. Other users are ' +
-      'not attorneys acting on your behalf, and any guidance they offer is peer commentary — not ' +
+      'not attorneys acting on your behalf, and any guidance they offer is peer commentary - not ' +
       'legal advice. You rely on user-generated content at your own risk.',
   },
   {
@@ -54,8 +54,8 @@ const SECTIONS: { heading: string; body: string }[] = [
   {
     heading: '5. Not a Law Firm or Government Agency',
     body:
-      'usajourney.ai is not a law firm, is not a substitute for an attorney or law firm, and does ' +
-      'not practice law. usajourney.ai is not affiliated with, endorsed by, or acting on behalf of ' +
+      'Meridian is not a law firm, is not a substitute for an attorney or law firm, and does ' +
+      'not practice law. Meridian is not affiliated with, endorsed by, or acting on behalf of ' +
       'U.S. Citizenship and Immigration Services (USCIS), the U.S. Department of State, any court, ' +
       'or any other government agency. Official information should always be confirmed with the ' +
       'relevant government source.',
@@ -81,7 +81,7 @@ const SECTIONS: { heading: string; body: string }[] = [
   {
     heading: '8. Limitation of Liability',
     body:
-      'To the fullest extent permitted by law, usajourney.ai and its owners, operators, employees, ' +
+      'To the fullest extent permitted by law, Meridian and its owners, operators, employees, ' +
       'and contributors shall not be liable for any loss, damage, or harm of any kind arising out ' +
       'of or in connection with your use of, or reliance on, the Service or any content provided ' +
       'through it. Your use of the Service is entirely at your own risk.',
@@ -122,7 +122,7 @@ export function DisclaimerScreen() {
         <Text style={styles.updated}>Last updated: {LAST_UPDATED}</Text>
 
         <Text style={styles.intro}>
-          Please read this disclaimer carefully before using usajourney.ai (the “Site,” “App,” or
+          Please read this disclaimer carefully before using Meridian (the “Site,” “App,” or
           “Service”). By accessing or using the Service, you acknowledge that you have read,
           understood, and agree to be bound by this disclaimer. If you do not agree, do not use the
           Service.

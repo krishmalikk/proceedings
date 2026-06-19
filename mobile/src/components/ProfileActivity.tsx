@@ -77,7 +77,7 @@ export function ProfileActivity({
         ))}
       </Section>
 
-      {/* 2) Your activity — replies */}
+      {/* 2) Your activity - replies */}
       <Section icon="chatbubbles-outline" title="Your Activity" count={replies.length} empty="You haven't replied to any postings yet.">
         {replies.map((r) => (
           <TouchableOpacity key={r.id} style={styles.item} onPress={() => onOpenPosting(r.parent_case_id)}>

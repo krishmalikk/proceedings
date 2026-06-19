@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Animated, { FadeIn, ZoomIn, Layout } from 'react-native-reanimated';
 import { colors, borderRadius, spacing } from '../constants/theme';
 
 interface Step {
@@ -23,7 +24,8 @@ export function ProgressStepper({ steps, currentStep }: ProgressStepperProps) {
         return (
           <View key={index} style={styles.stepContainer}>
             <View style={styles.stepContent}>
-              <View
+              <Animated.View
+                layout={Layout.springify().damping(15).stiffness(120)}
                 style={[
                   styles.stepCircle,
                   isCompleted && styles.stepCompleted,
@@ -36,9 +38,9 @@ export function ProgressStepper({ steps, currentStep }: ProgressStepperProps) {
                     (isCompleted || isCurrent) && styles.stepNumberActive,
                   ]}
                 >
-                  {index + 1}
+                  {isCompleted ? '✓' : index + 1}
                 </Text>
-              </View>
+              </Animated.View>
               <Text
                 style={[
                   styles.stepLabel,
@@ -49,7 +51,8 @@ export function ProgressStepper({ steps, currentStep }: ProgressStepperProps) {
               </Text>
             </View>
             {!isLast && (
-              <View
+              <Animated.View
+                layout={Layout.springify().damping(15).stiffness(120)}
                 style={[
                   styles.connector,
                   isCompleted && styles.connectorCompleted,

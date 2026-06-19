@@ -148,7 +148,7 @@ export function Replies({ postingId, onPostingTally }: RepliesProps) {
       {loading ? (
         <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
       ) : replies.length === 0 ? (
-        <Text style={styles.emptyText}>No replies yet — be the first to share.</Text>
+        <Text style={styles.emptyText}>No replies yet - be the first to share.</Text>
       ) : (
         <FlatList
           data={replies}

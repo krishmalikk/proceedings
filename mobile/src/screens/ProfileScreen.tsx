@@ -173,6 +173,8 @@ export function ProfileScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <Header
           title="Profile"
+          showLogo={false}
+          transparent
           showBack={canGoBack}
           onBack={() => navigation.goBack()}
         />
@@ -189,6 +191,8 @@ export function ProfileScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <Header
           title="Profile"
+          showLogo={false}
+          transparent
           showBack={canGoBack}
           onBack={() => navigation.goBack()}
         />
@@ -207,6 +211,8 @@ export function ProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Header
         title="Profile"
+        showLogo={false}
+        transparent
         showBack={canGoBack}
         onBack={() => navigation.goBack()}
       />
@@ -513,7 +519,7 @@ export function ProfileScreen() {
           <Ionicons name="open-outline" size={16} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
         <Text style={styles.legalNote}>
-          Not legal advice. usajourney.ai is not a law firm or government agency.
+          Not legal advice. Meridian is not a law firm or government agency.
         </Text>
 
         <View style={styles.bottomPadding} />

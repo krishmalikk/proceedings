@@ -86,7 +86,7 @@ export function AuthorCard({
       .finally(() => setLoading(false));
   }, [authorId]);
 
-  // Reddit / other-source postings have no app author — omit entirely.
+  // Reddit / other-source postings have no app author - omit entirely.
   if (channel !== 'app') return null;
 
   if (!authorId) {

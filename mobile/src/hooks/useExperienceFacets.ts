@@ -16,7 +16,7 @@ interface JourneyLike {
 // Mirrors the website onboarding page: for each SHARED/published journey entry
 // (one with an `experience_case_id`), lazily fetch that experience's posting and
 // expose its generated facets (visa / consulates / outcome / tags) keyed by id.
-// Best-effort — failures are skipped, never thrown.
+// Best-effort - failures are skipped, never thrown.
 export function useExperienceFacets(journey: JourneyLike[] | undefined): Record<string, ExperienceFacets> {
   const [facets, setFacets] = useState<Record<string, ExperienceFacets>>({});
 

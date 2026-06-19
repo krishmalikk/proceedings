@@ -9,7 +9,7 @@ export * from '@testing-library/react-native';
  *
  * With Expo SDK 54 / React 19 / @testing-library/react-native v14, the library's
  * `render` is **asynchronous** (it awaits React's concurrent `act`). There is no
- * synchronous-render option on this stack — an older RNTL with sync render does
+ * synchronous-render option on this stack - an older RNTL with sync render does
  * not support React 19. So ALWAYS:
  *
  *     const s = await renderScreen(<MyComponent />);

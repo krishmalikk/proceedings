@@ -19,6 +19,7 @@ import {
   sendGroupMessage,
   deleteGroupMessage,
   getActiveUserId,
+  joinGroup,
 } from '../services/apiService';
 
 export type ChatMessage = {
@@ -55,6 +56,7 @@ export function GroupChat({ groupId }: GroupChatProps) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [denied, setDenied] = useState(false);
+  const [joining, setJoining] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const sinceRef = useRef<string>('');
   const hasUser = !!getActiveUserId();
@@ -220,10 +222,40 @@ export function GroupChat({ groupId }: GroupChatProps) {
     );
   }
 
+  const handleJoinGroup = async () => {
+    setJoining(true);
+    setError('');
+    try {
+      await joinGroup(groupId);
+      setDenied(false);
+      loadInitial();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not join group');
+    } finally {
+      setJoining(false);
+    }
+  };
+
   if (denied) {
     return (
-      <View style={styles.noUserCard}>
-        <Text style={styles.noUserText}>You're not a member of this group.</Text>
+      <View style={styles.deniedContainer}>
+        <Ionicons name="lock-closed-outline" size={48} color={colors.onSurfaceVariant} />
+        <Text style={styles.deniedTitle}>Members Only</Text>
+        <Text style={styles.deniedText}>
+          You're not a member of this group yet.
+        </Text>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <TouchableOpacity
+          style={[styles.joinButton, joining && styles.joinButtonDisabled]}
+          onPress={handleJoinGroup}
+          disabled={joining}
+        >
+          {joining ? (
+            <ActivityIndicator size="small" color={colors.onPrimary} />
+          ) : (
+            <Text style={styles.joinButtonText}>Join Group</Text>
+          )}
+        </TouchableOpacity>
       </View>
     );
   }
@@ -248,7 +280,7 @@ export function GroupChat({ groupId }: GroupChatProps) {
           contentContainerStyle={styles.messageList}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
-              No messages yet — say hello to your group.
+              No messages yet - say hello to your group.
             </Text>
           }
         />
@@ -403,6 +435,43 @@ const styles = StyleSheet.create({
   noUserText: {
     fontSize: 14,
     color: colors.onSurfaceVariant,
+  },
+  deniedContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.xl,
+  },
+  deniedTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.onSurface,
+    marginTop: spacing.md,
+  },
+  deniedText: {
+    fontSize: 15,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    marginTop: spacing.base,
+    marginBottom: spacing.lg,
+  },
+  joinButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  joinButtonDisabled: {
+    opacity: 0.7,
+  },
+  joinButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.onPrimary,
   },
 });
 

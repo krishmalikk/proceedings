@@ -9,12 +9,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
-  Animated,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolate,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../../constants/theme';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
+import { AnimatedPressable } from '../AnimatedPressable';
 import { askQuestion } from '../../services/apiService';
 
 interface Message {
@@ -37,7 +44,7 @@ interface ChatItem {
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  content: `Hi! I'm your usajourney.ai AI assistant. I can help you:
+  content: `Hi! I'm your Meridian AI assistant. I can help you:
 
 • Search for visa interview experiences
 • Draft posts about your immigration journey
@@ -53,24 +60,21 @@ export function ChatModal({ visible, onClose }: ChatModalProps) {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const slideProgress = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      Animated.spring(slideAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 65,
-        friction: 11,
-      }).start();
+      slideProgress.value = withSpring(1, { damping: 15, stiffness: 120 });
     } else {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
+      slideProgress.value = withTiming(0, { duration: 200 });
     }
   }, [visible]);
+
+  const containerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(slideProgress.value, [0, 1], [600, 0]) },
+    ],
+  }));
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -156,11 +160,6 @@ export function ChatModal({ visible, onClose }: ChatModalProps) {
     return null;
   };
 
-  const translateY = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [600, 0],
-  });
-
   return (
     <Modal
       visible={visible}
@@ -169,17 +168,13 @@ export function ChatModal({ visible, onClose }: ChatModalProps) {
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.overlayTouchable}
-          activeOpacity={1}
           onPress={onClose}
+          scaleTo={1}
+          haptics="none"
         />
-        <Animated.View
-          style={[
-            styles.container,
-            { transform: [{ translateY }] },
-          ]}
-        >
+        <Animated.View style={[styles.container, containerAnimatedStyle]}>
           <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -191,11 +186,11 @@ export function ChatModal({ visible, onClose }: ChatModalProps) {
                   <View style={styles.aiIcon}>
                     <Ionicons name="sparkles" size={20} color={colors.onPrimary} />
                   </View>
-                  <Text style={styles.headerTitle}>usajourney.ai AI</Text>
+                  <Text style={styles.headerTitle}>Meridian AI</Text>
                 </View>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <AnimatedPressable onPress={onClose} style={styles.closeButton} scaleTo={0.9} haptics="light">
                   <Ionicons name="close" size={24} color={colors.onSurface} />
-                </TouchableOpacity>
+                </AnimatedPressable>
               </View>
 
               {/* Chat Messages */}

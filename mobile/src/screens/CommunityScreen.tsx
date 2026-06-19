@@ -17,7 +17,7 @@ export function CommunityScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Header showLogo showSearch />
+      <Header title="Community" showLogo={false} showSearch transparent />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Page Header */}
@@ -85,9 +85,9 @@ export function CommunityScreen({ navigation }: any) {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerTitle}>usajourney.ai Community</Text>
+          <Text style={styles.footerTitle}>Meridian Community</Text>
           <Text style={styles.footerText}>
-            Not legal advice. usajourney.ai is not a law firm or government agency.
+            Not legal advice. Meridian is not a law firm or government agency.
           </Text>
           <View style={styles.footerLinks}>
             <Text style={styles.footerLink}>Terms of Service</Text>

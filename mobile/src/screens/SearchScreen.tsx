@@ -105,7 +105,9 @@ export function SearchScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Header
-        showLogo
+        title="Community"
+        showLogo={false}
+        transparent
         showProfile
         onProfile={() => navigation.navigate('Profile')}
         rightAction={

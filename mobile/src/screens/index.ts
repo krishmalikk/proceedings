@@ -15,3 +15,7 @@ export { ProfileScreen } from './ProfileScreen';
 export { DisclaimerScreen } from './DisclaimerScreen';
 export { BackgroundOnboardingScreen } from './BackgroundOnboardingScreen';
 export { ExperiencesOnboardingScreen } from './ExperiencesOnboardingScreen';
+export { AIChatScreen } from './AIChatScreen';
+export { HomeScreen } from './HomeScreen';
+export { VisaExperiencesScreen } from './VisaExperiencesScreen';
+export { WelcomeScreen } from './WelcomeScreen';

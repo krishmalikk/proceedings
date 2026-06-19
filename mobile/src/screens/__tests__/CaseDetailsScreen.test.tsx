@@ -4,7 +4,7 @@ import { CaseDetailsScreen } from '../CaseDetailsScreen';
 import { getPosting } from '../../services/apiService';
 
 jest.mock('../../services/apiService', () => ({ getPosting: jest.fn() }));
-// Stub the heavy children that fetch on their own — isolate the screen's own UI.
+// Stub the heavy children that fetch on their own - isolate the screen's own UI.
 jest.mock('../../components/VoteControl', () => ({ VoteControl: () => null }));
 jest.mock('../../components/Replies', () => ({ Replies: () => null }));
 jest.mock('../../components/AuthorCard', () => {

@@ -1,13 +1,18 @@
 export default {
   expo: {
-    name: "usajourney.ai",
+    name: "Meridian",
     slug: "proceedings",
     owner: "krishmalik",
     version: "1.0.0",
     scheme: "proceedings",
     orientation: "portrait",
-    icon: "./assets/icon.png",
+    icon: "./assets/meridian-logo.png",
     userInterfaceStyle: "light",
+    splash: {
+      image: "./assets/meridian-logo-transparent.png",
+      resizeMode: "contain",
+      backgroundColor: "#AE0000"
+    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.krishmalik.proceedings",
@@ -47,7 +52,8 @@ export default {
         {
           iosUrlScheme: "com.googleusercontent.apps.971592620882-mvj696meur8j54ibu82egpl2dmvha0nf"
         }
-      ]
+      ],
+      "./plugins/withModularHeaders"
     ],
     extra: {
       eas: {

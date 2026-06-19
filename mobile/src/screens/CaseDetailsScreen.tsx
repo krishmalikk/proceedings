@@ -8,13 +8,14 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
+import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Markdown } from '../components';
+import { Card, Markdown, AnimatedPressable } from '../components';
 import { AuthorCard } from '../components/AuthorCard';
 import { VoteControl } from '../components/VoteControl';
 import { Replies } from '../components/Replies';
-import { colors, spacing, borderRadius } from '../constants/theme';
+import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { getPosting, PostingData } from '../services/apiService';
 
 type Tally = { up: number; down: number; score: number; your_vote: number };
@@ -137,7 +138,7 @@ export function CaseDetailsScreen({ navigation, route }: any) {
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailKey}>Posted</Text>
-              <Text style={styles.detailValue}>{data.date || '—'}</Text>
+              <Text style={styles.detailValue}>{data.date || '-'}</Text>
             </View>
             {!!data.outcome && (
               <View style={styles.detailRow}>
@@ -147,7 +148,7 @@ export function CaseDetailsScreen({ navigation, route }: any) {
             )}
           </Card>
 
-          {/* Tags — every category as its own labeled section (website parity).
+          {/* Tags - every category as its own labeled section (website parity).
               Falls back to the flat `tags` list under "Topics" for older data. */}
           {(() => {
             const sections =
@@ -204,7 +205,7 @@ export function CaseDetailsScreen({ navigation, route }: any) {
             </Card>
           ) : null}
 
-          {/* Source link — only for genuine Reddit-sourced posts (website parity) */}
+          {/* Source link - only for genuine Reddit-sourced posts (website parity) */}
           {isReddit && (
             <TouchableOpacity style={styles.redditLink} onPress={() => Linking.openURL(data.url)}>
               <Ionicons name="open-outline" size={18} color={colors.secondary} />
@@ -220,7 +221,7 @@ export function CaseDetailsScreen({ navigation, route }: any) {
             </Text>
           </Card>
 
-          {/* Replies — same component as the rest of the app */}
+          {/* Replies - same component as the rest of the app */}
           <View style={styles.repliesWrap}>
             <Replies postingId={data.case_id} onPostingTally={onPostingTally} />
           </View>
