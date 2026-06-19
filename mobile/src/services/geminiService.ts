@@ -71,7 +71,7 @@ export async function startChat(): Promise<void> {
     history: [
       {
         role: 'user',
-        parts: [{ text: 'You are Meridian AI assistant. Follow these instructions: ' + SYSTEM_PROMPT }],
+parts: [{ text: 'You are Meridian AI assistant. Follow these instructions: ' + SYSTEM_PROMPT }],
       },
       {
         role: 'model',

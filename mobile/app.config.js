@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "Meridian",
+name: "Meridian",
     slug: "proceedings",
     owner: "krishmalik",
     version: "1.0.0",

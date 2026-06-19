@@ -1,5 +1,5 @@
 """
-api.py — FastAPI Server for usajourney.ai RAG Pipeline
+api.py — FastAPI Server for meridianjourney.ai RAG Pipeline
 =====================================================
 Exposes the RAG query engine as HTTP endpoints for the Next.js frontend.
 
@@ -99,14 +99,14 @@ async def lifespan(app: FastAPI):
 # App
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="usajourney.ai API", lifespan=lifespan)
+app = FastAPI(title="meridianjourney.ai API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://usajourney.ai",
-        "https://www.usajourney.ai",
+        "https://meridianjourney.ai",
+        "https://www.meridianjourney.ai",
     ],
     # Vercel preview deploys (anchored so it can't match e.g. attacker.vercel.app.evil.com).
     allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app$",

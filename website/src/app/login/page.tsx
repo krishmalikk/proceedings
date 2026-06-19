@@ -73,7 +73,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-headline-md font-semibold text-on-surface">Welcome back</h1>
           <p className="text-body-md text-on-surface-variant mt-2">
-            Sign in to continue to usajourney.ai
+            Sign in to continue to meridianjourney.ai
           </p>
         </div>
 

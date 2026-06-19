@@ -44,7 +44,7 @@ interface ChatItem {
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  content: `Hi! I'm your Meridian AI assistant. I can help you:
+content: `Hi! I'm your Meridian AI assistant. I can help you:
 
 • Search for visa interview experiences
 • Draft posts about your immigration journey
@@ -186,7 +186,7 @@ export function ChatModal({ visible, onClose }: ChatModalProps) {
                   <View style={styles.aiIcon}>
                     <Ionicons name="sparkles" size={20} color={colors.onPrimary} />
                   </View>
-                  <Text style={styles.headerTitle}>Meridian AI</Text>
+<Text style={styles.headerTitle}>Meridian AI</Text>
                 </View>
                 <AnimatedPressable onPress={onClose} style={styles.closeButton} scaleTo={0.9} haptics="light">
                   <Ionicons name="close" size={24} color={colors.onSurface} />

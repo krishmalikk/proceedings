@@ -1,5 +1,5 @@
 """
-query.py — Q&A persistence + direct-Gemini fallback for the usajourney.ai API
+query.py — Q&A persistence + direct-Gemini fallback for the meridianjourney.ai API
 ===========================================================================
 Grounded retrieval now lives in `search_client.py` (managed Vertex AI Search
 Answer API over `imm-postings-datastore`, per D-016/D-034/D-039). This module

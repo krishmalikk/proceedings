@@ -45,7 +45,7 @@ export function Header({
               <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
             </TouchableOpacity>
           )}
-          <Text style={styles.title}>
+<Text style={styles.title}>
             {showLogo ? 'Meridian' : title}
           </Text>
         </View>

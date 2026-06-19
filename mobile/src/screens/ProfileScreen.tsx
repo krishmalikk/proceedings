@@ -504,7 +504,7 @@ export function ProfileScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.legalRow}
-          onPress={() => Linking.openURL('https://usajourney.ai/privacy')}
+          onPress={() => Linking.openURL('https://meridianjourney.ai/privacy')}
         >
           <Ionicons name="lock-closed-outline" size={18} color={colors.onSurfaceVariant} />
           <Text style={styles.legalRowText}>Privacy Policy</Text>
@@ -512,14 +512,14 @@ export function ProfileScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.legalRow}
-          onPress={() => Linking.openURL('https://usajourney.ai/terms')}
+          onPress={() => Linking.openURL('https://meridianjourney.ai/terms')}
         >
           <Ionicons name="document-text-outline" size={18} color={colors.onSurfaceVariant} />
           <Text style={styles.legalRowText}>Terms of Service</Text>
           <Ionicons name="open-outline" size={16} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
         <Text style={styles.legalNote}>
-          Not legal advice. Meridian is not a law firm or government agency.
+Not legal advice. Meridian is not a law firm or government agency.
         </Text>
 
         <View style={styles.bottomPadding} />

@@ -85,7 +85,7 @@ export function CommunityScreen({ navigation }: any) {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerTitle}>Meridian Community</Text>
+<Text style={styles.footerTitle}>Meridian Community</Text>
           <Text style={styles.footerText}>
             Not legal advice. Meridian is not a law firm or government agency.
           </Text>

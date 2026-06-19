@@ -59,14 +59,14 @@ export function NewsScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Not legal advice. Meridian is not a law firm or government agency.
+Not legal advice. Meridian is not a law firm or government agency.
           </Text>
           <View style={styles.footerLinks}>
             <Text style={styles.footerLink}>Terms of Service</Text>
             <Text style={styles.footerDivider}>•</Text>
             <Text style={styles.footerLink}>Privacy Policy</Text>
           </View>
-          <Text style={styles.copyright}>© 2026 Meridian Inc.</Text>
+<Text style={styles.copyright}>© 2026 Meridian Inc.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
