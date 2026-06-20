@@ -6,8 +6,10 @@ import { useAnimatedPressable } from '../hooks/animations';
 
 type HapticType = 'light' | 'medium' | 'heavy' | 'none';
 
-interface AnimatedPressableProps {
+export interface AnimatedPressableProps {
   children?: React.ReactNode;
+  /** React key for list rendering */
+  key?: React.Key;
   /** Press handler */
   onPress?: () => void;
   /** Long press handler */

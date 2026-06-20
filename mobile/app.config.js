@@ -1,21 +1,21 @@
 export default {
   expo: {
 name: "Meridian",
-    slug: "proceedings",
+    slug: "meridian",
     owner: "krishmalik",
     version: "1.0.0",
-    scheme: "proceedings",
+    scheme: "meridian",
     orientation: "portrait",
-    icon: "./assets/meridian-logo.png",
+    icon: "./assets/meridian-appstore-logo.png",
     userInterfaceStyle: "light",
     splash: {
-      image: "./assets/meridian-logo-transparent.png",
+      image: "./assets/meridian-new-logo-transparent.png",
       resizeMode: "contain",
       backgroundColor: "#AE0000"
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.krishmalik.proceedings",
+      bundleIdentifier: "com.krishmalik.meridian",
       buildNumber: "1",
       googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || "./config/GoogleService-Info.plist",
       infoPlist: {
@@ -30,7 +30,7 @@ name: "Meridian",
       }
     },
     android: {
-      package: "com.krishmalik.proceedings",
+      package: "com.krishmalik.meridian",
       versionCode: 1,
       adaptiveIcon: {
         backgroundColor: "#F6F2E9",
@@ -57,7 +57,7 @@ name: "Meridian",
     ],
     extra: {
       eas: {
-        projectId: "52839499-7dbb-48e5-bb9b-57b30ec68491"
+        projectId: "32aefb08-a393-4fae-966e-865bfee02758"
       }
     }
   }

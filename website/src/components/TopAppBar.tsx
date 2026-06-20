@@ -48,11 +48,11 @@ export default function TopAppBar() {
         <Link
           href="/"
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          aria-label="meridianjourney.ai home"
+          aria-label="Meridian home"
         >
           <BrandMark size={30} />
-          <span className="text-headline-md font-bold text-primary tracking-tight">
-            meridianjourney.ai
+          <span className="text-headline-md font-bold text-primary tracking-tight font-serif">
+            Meridian
           </span>
         </Link>
 

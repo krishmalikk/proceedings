@@ -8,8 +8,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -20,7 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export function SignupScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { signUpWithEmail, signInWithGoogle, enableDevMode } = useAuth();
+  const { signUpWithEmail, signInWithGoogle } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -81,22 +81,6 @@ export function SignupScreen() {
     }
   };
 
-  const handleDevMode = async () => {
-    Alert.alert(
-      'Developer Mode',
-      'This will skip authentication for testing purposes. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Continue',
-          onPress: async () => {
-            await enableDevMode();
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -114,6 +98,13 @@ export function SignupScreen() {
 
           {/* Header */}
           <View style={styles.header}>
+            <View style={styles.logoCircle}>
+              <Image
+                source={require('../../assets/meridian-new-logo-transparent.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>
               Join our community and get guidance on your immigration journey
@@ -246,14 +237,6 @@ export function SignupScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Developer Mode button - only show in dev builds */}
-          {__DEV__ && (
-            <TouchableOpacity style={styles.devButton} onPress={handleDevMode}>
-              <Ionicons name="code-slash-outline" size={18} color={colors.onSurfaceVariant} />
-              <Text style={styles.devButtonText}>Skip Authentication (Dev Mode)</Text>
-            </TouchableOpacity>
-          )}
-
           {/* Terms notice */}
           <Text style={styles.termsText}>
             By creating an account, you agree to our Terms of Service and Privacy Policy.
@@ -287,9 +270,31 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   header: {
+    alignItems: 'center',
     marginBottom: spacing.lg,
   },
+  logoCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logo: {
+    width: 130,
+    height: 130,
+    tintColor: '#FFFFFF',
+  },
   title: {
+    fontFamily: 'Lora_700Bold',
+    textAlign: 'center',
     fontSize: 28,
     fontWeight: '700',
     color: colors.onSurface,
@@ -299,6 +304,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.onSurfaceVariant,
     lineHeight: 24,
+    textAlign: 'center',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -404,22 +410,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.primary,
-  },
-  devButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.default,
-    borderStyle: 'dashed',
-    gap: 8,
-  },
-  devButtonText: {
-    fontSize: 14,
-    color: colors.onSurfaceVariant,
   },
   termsText: {
     fontSize: 12,

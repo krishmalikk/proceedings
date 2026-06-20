@@ -12,7 +12,7 @@ import {
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
-import { registerBackendUser, setActiveUserId, setIdToken } from '../services/apiService';
+import { registerBackendUser, setActiveUserId, setIdToken, checkEmailVerified, getProfile } from '../services/apiService';
 
 // Dev mode uses a consistent mock user ID so API calls work during testing
 const DEV_MODE_USER_ID = 'dev-mode-user-12345';
@@ -43,6 +43,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isDevMode: boolean;
+  isEmailVerified: boolean;
   hasSeenWelcome: boolean;
   hasCompletedOnboarding: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -53,6 +54,7 @@ interface AuthContextType {
   disableDevMode: () => Promise<void>;
   completeWelcome: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
+  setEmailVerified: (verified: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDevMode, setIsDevMode] = useState(false);
+  const [isEmailVerified, setIsEmailVerifiedState] = useState(false);
   const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
 
@@ -100,15 +103,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen for auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       setUser(firebaseUser);
-      setLoading(false);
       if (firebaseUser) {
         // Register the uid with the backend (idempotent) and use it as X-User-Id.
         const username =
           firebaseUser.displayName?.trim() || firebaseUser.email?.split('@')[0] || '';
-        void registerBackendUser(firebaseUser.uid, username);
+        await registerBackendUser(firebaseUser.uid, username);
+
+        // Check email verification status
+        // Google Sign-In users are auto-verified (skip verification check)
+        const isGoogleUser = firebaseUser.providerData?.some(
+          (p) => p.providerId === 'google.com'
+        );
+        if (isGoogleUser) {
+          setIsEmailVerifiedState(true);
+        } else if (firebaseUser.email) {
+          // Check with backend if email is verified
+          const verified = await checkEmailVerified(firebaseUser.email);
+          setIsEmailVerifiedState(verified);
+        }
+
+        // Check if user has existing profile data (returning user who completed onboarding)
+        // This restores onboarding flags that were cleared on sign-out
+        try {
+          const profile = await getProfile();
+          const hasProfileData = profile && (
+            (profile.current_visa_or_greencard_category as string[] | undefined)?.length > 0 ||
+            (profile.visa_applying_for as string[] | undefined)?.length > 0 ||
+            (profile.tags as string[] | undefined)?.length > 0 ||
+            ((profile.background_text as string | undefined)?.trim().length ?? 0) > 0 ||
+            (profile.journey as unknown[] | undefined)?.length > 0
+          );
+
+          if (hasProfileData) {
+            // Restore onboarding completion status for returning users
+            await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
+            await AsyncStorage.setItem(WELCOME_SEEN_KEY, 'true');
+            setHasCompletedOnboarding(true);
+            setHasSeenWelcome(true);
+          }
+        } catch (error) {
+          // Profile fetch failed, proceed with normal onboarding check from AsyncStorage
+          console.warn('Failed to check existing profile:', error);
+        }
+      } else {
+        setIsEmailVerifiedState(false);
       }
+      setLoading(false);
     });
 
     return unsubscribe;
@@ -258,12 +300,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setEmailVerified = (verified: boolean) => {
+    setIsEmailVerifiedState(verified);
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         isDevMode,
+        isEmailVerified,
         hasSeenWelcome,
         hasCompletedOnboarding,
         signInWithEmail,
@@ -274,6 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         disableDevMode,
         completeWelcome,
         completeOnboarding,
+        setEmailVerified,
       }}
     >
       {children}

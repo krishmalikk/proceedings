@@ -12,6 +12,7 @@ import {
   GroupChatScreen,
   LoginScreen,
   SignupScreen,
+  EmailVerificationScreen,
   ProfileScreen,
   DisclaimerScreen,
   BackgroundOnboardingScreen,
@@ -65,7 +66,7 @@ function CommunityStack() {
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
-      <Stack.Screen name="Post" component={PostScreen} options={modalTransitionOptions} />
+      <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Disclaimer" component={DisclaimerScreen} options={modalTransitionOptions} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
@@ -80,7 +81,7 @@ function HomeStack() {
       <Stack.Screen name="HomeMain" component={HomeScreen} />
       <Stack.Screen name="VisaExperiences" component={VisaExperiencesScreen} />
       <Stack.Screen name="AIChat" component={AIChatScreen} />
-      <Stack.Screen name="Post" component={PostScreen} options={modalTransitionOptions} />
+      <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
@@ -209,7 +210,7 @@ function TabNavigator() {
 }
 
 export function MainNavigator() {
-  const { user, loading, isDevMode, hasSeenWelcome, hasCompletedOnboarding } = useAuth();
+  const { user, loading, isDevMode, isEmailVerified, hasSeenWelcome, hasCompletedOnboarding } = useAuth();
 
   // Dev mode bypass only works in __DEV__ builds; production builds always require auth
   const allowDevMode = __DEV__ && isDevMode;
@@ -226,6 +227,12 @@ export function MainNavigator() {
   // Show auth screens if not authenticated (dev mode only works in __DEV__ builds)
   if (!user && !allowDevMode) {
     return <AuthNavigator showWelcome={!hasSeenWelcome} />;
+  }
+
+  // Show email verification screen if user signed up with email and hasn't verified yet
+  // (Google Sign-In users are auto-verified and skip this)
+  if (user && !isEmailVerified && !allowDevMode) {
+    return <EmailVerificationScreen />;
   }
 
   // Show onboarding if user hasn't completed it (dev mode only works in __DEV__ builds)

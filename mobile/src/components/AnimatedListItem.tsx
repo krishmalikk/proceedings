@@ -3,8 +3,10 @@ import { ViewStyle, StyleProp } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useStaggeredItem } from '../hooks/animations';
 
-interface AnimatedListItemProps {
+export interface AnimatedListItemProps {
   children: React.ReactNode;
+  /** React key for list rendering */
+  key?: React.Key;
   /** Item index in the list (determines stagger delay) */
   index: number;
   /** Delay between items in ms (default: 50) */

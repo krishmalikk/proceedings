@@ -12,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -311,7 +310,7 @@ export function FindScreen() {
   const myGroups = allGroups.filter((g) => g.is_member);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -321,14 +320,6 @@ export function FindScreen() {
           title="Groups"
           showLogo={false}
           transparent
-          rightAction={
-            users.length > 0 ? (
-              <View style={styles.userPicker}>
-                <Ionicons name="person-circle-outline" size={20} color={colors.onSurfaceVariant} />
-                <Text style={styles.userLabel}>{users.find((u) => u.id === activeId)?.username || 'Select'}</Text>
-              </View>
-            ) : undefined
-          }
         />
 
         {/* Tabs */}
@@ -657,7 +648,7 @@ export function FindScreen() {
           </ScrollView>
         )}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

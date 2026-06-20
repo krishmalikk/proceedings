@@ -8,7 +8,9 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -22,65 +24,74 @@ export function WelcomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Decorative circles at top */}
-      <View style={styles.circlesContainer}>
-        <View style={[styles.circle, styles.circle1]} />
-        <View style={[styles.circle, styles.circle2]} />
-        <View style={[styles.circle, styles.circle3]} />
-      </View>
+    <LinearGradient
+      colors={['#FFDCDC', '#FFE8E8', '#FFF5F5', '#FFFFFF']}
+      locations={[0, 0.35, 0.65, 1]}
+      style={styles.gradient}
+    >
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        {/* Decorative circles at top */}
+        <View style={styles.circlesContainer}>
+          <View style={[styles.circle, styles.circle1]} />
+          <View style={[styles.circle, styles.circle2]} />
+          <View style={[styles.circle, styles.circle3]} />
+        </View>
 
-      {/* Content */}
-      <View style={styles.content}>
-        {/* Logo with red circle background */}
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Logo with red circle background */}
+          <Animated.View
+            style={styles.logoContainer}
+            entering={FadeIn.delay(200).duration(600)}
+          >
+            <View style={styles.logoCircle}>
+              <Image
+                source={require('../../assets/meridian-new-logo-transparent.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+          </Animated.View>
+
+          {/* Welcome Text */}
+          <Animated.View
+            style={styles.textContainer}
+            entering={FadeInDown.delay(400).duration(600)}
+          >
+            <Text style={styles.title}>Welcome to Meridian!</Text>
+            <Text style={styles.tagline}>
+              Your journey to a new beginning starts here
+            </Text>
+          </Animated.View>
+        </View>
+
+        {/* Get Started Button */}
         <Animated.View
-          style={styles.logoContainer}
-          entering={FadeIn.delay(200).duration(600)}
+          style={styles.buttonContainer}
+          entering={FadeInUp.delay(600).duration(600)}
         >
-          <View style={styles.logoCircle}>
-            <Image
-              source={require('../../assets/meridian-logo-transparent.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
+          <TouchableOpacity
+            style={styles.getStartedButton}
+            onPress={handleGetStarted}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.getStartedText}>Get Started</Text>
+            <Ionicons name="arrow-forward" size={20} color={colors.onPrimary} style={styles.buttonIcon} />
+          </TouchableOpacity>
         </Animated.View>
-
-        {/* Welcome Text */}
-        <Animated.View
-          style={styles.textContainer}
-          entering={FadeInDown.delay(400).duration(600)}
-        >
-          <Text style={styles.title}>Welcome to Meridian!</Text>
-          <Text style={styles.tagline}>
-            Your journey to a new beginning starts here
-          </Text>
-        </Animated.View>
-      </View>
-
-      {/* Get Started Button */}
-      <Animated.View
-        style={styles.buttonContainer}
-        entering={FadeInUp.delay(600).duration(600)}
-      >
-        <TouchableOpacity
-          style={styles.getStartedButton}
-          onPress={handleGetStarted}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.getStartedText}>Get Started</Text>
-        </TouchableOpacity>
-      </Animated.View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const LOGO_CIRCLE_SIZE = 180;
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
   },
   circlesContainer: {
     position: 'absolute',
@@ -147,7 +158,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Lora_700Bold',
     fontSize: 32,
     fontWeight: '700',
     color: colors.onSurface,
@@ -171,7 +182,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingVertical: 18,
     borderRadius: borderRadius.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -183,6 +197,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: colors.onPrimary,
+  },
+  buttonIcon: {
+    marginLeft: 4,
   },
 });
 

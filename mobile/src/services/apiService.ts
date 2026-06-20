@@ -849,3 +849,75 @@ export async function updateProfile(profile: Record<string, unknown>): Promise<v
     throw new Error(data.detail || 'Could not update profile');
   }
 }
+
+/**
+ * Delete the current user's account and all associated data.
+ * This is an irreversible operation that removes:
+ * - User profile
+ * - Posting author links
+ * - Replies (soft-deleted)
+ * - Group memberships
+ * - Group messages (soft-deleted)
+ * - Firebase Auth account
+ */
+export async function deleteAccount(): Promise<{ ok: boolean; deleted_uid: string }> {
+  const response = await fetch(`${API_URL}/api/users/me`, {
+    method: 'DELETE',
+    headers: userHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not delete account');
+  }
+  return data;
+}
+
+// ============= Email Verification =============
+
+/**
+ * Send a 6-digit verification code to the user's email.
+ * Rate limited to 3 requests per hour per email.
+ */
+export async function sendVerificationCode(email: string): Promise<{ ok: boolean; message?: string }> {
+  const response = await fetch(`${API_URL}/api/auth/send-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Failed to send verification code');
+  }
+  return data;
+}
+
+/**
+ * Verify a 6-digit code entered by the user.
+ * Returns { verified: true } on success, or { verified: false, error: string } on failure.
+ */
+export async function verifyCode(email: string, code: string): Promise<{ verified: boolean; error?: string }> {
+  const response = await fetch(`${API_URL}/api/auth/verify-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Verification failed');
+  }
+  return data;
+}
+
+/**
+ * Check if an email address has been verified.
+ */
+export async function checkEmailVerified(email: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_URL}/api/auth/check-verified/${encodeURIComponent(email)}`);
+    if (!response.ok) return false;
+    const data = await response.json();
+    return data.verified === true;
+  } catch {
+    return false;
+  }
+}
