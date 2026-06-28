@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B RFE response received - case is still being processed. The applicant's H1B I-129 petition was filed in August 2025, with premium processing initiated in September. An RFE was issued and responded to, but despite congressional inquiries, the case status remains \"still being processed\" due to a security check. The applicant is seeking to understand if the \"Case Is Still Being Processed\" status indicates an imminent decision or another RFE, given the lack of updates after the RFE response and congressional inquiries. Tags: H-1B, RFE, I-129, premium-processing, IOE, h1b-rfe, h1b-petition, processing-delay, security-check, h1b-approval, h1b-denial. Stages: visa_type:H-1B, case_status:Case Is Still Being Processed By USCIS, rfe_status:response received. Dates: i129_filed_date:2025-08-28, h1b_processing_start_date:2025-09-01, rfe_date:2025-09-03, rfe_response_date:2025-09-12."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-rfe",
+          "h1b-approval",
+          "premium-processing",
+          "I-129",
+          "h1b-denial"
+        ]
+      }
+    }
+  ]
+}

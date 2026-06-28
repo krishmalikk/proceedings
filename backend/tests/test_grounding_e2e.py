@@ -1,5 +1,5 @@
 """
-test_grounding_e2e.py — End-to-end grounding verification for the Proceedings API
+test_grounding_e2e.py — End-to-end grounding verification for the meridianjourney.ai API
 =================================================================================
 Verifies the three grounding guarantees of the realigned backend (D-039):
 
@@ -110,7 +110,7 @@ def group_b_app_posting_placement() -> None:
     struct = {
         "case_id": case_id,
         "channel": "app",                       # the app-channel facet (D-036)
-        "source_system": "unclesamcalling",
+        "source_system": "meridianjourney",
         "source_container": "e2e_test_user",
         "ingestion_method": "app_conversational_post",
         "post_title": f"B-2 experience at {unique}",

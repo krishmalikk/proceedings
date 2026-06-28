@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { colors, borderRadius, spacing, shadows } from '../constants/theme';
 
 interface CardProps {
@@ -7,6 +8,10 @@ interface CardProps {
   style?: ViewStyle;
   elevation?: 0 | 1 | 2;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  /** Enable entrance animation (FadeInDown) */
+  animated?: boolean;
+  /** Delay in ms for entrance animation (default: 0) */
+  animationDelay?: number;
 }
 
 export function Card({
@@ -14,6 +19,8 @@ export function Card({
   style,
   elevation = 1,
   padding = 'md',
+  animated = false,
+  animationDelay = 0,
 }: CardProps) {
   const getPaddingValue = () => {
     switch (padding) {
@@ -39,15 +46,26 @@ export function Card({
     }
   };
 
+  const cardStyle = [
+    styles.card,
+    { padding: getPaddingValue() },
+    getElevationStyle(),
+    style,
+  ];
+
+  if (animated) {
+    return (
+      <Animated.View
+        entering={FadeInDown.delay(animationDelay).duration(300).springify()}
+        style={cardStyle}
+      >
+        {children}
+      </Animated.View>
+    );
+  }
+
   return (
-    <View
-      style={[
-        styles.card,
-        { padding: getPaddingValue() },
-        getElevationStyle(),
-        style,
-      ]}
-    >
+    <View style={cardStyle}>
       {children}
     </View>
   );

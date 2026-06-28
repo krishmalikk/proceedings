@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B transfer 2026 - taking 2 weeks off between jobs. The user is currently on an H1B visa with Employer A and is undergoing an H1B transfer to Employer B, which is being filed with premium processing. They plan to give two weeks' notice to Employer A and then take two weeks off before starting with Employer B, remaining in the U.S. throughout this four-week gap. The user is asking if it is safe to take a two-week break between jobs after the H1B transfer petition is filed, whether the notice period counts towards maintaining status, and if USCIS considers a short employment gap acceptable as long as the transfer petition was filed while in valid status. Tags: premium-processing, required-documents, legal-status, h1b-transfer, maintenance-of-status, gap-concern, h1b-portability-rule, out-of-status, grace-period, 60day-grace-period. Stages: visa_status:H-1B, case_status:pending. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "legal-status",
+          "grace-period",
+          "premium-processing",
+          "h1b-transfer",
+          "maintenance-of-status"
+        ]
+      }
+    }
+  ]
+}

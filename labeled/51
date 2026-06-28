@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "I485 filled on H1B. The applicant has an approved EB-1A I-140 from May 2023 and filed their I-485 in February 2026 using the Date for Filing (DoF). Their employer only covered the USCIS I-485 fee, requiring the applicant to pay for attorney fees and EAD/AP for themselves and their spouse. The spouse has received their EAD/AP, but the applicant is still waiting, with the Final Action Date (FAD) about a month away. The applicant has a pending job offer and is questioning whether their current company can legally withdraw their I-485 petition if they switch employers, especially since the EB-1A petition is not tied to the employer via I-485J. They are seeking advice on whether to proceed with the new job offer. Tags: i485, i140, ead, ap, attorney-fee, processing-fee, visa-bulletin, dof, employment-based-immigration, adjustment-of-status-AOS, i140-approval, eb1a-petition, i485-withdrawal, change-of-employer-COE, job-offer, i485j, priority-date-current, i140-portability. Stages: spouse_status: H-4, visa_status: H-1B, petition_status: i140-approved, application_status: i485-pending. Dates: i140_approved_date: 2023-05-01, i485_filed_date: 2026-02-01."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "H-1B",
+          "job-offer",
+          "i140-approval",
+          "adjustment-of-status-AOS",
+          "processing-fee"
+        ]
+      }
+    }
+  ]
+}

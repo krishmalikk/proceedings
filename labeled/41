@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Travel Risk: H4 Spouse traveling with old employer visa stamp on expired passport + new I-797 (Returning May 2025). An H4 spouse has a valid H4 visa stamp in an expired passport with an old employer's name, but a new I-797 approval notice with the new employer is valid until December 2028. The spouse is traveling to India with two children (one Canadian, one US citizen) and returning in May 2025. The user is concerned about the risk of re-entry using the old employer's H4 stamp, potential issues at immigration with Canadian and US citizen children, and the effect on the H4 EAD. Tags: H-4, IN, I-797, change-of-employer-COE, employment-based-immigration, date-of-admission-DOA, previous-employer, legal-status, maintenance-of-status, out-of-status, discussion, tips, travel-concern, h4-work-auth, travel-risk, visa-stamping, passport-expired, re-entry, port-of-entry. Stages: spouse_status: H-4, travel_country: IN. Dates: visa_expire_date: 2026-05-25, i94_admit_until_date: 2028-12-30."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "legal-status",
+          "H-4",
+          "I-797",
+          "discussion",
+          "maintenance-of-status"
+        ]
+      }
+    }
+  ]
+}

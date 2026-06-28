@@ -1,6 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
+import { Text, StyleSheet, ViewStyle } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import { colors, borderRadius, spacing } from '../constants/theme';
+import { AnimatedPressable } from './AnimatedPressable';
 
 interface FilterChipProps {
   label: string;
@@ -16,9 +18,10 @@ export function FilterChip({
   style,
 }: FilterChipProps) {
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       onPress={onPress}
-      activeOpacity={0.7}
+      scaleTo={0.95}
+      haptics="light"
       style={[
         styles.chip,
         selected ? styles.chipSelected : styles.chipDefault,
@@ -28,7 +31,7 @@ export function FilterChip({
       <Text style={[styles.text, selected ? styles.textSelected : styles.textDefault]}>
         {label}
       </Text>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 

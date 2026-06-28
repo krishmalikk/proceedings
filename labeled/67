@@ -1,0 +1,19 @@
+{
+  "task": {
+    "data": {
+      "text": "H1b approval timeline. The user is inquiring about the H1B approval timeline. The user wants to know the current processing time for H1B approvals, specifically for cases not using premium processing. Tags: h1b-approval, processing-time, regular-processing. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "processing-time",
+          "regular-processing",
+          "h1b-approval",
+          "H-1B"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "OPT EAD to H4 EAD. The applicant is currently on an OPT EAD. Their spouse's I-140 petition has been approved. They are preparing to file their spouse's H-1B renewal, their own H-4 application, and their H-4 EAD application concurrently. The applicant is seeking clarification on which option to select in the \"Reason for Applying\" section of Form I-765 for their H-4 EAD, specifically whether it should be \"Initial permission\" or \"Renewal\" given their prior OPT EAD. They also request a list of required documents for the H-4 EAD application. Tags: OPT, EAD, I-140, approved, H-1B, h1b-renewal, premium-processing, H-4, I-765, h4-ead, ead-filing, ead-renewal, required-documents, form-mistake. Stages: spouse_status:H-1B, visa_type:F-1, petition_status:approved. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "H-4",
+          "ead-filing",
+          "premium-processing",
+          "I-140",
+          "F-1"
+        ]
+      }
+    }
+  ]
+}

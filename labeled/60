@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Traveling after h1b cos gets approved but before oct 1st. The user's H1B Change of Status (COS) has been approved, but the effective date is October 1st. They are currently on F1 STEM OPT. The user is asking if it is safe to travel internationally after H1B COS approval but before the October 1st effective date, while still on F1 STEM OPT. Tags: STEM-OPT, travel-concern, change-of-status-COS, cap-gap, h1b-approval, re-entry. Stages: visa_status:F-1, petition_status:approved, visa_type:H-1B. Dates: cap_gap_expire_date:2026-09-30."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-approval",
+          "F-1",
+          "change-of-status-COS",
+          "re-entry",
+          "cap-gap"
+        ]
+      }
+    }
+  ]
+}

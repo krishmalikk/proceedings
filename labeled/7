@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B Employer Didn’t Pay Me, New Offer Rescinded, Now Considering Legal Action — Need Advice. The applicant, on an H1B visa, was let go by their employer in mid-March 2026, who also failed to pay them for several weeks. This led to a new H1B transfer offer being rescinded due to insufficient proof of employment. The applicant filed a B2 Change of Status to maintain legal presence. The applicant is seeking advice on the value of hiring an employment attorney for unpaid wages and immigration issues, dealing with missing documentation for H1B transfers, and refiling wage complaints. Tags: I-539, h1b-transfer, offer-rescinded, wage-level-compliance, layoff, 60day-grace-period, out-of-status, change-of-status-COS, processing-delay, required-documents, attorney-fee, legal-status, unlawful-presence, job-offer, status-expiring, lawyer-recommendation, re-apply, discussion, open-for-attorney, processing-time. Stages: visa_status:H-1B, application_status:pending, employer_name:small construction company. Dates: employment_end_date:2026-03-16, layoff_notification_date:2026-03-15."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "wage-level-compliance",
+          "B-2",
+          "processing-time",
+          "status-expiring"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Was the fight for H1B and green card worth it. The user, an H-1B holder, expresses exhaustion and emptiness despite having saved money, due to long work hours, limited social life, and infrequent family visits. They feel unsettled by the constant stress of visa status and the threat of layoff, noting that they are always one layoff away from having 60 days to leave the country. The user is at a crossroads, questioning if the fight for H-1B and a green card has been worth the personal sacrifices, and whether they should have stayed in their home country. They seek input from others who have been in the US for 5-10 years on H-1B or green card. Tags: layoff, 60day-grace-period, employment-based-immigration, dual-intent, processing-delay, endless-wait, travel-concern, green-card-status, discussion, job-search, legal-status, status-expiring, h1b-6-year-rule, green-card-application. Stages: visa_type: H-1B, case_status: pending, resident_of_country: US. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "legal-status",
+          "status-expiring",
+          "dual-intent",
+          "discussion",
+          "green-card-status"
+        ]
+      }
+    }
+  ]
+}

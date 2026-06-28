@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "PERM restart due to promotion - any way around this?. The applicant, an H-1B holder, was promoted from Engineer I to Engineer II with minimal changes in duties and pay. Their company insists on restarting the PERM process due to this promotion, citing policy consistency, even though the I-140 has not yet been filed. The applicant is frustrated by the prospect of restarting the PERM process, which will cause a significant 2+ year delay in their Green Card timeline. They are seeking advice on potential workarounds, especially since their H-1B extension was filed under the new Engineer II title. Tags: employment-based-immigration, job-description, wage-level-compliance, PERM, promotion, h1b-extension, processing-delay, i140-filing, endless-wait, backlog, h1b-amendment, open-for-attorney, perm-filing, perm-approval, change-status-options. Stages: petition_status:not-filed-yet, case_status:in-progress, visa_status:H-1B, employer_name:My company. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "PERM",
+          "job-description",
+          "wage-level-compliance",
+          "processing-delay",
+          "perm-approval"
+        ]
+      }
+    }
+  ]
+}

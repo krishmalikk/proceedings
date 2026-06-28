@@ -119,13 +119,6 @@ export default function CaseDetailsPage() {
                 <div className="flex justify-between"><dt className="text-on-surface-variant">Posted</dt><dd className="text-on-surface">{data.date || '—'}</dd></div>
                 {data.outcome && <div className="flex justify-between"><dt className="text-on-surface-variant">Outcome</dt><dd className="text-on-surface">{data.outcome}</dd></div>}
               </dl>
-              {/* Raw metadata JSON — for testing/inspection */}
-              <details className="mt-3" open>
-                <summary className="text-caption text-on-surface-variant cursor-pointer hover:text-primary select-none">Metadata (JSON)</summary>
-                <pre className="mt-2 text-[11px] leading-snug text-on-surface-variant bg-surface-container rounded-lg p-3 overflow-auto max-h-96 whitespace-pre-wrap break-words">
-{JSON.stringify(data, null, 2)}
-                </pre>
-              </details>
             </div>
 
             {(() => {

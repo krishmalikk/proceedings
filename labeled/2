@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Immigration attorney here. If today's layoffs hit you, I'm here to help. An immigration attorney offers help to individuals affected by recent layoffs, explaining that the grace period typically starts the day after the last day of paid employment and can last up to 60 days for most visas. Options depend on current status and green card process stage. Tags: layoff, grace-period, green-card-application, i-am-attorney, lawyer-recommendation, temporary-work-visas, legal-status, 60day-grace-period. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "grace-period",
+          "legal-status",
+          "temporary-work-visas",
+          "layoff",
+          "60day-grace-period"
+        ]
+      }
+    }
+  ]
+}

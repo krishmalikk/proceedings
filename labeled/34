@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "I94 overstay by 13 months. The applicant's wife, an H-1B holder, overstayed her I-94 by 13 months after a trip to India in April 2024, where her I-94 was shortened to March 2025 due to an expiring passport. Despite renewing her passport and being continuously employed and paying taxes, the I-94 expiration was overlooked due to her pregnancy. The user is seeking advice on their wife's immigration situation, specifically regarding an NPT application for pardon, and expresses significant mental distress due to the complications of her pregnancy and the current immigration issue. Tags: H-1B, I-94, passport-expired, re-entry, visa-stamping, legal-status, tax-filing, overstay, NPT, pardon, h1b-extension, unlawful-presence, IN. Stages: spouse_status: H-1B, travel_country: IN. Dates: visa_expire_date: 2026-07-30, i94_expire_date: 2025-03-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "legal-status",
+          "pardon",
+          "visa-stamping",
+          "I-94",
+          "tax-filing"
+        ]
+      }
+    }
+  ]
+}

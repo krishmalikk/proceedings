@@ -105,11 +105,22 @@ jobs:
           echo "        --region us-central1 --no-traffic --tag candidate"
 
       # ── TODO(E2E smoke) — point at the candidate revision's tagged URL ──────
-      - name: E2E smoke against the new revision
+      - name: E2E smoke against the new backend revision
         if: ${{ inputs.target == 'backend' || inputs.target == 'both' }}
         run: |
           echo "TODO: CLOUD_RUN_URL=<candidate-tag-url> python backend/tests/test_cloud_run.py"
           # Only promote traffic if this passes.
+
+      - name: E2E smoke against the new website revision
+        if: ${{ inputs.target == 'website' || inputs.target == 'both' }}
+        working-directory: website
+        run: |
+          # Verifies the candidate actually serves a working client bundle —
+          # in particular that NEXT_PUBLIC_FIREBASE_* were baked in (else the
+          # browser crashes while SSR still 200s). Fail here = do NOT promote.
+          SMOKE_BASE_URL="${SMOKE_BASE_URL:-https://www.meridianjourney.ai}" npm run smoke
+          # TODO: set SMOKE_BASE_URL to the candidate revision's --tag URL above,
+          # so we smoke the new revision BEFORE promoting traffic to it.
 
       - name: Promote traffic (100%) to the verified revision
         run: |

@@ -55,8 +55,8 @@ Set on the Cloud Run service (Console → Variables, or `gcloud run deploy … -
 | `GCP_VERTEX_PUBLIC_ENGINE_ID` | *(optional)* DS-2 public tier; off if unset |
 | `GCP_BUCKET_NAME` | GCS sidecar bucket `imm-postings-ingestion` |
 | `GCP_GEMINI_MODEL` | *(optional)* default `gemini-2.5-flash` |
-| `APP_SOURCE_SYSTEM` | first-party **provenance** id; default `unclesamcalling` → **set to your domain once registered** (D-055) |
-| `APP_BASE_URL` | base URL for `source_url`/`source_uri`/`full_url`; default `https://proceedings.app` → `https://<domain>` |
+| `APP_SOURCE_SYSTEM` | first-party **provenance** id; default `meridianjourney` (D-055; registered domain) |
+| `APP_BASE_URL` | base URL for `source_url`/`source_uri`/`full_url`; default `https://meridianjourney.ai` |
 | `ALLOW_USER_IMPERSONATION` | `1` while on the dev `X-User-Id` model (turn off when Firebase Auth lands) |
 
 Secrets (e.g. a future Reddit OAuth secret) → **Secret Manager**, mounted as env/volume — never committed. No GCP API keys (ADC via the attached SA).

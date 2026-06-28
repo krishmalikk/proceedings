@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Layoff before visa approval. The applicant was laid off from their job before their H-1B visa petition was approved. The applicant is seeking advice on available options following a layoff while their H-1B visa petition is still pending approval. Tags: layoff, h1b-petition, pending, change-status-options, 60day-grace-period, h1b-transfer, h1b-denial, out-of-status. Stages: visa_status:pending, case_status:pending. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "pending",
+          "h1b-transfer",
+          "change-status-options",
+          "layoff",
+          "60day-grace-period"
+        ]
+      }
+    }
+  ]
+}

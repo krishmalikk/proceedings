@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Job search with H1b in med device/diagnostics. The applicant is based in the Bay Area, has four years of diagnostics industry experience, and holds a master's degree in biomedical engineering. They are currently on an H-1B visa and need a transfer for a new company. The applicant is struggling to find companies in the med device/diagnostics space that support H-1B transfers and is seeking advice on successful H-1B transfers and job opportunities, as well as relevant biotech communities. Tags: employment-based-immigration, temporary-work-visas, discussion, job-search, h1b-transfer, change-of-employer-COE, tips. Stages: resident_of_country:US, visa_status:H-1B. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "h1b-transfer",
+          "temporary-work-visas",
+          "job-search",
+          "employment-based-immigration"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "task": {
+    "data": {
+      "text": "Emergency appointments for J-1 visa. The user is a J-1 visa applicant with a J-2 spouse. The user is asking if an emergency appointment approved for a J-1 applicant will automatically include their J-2 spouse for the same interview date, or if it can be approved for the J-1 only. Tags: emergency-visa-appointment, visa-interview-scheduling. Stages: spouse_status:J-2. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "J-1",
+          "emergency-visa-appointment",
+          "visa-interview-scheduling",
+          "J-2"
+        ]
+      }
+    }
+  ]
+}

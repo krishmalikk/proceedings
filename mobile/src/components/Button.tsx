@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  TouchableOpacity,
   Text,
   StyleSheet,
   ViewStyle,
@@ -8,6 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors, borderRadius, spacing, typography } from '../constants/theme';
+import { AnimatedPressable } from './AnimatedPressable';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'link';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -101,11 +101,15 @@ export function Button({
   const variantStyles = getVariantStyles();
   const sizeStyles = getSizeStyles();
 
+  // Primary buttons get medium haptics, others get light
+  const hapticStrength = variant === 'primary' ? 'medium' : 'light';
+
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.7}
+      scaleTo={0.97}
+      haptics={hapticStrength}
       style={[
         styles.button,
         variantStyles.container,
@@ -124,8 +128,8 @@ export function Button({
               styles.text,
               variantStyles.text,
               sizeStyles.text,
-              icon && iconPosition === 'left' && { marginLeft: 8 },
-              icon && iconPosition === 'right' && { marginRight: 8 },
+              icon && iconPosition === 'left' ? { marginLeft: spacing.base } : undefined,
+              icon && iconPosition === 'right' ? { marginRight: spacing.base } : undefined,
               textStyle,
             ]}
           >
@@ -134,7 +138,7 @@ export function Button({
           {icon && iconPosition === 'right' && icon}
         </>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 

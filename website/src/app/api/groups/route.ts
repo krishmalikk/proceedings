@@ -5,7 +5,8 @@ const PYTHON_API_URL = apiBase()
 
 function userHeader(request: NextRequest): Record<string, string> {
   const uid = request.headers.get('x-user-id') || ''
-  return uid ? { 'X-User-Id': uid } : {}
+  const tok = request.headers.get('authorization') || ''
+  return { ...(uid ? { 'X-User-Id': uid } : {}), ...(tok ? { Authorization: tok } : {}) }
 }
 
 // POST /api/groups — form a group from the selected matches.

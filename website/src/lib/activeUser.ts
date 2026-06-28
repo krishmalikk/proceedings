@@ -11,6 +11,11 @@ import { auth } from './firebase';
 
 export const USER_KEY = 'demo-user-id';
 
+// Dev-only demo-user picker (unverified X-User-Id). OFF in production builds, so
+// anonymous prod visitors are never silently impersonated into a seed account.
+// Stays ON in dev and test (NODE_ENV !== 'production'), so suites are unaffected.
+export const DEMO_PICKER_ENABLED = process.env.NODE_ENV !== 'production';
+
 /** True when a real Firebase user is signed in. */
 export function isFirebaseAuthed(): boolean {
   return !!auth?.currentUser?.uid;
@@ -50,10 +55,24 @@ export function clearActiveUser(): void {
   }
 }
 
+// Cached Firebase ID token, kept fresh by AuthContext's onIdTokenChanged listener
+// (Firebase auto-refreshes hourly). Lets userHeaders() stay synchronous.
+let _idToken: string | null = null;
+
+/** Update the cached Firebase ID token (called by AuthContext). */
+export function setIdToken(token: string | null): void {
+  _idToken = token;
+}
+
 /**
- * Generate headers with the X-User-Id for API calls.
+ * Identity headers for API calls. Sends the verified Firebase ID token as a
+ * Bearer token (the production identity) and, in dev, the unverified X-User-Id
+ * (honored only when the backend's ALLOW_USER_IMPERSONATION is on).
  */
 export function userHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  if (_idToken) headers['Authorization'] = `Bearer ${_idToken}`;
   const uid = getActiveUser();
-  return uid ? { 'X-User-Id': uid, ...extra } : { ...extra };
+  if (uid) headers['X-User-Id'] = uid;
+  return headers;
 }

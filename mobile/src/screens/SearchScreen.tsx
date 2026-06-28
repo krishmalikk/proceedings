@@ -8,7 +8,6 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Header, PostingCard } from '../components';
 import { colors, spacing, borderRadius } from '../constants/theme';
@@ -103,9 +102,11 @@ export function SearchScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <Header
-        showLogo
+        title="Community"
+        showLogo={false}
+        transparent
         showProfile
         onProfile={() => navigation.navigate('Profile')}
         rightAction={
@@ -237,7 +238,7 @@ export function SearchScreen({ navigation }: any) {
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

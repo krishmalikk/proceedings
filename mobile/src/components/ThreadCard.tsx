@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './Card';
 import { Badge } from './Badge';
+import { AnimatedPressable } from './AnimatedPressable';
 import { colors, spacing, borderRadius } from '../constants/theme';
 
 interface ThreadCardProps {
@@ -27,7 +28,7 @@ export function ThreadCard({
   onPress,
 }: ThreadCardProps) {
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+    <AnimatedPressable onPress={onPress} scaleTo={0.98} haptics="light">
       <Card style={styles.card}>
         <View style={styles.header}>
           <View style={styles.tags}>
@@ -60,7 +61,7 @@ export function ThreadCard({
           </View>
         </View>
       </Card>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 

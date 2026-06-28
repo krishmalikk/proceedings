@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "I have the i-797b doc, does the 100k fees apply?. The user works for an IT service company in India and has received an approved I-797B document for an H-1B petition filed in July 2025. They are asking if a $100k fee applies and for a detailed timeline and next steps for visa stamping to potentially move to the US soon. Tags: H-1B, IN, I-797B, required-documents, h1b-approval, h1b-petition, employment-based-immigration, temporary-work-visas, regular-processing, 100k-fee, visa-stamping, processing-time, h1b-stamping, h1b-100k-fee, timeline, visa-application. Stages: resident_of_country:IN, visa_status:H-1B, case_status:approved. Dates: h1b_filed_date:2025-07-01."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "H-1B",
+          "h1b-approval",
+          "visa-application",
+          "temporary-work-visas",
+          "I-797B"
+        ]
+      }
+    }
+  ]
+}

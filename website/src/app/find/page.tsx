@@ -6,7 +6,8 @@ import Link from 'next/link'
 import Markdown from '@/components/Markdown'
 import MatchCard, { MatchData } from '@/components/MatchCard'
 import { useAuth } from '@/contexts/AuthContext'
-import { getActiveUser, setActiveUser, userHeaders } from '@/lib/activeUser'
+import { getActiveUser, setActiveUser, userHeaders, DEMO_PICKER_ENABLED } from '@/lib/activeUser'
+import { useRequireUser } from '@/lib/useRequireUser'
 
 type Criteria = {
   current_visa_or_greencard_category: string[]
@@ -61,6 +62,7 @@ function hasCriteria(c: Criteria): boolean {
 export default function FindPage() {
   const router = useRouter()
   const { user: authUser } = useAuth()
+  useRequireUser()
   const [users, setUsers] = useState<SeedUser[]>([])
   const [activeId, setActiveId] = useState('')
   const [tab, setTab] = useState<'find' | 'browse'>('browse')  // land on existing groups
@@ -95,16 +97,19 @@ export default function FindPage() {
   const threadRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/users').then((r) => r.json()).then((list: unknown) => {
-      // Defensive: a backend/proxy error returns an object ({detail:…}), not an
-      // array. Never feed a non-array to setUsers — users.map() in render would
-      // throw a client-side exception (white-screen) instead of degrading.
-      const arr: SeedUser[] = Array.isArray(list) ? list : []
-      setUsers(arr)
-      const saved = getActiveUser()
-      const id = saved && arr.some((u) => u.id === saved) ? saved : (arr[0]?.id || '')
-      if (id) { setActiveUser(id); setActiveId(id) }
-    }).catch(() => {})
+    // Dev-only demo-user picker (off in prod — see DEMO_PICKER_ENABLED).
+    if (DEMO_PICKER_ENABLED) {
+      fetch('/api/users').then((r) => r.json()).then((list: unknown) => {
+        // Defensive: a backend/proxy error returns an object ({detail:…}), not an
+        // array. Never feed a non-array to setUsers — users.map() in render would
+        // throw a client-side exception (white-screen) instead of degrading.
+        const arr: SeedUser[] = Array.isArray(list) ? list : []
+        setUsers(arr)
+        const saved = getActiveUser()
+        const id = saved && arr.some((u) => u.id === saved) ? saved : (arr[0]?.id || '')
+        if (id) { setActiveUser(id); setActiveId(id) }
+      }).catch(() => {})
+    }
     fetch('/api/tag-vocab').then((r) => r.json()).then((d) => setVocab({
       visa: d.visa || [], consulate: d.consulate || [], consulate_options: d.consulate_options || [],
       profile_stage_key: d.profile_stage_key || [], date_key: d.date_key || [],
@@ -312,7 +317,7 @@ export default function FindPage() {
             <span className="material-symbols-outlined text-[20px]">account_circle</span>
             Signed in as {authUser.displayName || authUser.email}
           </span>
-        ) : (
+        ) : DEMO_PICKER_ENABLED ? (
           <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
             <span className="material-symbols-outlined text-[20px]">switch_account</span>
             Demo user:
@@ -321,7 +326,7 @@ export default function FindPage() {
               {users.map((u) => <option key={u.id} value={u.id}>{u.label || u.username}</option>)}
             </select>
           </label>
-        )}
+        ) : null}
       </div>
 
       {/* tabs — the groups list is the landing view */}

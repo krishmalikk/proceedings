@@ -161,7 +161,7 @@ export default function AskProPage() {
         <span className="material-symbols-outlined text-[48px] text-primary mb-2">shield</span>
         <h3 className="text-headline-md text-on-surface mb-2">Professional Standard Guarantee</h3>
         <p className="text-body-md text-on-surface-variant">
-          All professionals on Proceedings are verified members of AILA or equivalent bar associations.
+          All professionals on meridianjourney.ai are verified members of AILA or equivalent bar associations.
           Responses are confidential and protected by attorney-client privilege where applicable.
         </p>
       </div>

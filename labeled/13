@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H-1B layoff — when does the 60-day grace period start?. The user, an H-1B holder with a valid I-797 and I-94, and an approved I-140, was laid off with the last working day being March 31. The layoff notification date was March 17.. The user is confused about when the 60-day grace period starts and is considering options to maintain legal status, including joining a consulting company or switching to an F-1 visa. They also ask if returning to H-1B after an F-1 visa would require re-entering the lottery, given their approved I-140.. Tags: layoff, I-797, I-94, I-140, approved, legal-status, employment-based-immigration, h1b-6-year-rule, change-of-status-COS, dual-intent, 60day-grace-period, h1b-portability-rule, f1-to-h1b, h1b-lottery, day1-cpt, timeline, maintenance-of-status, out-of-status, unlawful-presence, nonimmigrant-intent, change-status-options. Stages: visa_status:H-1B, petition_status:approved, case_status:valid. Dates: employment_end_date:2026-03-31, layoff_notification_date:2026-03-17, h1b_expire_date:2029-03-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-6-year-rule",
+          "change-status-options",
+          "h1b-portability-rule",
+          "approved",
+          "maintenance-of-status"
+        ]
+      }
+    }
+  ]
+}

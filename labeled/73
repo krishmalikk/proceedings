@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Travel during RFE. The user is an H-1B holder concerned about the 60-day unemployment grace period. They ask if they can leave the US while an RFE is pending and if this action would trigger a $100k fee. Tags: H-1B, RFE, h1b-rfe, travel-concern, 60day-grace-period, 100k-fee, out-of-status, re-entry. Stages: visa_status:H-1B, case_status:RFE. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-rfe",
+          "60day-grace-period",
+          "out-of-status",
+          "re-entry",
+          "travel-concern"
+        ]
+      }
+    }
+  ]
+}

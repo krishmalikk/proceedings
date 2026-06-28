@@ -87,7 +87,7 @@ export default function SignupPage() {
           </div>
           <h1 className="text-headline-md font-semibold text-on-surface">Create your account</h1>
           <p className="text-body-md text-on-surface-variant mt-2">
-            Start your immigration journey with Proceedings
+            Start your immigration journey with meridianjourney.ai
           </p>
         </div>
 
@@ -206,9 +206,9 @@ export default function SignupPage() {
         {/* Terms */}
         <p className="mt-4 text-center text-caption text-on-surface-variant">
           By creating an account, you agree to our{' '}
-          <a href="#" className="text-primary hover:underline">Terms of Service</a>
+          <a href="/terms" className="text-primary hover:underline">Terms of Service</a>
           {' '}and{' '}
-          <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+          <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>
         </p>
 
         {/* Sign In Link */}

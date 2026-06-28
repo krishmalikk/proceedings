@@ -11,12 +11,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../constants/theme';
-import { Card } from '../components';
+import { Card, Header } from '../components';
 import {
   getTagVocab,
   suggestTags,
@@ -325,7 +324,14 @@ export function PostScreen() {
 
   if (done) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.container}>
+        <Header
+          title="New Post"
+          showLogo={false}
+          transparent
+          showBack
+          onBack={() => navigation.goBack()}
+        />
         <View style={styles.doneContainer}>
           <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
           <Text style={styles.doneTitle}>Posted!</Text>
@@ -345,19 +351,25 @@ export function PostScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
+      <Header
+        title="New Post"
+        showLogo={false}
+        transparent
+        showBack
+        onBack={() => navigation.goBack()}
+      />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          {/* Header */}
-          <Text style={styles.pageTitle}>Post a New Message</Text>
+          {/* Subtitle */}
           <Text style={styles.pageSubtitle}>
             Share your immigration experience or question. Preview to see auto-suggested tags.
           </Text>
@@ -691,7 +703,7 @@ export function PostScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -709,12 +721,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.marginMobile,
     paddingBottom: spacing.xl,
-  },
-  pageTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.onSurface,
-    marginBottom: 4,
   },
   pageSubtitle: {
     fontSize: 14,

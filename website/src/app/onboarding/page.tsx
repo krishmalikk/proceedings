@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Markdown from '@/components/Markdown'
 import { useAuth } from '@/contexts/AuthContext'
-import { getActiveUser, setActiveUser, userHeaders } from '@/lib/activeUser'
+import { getActiveUser, setActiveUser, userHeaders, DEMO_PICKER_ENABLED } from '@/lib/activeUser'
+import { useRequireUser } from '@/lib/useRequireUser'
 
 type JourneyEntry = { milestone: string; date: string; experience: string; shared?: boolean; experience_case_id?: string }
 type Profile = {
@@ -72,6 +73,7 @@ const LIST_SECTIONS: { field: ListField; label: string; kind: TagKind }[] = [
 export default function OnboardingPage() {
   const router = useRouter()
   const { user: authUser } = useAuth()
+  useRequireUser()
   const [users, setUsers] = useState<SeedUser[]>([])
   const [activeId, setActiveId] = useState('')
   const [stage, setStage] = useState<Stage>('basics')
@@ -98,15 +100,19 @@ export default function OnboardingPage() {
   const threadRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/users').then((r) => r.json()).then((list: unknown) => {
-      // Defensive: a proxy/backend error returns an object ({detail:…}), not an
-      // array — feeding it to setUsers would crash users.map() at render time.
-      const arr: SeedUser[] = Array.isArray(list) ? list : []
-      setUsers(arr)
-      const saved = getActiveUser()
-      const id = saved && arr.some((u) => u.id === saved) ? saved : (arr[0]?.id || '')
-      if (id) { setActiveUser(id); setActiveId(id) }
-    }).catch(() => {})
+    // Dev-only demo-user picker. In prod this is off, so anonymous visitors are
+    // never silently adopted into a seed account (real identity = Firebase token).
+    if (DEMO_PICKER_ENABLED) {
+      fetch('/api/users').then((r) => r.json()).then((list: unknown) => {
+        // Defensive: a proxy/backend error returns an object ({detail:…}), not an
+        // array — feeding it to setUsers would crash users.map() at render time.
+        const arr: SeedUser[] = Array.isArray(list) ? list : []
+        setUsers(arr)
+        const saved = getActiveUser()
+        const id = saved && arr.some((u) => u.id === saved) ? saved : (arr[0]?.id || '')
+        if (id) { setActiveUser(id); setActiveId(id) }
+      }).catch(() => {})
+    }
     fetch('/api/tag-vocab').then((r) => r.json()).then((d) => setVocab({
       visa: d.visa || [], consulate: d.consulate || [], consulate_options: d.consulate_options || [],
       consulate_tree: d.consulate_tree || [],
@@ -353,7 +359,7 @@ export default function OnboardingPage() {
             <span className="material-symbols-outlined text-[20px]">account_circle</span>
             Signed in as {authUser.displayName || authUser.email}
           </span>
-        ) : (
+        ) : DEMO_PICKER_ENABLED ? (
           <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
             <span className="material-symbols-outlined text-[20px]">switch_account</span>
             Demo user:
@@ -363,7 +369,7 @@ export default function OnboardingPage() {
               <option value="__new__">➕ New user…</option>
             </select>
           </label>
-        )}
+        ) : null}
       </div>
 
       {/* stepper */}

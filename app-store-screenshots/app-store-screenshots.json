@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 2,
+  "appName": "Meridian",
+  "themeId": "clean-light",
+  "connectedCanvas": true,
+  "locales": [
+    "en"
+  ],
+  "locale": "en",
+  "device": "iphone",
+  "orientation": "portrait",
+  "appIcon": "/app-icon.png",
+  "slidesByDevice": {
+    "iphone": [
+      {
+        "id": "meridian_1",
+        "layout": "hero",
+        "label": {
+          "en": "WELCOME"
+        },
+        "headline": {
+          "en": "Your immigration\njourney starts here."
+        },
+        "screenshot": "/screenshots/apple/iphone/en/01.png",
+        "transforms": {
+          "device": {
+            "x": 1499.8010204081631,
+            "y": 750.1428571428563,
+            "width": 977,
+            "height": 1991,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        }
+      },
+      {
+        "id": "meridian_2",
+        "layout": "device-bottom",
+        "label": {
+          "en": "AI ASSISTANT"
+        },
+        "headline": {
+          "en": "Get instant\nimmigration guidance."
+        },
+        "screenshot": "/screenshots/apple/iphone/en/02.png",
+        "transforms": {
+          "device": {
+            "x": 2813.081632653061,
+            "y": 629.4234693877563,
+            "width": 977,
+            "height": 1991,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        }
+      },
+      {
+        "id": "meridian_3",
+        "layout": "device-top",
+        "label": {
+          "en": "COMMUNITY"
+        },
+        "headline": {
+          "en": "Connect with others\non the same journey."
+        },
+        "screenshot": "/screenshots/apple/iphone/en/03.png",
+        "inverted": true,
+        "transforms": {
+          "device": {
+            "x": 152.03571428571286,
+            "y": 86.8877551020408,
+            "width": 1013,
+            "height": 2064,
+            "rotation": 0,
+            "zIndex": 3
+          },
+          "caption": {
+            "x": 105.59996180237749,
+            "y": 2219.200016468426,
+            "width": 1109,
+            "height": 448,
+            "rotation": 0,
+            "zIndex": 4
+          }
+        }
+      },
+      {
+        "id": "meridian_4",
+        "layout": "device-bottom",
+        "label": {
+          "en": "TRACK CASES"
+        },
+        "headline": {
+          "en": "Look for similar experiences."
+        },
+        "screenshot": "/screenshots/apple/iphone/en/04.png",
+        "transforms": {
+          "device": {
+            "x": -3797.2193877551017,
+            "y": 746.4846938775521,
+            "width": 977,
+            "height": 1991,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        }
+      }
+    ],
+    "android": [],
+    "ipad": [],
+    "android-7": [],
+    "android-10": [],
+    "feature-graphic": []
+  },
+  "crossScreenMockupsByDevice": {
+    "iphone": [],
+    "ipad": [],
+    "android": [],
+    "android-7": [],
+    "android-10": [],
+    "feature-graphic": []
+  }
+}

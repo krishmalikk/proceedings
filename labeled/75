@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "What H-1B consular officers actually care about (from reviewing multiple interview experiences). This post provides advice for H-1B visa stamping interviews, focusing on what consular officers prioritize and common applicant mistakes. It covers job explanation, employer knowledge, salary consistency, degree-to-job connection, and specific advice for consulting firm applicants. The author offers to answer questions from others preparing for H-1B stamping interviews, but the post itself is not asking questions. Tags: H-1B, consular-processing, visa-interview, visa-stamping, dual-intent, specialty-occupation, LCA, employer-letter, wage-level-compliance, job-description, job-title, required-documents, tips, discussion, visa-application, nonimmigrant-intent. Stages: visa_type:H-1B, visa_status:H-1B. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "dual-intent",
+          "job-description",
+          "discussion",
+          "wage-level-compliance",
+          "visa-application"
+        ]
+      }
+    }
+  ]
+}

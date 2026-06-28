@@ -1,9 +1,17 @@
+export { AIOrb } from './AIOrb';
+export { AnimatedCard } from './AnimatedCard';
+export { AnimatedListItem } from './AnimatedListItem';
+export { AnimatedPressable } from './AnimatedPressable';
 export { Badge } from './Badge';
 export { Button } from './Button';
 export { Card } from './Card';
 export { default as Markdown } from './Markdown';
 export { AuthorCard } from './AuthorCard';
 export { FilterChip } from './FilterChip';
+export { FloatingTabBar } from './FloatingTabBar';
+export { GlassBackground } from './GlassBackground';
+export { GlassCard } from './GlassCard';
+export { GlassButton } from './GlassButton';
 export { Header } from './Header';
 export { Input } from './Input';
 export { ProgressStepper } from './ProgressStepper';

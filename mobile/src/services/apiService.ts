@@ -1,4 +1,4 @@
-// API Service for Proceedings Mobile
+// API Service for Meridian Mobile
 // Connects to the same backend API as the website
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,6 +7,17 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://immiguide-api-971592
 
 // Active user management (stored in AsyncStorage)
 let activeUserId: string | null = null;
+
+// Firebase ID token for Authorization header (kept fresh by AuthContext via onIdTokenChanged)
+let idToken: string | null = null;
+
+/**
+ * Set the Firebase ID token for API calls. Called by AuthContext's onIdTokenChanged.
+ * This token is sent as `Authorization: Bearer` on every authed request.
+ */
+export function setIdToken(token: string | null): void {
+  idToken = token;
+}
 
 export function getActiveUserId(): string | null {
   return activeUserId;
@@ -36,6 +47,11 @@ export async function setActiveUserId(id: string | null): Promise<void> {
 
 function userHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
+  // Attach the Firebase ID token as Bearer auth (prod requires this; backend verifies)
+  if (idToken) {
+    headers['Authorization'] = `Bearer ${idToken}`;
+  }
+  // Keep X-User-Id for backward compat (backend uses it as fallback when ALLOW_USER_IMPERSONATION=1)
   if (activeUserId) {
     headers['X-User-Id'] = activeUserId;
   }
@@ -54,7 +70,7 @@ export async function registerBackendUser(uid: string, username: string): Promis
       body: JSON.stringify({ uid, username }),
     });
   } catch {
-    // Best-effort — re-run on the next auth-state change; calls 404 until then.
+    // Best-effort - re-run on the next auth-state change; calls 404 until then.
   }
   await setActiveUserId(uid);
 }
@@ -470,6 +486,7 @@ export interface SearchResultItem {
   tags: string[];
   url: string;
   date: string;
+  timestamp?: string; // full ingestion timestamp (for relative "X ago")
 }
 
 export interface SearchFacetValue {
@@ -491,7 +508,7 @@ export interface SearchResponse {
   suggested_filters: SuggestedFilterGroup[];
 }
 
-// Selection id used for the backend `facet` param — mirrors the website's facetId().
+// Selection id used for the backend `facet` param - mirrors the website's facetId().
 export const facetId = (field: string, code: string) => `${field}:${code}`;
 
 export async function searchPostings(
@@ -691,6 +708,17 @@ export async function joinGroup(groupId: string): Promise<void> {
   }
 }
 
+export async function leaveGroup(groupId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/leave`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || 'Could not leave group');
+  }
+}
+
 // ============= Group Chat =============
 
 export interface ChatMessage {
@@ -819,5 +847,77 @@ export async function updateProfile(profile: Record<string, unknown>): Promise<v
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.detail || 'Could not update profile');
+  }
+}
+
+/**
+ * Delete the current user's account and all associated data.
+ * This is an irreversible operation that removes:
+ * - User profile
+ * - Posting author links
+ * - Replies (soft-deleted)
+ * - Group memberships
+ * - Group messages (soft-deleted)
+ * - Firebase Auth account
+ */
+export async function deleteAccount(): Promise<{ ok: boolean; deleted_uid: string }> {
+  const response = await fetch(`${API_URL}/api/users/me`, {
+    method: 'DELETE',
+    headers: userHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not delete account');
+  }
+  return data;
+}
+
+// ============= Email Verification =============
+
+/**
+ * Send a 6-digit verification code to the user's email.
+ * Rate limited to 3 requests per hour per email.
+ */
+export async function sendVerificationCode(email: string): Promise<{ ok: boolean; message?: string }> {
+  const response = await fetch(`${API_URL}/api/auth/send-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Failed to send verification code');
+  }
+  return data;
+}
+
+/**
+ * Verify a 6-digit code entered by the user.
+ * Returns { verified: true } on success, or { verified: false, error: string } on failure.
+ */
+export async function verifyCode(email: string, code: string): Promise<{ verified: boolean; error?: string }> {
+  const response = await fetch(`${API_URL}/api/auth/verify-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Verification failed');
+  }
+  return data;
+}
+
+/**
+ * Check if an email address has been verified.
+ */
+export async function checkEmailVerified(email: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_URL}/api/auth/check-verified/${encodeURIComponent(email)}`);
+    if (!response.ok) return false;
+    const data = await response.json();
+    return data.verified === true;
+  } catch {
+    return false;
   }
 }

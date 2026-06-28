@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Has anyone been in this situation? Desperately need help. The applicant had both an H4 Change of Status (COS) and an H1B petition approved on the same day, leading to conflicting information about their active immigration status. USCIS indicated H4 was approved last, but the H1B approval notice explicitly granted COS. This ambiguity has led to an employer rescinding a job offer, and the applicant is concerned about the 60-day grace period expiring. The applicant desperately needs to determine their active immigration status (H1B or H4) due to conflicting same-day approvals and the 'last action rule'. They are seeking advice on how to resolve this ambiguity, especially given the impending expiration of a 60-day grace period and a rescinded job offer. Tags: I-94, EAD, biometrics, grace-period, offer-rescinded, lawyer-recommendation, h1b-petition, h1b-approval, h4-ead, legal-status, last-action-rule, change-of-status-COS, status-expiring, processing-delay, form-mistake, endless-wait, open-for-attorney. Stages: case_status:approved, application_status:pending, biometrics_status:completed. Dates: biometrics_appointment_date:2026-04-07, 60day_grace_period_expire_date:2026-05-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "status-expiring",
+          "h4-ead",
+          "biometrics",
+          "offer-rescinded",
+          "endless-wait"
+        ]
+      }
+    }
+  ]
+}

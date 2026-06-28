@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../constants/theme';
@@ -10,6 +10,7 @@ interface HeaderProps {
   showBack?: boolean;
   showSearch?: boolean;
   showProfile?: boolean;
+  transparent?: boolean;
   onBack?: () => void;
   onSearch?: () => void;
   onProfile?: () => void;
@@ -22,6 +23,7 @@ export function Header({
   showBack = false,
   showSearch = false,
   showProfile = false,
+  transparent = false,
   onBack,
   onSearch,
   onProfile,
@@ -30,8 +32,12 @@ export function Header({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+    <View style={[
+      styles.container,
+      { paddingTop: insets.top },
+      transparent && styles.transparentContainer,
+    ]}>
+      <StatusBar barStyle="dark-content" backgroundColor={transparent ? 'transparent' : colors.surface} />
       <View style={styles.content}>
         <View style={styles.left}>
           {showBack && (
@@ -39,17 +45,9 @@ export function Header({
               <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
             </TouchableOpacity>
           )}
-          {showLogo && !showBack && (
-            <View style={styles.logoContainer}>
-              <View style={styles.logoIcon}>
-                <Ionicons name="flame" size={18} color={colors.accent} />
-              </View>
-              <Text style={styles.logoText}>Proceedings</Text>
-            </View>
-          )}
-          {title && !showLogo && (
-            <Text style={styles.title}>{title}</Text>
-          )}
+<Text style={styles.title}>
+            {showLogo ? 'Meridian' : title}
+          </Text>
         </View>
 
         <View style={styles.right}>
@@ -78,6 +76,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.outlineVariant,
   },
+  transparentContainer: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
+  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -93,28 +95,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 2.5,
-    borderColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  logoText: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: colors.primary,
-  },
   title: {
-    fontSize: 18,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia-Bold' : 'serif',
+    fontSize: 20,
     fontWeight: '600',
     color: colors.onSurface,
   },

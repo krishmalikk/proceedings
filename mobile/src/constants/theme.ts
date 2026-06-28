@@ -1,20 +1,31 @@
-// Proceedings Design System — USA-flag brand identity
-// flag navy (dominant) · liberty blue · flame red (accent only) · crisp
-// near-white ground. Reference: logo3-vivid.jpeg. Mirrors website/tailwind.config.ts.
+// Meridian Design System — Clean red brand identity
+// Meridian red (dominant) · neutral gray (secondary) · crisp near-white ground.
+import { Platform } from 'react-native';
+
+// Font families for backward compatibility
+export const fonts = {
+  heading: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  headingBold: Platform.OS === 'ios' ? 'Georgia-Bold' : 'serif',
+  headingItalic: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
+  body: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  bodyMedium: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  bodyHeavy: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  bodyBlack: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+};
 
 export const colors = {
-  // Primary (flag navy)
-  primary: '#15487e',
+  // Primary (Meridian red)
+  primary: '#AE0000',
   onPrimary: '#ffffff',
-  primaryContainer: '#2d5c90',
-  onPrimaryContainer: '#c6dbf7',
-  inversePrimary: '#a8c7f0',
+  primaryContainer: '#FFEBEB',
+  onPrimaryContainer: '#5C0000',
+  inversePrimary: '#FFCDD2',
 
-  // Secondary (liberty blue — replaces the retired teal)
-  secondary: '#2c6fb5',
+  // Secondary (neutral gray)
+  secondary: '#4A4A4A',
   onSecondary: '#ffffff',
-  secondaryContainer: '#d4e3f6',
-  onSecondaryContainer: '#103f6e',
+  secondaryContainer: '#E8E8E8',
+  onSecondaryContainer: '#2A2A2A',
 
   // Accent (flame red — reserved for the mark, highlights & emphasis)
   accent: '#d62828',
@@ -42,7 +53,7 @@ export const colors = {
   inverseSurface: '#2a303d',
   inverseOnSurface: '#ecf0ff',
   surfaceVariant: '#dde2f3',
-  surfaceTint: '#15487e',
+  surfaceTint: '#AE0000',
 
   // Outline
   outline: '#737780',
@@ -64,10 +75,23 @@ export const colors = {
   statusVerified: '#2c6fb5', // Liberty blue
 
   // Fixed colors
-  primaryFixed: '#d7e4f8',
-  primaryFixedDim: '#a8c7f0',
-  secondaryFixed: '#d4e3f6',
-  secondaryFixedDim: '#a8c7ec',
+  primaryFixed: '#FFEBEB',
+  primaryFixedDim: '#FFCDD2',
+  secondaryFixed: '#E8E8E8',
+  secondaryFixedDim: '#CCCCCC',
+
+  // Liquid Glass Palette (AI Assistant screen only)
+  glass: {
+    gradientTop: '#E9E7F6',
+    gradientBottom: '#C9CEE8',
+    surface: 'rgba(255, 255, 255, 0.50)',
+    border: 'rgba(255, 255, 255, 0.6)',
+    divider: 'rgba(200, 200, 220, 0.3)',
+  },
+
+  // Cool accent (for AI screens)
+  coolAccent: '#8B5CF6',
+  coolAccentLight: '#A78BFA',
 };
 
 // Type scale tightened per UI-beautify.md §3.1 (smaller) — larger sizes
@@ -164,10 +188,19 @@ export const shadows = {
     shadowRadius: 32,
     elevation: 4,
   },
+  // Glass shadow (used by AI Chat components)
+  glass: {
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 3,
+  },
 };
 
 export default {
   colors,
+  fonts,
   typography,
   spacing,
   borderRadius,

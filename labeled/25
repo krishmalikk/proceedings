@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B selected FY 2027, STEM OPT pending. The user has a pending STEM OPT extension application and was selected in the H-1B lottery for FY2027, with petition filing planned for May 2026. The user is asking about the applicability of cap-gap for their situation, given their pending STEM OPT and H-1B selection, and is feeling anxious about the uncertainty. Tags: STEM-OPT, I-765, opt-application, h1b-lottery, h1b-petition, cap-gap, processing-delay, endless-wait. Stages: visa_status:F-1, application_status:pending, petition_status:selected. Dates: i765_filed_date:2025-11-01, h1b_filed_date:2026-05-01."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-lottery",
+          "F-1",
+          "opt-application",
+          "endless-wait",
+          "I-765"
+        ]
+      }
+    }
+  ]
+}

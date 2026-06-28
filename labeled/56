@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Social media handles in DS-160 for visa stamping. The applicant is a product designer with multiple non-profit social media accounts for design-related content, including LinkedIn, YouTube, Instagram, and TikTok. The applicant is concerned whether having around 10 social media handles to report on the DS-160 for H-1B visa stamping could be considered a potential red flag by USCIS. Tags: DS-160, visa-stamping, background-check, social-media, ds160-question, h1b-stamping. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "ds160-question",
+          "visa-stamping",
+          "background-check",
+          "h1b-stamping",
+          "DS-160"
+        ]
+      }
+    }
+  ]
+}

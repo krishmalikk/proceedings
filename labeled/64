@@ -1,0 +1,18 @@
+{
+  "task": {
+    "data": {
+      "text": "Hi, I am facing this issue when selecting reschedule appointment link \"No class Selected\" . Anybody know about this ?. The user is attempting to reschedule an appointment. The user is encountering an error message \"No class Selected\" when trying to reschedule an appointment and is seeking information or solutions. Tags: visa-interview-scheduling, no-slot. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "H-1B",
+          "no-slot",
+          "visa-interview-scheduling"
+        ]
+      }
+    }
+  ]
+}

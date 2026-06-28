@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Laid off ( need suggestion how to navigte situation). The applicant, an H-1B holder with an approved I-140, was laid off on April 1st and faces an expiring grace period this month. They are evaluating three job offers: a startup, a consultancy, and a big tech company. The primary concern is the high risk of an RFE and potential out-of-status issues with the startup's first H-1B filing, given the limited grace period. The applicant seeks advice on concurrent H-1B filings with the startup and consultancy, and how to manage a big tech offer if it materializes during the transfer process. Tags: laid-off, I-140, approved, LCA, certified, USCIS, startup, consulting, O-1, employment-based-immigration, change-of-employer-COE, job-offer, job-search, RFE, out-of-status, h1b-filing, h1b-transfer, concurrent-h1b, change-status-options, legal-status, grace-period, processing-delay, h1b-rfe, h1b-denial. Stages: petition_status:approved, visa_status:H-1B. Dates: layoff_notification_date:2026-04-01, h1b_expire_date:2026-04-30."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "USCIS",
+          "change-status-options",
+          "change-of-employer-COE",
+          "approved",
+          "startup"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Any June 2025 H1B ext regular processing Texas. The user has an H1B extension filed under regular processing in Texas, which is nearing its 240-day work authorization limit by the end of May 2026. The user is asking for experiences from others who filed H1B extensions in June 2025 under regular processing in Texas, and is considering upgrading to premium processing next week to avoid exceeding the 240-day limit. Tags: processing-delay, status-expiring, h1b-extension, 240day-rule, regular-processing, premium-processing, change-status-options, regular-vs-premium-processing, pp-clock, processing-time, endless-wait, timeline. Stages: service_center_assigned:TSC, visa_status:H-1B. Dates: 240day_expiration_date:2026-05-31."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "pp-clock",
+          "premium-processing",
+          "endless-wait",
+          "change-status-options",
+          "240day-rule"
+        ]
+      }
+    }
+  ]
+}

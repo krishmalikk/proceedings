@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B RFE. The applicant received an H1B RFE, partly due to Iran being the country of birth and needing evidence of maintaining status with a prior employer. Lawyers responded to the RFE on March 18th, and USCIS acknowledged receipt on March 20th. The applicant is concerned because the premium processing clock was stopped on March 25th, and they haven't received an explanation. They are worried about re-entry to the U.S. after an upcoming marriage in Europe, especially since the I-797 for their new employer has not been issued, and they seek similar experiences or recent approvals. Tags: country-of-birth-screening, previous-employer, maintenance-of-status, required-documents, received, RFE, h1b-rfe, premium-processing, pp-clock, re-entry, travel-concern, I-797, change-of-employer-COE, visa-stamping, h1b-stamping, discussion, h1b-approval. Stages: born_in_country: IR, visa_type: H-1B, rfe_status: issued. Dates: rfe_response_date: 2026-03-18."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-rfe",
+          "I-797",
+          "pp-clock",
+          "discussion",
+          "premium-processing"
+        ]
+      }
+    }
+  ]
+}

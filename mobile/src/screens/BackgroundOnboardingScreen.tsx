@@ -8,12 +8,16 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Dimensions,
 } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeInUp, Layout } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius } from '../constants/theme';
+import { colors, spacing, borderRadius, typography } from '../constants/theme';
+import { AnimatedPressable } from '../components/AnimatedPressable';
 import { ChipSelector } from '../components/ChipSelector';
 import Markdown from '../components/Markdown';
 import {
@@ -44,7 +48,7 @@ type Turn = { id: string; role: 'user' | 'ai'; content: string };
 
 // Same greetings as the website's onboarding chat.
 const GREETING_SETUP =
-  "Hi! Let's set up the basics of your immigration profile — your current situation, journey and key dates. " +
+  "Hi! Let's set up the basics of your immigration profile - your current situation, journey and key dates. " +
   'Tell me about your situation (or fill in the sections below) and I\'ll turn it into tags. ' +
   "Please don't share personal details like your name, date of birth, or passport number.";
 
@@ -110,12 +114,12 @@ export function BackgroundOnboardingScreen() {
         if (Array.isArray(j)) setJourney(j);
       })
       .catch(() => {
-        // New/unregistered user — keep the empty form + setup greeting.
+        // New/unregistered user - keep the empty form + setup greeting.
       });
   }, []);
 
   // One assistant turn: the AI updates the tags below from the conversation.
-  // Driven by the single "Describe your situation" box (website parity — there
+  // Driven by the single "Describe your situation" box (website parity - there
   // is no separate chat input in the basics stage).
   const send = async (raw: string) => {
     const t = raw.trim();
@@ -266,12 +270,21 @@ export function BackgroundOnboardingScreen() {
     if (saving) return;
     setSaving(true);
     try {
-      await saveProfileToBackend(toBackendProfile(profile, journey) as unknown as Record<string, unknown>);
+      // Only attempt to save if we have a user ID (skip in dev mode without breaking flow)
+      if (getActiveUserId()) {
+        await saveProfileToBackend(toBackendProfile(profile, journey) as unknown as Record<string, unknown>);
+      }
       navigation.navigate('ExperiencesOnboarding', { profile, journey });
     } catch (e) {
+      // In dev mode or on network failure, still allow navigation but warn the user
+      console.warn('Could not save profile:', e);
       Alert.alert(
-        'Could not save your profile',
-        e instanceof Error ? e.message : 'Please check your connection and try again.'
+        'Profile not saved',
+        'Your profile could not be saved to the server. You can continue, but your data may not persist.',
+        [
+          { text: 'Go Back', style: 'cancel' },
+          { text: 'Continue Anyway', onPress: () => navigation.navigate('ExperiencesOnboarding', { profile, journey }) },
+        ]
       );
     } finally {
       setSaving(false);
@@ -323,13 +336,22 @@ export function BackgroundOnboardingScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Onboarding Image */}
+          <View style={styles.imageContainer}>
+            <Image
+              source={require('../../assets/onboardingimage1.png')}
+              style={styles.onboardingImage}
+              resizeMode="contain"
+            />
+          </View>
+
           {/* Header */}
-          <View style={styles.header}>
+          <Animated.View style={styles.header} entering={FadeInDown.delay(100).duration(400)}>
             <Text style={styles.title}>Tell us about your journey</Text>
             <Text style={styles.subtitle}>
               This helps us connect you with others in similar situations
             </Text>
-          </View>
+          </Animated.View>
 
           {/* AI assistant chat (website parity: chat → tags update below) */}
           <View style={styles.chatCard}>
@@ -337,22 +359,28 @@ export function BackgroundOnboardingScreen() {
               <Ionicons name="sparkles-outline" size={16} color={colors.secondary} />
               <Text style={styles.chatTitle}>AI assistant</Text>
             </View>
-            <View style={styles.chatThread}>
-              {messages.map((m) =>
-                m.role === 'user' ? (
-                  <View key={m.id} style={styles.chatBubbleUserWrap}>
-                    <View style={styles.chatBubbleUser}>
-                      <Text style={styles.chatBubbleUserText}>{m.content}</Text>
+            <ScrollView
+              style={styles.chatThreadScroll}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+            >
+              <View style={styles.chatThread}>
+                {messages.map((m) =>
+                  m.role === 'user' ? (
+                    <View key={m.id} style={styles.chatBubbleUserWrap}>
+                      <View style={styles.chatBubbleUser}>
+                        <Text style={styles.chatBubbleUserText}>{m.content}</Text>
+                      </View>
                     </View>
-                  </View>
-                ) : (
-                  <View key={m.id} style={styles.chatBubbleAi}>
-                    <Markdown>{m.content}</Markdown>
-                  </View>
-                )
-              )}
-              {chatLoading && <ActivityIndicator size="small" color={colors.primary} style={{ alignSelf: 'flex-start' }} />}
-            </View>
+                  ) : (
+                    <View key={m.id} style={styles.chatBubbleAi}>
+                      <Markdown>{m.content}</Markdown>
+                    </View>
+                  )
+                )}
+                {chatLoading && <ActivityIndicator size="small" color={colors.primary} style={{ alignSelf: 'flex-start' }} />}
+              </View>
+            </ScrollView>
             <Text style={styles.chatHint}>
               Describe your situation in the box below, then “Ask the assistant” or “Re-generate tags”.
             </Text>
@@ -433,7 +461,7 @@ export function BackgroundOnboardingScreen() {
             )}
           </View>
 
-          {/* Consulates — two-part: type a country, then pick a city */}
+          {/* Consulates - two-part: type a country, then pick a city */}
           <View style={styles.section}>
             <SectionHeader
               title="Consulate(s)"
@@ -694,16 +722,22 @@ export function BackgroundOnboardingScreen() {
           </View>
 
           {/* Buttons */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleContinue} disabled={saving}>
+          <Animated.View style={styles.buttonContainer} entering={FadeInUp.delay(300).duration(400)}>
+            <AnimatedPressable
+              style={[styles.primaryButton, saving && { opacity: 0.6 }]}
+              onPress={handleContinue}
+              disabled={saving}
+              haptics="medium"
+              scaleTo={0.97}
+            >
               <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Continue'}</Text>
               <Ionicons name="arrow-forward" size={20} color={colors.onPrimary} />
-            </TouchableOpacity>
+            </AnimatedPressable>
 
-            <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+            <AnimatedPressable style={styles.skipButton} onPress={handleSkip} haptics="light">
               <Text style={styles.skipButtonText}>Skip for now</Text>
-            </TouchableOpacity>
-          </View>
+            </AnimatedPressable>
+          </Animated.View>
 
           {/* Privacy notice */}
           <Text style={styles.privacyText}>
@@ -715,6 +749,8 @@ export function BackgroundOnboardingScreen() {
     </SafeAreaView>
   );
 }
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -728,6 +764,14 @@ const styles = StyleSheet.create({
     padding: spacing.marginMobile,
     paddingBottom: spacing.xl,
   },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  onboardingImage: {
+    width: SCREEN_WIDTH * 0.7,
+    height: SCREEN_WIDTH * 0.5,
+  },
   chatCard: {
     backgroundColor: colors.surfaceContainerLow,
     borderRadius: borderRadius.md,
@@ -736,7 +780,8 @@ const styles = StyleSheet.create({
   },
   chatHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
   chatTitle: { fontSize: 13, fontWeight: '600', color: colors.onSurface },
-  chatThread: { gap: spacing.base, maxHeight: 280 },
+  chatThreadScroll: { maxHeight: 280 },
+  chatThread: { gap: spacing.base },
   chatBubbleUserWrap: { alignItems: 'flex-end' },
   chatBubbleUser: {
     backgroundColor: colors.primaryContainer,
@@ -857,13 +902,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    ...typography.headlineLg,
     color: colors.onSurface,
     marginBottom: spacing.base,
   },
   subtitle: {
-    fontSize: 16,
+    ...typography.bodyMd,
     color: colors.onSurfaceVariant,
     lineHeight: 24,
   },

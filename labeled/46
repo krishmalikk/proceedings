@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Need help with J1 renewal in India. The user is a J1 scholar attempting to renew their visa in India but is unable to find available OFC appointment slots at any consulate. The primary concern is the inability to schedule an OFC appointment for J1 visa renewal in India due to no slots being available. Tags: DS-160, ds160-filing, processing-fee, j1-renewal, OFC, visa-interview-scheduling, no-slot. Stages: visa_type:J-1, resident_of_country:IN, travel_country:IN, application_status:DS-160-submitted, consulate_assigned:IN. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "OFC",
+          "j1-renewal",
+          "processing-fee",
+          "visa-interview-scheduling",
+          "J-1"
+        ]
+      }
+    }
+  ]
+}

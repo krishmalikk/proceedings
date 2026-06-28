@@ -7,14 +7,15 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  Linking,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Header, Card, Badge, Button, Markdown } from '../components';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
-import { getProfile, getCachedProfile, clearProfileCache, getActiveUserId } from '../services/apiService';
+import { getProfile, getCachedProfile, clearProfileCache, getActiveUserId, deleteAccount } from '../services/apiService';
 import { useExperienceFacets } from '../hooks/useExperienceFacets';
 import { ProfileActivity } from '../components/ProfileActivity';
 
@@ -46,8 +47,7 @@ export function ProfileScreen() {
   const navigation = useNavigation();
   // Hidden when Profile is a bottom-tab root (nothing to go back to); shown when
   // pushed from another stack via the header profile icon.
-  const canGoBack = navigation.canGoBack();
-  const { user, signOut } = useAuth();
+    const { user, signOut } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +55,7 @@ export function ProfileScreen() {
   const [error, setError] = useState('');
   const [expandedMilestones, setExpandedMilestones] = useState<Set<number>>(new Set());
   const [signingOut, setSigningOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Generated facets for each shared/published experience (website parity).
   const expFacets = useExperienceFacets(profile?.journey);
@@ -144,6 +145,39 @@ export function ProfileScreen() {
     }
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone. All your data, posts, replies, and group memberships will be permanently removed.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDeleteAccount,
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = async () => {
+    setDeleting(true);
+    setError('');
+    try {
+      await deleteAccount();
+      // Clear local data
+      await clearProfileCache();
+      // Sign out (this clears auth state and navigates to signup)
+      await signOut();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete account');
+      setDeleting(false);
+    }
+  };
+
   const formatDate = (dateStr: string | undefined) => {
     if (!dateStr) return '';
     try {
@@ -169,28 +203,28 @@ export function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.container}>
         <Header
           title="Profile"
-          showBack={canGoBack}
-          onBack={() => navigation.goBack()}
-        />
+          showLogo={false}
+          transparent
+                  />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (error && !profile) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.container}>
         <Header
           title="Profile"
-          showBack={canGoBack}
-          onBack={() => navigation.goBack()}
-        />
+          showLogo={false}
+          transparent
+                  />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color={colors.error} />
           <Text style={styles.errorText}>{error}</Text>
@@ -198,16 +232,16 @@ export function ProfileScreen() {
             Try Again
           </Button>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <Header
         title="Profile"
-        showBack={canGoBack}
-        onBack={() => navigation.goBack()}
+        showLogo={false}
+        transparent
       />
       <ScrollView
         style={styles.scrollView}
@@ -486,6 +520,24 @@ export function ProfileScreen() {
           </Button>
         </View>
 
+        {/* Delete Account Button */}
+        <View style={styles.deleteContainer}>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDeleteAccount}
+            disabled={deleting}
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color={colors.error} />
+            ) : (
+              <>
+                <Ionicons name="trash-outline" size={18} color={colors.error} />
+                <Text style={styles.deleteButtonText}>Delete Account</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
         {/* Legal */}
         <TouchableOpacity
           style={styles.legalRow}
@@ -495,13 +547,29 @@ export function ProfileScreen() {
           <Text style={styles.legalRowText}>Legal Disclaimer</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.legalRow}
+          onPress={() => Linking.openURL('https://meridianjourney.ai/privacy')}
+        >
+          <Ionicons name="lock-closed-outline" size={18} color={colors.onSurfaceVariant} />
+          <Text style={styles.legalRowText}>Privacy Policy</Text>
+          <Ionicons name="open-outline" size={16} color={colors.onSurfaceVariant} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.legalRow}
+          onPress={() => Linking.openURL('https://meridianjourney.ai/terms')}
+        >
+          <Ionicons name="document-text-outline" size={18} color={colors.onSurfaceVariant} />
+          <Text style={styles.legalRowText}>Terms of Service</Text>
+          <Ionicons name="open-outline" size={16} color={colors.onSurfaceVariant} />
+        </TouchableOpacity>
         <Text style={styles.legalNote}>
-          Not legal advice. Proceedings is not a law firm or government agency.
+Not legal advice. Meridian is not a law firm or government agency.
         </Text>
 
         <View style={styles.bottomPadding} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -745,8 +813,24 @@ const styles = StyleSheet.create({
   signOutContainer: {
     marginTop: spacing.md,
   },
+  deleteContainer: {
+    marginTop: spacing.md,
+    alignItems: 'center',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  deleteButtonText: {
+    color: colors.error,
+    fontSize: 14,
+    fontWeight: '500',
+  },
   bottomPadding: {
-    height: spacing.lg,
+    height: 100, // Extra padding to scroll past floating tab bar
   },
 });
 

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Lora } from 'next/font/google'
 import './globals.css'
 import TopAppBar from '@/components/TopAppBar'
 import MobileBottomNav from '@/components/MobileBottomNav'
@@ -11,35 +11,41 @@ const inter = Inter({
   display: 'swap',
 })
 
+const lora = Lora({
+  subsets: ['latin'],
+  variable: '--font-lora',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://proceedings.ai'),
+  metadataBase: new URL('https://meridianjourney.ai'),
   title: {
-    default: 'Proceedings | Your Immigration Assistant',
-    template: '%s | Proceedings',
+    default: 'Meridian | Your Immigration Journey Starts Here',
+    template: '%s | Meridian',
   },
-  description: 'AI-powered immigration guidance with official citations. Get answers to your US immigration questions with confidence.',
-  keywords: ['immigration', 'visa', 'green card', 'H-1B', 'immigration lawyer', 'USCIS', 'immigration assistant'],
-  authors: [{ name: 'Proceedings' }],
+  description: 'Navigate your immigration journey with confidence. AI-powered guidance, community support, and real experiences from people like you.',
+  keywords: ['immigration', 'visa', 'green card', 'H-1B', 'immigration guide', 'USCIS', 'immigration assistant', 'visa experiences'],
+  authors: [{ name: 'Meridian' }],
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://proceedings.ai',
-    siteName: 'Proceedings',
-    title: 'Proceedings | Your Immigration Assistant',
-    description: 'AI-powered immigration guidance with official citations.',
+    url: 'https://meridianjourney.ai',
+    siteName: 'Meridian',
+    title: 'Meridian | Your Immigration Journey Starts Here',
+    description: 'Navigate your immigration journey with confidence. AI-powered guidance and community support.',
     images: [
       {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Proceedings',
+        alt: 'Meridian - Immigration Journey',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Proceedings | Your Immigration Assistant',
-    description: 'AI-powered immigration guidance with official citations.',
+    title: 'Meridian | Your Immigration Journey Starts Here',
+    description: 'Navigate your immigration journey with confidence.',
     images: ['/og-image.jpg'],
   },
   robots: {
@@ -54,7 +60,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${lora.variable}`}>
       <head>
         {/* Material Symbols for icons */}
         <link
@@ -70,25 +76,67 @@ export default function RootLayout({
           </main>
           <MobileBottomNav />
           {/* Footer - shown on desktop, hidden on mobile due to bottom nav */}
-          <footer className="hidden md:block w-full py-5 px-margin-desktop bg-surface-container-low border-t border-outline-variant">
-            <div className="max-w-7xl mx-auto text-center space-y-3">
-              <div className="text-label-md font-semibold text-on-surface">Proceedings</div>
-              <p className="text-caption text-on-surface-variant max-w-lg mx-auto">
-                © 2024 Proceedings Inc. Not legal advice. Proceedings is not a law firm or government agency.
-              </p>
-              <div className="flex justify-center gap-6">
-                <a href="/disclaimer" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
-                  Legal Disclaimer
-                </a>
-                <a href="#" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
-                  Terms of Service
-                </a>
-                <a href="#" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
-                  Privacy Policy
-                </a>
-                <a href="#" className="text-caption text-on-surface-variant hover:text-primary transition-colors">
-                  Contact Support
-                </a>
+          <footer className="hidden md:block w-full py-8 px-margin-desktop bg-surface-container-low border-t border-outline-variant">
+            <div className="max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                {/* Brand Column */}
+                <div className="col-span-1">
+                  <div className="text-headline-md font-semibold text-primary font-serif mb-2">Meridian</div>
+                  <p className="text-body-md text-on-surface-variant">
+                    Your immigration journey starts here.
+                  </p>
+                </div>
+
+                {/* Product Column */}
+                <div className="col-span-1">
+                  <div className="text-label-md font-semibold text-on-surface mb-3">Product</div>
+                  <div className="space-y-2">
+                    <a href="/search" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
+                      AI Assistant
+                    </a>
+                    <a href="/community" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
+                      Community
+                    </a>
+                    <a href="/find" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
+                      Find Experiences
+                    </a>
+                  </div>
+                </div>
+
+                {/* Legal Column */}
+                <div className="col-span-1">
+                  <div className="text-label-md font-semibold text-on-surface mb-3">Legal</div>
+                  <div className="space-y-2">
+                    <a href="/disclaimer" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
+                      Disclaimer
+                    </a>
+                    <a href="/terms" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
+                      Terms of Service
+                    </a>
+                    <a href="/privacy" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
+                      Privacy Policy
+                    </a>
+                  </div>
+                </div>
+
+                {/* Support Column */}
+                <div className="col-span-1">
+                  <div className="text-label-md font-semibold text-on-surface mb-3">Support</div>
+                  <div className="space-y-2">
+                    <a href="/support" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
+                      Help Center
+                    </a>
+                    <a href="mailto:support@meridianjourney.ai" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
+                      Contact Us
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-outline-variant text-center">
+                <p className="text-caption text-on-surface-variant">
+                  © 2024 Krishes Inc. All rights reserved. Meridian is not a law firm or government agency. Information provided is for guidance only and does not constitute legal advice.
+                </p>
               </div>
             </div>
           </footer>

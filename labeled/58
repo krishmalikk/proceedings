@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Update on HR 875 Act Mandates Immediate Deportation for DUI Offenses (Incl Past DUIs). A bipartisan House bill, H.R. 875, proposes mandatory immediate deportation for non-citizens with DUI or DWI convictions, regardless of severity or when the offense occurred. This legislation, which has passed the House and awaits a Senate vote, would impact undocumented immigrants, visa holders, and green card holders, limiting legal relief. The post provides an update on the status of H.R. 875, a bill that would make any DUI conviction a trigger for deportation, raising concerns for green card and H-1B holders who could face removal proceedings even for decades-old or misdemeanor offenses. Tags: news-update, bill, deportation, dui, prior-conviction, green-card-status, LPR, naturalization, INA, waiver-eligibility. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "bill",
+          "waiver-eligibility",
+          "INA",
+          "green-card-status",
+          "LPR"
+        ]
+      }
+    }
+  ]
+}

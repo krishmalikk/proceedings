@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import GroupChat from '@/components/GroupChat'
 import { userHeaders } from '@/lib/activeUser'
+import { useRequireUser } from '@/lib/useRequireUser'
 
 type Group = {
   group_id: string
@@ -15,6 +16,7 @@ type Group = {
 }
 
 export default function GroupPage() {
+  useRequireUser()
   const params = useParams<{ id: string }>()
   const id = params?.id
   const [group, setGroup] = useState<Group | null>(null)

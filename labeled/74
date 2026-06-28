@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Approval Timeline: H1B extension of stay with premium processing. Applicant shares their H1B extension timeline with premium processing, noting it's their first extension after a cap lottery in 2023, and their company uses Fragomen. . Tags: H-1B, LCA, h1b-petition, premium-processing, I-797A, NSC, experience-posting, h1b-extension, h1b-approval, approved, processing-time. Stages: service_center_assigned:NSC, petition_status:approved. Dates: lca_approved_date:2026-04-10, h1b_filed_date:2026-04-22, h1b_receipt_date:2026-04-27, h1b_approved_date:2026-05-01."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "h1b-approval",
+          "premium-processing",
+          "experience-posting",
+          "I-797A",
+          "LCA"
+        ]
+      }
+    }
+  ]
+}

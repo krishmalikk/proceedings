@@ -12,12 +12,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, borderRadius } from '../constants/theme';
-import { MatchCard, Card, Markdown } from '../components';
+import { MatchCard, Card, Markdown, Header } from '../components';
 import {
   getUsers,
   getTagVocab,
@@ -311,21 +310,17 @@ export function FindScreen() {
   const myGroups = allGroups.filter((g) => g.is_member);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Find Your Group</Text>
-          {users.length > 0 && (
-            <View style={styles.userPicker}>
-              <Ionicons name="person-circle-outline" size={20} color={colors.onSurfaceVariant} />
-              <Text style={styles.userLabel}>{users.find((u) => u.id === activeId)?.username || 'Select'}</Text>
-            </View>
-          )}
-        </View>
+        <Header
+          title="Groups"
+          showLogo={false}
+          transparent
+        />
 
         {/* Tabs */}
         <View style={styles.tabs}>
@@ -653,7 +648,7 @@ export function FindScreen() {
           </ScrollView>
         )}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

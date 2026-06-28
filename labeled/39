@@ -1,0 +1,18 @@
+{
+  "task": {
+    "data": {
+      "text": "Appointment Confirmation. The user is inquiring about the status of an immigration process, specifically regarding an appointment. The user is concerned about a processing delay or a potential system error, as their message about the issue is still pending. Tags: processing-delay, pending, visa-interview-scheduling. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "processing-delay",
+          "pending",
+          "visa-interview-scheduling"
+        ]
+      }
+    }
+  ]
+}

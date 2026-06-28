@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "H1B/H4 from India. The user is looking for H1B and H4 OFC and Visa Interview appointments in India. The user has been unable to find available slots for over a month and is seeking guidance or suggestions on booking appointments. Tags: OFC, visa-interview, visa-interview-scheduling, no-slot. Stages: . Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "H-4",
+          "OFC",
+          "visa-interview",
+          "visa-interview-scheduling",
+          "no-slot"
+        ]
+      }
+    }
+  ]
+}

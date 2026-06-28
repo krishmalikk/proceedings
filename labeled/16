@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "B1/B2 visa with ESTA RECORD REVIEWED annotation. The applicant received a B1/B2 visa with an 'ESTA RECORD REVIEWED' annotation, indicating a consular officer reviewed their previous ESTA situation before approval. They currently reside and work in Europe and are planning a short tourism trip to the US. The applicant is seeking real experiences from others who have entered the US with an 'ESTA RECORD REVIEWED' annotation on their B1/B2 visa. They are concerned about potential increased questioning from CBP or issues at primary or secondary inspection at the port of entry. Tags: consular-processing, visa-interview, visa-stamping, esta-record-reviewed, re-entry, travel-concern, annotation, port-of-entry, CBP, discussion. Stages: visa_status:approved, travel_country:US. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "discussion",
+          "esta-record-reviewed",
+          "consular-processing",
+          "B-2",
+          "annotation"
+        ]
+      }
+    }
+  ]
+}

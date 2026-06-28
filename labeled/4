@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "Your Life at EVERY level of the H1B'. The post describes the long-term psychological and practical effects of living on an H-1B visa, including constant stress, limited freedom, and the impact on personal and professional decisions. It highlights the contrast with friends who have more flexibility. The author expresses deep-seated concerns about the H-1B visa's impact on quality of life, the inability to relax, and the overwhelming Green Card backlog for Indian nationals, which creates a sense of being perpetually unsettled. Tags: H-1B, IN, 60day-grace-period, green-card-status, backlog, endless-wait, processing-delay, employment-based-immigration, h1b-6-year-rule, visa-bulletin, priority-date-current, maintenance-of-status, employer-letter, unlawful-presence. Stages: visa_status: H-1B, case_status: pending. Dates: ."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "green-card-status",
+          "maintenance-of-status",
+          "h1b-6-year-rule",
+          "endless-wait",
+          "backlog"
+        ]
+      }
+    }
+  ]
+}

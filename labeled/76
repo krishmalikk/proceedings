@@ -1,0 +1,20 @@
+{
+  "task": {
+    "data": {
+      "text": "L1A to H1B COS avoid. The user, currently on an L-1A visa with a valid stamp until August 2028, has an approved H-1B petition but wants to avoid its activation on October 1st to protect their spouse's L-2S work authorization. The user is asking if traveling to Canada and re-entering before October 1st can prevent H-1B activation due to the last action rule, and if the approved H-1B change of status can be activated later as a backup in case of layoffs. Tags: layoff, last-action-rule, re-entry, h1b-portability-rule, change-of-status-COS, l1-to-h1b, l2-ead. Stages: spouse_status:L-2S, visa_type:L-1A, travel_country:CA. Dates: visa_expire_date:2028-08-31, h1b_processing_start_date:2026-10-01."
+    }
+  },
+  "result": [
+    {
+      "value": {
+        "choices": [
+          "H-1B",
+          "change-of-status-COS",
+          "L-2S",
+          "last-action-rule",
+          "layoff"
+        ]
+      }
+    }
+  ]
+}

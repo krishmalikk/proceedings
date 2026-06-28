@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { colors, typography, spacing, borderRadius } from '../../constants/theme';
 
 export interface ChatMessageProps {
@@ -14,7 +15,15 @@ export function ChatMessage({ content, role, timestamp, isLoading }: ChatMessage
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.assistantContainer]}>
+      <Animated.View
+        style={[styles.container, styles.assistantContainer]}
+        entering={FadeInUp.duration(200)}
+      >
+        <View style={styles.avatarWrap}>
+          <View style={styles.aiAvatar}>
+            <Text style={styles.aiAvatarText}>AI</Text>
+          </View>
+        </View>
         <View style={[styles.bubble, styles.assistantBubble]}>
           <View style={styles.loadingDots}>
             <View style={[styles.dot, styles.dot1]} />
@@ -22,23 +31,35 @@ export function ChatMessage({ content, role, timestamp, isLoading }: ChatMessage
             <View style={[styles.dot, styles.dot3]} />
           </View>
         </View>
-      </View>
+      </Animated.View>
     );
   }
 
   return (
-    <View style={[styles.container, isUser ? styles.userContainer : styles.assistantContainer]}>
-      <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
-        <Text style={[styles.text, isUser ? styles.userText : styles.assistantText]}>
-          {content}
-        </Text>
+    <Animated.View
+      style={[styles.container, isUser ? styles.userContainer : styles.assistantContainer]}
+      entering={FadeInUp.duration(200)}
+    >
+      {!isUser && (
+        <View style={styles.avatarWrap}>
+          <View style={styles.aiAvatar}>
+            <Text style={styles.aiAvatarText}>AI</Text>
+          </View>
+        </View>
+      )}
+      <View style={styles.messageContent}>
+        <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
+          <Text style={[styles.text, isUser ? styles.userText : styles.assistantText]}>
+            {content}
+          </Text>
+        </View>
         {timestamp && (
           <Text style={[styles.timestamp, isUser ? styles.userTimestamp : styles.assistantTimestamp]}>
             {formatTime(timestamp)}
           </Text>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -49,7 +70,7 @@ function formatTime(date: Date): string {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    marginVertical: spacing.xs,
+    marginVertical: spacing.base,
     paddingHorizontal: spacing.marginMobile,
   },
   userContainer: {
@@ -58,10 +79,29 @@ const styles = StyleSheet.create({
   assistantContainer: {
     justifyContent: 'flex-start',
   },
+  avatarWrap: {
+    marginRight: spacing.base,
+    alignSelf: 'flex-start',
+  },
+  aiAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiAvatarText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.onPrimary,
+  },
+  messageContent: {
+    maxWidth: '75%',
+  },
   bubble: {
-    maxWidth: '80%',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
   },
   userBubble: {
@@ -74,6 +114,7 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.bodyMd,
+    lineHeight: 22,
   },
   userText: {
     color: colors.onPrimary,
@@ -87,17 +128,19 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   userTimestamp: {
-    color: colors.onPrimary,
+    color: colors.onSurfaceVariant,
     textAlign: 'right',
   },
   assistantTimestamp: {
     color: colors.onSurfaceVariant,
+    textAlign: 'left',
   },
   loadingDots: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
   dot: {
     width: 8,
@@ -108,12 +151,12 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   dot1: {
-    // Animation would be added via Animated API
+    opacity: 0.4,
   },
   dot2: {
     opacity: 0.6,
   },
   dot3: {
-    opacity: 0.8,
+    opacity: 0.9,
   },
 });
