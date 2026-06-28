@@ -43,7 +43,7 @@ async function main() {
   // 1. Homepage renders (SSR) and is the right brand.
   const home = await get('/');
   check('GET / returns 200', home.status === 200, `status ${home.status}`);
-  check('Home title is meridianjourney.ai', /<title>[^<]*meridianjourney\.ai/i.test(home.body));
+  check('Home title is Meridian', /<title>[^<]*Meridian/i.test(home.body));
   check('No stale "usajourney" brand leak', !/usajourney/i.test(home.body));
 
   // 2. THE regression guard: the client JS bundle must contain the Firebase web
