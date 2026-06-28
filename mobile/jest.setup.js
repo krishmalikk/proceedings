@@ -19,3 +19,13 @@ jest.mock('@expo/vector-icons', () => {
     { get: () => (props) => React.createElement(Text, props, props.name || null) }
   );
 });
+
+// react-native-worklets (Reanimated 4's worklets runtime) has no native part
+// under the jest (node) environment, so any suite importing a Reanimated-backed
+// component crashed at import with "[Worklets] Native part of Worklets doesn't
+// seem to be initialized". Use the library's official jest mock (TS source
+// entrypoint, transformed via the react-native-* allowlist in
+// transformIgnorePatterns). See the React Native Worklets testing guide.
+jest.mock('react-native-worklets', () =>
+  require('react-native-worklets/src/mock')
+);
