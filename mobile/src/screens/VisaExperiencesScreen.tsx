@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { PostingCard, AnimatedPressable, AnimatedListItem } from '../components';
+import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import {
   searchPostings,
@@ -33,6 +34,7 @@ const STRICTNESS_LEVELS: { value: Strictness; label: string }[] = [
 
 export function VisaExperiencesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const { isBlocked } = useAuth();
   const [query, setQuery] = useState('');
   const [strictness, setStrictness] = useState<Strictness>('balanced');
   const [results, setResults] = useState<SearchResultItem[]>([]);
@@ -221,14 +223,17 @@ export function VisaExperiencesScreen() {
         )}
 
         {/* Results */}
-        {searched && !loading && (
+        {searched && !loading && (() => {
+          // Hide postings from blocked authors instantly (server also filters).
+          const visible = results.filter((r) => !isBlocked(r.author_id));
+          return (
           <Animated.View style={styles.results} entering={FadeIn.duration(300)}>
             <Text style={styles.resultsCount}>
-              {results.length === 0
+              {visible.length === 0
                 ? 'No results - try broadening your search.'
-                : `${results.length} result${results.length === 1 ? '' : 's'}`}
+                : `${visible.length} result${visible.length === 1 ? '' : 's'}`}
             </Text>
-            {results.map((r, index) => (
+            {visible.map((r, index) => (
               <AnimatedListItem key={r.case_id} index={index} staggerDelay={60}>
                 <PostingCard
                   posting={r}
@@ -242,7 +247,8 @@ export function VisaExperiencesScreen() {
               </AnimatedPressable>
             ) : null}
           </Animated.View>
-        )}
+          );
+        })()}
 
         <View style={{ height: spacing.xl }} />
         </ScrollView>

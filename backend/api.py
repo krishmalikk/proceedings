@@ -336,6 +336,10 @@ class PostingCard(BaseModel):
     url: str
     date: str
     timestamp: str = ""  # full ingestion timestamp (for relative "X ago" + recency sort)
+    # Authoring app user's uid (first-party postings only), resolved from the
+    # Firestore posting↔author link. Lets the client block an author from the
+    # feed and hide their cards instantly (App Store Guideline 1.2).
+    author_id: str = ""
 
 
 class FacetValue(BaseModel):
@@ -425,6 +429,7 @@ class ReplyCard(BaseModel):
     parent_case_id: str
     body: str
     author_handle: str
+    author_id: str = ""  # author uid (blank on your own) — for block-user (Apple 1.2)
     created_at: str
     deleted: bool = False
     up: int = 0
@@ -524,10 +529,41 @@ class MessageCreate(BaseModel):
 class MessageCard(BaseModel):
     id: str
     author_handle: str
+    author_id: str = ""  # author uid (blank on your own) — for block-user (Apple 1.2)
     text: str
     created_at: str
     deleted: bool = False
     is_author: bool = False
+
+
+# --- UGC safety / moderation (App Store Guideline 1.2) ---
+class ReportRequest(BaseModel):
+    content_id: str = Field(..., min_length=1, max_length=300)
+    content_type: str = Field(..., pattern="^(posting|reply|message)$")
+    container_id: str = ""  # group_id when reporting a group message
+    reason: str = "other"
+
+
+class ReportResponse(BaseModel):
+    ok: bool
+    report_count: int = 0
+    hidden: bool = False
+
+
+class BlockRequest(BaseModel):
+    blocked_uid: str = Field(..., min_length=1, max_length=128)
+
+
+class BlocksResponse(BaseModel):
+    ok: bool = True
+    blocked_uids: list[str] = []
+
+
+class AdminTakedownRequest(BaseModel):
+    content_id: str = Field(..., min_length=1, max_length=300)
+    content_type: str = Field(..., pattern="^(posting|reply|message)$")
+    container_id: str = ""
+    eject_author: bool = False
 
 
 class MessagesResponse(BaseModel):
@@ -1468,6 +1504,10 @@ async def search(
         data = search_with_strictness(query, _project_id, _ds_location, _engine_id,
                                       page_size=page_size, page_token=page_token, strictness=strictness)
 
+    # Hide moderation-taken-down postings and any authored by users the viewer
+    # has blocked; also stamps each card's author_id for client-side blocking.
+    data["results"] = _filter_feed(data["results"], _optional_user(request))
+
     return SearchResponse(
         results=[PostingCard(**c) for c in data["results"]],
         next_page_token=data["next_page_token"],
@@ -1489,6 +1529,29 @@ def _posting_author_uid(case_id: str) -> str:
     except Exception as e:  # noqa: BLE001
         print(f"_posting_author_uid({case_id}): {e}")
         return ""
+
+
+def _filter_feed(results: list[dict], viewer: str) -> list[dict]:
+    """Stamp each first-party card with its author uid (so the client can block
+    from the feed), then drop cards that are moderation-hidden or authored by a
+    user the viewer has blocked (App Store Guideline 1.2 — hide instantly)."""
+    if not results:
+        return results
+    import moderation
+    blocked = moderation.blocked_uids(_db, viewer)
+    case_ids = [c.get("case_id", "") for c in results if c.get("case_id")]
+    hidden = moderation.hidden_content_ids(_db, case_ids)
+    out: list[dict] = []
+    for c in results:
+        cid = c.get("case_id", "")
+        author = _posting_author_uid(cid) if c.get("channel") == "app" else ""
+        c["author_id"] = author
+        if cid in hidden:
+            continue
+        if author and author in blocked:
+            continue
+        out.append(c)
+    return out
 
 
 @app.get("/api/postings/{case_id}", response_model=PostingDetail)
@@ -1585,8 +1648,14 @@ async def list_replies_route(case_id: str, request: Request, sort: str = "top"):
     """Flat replies on a posting (each with its vote tally + the viewer's vote),
     plus the posting's own tally. Anonymous-safe (your_vote = 0 with no user)."""
     import interactions
+    import moderation
     viewer = _optional_user(request)
     replies = _guard(lambda: interactions.list_replies(_db, case_id, viewer, sort))
+    # Drop moderation-hidden replies and those from users the viewer has blocked.
+    blocked = moderation.blocked_uids(_db, viewer)
+    hidden = moderation.hidden_content_ids(_db, [r["id"] for r in replies])
+    replies = [r for r in replies
+               if r["id"] not in hidden and (not r.get("author_id") or r["author_id"] not in blocked)]
     posting_tally = _guard(lambda: interactions.vote_state(_db, [case_id], viewer))[case_id]
     return RepliesResponse(
         replies=[ReplyCard(**r) for r in replies],
@@ -1637,6 +1706,90 @@ async def cast_vote_route(body: VoteRequest, request: Request):
     uid = _active_user(request)
     res = _guard(lambda: interactions.cast_vote(_db, body.content_id, uid, body.dir))
     return VoteResponse(**res)
+
+
+# ---------------------------------------------------------------------------
+# UGC safety / moderation (App Store Guideline 1.2): report content, block
+# abusive users, and an admin takedown/eject path. State lives in Firestore
+# (reports/, blocks/, content_meta flags) — see moderation.py.
+# ---------------------------------------------------------------------------
+
+@app.post("/api/reports", response_model=ReportResponse)
+async def report_content_route(body: ReportRequest, request: Request):
+    """Flag a posting/reply/message as objectionable. One report per user per
+    item; auto-hides the content once enough distinct users report it and emails
+    the moderation inbox so a human can act within 24 hours."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+    import moderation
+    uid = _active_user(request)
+    try:
+        out = _guard(lambda: moderation.report_content(
+            _db, content_id=body.content_id, content_type=body.content_type,
+            reporter_uid=uid, reason=body.reason, container_id=body.container_id))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return ReportResponse(**out)
+
+
+@app.post("/api/blocks", response_model=BlocksResponse)
+async def block_user_route(body: BlockRequest, request: Request):
+    """Block an abusive user. Their content is filtered out of the blocker's feeds
+    and the block notifies the moderation inbox."""
+    import moderation
+    uid = _active_user(request)
+    try:
+        out = _guard(lambda: moderation.block_user(_db, uid, body.blocked_uid))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return BlocksResponse(**out)
+
+
+@app.delete("/api/blocks/{blocked_uid}", response_model=BlocksResponse)
+async def unblock_user_route(blocked_uid: str, request: Request):
+    """Remove a user from the caller's block list."""
+    import moderation
+    uid = _active_user(request)
+    out = _guard(lambda: moderation.unblock_user(_db, uid, blocked_uid))
+    return BlocksResponse(**out)
+
+
+@app.get("/api/blocks", response_model=BlocksResponse)
+async def list_blocks_route(request: Request):
+    """The caller's current block list (uids)."""
+    import moderation
+    uid = _active_user(request)
+    return BlocksResponse(ok=True, blocked_uids=sorted(moderation.blocked_uids(_db, uid)))
+
+
+def _require_admin(request: Request) -> None:
+    """Gate admin moderation actions on a shared secret header. 403 unless
+    `X-Admin-Token` matches MODERATION_ADMIN_TOKEN (unset ⇒ always 403)."""
+    token = os.getenv("MODERATION_ADMIN_TOKEN", "")
+    if not token or request.headers.get("x-admin-token", "") != token:
+        raise HTTPException(status_code=403, detail="Admin access required.")
+
+
+@app.post("/api/admin/takedown")
+async def admin_takedown_route(body: AdminTakedownRequest, request: Request):
+    """Human moderation action (24h SLA): remove reported content and optionally
+    eject its author by disabling their Firebase account. Admin-token gated."""
+    _require_admin(request)
+    import moderation
+    if _db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    moderation._takedown(_db, body.content_type, body.content_id, body.container_id)
+    ejected = ""
+    if body.eject_author:
+        author = moderation._resolve_author(_db, body.content_type, body.content_id, body.container_id)
+        if author and _firebase_ready() and _fb_auth is not None:
+            try:
+                _fb_auth.update_user(author, disabled=True)
+                ejected = author
+            except Exception as e:  # noqa: BLE001
+                print(f"admin_takedown: eject {author} failed ({e})")
+    return {"ok": True, "content_id": body.content_id, "ejected": ejected}
 
 
 # ---------------------------------------------------------------------------
@@ -1734,6 +1887,7 @@ async def get_group_route(group_id: str, request: Request):
 async def list_messages_route(group_id: str, request: Request, since: str = "", limit: int = 200):
     """Members-only message list (polled). `since` = an ISO created_at cursor → only newer."""
     import group_messages
+    import moderation
     uid = _active_user(request)
     try:
         msgs = _guard(lambda: group_messages.list_messages(_db, group_id, uid, since, limit))
@@ -1741,6 +1895,10 @@ async def list_messages_route(group_id: str, request: Request, since: str = "", 
         raise HTTPException(status_code=404, detail="Group not found")
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    # Hide messages from users the viewer has blocked (App Store Guideline 1.2).
+    blocked = moderation.blocked_uids(_db, uid)
+    if blocked:
+        msgs = [m for m in msgs if not m.get("author_id") or m["author_id"] not in blocked]
     return MessagesResponse(messages=[MessageCard(**m) for m in msgs], total=len(msgs))
 
 

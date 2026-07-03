@@ -15,6 +15,7 @@ import { Card, Markdown, AnimatedPressable } from '../components';
 import { AuthorCard } from '../components/AuthorCard';
 import { VoteControl } from '../components/VoteControl';
 import { Replies } from '../components/Replies';
+import { ContentActionsMenu } from '../components/ContentActionsMenu';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { getPosting, PostingData } from '../services/apiService';
 
@@ -63,7 +64,19 @@ export function CaseDetailsScreen({ navigation, route }: any) {
           <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Case Details</Text>
-        <View style={styles.backButton} />
+        {data && !isReddit ? (
+          <ContentActionsMenu
+            contentId={data.case_id}
+            contentType="posting"
+            authorId={data.author_id}
+            authorHandle={data.author_handle}
+            onActioned={() => navigation.goBack()}
+            color={colors.onSurface}
+            style={styles.backButton}
+          />
+        ) : (
+          <View style={styles.backButton} />
+        )}
       </View>
 
       {loading && (

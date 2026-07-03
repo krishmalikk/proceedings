@@ -17,6 +17,10 @@ name: "Meridian",
       supportsTablet: true,
       bundleIdentifier: "com.krishmalik.meridian",
       buildNumber: "1",
+      // Sign in with Apple (App Store Guideline 4.8). Injects the
+      // com.apple.developer.applesignin entitlement on prebuild (CNG) — do NOT
+      // hand-edit ios/*.entitlements, it is regenerated.
+      usesAppleSignIn: true,
       googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || "./config/GoogleService-Info.plist",
       infoPlist: {
         CFBundleURLTypes: [

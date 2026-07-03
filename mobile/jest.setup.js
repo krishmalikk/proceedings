@@ -29,3 +29,46 @@ jest.mock('@expo/vector-icons', () => {
 jest.mock('react-native-worklets', () =>
   require('react-native-worklets/src/mock')
 );
+
+// Firebase ships ESM (@firebase/util postinstall.mjs) that jest can't parse, and
+// no test exercises real auth — stub the SDK so any module importing it (via the
+// components barrel → AuthContext) loads cleanly.
+jest.mock('firebase/app', () => ({
+  initializeApp: jest.fn(() => ({})),
+  getApps: jest.fn(() => []),
+  getApp: jest.fn(() => ({})),
+}));
+jest.mock('firebase/auth', () => ({
+  getReactNativePersistence: jest.fn(),
+  initializeAuth: jest.fn(() => ({})),
+  getAuth: jest.fn(() => ({})),
+  onAuthStateChanged: jest.fn(() => () => {}),
+  onIdTokenChanged: jest.fn(() => () => {}),
+  signInWithEmailAndPassword: jest.fn(),
+  createUserWithEmailAndPassword: jest.fn(),
+  signOut: jest.fn(),
+  signInWithCredential: jest.fn(),
+  updateProfile: jest.fn(),
+  GoogleAuthProvider: { credential: jest.fn() },
+  OAuthProvider: class {
+    credential() {
+      return {};
+    }
+  },
+}));
+
+// expo-apple-authentication is an iOS-native module with no JS impl under jest.
+// Provide a light mock so anything importing it (AuthContext, AppleSignInButton)
+// loads. The official button is mocked to a plain host component.
+jest.mock('expo-apple-authentication', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    isAvailableAsync: jest.fn(async () => true),
+    signInAsync: jest.fn(async () => ({ identityToken: 'tok', fullName: null })),
+    AppleAuthenticationButton: (props) => React.createElement(View, props),
+    AppleAuthenticationButtonType: { SIGN_IN: 0, SIGN_UP: 1, CONTINUE: 2 },
+    AppleAuthenticationButtonStyle: { WHITE: 0, WHITE_OUTLINE: 1, BLACK: 2 },
+    AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+  };
+});

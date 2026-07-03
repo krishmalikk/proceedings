@@ -45,20 +45,27 @@ def _clean_text(text: str) -> str:
         raise ValueError("Message is empty.")
     if len(t) > MAX_TEXT:
         raise ValueError(f"Message is too long (max {MAX_TEXT} characters).")
+    # Content moderation (App Store Guideline 1.2): reject objectionable messages
+    # before storage. Raises ValueError → HTTP 422 at the post_message route.
+    import moderation
+    moderation.check_text(t)
     return profile.scrub_pii(t)  # redacts email / phone / A-number
 
 
 def _message_view(doc: dict, viewer_id: str) -> dict:
-    """Client-facing message shape. `author_uid` is intentionally omitted; the
-    client learns authorship only via the `is_author` boolean."""
+    """Client-facing message shape. `author_id` (the author's uid) is exposed so a
+    member can block an abusive author (App Store Guideline 1.2); it is blanked on
+    the viewer's OWN messages. `is_author` still drives author-only delete."""
     deleted = bool(doc.get("deleted"))
+    is_author = bool(viewer_id) and doc.get("author_uid") == viewer_id
     return {
         "id": doc["id"],
         "author_handle": doc.get("author_handle", ""),
+        "author_id": "" if is_author else doc.get("author_uid", ""),
         "text": "" if deleted else doc.get("text", ""),
         "created_at": doc.get("created_at", ""),
         "deleted": deleted,
-        "is_author": bool(viewer_id) and doc.get("author_uid") == viewer_id,
+        "is_author": is_author,
     }
 
 

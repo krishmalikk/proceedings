@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Header, PostingCard } from '../components';
+import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import {
   searchPostings,
@@ -29,6 +30,7 @@ const STRICTNESS_LEVELS: { value: Strictness; label: string }[] = [
 ];
 
 export function SearchScreen({ navigation }: any) {
+  const { isBlocked } = useAuth();
   const [query, setQuery] = useState('');
   const [strictness, setStrictness] = useState<Strictness>('balanced');
   const [results, setResults] = useState<SearchResultItem[]>([]);
@@ -214,14 +216,17 @@ export function SearchScreen({ navigation }: any) {
         )}
 
         {/* Results */}
-        {searched && !loading && (
+        {searched && !loading && (() => {
+          // Hide postings from blocked authors instantly (server also filters).
+          const visible = results.filter((r) => !isBlocked(r.author_id));
+          return (
           <View style={styles.results}>
             <Text style={styles.resultsCount}>
-              {results.length === 0
+              {visible.length === 0
                 ? 'No results — try broadening your search.'
-                : `${results.length} result${results.length === 1 ? '' : 's'}`}
+                : `${visible.length} result${visible.length === 1 ? '' : 's'}`}
             </Text>
-            {results.map((r) => (
+            {visible.map((r) => (
               <PostingCard
                 key={r.case_id}
                 posting={r}
@@ -234,7 +239,8 @@ export function SearchScreen({ navigation }: any) {
               </TouchableOpacity>
             ) : null}
           </View>
-        )}
+          );
+        })()}
 
         <View style={{ height: spacing.xl }} />
       </ScrollView>

@@ -17,10 +17,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { AppleSignInButton } from '../components/AppleSignInButton';
 
 export function LoginScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { signInWithEmail, signInWithGoogle } = useAuth();
+  const { signInWithEmail, signInWithGoogle, signInWithApple } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,6 +56,15 @@ export function LoginScreen() {
       setError(e instanceof Error ? e.message : 'Google Sign-In failed');
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError('');
+    try {
+      await signInWithApple();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sign in with Apple failed');
     }
   };
 
@@ -155,6 +165,9 @@ export function LoginScreen() {
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
+
+          {/* Sign in with Apple (iOS only — Apple Guideline 4.8) */}
+          <AppleSignInButton type="SIGN_IN" onPress={handleAppleSignIn} style={styles.appleButton} />
 
           {/* Google Sign In */}
           <TouchableOpacity
@@ -307,6 +320,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.onSurfaceVariant,
     marginHorizontal: spacing.sm,
+  },
+  appleButton: {
+    marginBottom: spacing.sm,
   },
   googleButton: {
     flexDirection: 'row',

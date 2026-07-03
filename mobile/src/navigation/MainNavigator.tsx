@@ -133,6 +133,8 @@ function AuthNavigator({ showWelcome }: { showWelcome: boolean }) {
       )}
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Signup" component={SignupScreen} />
+      {/* EULA / legal terms, reachable from the signup consent gate (Apple 1.2). */}
+      <AuthStack.Screen name="Disclaimer" component={DisclaimerScreen} options={modalTransitionOptions} />
     </AuthStack.Navigator>
   );
 }

@@ -997,6 +997,12 @@ def publish_posting(title: str, description: str, tags: dict,
     title = scrub_pii(title or "")
     description = scrub_pii(description or "")
 
+    # Content moderation (App Store Guideline 1.2): reject objectionable content
+    # before it is tagged/stored. Raises ValueError → mapped to HTTP 422 by the
+    # /api/postings route. Runs after PII scrub so the classifier sees clean text.
+    import moderation
+    moderation.check_text(f"{title}\n\n{description}")
+
     extracted = None
     try:
         extracted = _extract(title, description)  # for summaries/severity/context

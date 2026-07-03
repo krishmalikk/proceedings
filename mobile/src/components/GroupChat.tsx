@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../constants/theme';
+import { ContentActionsMenu } from './ContentActionsMenu';
+import { useAuth } from '../contexts/AuthContext';
 import {
   getGroupMessages,
   sendGroupMessage,
@@ -25,6 +27,7 @@ import {
 export type ChatMessage = {
   id: string;
   author_handle: string;
+  author_id?: string;
   text: string;
   created_at: string;
   deleted: boolean;
@@ -60,9 +63,11 @@ export function GroupChat({ groupId }: GroupChatProps) {
   const flatListRef = useRef<FlatList>(null);
   const sinceRef = useRef<string>('');
   const hasUser = !!getActiveUserId();
+  const { isBlocked } = useAuth();
 
-  // Merge messages with deduplication
+  // Merge messages with deduplication (dropping blocked authors instantly).
   const merge = useCallback((incoming: ChatMessage[], advance: boolean) => {
+    incoming = incoming.filter((m) => !isBlocked(m.author_id));
     if (incoming.length === 0) return;
     setMessages((prev) => {
       const seen = new Set(prev.map((m) => m.id));
@@ -74,7 +79,7 @@ export function GroupChat({ groupId }: GroupChatProps) {
         sinceRef.current = last.created_at;
       }
     }
-  }, []);
+  }, [isBlocked]);
 
   // Load initial messages
   const loadInitial = useCallback(async () => {
@@ -85,16 +90,18 @@ export function GroupChat({ groupId }: GroupChatProps) {
         setDenied(true);
         return;
       }
-      const msgs = data.messages || [];
-      setMessages(msgs);
-      sinceRef.current = msgs.length ? msgs[msgs.length - 1].created_at : '';
+      const all = data.messages || [];
+      // Advance the poll cursor past ALL messages (even blocked ones), but only
+      // render non-blocked authors' messages.
+      sinceRef.current = all.length ? all[all.length - 1].created_at : '';
+      setMessages(all.filter((m) => !isBlocked(m.author_id)));
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load messages');
     } finally {
       setLoading(false);
     }
-  }, [groupId]);
+  }, [groupId, isBlocked]);
 
   // Poll for new messages
   const poll = useCallback(async () => {
@@ -171,6 +178,10 @@ export function GroupChat({ groupId }: GroupChatProps) {
     }
   };
 
+  const handleHide = (id: string) => {
+    setMessages((cur) => cur.filter((m) => m.id !== id));
+  };
+
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     if (item.is_author) {
       // User's own message (right side)
@@ -198,9 +209,23 @@ export function GroupChat({ groupId }: GroupChatProps) {
     // Other user's message (left side)
     return (
       <View style={styles.otherMessageRow}>
-        <Text style={styles.otherAuthor}>
-          {item.author_handle} · {timeAgo(item.created_at)}
-        </Text>
+        <View style={styles.otherAuthorRow}>
+          <Text style={styles.otherAuthor}>
+            {item.author_handle} · {timeAgo(item.created_at)}
+          </Text>
+          {!item.deleted && (
+            <ContentActionsMenu
+              contentId={item.id}
+              contentType="message"
+              containerId={groupId}
+              authorId={item.author_id}
+              authorHandle={item.author_handle}
+              isAuthor={item.is_author}
+              onActioned={() => handleHide(item.id)}
+              size={14}
+            />
+          )}
+        </View>
         <View style={styles.otherMessageBubble}>
           {item.deleted ? (
             <Text style={styles.deletedText}>message deleted</Text>
@@ -362,10 +387,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     maxWidth: '90%',
   },
+  otherAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
   otherAuthor: {
     fontSize: 12,
     color: colors.onSurfaceVariant,
-    marginBottom: 2,
   },
   otherMessageBubble: {
     backgroundColor: colors.surfaceContainer,

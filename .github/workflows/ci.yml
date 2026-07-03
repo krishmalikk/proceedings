@@ -73,6 +73,7 @@ jobs:
           python tests/test_interactions.py unit
           python tests/test_author_handle.py unit
           python tests/test_auth_gate.py unit
+          python tests/test_moderation.py unit
 
   website:
     needs: changes

@@ -15,12 +15,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { Linking } from 'react-native';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { AppleSignInButton } from '../components/AppleSignInButton';
+
+const PRIVACY_URL = 'https://meridianjourney.ai/privacy';
 
 export function SignupScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { signUpWithEmail, signInWithGoogle } = useAuth();
+  const { signUpWithEmail, signInWithGoogle, signInWithApple } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +33,19 @@ export function SignupScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState('');
+
+  // App Store Guideline 1.2: users must agree to the EULA (with its zero-tolerance
+  // policy for objectionable content / abusive users) BEFORE registering. This
+  // gate covers all three sign-up paths — email, Google, and Apple.
+  const requireTerms = (): boolean => {
+    if (!agreedToTerms) {
+      setError('Please agree to the Terms of Use (EULA) and Privacy Policy to continue.');
+      return false;
+    }
+    return true;
+  };
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -37,6 +53,7 @@ export function SignupScreen() {
   };
 
   const handleSignUp = async () => {
+    if (!requireTerms()) return;
     // Validation
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       setError('Please fill in all fields.');
@@ -70,6 +87,7 @@ export function SignupScreen() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!requireTerms()) return;
     setGoogleLoading(true);
     setError('');
     try {
@@ -78,6 +96,16 @@ export function SignupScreen() {
       setError(e instanceof Error ? e.message : 'Google Sign-In failed');
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (!requireTerms()) return;
+    setError('');
+    try {
+      await signInWithApple();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sign in with Apple failed');
     }
   };
 
@@ -193,9 +221,33 @@ export function SignupScreen() {
             </View>
           </View>
 
+          {/* EULA acceptance gate (App Store Guideline 1.2) — must be agreed to
+              before registering via ANY method. The linked Terms make clear there
+              is zero tolerance for objectionable content or abusive users. */}
+          <TouchableOpacity
+            style={styles.termsRow}
+            activeOpacity={0.7}
+            onPress={() => setAgreedToTerms((v) => !v)}
+          >
+            <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
+              {agreedToTerms && <Ionicons name="checkmark" size={16} color={colors.onPrimary} />}
+            </View>
+            <Text style={styles.termsText}>
+              I agree to the{' '}
+              <Text style={styles.termsLink} onPress={() => navigation.navigate('Disclaimer')}>
+                Terms of Use (EULA)
+              </Text>{' '}
+              and{' '}
+              <Text style={styles.termsLink} onPress={() => Linking.openURL(PRIVACY_URL)}>
+                Privacy Policy
+              </Text>
+              . I understand there is zero tolerance for objectionable content or abusive behavior.
+            </Text>
+          </TouchableOpacity>
+
           {/* Sign Up button */}
           <TouchableOpacity
-            style={[styles.primaryButton, loading && styles.buttonDisabled]}
+            style={[styles.primaryButton, (loading || !agreedToTerms) && styles.buttonDisabled]}
             onPress={handleSignUp}
             disabled={loading || googleLoading}
           >
@@ -212,6 +264,9 @@ export function SignupScreen() {
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
+
+          {/* Sign up with Apple (iOS only — Apple Guideline 4.8) */}
+          <AppleSignInButton type="SIGN_UP" onPress={handleAppleSignIn} style={styles.appleButton} />
 
           {/* Google Sign In */}
           <TouchableOpacity
@@ -236,11 +291,6 @@ export function SignupScreen() {
               <Text style={styles.signInLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Terms notice */}
-          <Text style={styles.termsText}>
-            By creating an account, you agree to our Terms of Service and Privacy Policy.
-          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -381,6 +431,9 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     marginHorizontal: spacing.sm,
   },
+  appleButton: {
+    marginBottom: spacing.sm,
+  },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -397,6 +450,27 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.onSurface,
   },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    gap: 10,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.outline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
   signInContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -412,11 +486,14 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   termsText: {
+    flex: 1,
     fontSize: 12,
     color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    marginTop: spacing.md,
     lineHeight: 18,
+  },
+  termsLink: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
 

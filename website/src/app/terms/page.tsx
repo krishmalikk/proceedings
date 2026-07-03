@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     'The Terms of Use governing your access to and use of meridianjourney.ai and the Meridian Journey app.',
 }
 
-const LAST_UPDATED = 'June 16, 2026'
+const LAST_UPDATED = 'July 3, 2026'
 
 // Content transcribed from the company's Terms of Use (Termly export). The
 // Termly editor chrome / placeholder text from the source file is intentionally
@@ -143,6 +143,9 @@ const SECTIONS: { heading: string; blocks: Block[] }[] = [
         'Your Contributions do not otherwise violate, or link to material that violates, any provision of these Legal Terms, or any applicable law or regulation.',
       ]),
       p('Any use of the Services in violation of the foregoing violates these Legal Terms and may result in, among other things, termination or suspension of your rights to use the Services.'),
+      h3('Zero Tolerance for Objectionable Content and Abusive Users'),
+      p('We have ZERO TOLERANCE for objectionable content or abusive users. Content that is unlawful, harassing, hateful, defamatory, obscene, sexually explicit, threatening, or that promotes violence or discrimination, and any harassment, bullying, impersonation, or abuse of other users, is strictly prohibited. Objectionable content is filtered when submitted and may be automatically blocked.'),
+      p('You can flag or report any content and block any user directly within the App using the "..." menu on any posting, reply, or message, or by emailing krishesinc@gmail.com. Blocking a user immediately removes their content from your feed and notifies us. We review reports and, where content violates these Legal Terms, remove the content within 24 hours and may suspend or permanently remove (eject) the responsible user. By using the Services you agree to this End User License Agreement (EULA) and these community standards.'),
     ],
   },
   {

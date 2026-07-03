@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ReplyItem, ReplyCardData } from './ReplyItem';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import { getReplies, postReply, deleteReply, getActiveUserId } from '../services/apiService';
+import { useAuth } from '../contexts/AuthContext';
 
 type Tally = { up: number; down: number; score: number; your_vote: number };
 
@@ -29,12 +30,14 @@ export function Replies({ postingId, onPostingTally }: RepliesProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const hasUser = !!getActiveUserId();
+  const { isBlocked } = useAuth();
 
   const loadReplies = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getReplies(postingId, sort);
-      setReplies(data.replies || []);
+      // Hide replies from blocked authors instantly (server also filters on load).
+      setReplies((data.replies || []).filter((r) => !isBlocked(r.author_id)));
       if (data.posting) {
         onPostingTally?.(data.posting);
       }
@@ -44,7 +47,7 @@ export function Replies({ postingId, onPostingTally }: RepliesProps) {
     } finally {
       setLoading(false);
     }
-  }, [postingId, sort, onPostingTally]);
+  }, [postingId, sort, onPostingTally, isBlocked]);
 
   useEffect(() => {
     loadReplies();
@@ -78,8 +81,12 @@ export function Replies({ postingId, onPostingTally }: RepliesProps) {
     }
   };
 
+  const handleHide = (id: string) => {
+    setReplies((cur) => cur.filter((r) => r.id !== id));
+  };
+
   const renderReply = ({ item }: { item: ReplyCardData }) => (
-    <ReplyItem reply={item} onDelete={handleDelete} />
+    <ReplyItem reply={item} onDelete={handleDelete} onHide={handleHide} />
   );
 
   return (
