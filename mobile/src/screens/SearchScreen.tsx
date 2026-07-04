@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Header, PostingCard } from '../components';
+import { Header, PostingCard, Skeleton, EmptyState, ErrorState } from '../components';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import {
@@ -195,7 +195,12 @@ export function SearchScreen({ navigation }: any) {
           </View>
         )}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? (
+          <ErrorState body={error} onRetry={() => runSearch(query, selectedFacets, strictness)} />
+        ) : null}
+
+        {/* Loading — skeleton feed instead of a bare spinner */}
+        {loading && <Skeleton.Card count={4} style={styles.results} />}
 
         {/* Empty state with example prompts (website parity) */}
         {!searched && !loading && (
@@ -219,12 +224,19 @@ export function SearchScreen({ navigation }: any) {
         {searched && !loading && (() => {
           // Hide postings from blocked authors instantly (server also filters).
           const visible = results.filter((r) => !isBlocked(r.author_id));
+          if (visible.length === 0 && !error) {
+            return (
+              <EmptyState
+                icon="search-outline"
+                title="No results"
+                body="Try broadening your search or removing a filter."
+              />
+            );
+          }
           return (
           <View style={styles.results}>
             <Text style={styles.resultsCount}>
-              {visible.length === 0
-                ? 'No results — try broadening your search.'
-                : `${visible.length} result${visible.length === 1 ? '' : 's'}`}
+              {`${visible.length} result${visible.length === 1 ? '' : 's'}`}
             </Text>
             {visible.map((r) => (
               <PostingCard

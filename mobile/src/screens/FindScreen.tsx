@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, borderRadius } from '../constants/theme';
-import { MatchCard, Card, Markdown, Header } from '../components';
+import { MatchCard, Card, Markdown, Header, Skeleton, EmptyState } from '../components';
 import {
   getUsers,
   getTagVocab,
@@ -347,16 +347,18 @@ export function FindScreen() {
         {tab === 'browse' ? (
           <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
             {browseLoading ? (
-              <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+              <Skeleton.Card count={3} />
             ) : (
               <>
                 <Text style={styles.sectionTitle}>Your Groups</Text>
                 {myGroups.length === 0 ? (
-                  <Card style={styles.emptyCard}>
-                    <Text style={styles.emptyText}>
-                      You haven't joined any group yet. Create or find one!
-                    </Text>
-                  </Card>
+                  <EmptyState
+                    icon="people-outline"
+                    title="No groups yet"
+                    body="Find people in the same boat, or start your own group."
+                    actionLabel="Find your group"
+                    onAction={() => setTab('find')}
+                  />
                 ) : (
                   myGroups.map((g) => (
                     <TouchableOpacity
