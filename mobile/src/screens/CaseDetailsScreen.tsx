@@ -25,6 +25,9 @@ import { getPosting, PostingData } from '../services/apiService';
 type Tally = { up: number; down: number; score: number; your_vote: number };
 const ZERO_TALLY: Tally = { up: 0, down: 0, score: 0, your_vote: 0 };
 
+// Flip on when the verified-attorney guidance feature actually ships.
+const ATTORNEY_GUIDANCE_TEASER = false;
+
 function outcomeBadgeStyle(outcome: string) {
   const o = outcome.toLowerCase();
   if (o === 'approved' || o === 'issued') {
@@ -224,13 +227,16 @@ export function CaseDetailsScreen({ navigation, route }: any) {
             </TouchableOpacity>
           )}
 
-          {/* Coming Soon tile (website parity) */}
-          <Card style={styles.comingSoon}>
-            <Text style={styles.comingSoonTitle}>Coming Soon</Text>
-            <Text style={styles.comingSoonText}>
-              Personalized guidance from a verified immigration attorney is coming soon.
-            </Text>
-          </Card>
+          {/* Attorney-guidance teaser — flag-gated OFF until the feature ships;
+              a permanent "Coming Soon" box read as unfinished on every posting. */}
+          {ATTORNEY_GUIDANCE_TEASER && (
+            <Card style={styles.comingSoon}>
+              <Text style={styles.comingSoonTitle}>Coming Soon</Text>
+              <Text style={styles.comingSoonText}>
+                Personalized guidance from a verified immigration attorney is coming soon.
+              </Text>
+            </Card>
+          )}
 
           {/* Replies - same component as the rest of the app */}
           <View style={styles.repliesWrap}>

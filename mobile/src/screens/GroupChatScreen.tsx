@@ -174,8 +174,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
+    fontFamily: 'Lora_600SemiBold',
     fontSize: 17,
-    fontWeight: '600',
     color: colors.onSurface,
   },
   membersLink: {

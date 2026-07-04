@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Alert, ActivityIndicator } from 'react-native';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { AnimatedPressable } from '../components/AnimatedPressable';
+import { ProgressStepper } from '../components/ProgressStepper';
 import {
   MILESTONES,
   JourneyEntry,
@@ -232,6 +233,8 @@ export function ExperiencesOnboardingScreen() {
             <AnimatedPressable style={styles.backButton} onPress={handleBack} haptics="light">
               <Ionicons name="arrow-back" size={24} color={colors.onSurface} />
             </AnimatedPressable>
+            {/* Step 2 of 2 */}
+            <ProgressStepper steps={[{ label: 'Background' }, { label: 'Experiences' }]} currentStep={1} />
             <Text style={styles.title}>Share your experiences</Text>
             <Text style={styles.subtitle}>
               Help others by sharing what you've been through. Your experiences can guide

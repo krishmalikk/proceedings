@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -125,7 +126,7 @@ export function SignupScreen() {
           </TouchableOpacity>
 
           {/* Header */}
-          <View style={styles.header}>
+          <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
             <View style={styles.logoCircle}>
               <Image
                 source={require('../../assets/meridian-new-logo-transparent.png')}
@@ -137,7 +138,7 @@ export function SignupScreen() {
             <Text style={styles.subtitle}>
               Join our community and get guidance on your immigration journey
             </Text>
-          </View>
+          </Animated.View>
 
           {/* Error message */}
           {error ? (

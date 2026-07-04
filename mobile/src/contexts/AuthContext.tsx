@@ -313,8 +313,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('Sign in with Apple cancelled by user');
         return;
       }
-      console.error('Sign in with Apple error:', error);
-      throw new Error('Sign in with Apple failed. Please try again.');
+      // Surface the underlying provider/Firebase code so failures are diagnosable
+      // in the field instead of collapsing to an opaque "try again" (e.g.
+      // auth/operation-not-allowed = Apple provider not enabled in Firebase;
+      // auth/invalid-credential = Apple Services ID / nonce misconfigured).
+      const code = error?.code ? ` (${error.code})` : '';
+      console.error('Sign in with Apple error:', error?.code, error?.message, error);
+      throw new Error(`Sign in with Apple failed. Please try again.${code}`);
     }
   };
 

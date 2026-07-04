@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -79,7 +80,7 @@ export function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Logo / Header */}
-          <View style={styles.header}>
+          <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
             <View style={styles.logoCircle}>
               <Image
                 source={require('../../assets/meridian-new-logo-transparent.png')}
@@ -89,7 +90,7 @@ export function LoginScreen() {
             </View>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to continue your immigration journey</Text>
-          </View>
+          </Animated.View>
 
           {/* Error message */}
           {error ? (
@@ -186,12 +187,12 @@ export function LoginScreen() {
           </TouchableOpacity>
 
           {/* Sign Up link */}
-          <View style={styles.signUpContainer}>
+          <Animated.View entering={FadeInUp.delay(150).duration(400)} style={styles.signUpContainer}>
             <Text style={styles.signUpText}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
               <Text style={styles.signUpLink}>Sign Up</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

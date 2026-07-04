@@ -5,46 +5,25 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, shadows } from '../constants/theme';
-import { AnimatedPressable, Header } from '../components';
-import { getAllGroups, GroupInfo } from '../services/apiService';
-import { forumThreads } from '../data/mockData';
+import { AnimatedPressable, Header, Skeleton } from '../components';
+import { getAllGroups, GroupInfo, searchPostings, SearchResultItem } from '../services/apiService';
 import { useAuth } from '../contexts/AuthContext';
-
-// Preview experiences for home screen
-const PREVIEW_EXPERIENCES = [
-  {
-    case_id: 'preview-1',
-    title: 'H-1B Interview at Mumbai Consulate - Approved!',
-    visa: ['H-1B'],
-    consulates: ['Mumbai'],
-    outcome: 'Approved',
-    description: 'Sharing my experience for others going through the same process...',
-  },
-  {
-    case_id: 'preview-2',
-    title: 'F-1 to H-1B Change of Status Timeline',
-    visa: ['F-1', 'H-1B'],
-    consulates: [],
-    outcome: 'Approved',
-    description: 'My complete timeline from OPT to H-1B approval...',
-  },
-];
-
-// Preview community threads
-const PREVIEW_THREADS = forumThreads.slice(0, 2);
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { user } = useAuth();
+  const { user, isBlocked } = useAuth();
   const [userGroups, setUserGroups] = useState<GroupInfo[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(true);
+  // Real recent postings for the preview rows (replaces the old hardcoded /
+  // mock previews — Home now reflects live data).
+  const [recent, setRecent] = useState<SearchResultItem[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
 
   // Get first name from displayName or email
   const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || '';
@@ -63,6 +42,23 @@ export function HomeScreen() {
     }
     loadGroups();
   }, []);
+
+  // Load recent real experiences for the preview section
+  useEffect(() => {
+    async function loadRecent() {
+      try {
+        const data = await searchPostings('', { pageSize: 4 });
+        setRecent(data.results || []);
+      } catch {
+        // Silently fail — section degrades to its CTA row
+      } finally {
+        setRecentLoading(false);
+      }
+    }
+    loadRecent();
+  }, []);
+
+  const previewExperiences = recent.filter((r) => !isBlocked(r.author_id)).slice(0, 2);
 
   const navigateToTab = (tabName: string) => {
     const parent = navigation.getParent();
@@ -135,28 +131,35 @@ export function HomeScreen() {
               <Ionicons name="arrow-forward" size={20} color={colors.primary} />
             </AnimatedPressable>
 
-            {PREVIEW_EXPERIENCES.map((exp) => (
-              <AnimatedPressable
-                key={exp.case_id}
-                style={styles.inlinePreviewCard}
-                onPress={() => navigation.navigate('VisaExperiences')}
-                haptics="light"
-              >
-                <View style={styles.previewBadges}>
-                  {exp.outcome && (
-                    <View style={styles.outcomeBadge}>
-                      <Text style={styles.outcomeBadgeText}>{exp.outcome}</Text>
-                    </View>
-                  )}
-                  {exp.visa.slice(0, 2).map((v) => (
-                    <View key={v} style={styles.visaBadge}>
-                      <Text style={styles.visaBadgeText}>{v}</Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={styles.previewTitle} numberOfLines={1}>{exp.title}</Text>
-              </AnimatedPressable>
-            ))}
+            {recentLoading ? (
+              <View style={styles.inlinePreviewCard}>
+                <Skeleton.Line width="45%" height={18} style={{ marginBottom: spacing.base }} />
+                <Skeleton.Line width="85%" height={14} />
+              </View>
+            ) : (
+              previewExperiences.map((exp) => (
+                <AnimatedPressable
+                  key={exp.case_id}
+                  style={styles.inlinePreviewCard}
+                  onPress={() => navigation.navigate('CaseDetails', { caseId: exp.case_id })}
+                  haptics="light"
+                >
+                  <View style={styles.previewBadges}>
+                    {exp.outcome ? (
+                      <View style={styles.outcomeBadge}>
+                        <Text style={styles.outcomeBadgeText}>{exp.outcome}</Text>
+                      </View>
+                    ) : null}
+                    {exp.visa.slice(0, 2).map((v) => (
+                      <View key={v} style={styles.visaBadge}>
+                        <Text style={styles.visaBadgeText}>{v}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={styles.previewTitle} numberOfLines={1}>{exp.title}</Text>
+                </AnimatedPressable>
+              ))
+            )}
           </View>
 
           {/* Your Groups Section */}
@@ -173,7 +176,7 @@ export function HomeScreen() {
 
             {groupsLoading ? (
               <View style={styles.loadingRow}>
-                <ActivityIndicator size="small" color={colors.primary} />
+                <Skeleton.Line width="70%" height={14} />
               </View>
             ) : userGroups.length > 0 ? (
               userGroups.map((group) => (
@@ -195,7 +198,14 @@ export function HomeScreen() {
                   <Ionicons name="chevron-forward" size={16} color={colors.onSurfaceVariant} />
                 </AnimatedPressable>
               ))
-            ) : null}
+            ) : (
+              // Real empty state (was: silent null → the section looked broken)
+              <View style={styles.emptyGroupsRow}>
+                <Text style={styles.previewSubtitle}>
+                  You haven't joined a group yet — find people on the same journey.
+                </Text>
+              </View>
+            )}
 
             <AnimatedPressable
               style={styles.sectionCta}
@@ -220,26 +230,37 @@ export function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            {PREVIEW_THREADS.map((thread) => (
-              <AnimatedPressable
-                key={thread.id}
-                style={styles.threadRow}
-                onPress={() => navigateToTab('Community')}
-                haptics="light"
-              >
-                <View style={styles.threadMeta}>
-                  {thread.tags.slice(0, 1).map((tag) => (
-                    <View key={tag} style={styles.threadTag}>
-                      <Text style={styles.threadTagText}>{tag}</Text>
+            {/* Real recent community postings (was: mock forum threads with
+                fabricated view counts — Home must never ship fake content). */}
+            {recentLoading ? (
+              <View style={styles.threadRow}>
+                <Skeleton.Line width="80%" height={14} />
+              </View>
+            ) : (
+              recent
+                .filter((r) => !isBlocked(r.author_id))
+                .slice(2, 4)
+                .map((thread) => (
+                  <AnimatedPressable
+                    key={thread.case_id}
+                    style={styles.threadRow}
+                    onPress={() => navigation.navigate('CaseDetails', { caseId: thread.case_id })}
+                    haptics="light"
+                  >
+                    <View style={styles.threadMeta}>
+                      {(thread.visa || []).slice(0, 1).map((tag) => (
+                        <View key={tag} style={styles.threadTag}>
+                          <Text style={styles.threadTagText}>{tag}</Text>
+                        </View>
+                      ))}
                     </View>
-                  ))}
-                </View>
-                <Text style={styles.previewRowTitle} numberOfLines={1}>{thread.title}</Text>
-                <Text style={styles.previewSubtitle}>
-                  {thread.views} views · {thread.comments} replies
-                </Text>
-              </AnimatedPressable>
-            ))}
+                    <Text style={styles.previewRowTitle} numberOfLines={1}>{thread.title}</Text>
+                    {thread.description ? (
+                      <Text style={styles.previewSubtitle} numberOfLines={1}>{thread.description}</Text>
+                    ) : null}
+                  </AnimatedPressable>
+                ))
+            )}
 
             <AnimatedPressable
               style={styles.sectionCta}
@@ -389,8 +410,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   outcomeBadgeText: {
+    fontFamily: 'NunitoSans_600SemiBold',
     fontSize: 10,
-    fontWeight: '600',
     color: colors.onSecondaryContainer,
   },
   visaBadge: {
@@ -400,8 +421,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   visaBadgeText: {
+    fontFamily: 'NunitoSans_600SemiBold',
     fontSize: 10,
-    fontWeight: '600',
     color: colors.onPrimaryContainer,
   },
   previewTitle: {
@@ -462,9 +483,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   threadTagText: {
+    fontFamily: 'NunitoSans_600SemiBold',
     fontSize: 10,
-    fontWeight: '600',
     color: colors.onPrimaryContainer,
+  },
+  emptyGroupsRow: {
+    padding: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant,
   },
 });
 
