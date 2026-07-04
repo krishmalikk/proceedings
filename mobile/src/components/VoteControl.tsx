@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../constants/theme';
 import { castVote, getActiveUserId } from '../services/apiService';
@@ -23,6 +30,10 @@ export function VoteControl({
   const [currentVote, setCurrentVote] = useState(yourVote);
   const [busy, setBusy] = useState(false);
 
+  // Count bounce on vote (A4 motion policy: state changes get feedback).
+  const scoreScale = useSharedValue(1);
+  const scoreStyle = useAnimatedStyle(() => ({ transform: [{ scale: scoreScale.value }] }));
+
   // Resync when props change
   useEffect(() => {
     setCurrentScore(score);
@@ -37,6 +48,13 @@ export function VoteControl({
       Alert.alert('Select User', 'Please select a user in onboarding to vote.');
       return;
     }
+
+    // Medium haptic: voting is a state-changing action (see AGENTS.md policy).
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    scoreScale.value = withSequence(
+      withSpring(1.25, { damping: 12, stiffness: 400 }),
+      withSpring(1, { damping: 14, stiffness: 320 })
+    );
 
     const target = currentVote === dir ? 0 : dir;
     const optimisticScore = currentScore - currentVote + target;
@@ -80,18 +98,22 @@ export function VoteControl({
         onPress={() => handleVote(1)}
         disabled={busy}
         style={[styles.button, busy && styles.disabled]}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         accessibilityLabel="Upvote"
         accessibilityRole="button"
       >
         <Ionicons name="arrow-up" size={20} color={getUpColor()} />
       </TouchableOpacity>
 
-      <Text style={[styles.score, { color: getScoreColor() }]}>{currentScore}</Text>
+      <Animated.Text style={[styles.score, { color: getScoreColor() }, scoreStyle]}>
+        {currentScore}
+      </Animated.Text>
 
       <TouchableOpacity
         onPress={() => handleVote(-1)}
         disabled={busy}
         style={[styles.button, busy && styles.disabled]}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         accessibilityLabel="Downvote"
         accessibilityRole="button"
       >
@@ -119,8 +141,8 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   score: {
+    fontFamily: 'NunitoSans_700Bold',
     fontSize: 14,
-    fontWeight: '600',
     minWidth: 24,
     textAlign: 'center',
   },

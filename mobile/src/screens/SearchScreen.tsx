@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Header, PostingCard, Skeleton, EmptyState, ErrorState } from '../components';
+import { Header, PostingCard, Skeleton, EmptyState, ErrorState, AnimatedListItem } from '../components';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import {
@@ -238,12 +238,15 @@ export function SearchScreen({ navigation }: any) {
             <Text style={styles.resultsCount}>
               {`${visible.length} result${visible.length === 1 ? '' : 's'}`}
             </Text>
-            {visible.map((r) => (
-              <PostingCard
-                key={r.case_id}
-                posting={r}
-                onPress={() => navigation.navigate('CaseDetails', { caseId: r.case_id })}
-              />
+            {visible.map((r, index) => (
+              // Stagger capped at the first 6 items (A4 policy) so long feeds
+              // don't feel slow to appear.
+              <AnimatedListItem key={r.case_id} index={Math.min(index, 6)} staggerDelay={60}>
+                <PostingCard
+                  posting={r}
+                  onPress={() => navigation.navigate('CaseDetails', { caseId: r.case_id })}
+                />
+              </AnimatedListItem>
             ))}
             {nextPageToken ? (
               <TouchableOpacity style={styles.loadMore} onPress={loadMore} disabled={loadingMore}>

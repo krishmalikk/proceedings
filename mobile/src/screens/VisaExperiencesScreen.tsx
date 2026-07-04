@@ -234,7 +234,8 @@ export function VisaExperiencesScreen() {
                 : `${visible.length} result${visible.length === 1 ? '' : 's'}`}
             </Text>
             {visible.map((r, index) => (
-              <AnimatedListItem key={r.case_id} index={index} staggerDelay={60}>
+              // Stagger capped at 6 (A4 policy) so long feeds appear promptly.
+              <AnimatedListItem key={r.case_id} index={Math.min(index, 6)} staggerDelay={60}>
                 <PostingCard
                   posting={r}
                   onPress={() => navigation.navigate('CaseDetails', { caseId: r.case_id })}
