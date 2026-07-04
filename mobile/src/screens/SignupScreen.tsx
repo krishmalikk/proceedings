@@ -278,7 +278,7 @@ export function SignupScreen() {
               <ActivityIndicator color={colors.onSurface} />
             ) : (
               <>
-                <Ionicons name="logo-google" size={20} color="#DB4437" />
+                <Ionicons name="logo-google" size={20} color={colors.googleRed} />
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
               </>
             )}

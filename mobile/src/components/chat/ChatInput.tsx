@@ -6,7 +6,7 @@ import { Orb } from 'react-native-magic-orb';
 import { colors, typography, spacing, borderRadius, shadows } from '../../constants/theme';
 
 // Meridian red gradient colors matching the main orb (brand identity)
-const ORB_COLORS: [string, string, string] = ['#AE0000', '#E85F9E', '#7B3FA0'];
+const ORB_COLORS: [string, string, string] = [colors.orb.red, colors.orb.pink, colors.orb.purple];
 
 export interface ChatInputProps {
   onSend: (message: string) => void;

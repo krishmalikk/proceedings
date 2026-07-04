@@ -160,15 +160,13 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Lora_700Bold',
     fontSize: 32,
-    fontWeight: '700',
     color: colors.onSurface,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
   tagline: {
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'NunitoSans_500Medium',
     fontSize: 16,
-    fontWeight: '500',
     color: colors.onSurfaceVariant,
     textAlign: 'center',
     lineHeight: 24,
@@ -193,9 +191,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   getStartedText: {
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'NunitoSans_700Bold',
     fontSize: 18,
-    fontWeight: '600',
     color: colors.onPrimary,
   },
   buttonIcon: {

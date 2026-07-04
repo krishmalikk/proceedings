@@ -1,5 +1,7 @@
 export { AIOrb } from './AIOrb';
 export { AnimatedCard } from './AnimatedCard';
+export { AppText, textStyle } from './AppText';
+export type { AppTextVariant, AppTextColor } from './AppText';
 export { AnimatedListItem } from './AnimatedListItem';
 export { AnimatedPressable } from './AnimatedPressable';
 export { Badge } from './Badge';

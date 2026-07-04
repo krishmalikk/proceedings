@@ -278,7 +278,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: 'Lora_600SemiBold',
     fontSize: 17,
-    fontWeight: '600',
     color: colors.onSurface,
   },
   content: { flex: 1, paddingHorizontal: spacing.md },
@@ -303,14 +302,14 @@ const styles = StyleSheet.create({
     minWidth: 76,
     alignItems: 'center',
   },
-  searchButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 14, fontFamily: 'NunitoSans_600SemiBold' },
+  searchButtonText: { color: colors.onPrimary, fontSize: 14, fontFamily: 'NunitoSans_600SemiBold' },
   strictnessRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: spacing.md,
   },
-  strictnessLabel: { fontSize: 13, color: colors.onSurfaceVariant, fontWeight: '500', fontFamily: 'NunitoSans_500Medium' },
+  strictnessLabel: { fontSize: 13, color: colors.onSurfaceVariant, fontFamily: 'NunitoSans_500Medium' },
   segmented: {
     flexDirection: 'row',
     backgroundColor: colors.surfaceContainerHigh,
@@ -320,7 +319,7 @@ const styles = StyleSheet.create({
   segment: { paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: borderRadius.full },
   segmentActive: { backgroundColor: colors.primary },
   segmentText: { fontSize: 13, color: colors.onSurfaceVariant, fontFamily: 'NunitoSans_400Regular' },
-  segmentTextActive: { color: colors.onPrimary, fontWeight: '600', fontFamily: 'NunitoSans_600SemiBold' },
+  segmentTextActive: { color: colors.onPrimary, fontFamily: 'NunitoSans_600SemiBold' },
   filtersBlock: { marginTop: spacing.md },
   filtersHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
   filtersTitle: { fontSize: 13, fontWeight: '600', color: colors.onSurface },

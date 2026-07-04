@@ -633,9 +633,11 @@ def _guard(fn):
         )
 
 
-# Dev-only user impersonation via X-User-Id. In prod this is set to 0; the uid
-# then comes ONLY from a verified Firebase ID token (same users/{id} schema).
-ALLOW_USER_IMPERSONATION = os.getenv("ALLOW_USER_IMPERSONATION", "1") == "1"
+# Dev-only user impersonation via X-User-Id. Fail-closed: defaults OFF so a
+# missing env var in prod can never enable it — dev/test opt in with =1. When
+# off, the uid comes ONLY from a verified Firebase ID token (same users/{id}
+# schema).
+ALLOW_USER_IMPERSONATION = os.getenv("ALLOW_USER_IMPERSONATION", "0") == "1"
 
 # --- Firebase ID-token verification (BLOCKER-0 / docs/AUTH-INTEGRATION.md).
 # Optional import so local/dev without the dep still runs on the X-User-Id path;
@@ -1765,9 +1767,12 @@ async def list_blocks_route(request: Request):
 
 def _require_admin(request: Request) -> None:
     """Gate admin moderation actions on a shared secret header. 403 unless
-    `X-Admin-Token` matches MODERATION_ADMIN_TOKEN (unset ⇒ always 403)."""
+    `X-Admin-Token` matches MODERATION_ADMIN_TOKEN (unset ⇒ always 403).
+    Timing-safe compare so the token can't be recovered via timing analysis."""
+    import secrets as _secrets
     token = os.getenv("MODERATION_ADMIN_TOKEN", "")
-    if not token or request.headers.get("x-admin-token", "") != token:
+    supplied = request.headers.get("x-admin-token", "")
+    if not token or not _secrets.compare_digest(supplied, token):
         raise HTTPException(status_code=403, detail="Admin access required.")
 
 

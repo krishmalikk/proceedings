@@ -179,7 +179,7 @@ export function LoginScreen() {
               <ActivityIndicator color={colors.onSurface} />
             ) : (
               <>
-                <Ionicons name="logo-google" size={20} color="#DB4437" />
+                <Ionicons name="logo-google" size={20} color={colors.googleRed} />
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
               </>
             )}
@@ -237,7 +237,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Lora_700Bold',
     fontSize: 28,
-    fontWeight: '700',
     color: colors.onSurface,
     marginBottom: spacing.base,
   },

@@ -27,7 +27,7 @@ import { useAuth } from '../contexts/AuthContext';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Meridian red gradient colors for the orb (matching brand identity)
-const ORB_COLORS: [string, string, string] = ['#AE0000', '#E85F9E', '#7B3FA0'];
+const ORB_COLORS: [string, string, string] = [colors.orb.red, colors.orb.pink, colors.orb.purple];
 
 interface Message {
   role: 'user' | 'assistant';

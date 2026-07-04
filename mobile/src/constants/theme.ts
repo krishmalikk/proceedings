@@ -1,16 +1,22 @@
 // Meridian Design System — Clean red brand identity
 // Meridian red (dominant) · neutral gray (secondary) · crisp near-white ground.
-import { Platform } from 'react-native';
+//
+// Brand type: Lora (serif — display/headlines) + Nunito Sans (body/labels).
+// These exact family names are loaded in App.tsx via @expo-google-fonts; every
+// fontFamily below MUST be one of those loaded names (an unknown name silently
+// falls back to the system font — the old Inter/Georgia tokens did exactly
+// that on every screen).
 
-// Font families for backward compatibility
+// Font families — aliases onto the LOADED families so legacy `fonts.*`
+// consumers (Header.tsx etc.) render the brand type with no call-site changes.
 export const fonts = {
-  heading: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-  headingBold: Platform.OS === 'ios' ? 'Georgia-Bold' : 'serif',
-  headingItalic: Platform.OS === 'ios' ? 'Georgia-Italic' : 'serif',
-  body: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  bodyMedium: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-  bodyHeavy: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-  bodyBlack: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  heading: 'Lora_400Regular',
+  headingBold: 'Lora_700Bold',
+  headingItalic: 'Lora_500Medium', // no italic variant loaded; medium reads as emphasis
+  body: 'NunitoSans_400Regular',
+  bodyMedium: 'NunitoSans_500Medium',
+  bodyHeavy: 'NunitoSans_600SemiBold',
+  bodyBlack: 'NunitoSans_700Bold',
 };
 
 export const colors = {
@@ -74,6 +80,22 @@ export const colors = {
   statusInProgress: '#d97706', // Amber
   statusVerified: '#2c6fb5', // Liberty blue
 
+  // Success / warning containers (previously hardcoded in Badge.tsx)
+  successContainer: '#dcfce7',
+  onSuccessContainer: '#166534',
+  warningContainer: '#fef3c7',
+  onWarningContainer: '#92400e',
+
+  // Third-party brand (Google sign-in button icon)
+  googleRed: '#DB4437',
+
+  // AI orb gradient stops (previously hardcoded in AIChatScreen + ChatInput)
+  orb: {
+    red: '#AE0000',
+    pink: '#E85F9E',
+    purple: '#7B3FA0',
+  },
+
   // Fixed colors
   primaryFixed: '#FFEBEB',
   primaryFixedDim: '#FFCDD2',
@@ -96,56 +118,58 @@ export const colors = {
 
 // Type scale tightened per UI-beautify.md §3.1 (smaller) — larger sizes
 // trimmed more, body −1px, caption held at 12px for legibility.
+//
+// NOTE: weight is encoded in the loaded family name (Lora_700Bold etc.); tokens
+// deliberately carry NO fontWeight — co-setting one makes Android faux-bold or
+// drop to the system face. Headlines = Lora (serif), body/labels = Nunito Sans.
 export const typography = {
   displayLg: {
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Lora_700Bold',
     fontSize: 40,
-    fontWeight: '700' as const,
     lineHeight: 46,
     letterSpacing: -0.8, // -0.02em * 40
   },
   headlineLg: {
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Lora_600SemiBold',
     fontSize: 27,
-    fontWeight: '600' as const,
     lineHeight: 34,
     letterSpacing: -0.27, // -0.01em * 27
   },
   headlineLgMobile: {
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Lora_600SemiBold',
     fontSize: 24,
-    fontWeight: '600' as const,
     lineHeight: 31,
   },
   headlineMd: {
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Lora_600SemiBold',
     fontSize: 20,
-    fontWeight: '600' as const,
     lineHeight: 27,
   },
+  // Card/list-item titles — sans, bolder than body (new in the A1 unification).
+  titleMd: {
+    fontFamily: 'NunitoSans_700Bold',
+    fontSize: 16,
+    lineHeight: 22,
+  },
   bodyLg: {
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'NunitoSans_400Regular',
     fontSize: 17,
-    fontWeight: '400' as const,
     lineHeight: 26,
   },
   bodyMd: {
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'NunitoSans_400Regular',
     fontSize: 15,
-    fontWeight: '400' as const,
     lineHeight: 22,
   },
   labelMd: {
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'NunitoSans_600SemiBold',
     fontSize: 13,
-    fontWeight: '500' as const,
     lineHeight: 18,
     letterSpacing: 0.13, // 0.01em * 13
   },
   caption: {
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'NunitoSans_400Regular',
     fontSize: 12,
-    fontWeight: '400' as const,
     lineHeight: 16,
   },
 };
@@ -187,6 +211,14 @@ export const shadows = {
     shadowOpacity: 0.1,
     shadowRadius: 32,
     elevation: 4,
+  },
+  // Modals / FABs / floating chrome
+  level3: {
+    shadowColor: '#1a202c',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.14,
+    shadowRadius: 40,
+    elevation: 8,
   },
   // Glass shadow (used by AI Chat components)
   glass: {

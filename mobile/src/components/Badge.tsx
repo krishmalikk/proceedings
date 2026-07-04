@@ -15,8 +15,8 @@ const variantStyles: Record<BadgeVariant, { bg: string; text: string; border?: s
   default: { bg: colors.surfaceContainerHigh, text: colors.onSurface },
   primary: { bg: colors.primary, text: colors.onPrimary },
   secondary: { bg: colors.secondary, text: colors.onSecondary },
-  success: { bg: '#dcfce7', text: '#166534' },
-  warning: { bg: '#fef3c7', text: '#92400e' },
+  success: { bg: colors.successContainer, text: colors.onSuccessContainer },
+  warning: { bg: colors.warningContainer, text: colors.onWarningContainer },
   info: { bg: colors.primaryFixed, text: colors.primary },
   outline: { bg: 'transparent', text: colors.onSurface, border: colors.outline },
 };
@@ -48,8 +48,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   text: {
+    // Weight lives in the family name (never pair fontWeight with a loaded face).
+    fontFamily: 'NunitoSans_600SemiBold',
     fontSize: typography.caption.fontSize,
-    fontWeight: '500',
     lineHeight: typography.caption.lineHeight,
   },
 });

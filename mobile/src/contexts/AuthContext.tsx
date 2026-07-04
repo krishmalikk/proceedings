@@ -146,12 +146,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // This restores onboarding flags that were cleared on sign-out
         try {
           const profile = await getProfile();
-          const hasProfileData = profile && (
-            (profile.current_visa_or_greencard_category as string[] | undefined)?.length > 0 ||
-            (profile.visa_applying_for as string[] | undefined)?.length > 0 ||
-            (profile.tags as string[] | undefined)?.length > 0 ||
+          const hasProfileData = !!profile && (
+            ((profile.current_visa_or_greencard_category as string[] | undefined)?.length ?? 0) > 0 ||
+            ((profile.visa_applying_for as string[] | undefined)?.length ?? 0) > 0 ||
+            ((profile.tags as string[] | undefined)?.length ?? 0) > 0 ||
             ((profile.background_text as string | undefined)?.trim().length ?? 0) > 0 ||
-            (profile.journey as unknown[] | undefined)?.length > 0
+            ((profile.journey as unknown[] | undefined)?.length ?? 0) > 0
           );
 
           if (hasProfileData) {
