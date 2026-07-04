@@ -71,8 +71,8 @@
   "private": true,
   "allowScripts": {
     "@firebase/util@1.15.1": true,
-    "@shopify/react-native-skia@2.6.2": true,
     "fsevents@2.3.3": true,
-    "protobufjs@7.6.3": true
+    "protobufjs@7.6.3": true,
+    "@shopify/react-native-skia@2.6.2": true
   }
 }
