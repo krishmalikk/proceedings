@@ -110,7 +110,7 @@ def _gemini_flag(text: str) -> str | None:
         from google import genai
         import posting  # reuse project/region/model config (single source of truth)
 
-        client = genai.Client(vertexai=True, project=posting._project(), location=posting._region())
+        client = posting.genai_client()  # shared, 60s timeout
         cfg_kwargs = dict(temperature=0.0, max_output_tokens=64,
                           response_mime_type="application/json")
         try:
@@ -266,14 +266,21 @@ def report_content(db, *, content_id: str, content_type: str, reporter_uid: str,
         "created_at": _now_iso(),
     })
 
-    # Distinct-reporter count for this content.
+    # Distinct-reporter count for this content — server-side aggregation
+    # (count()) instead of streaming every report doc back (O(reports) reads).
     count = 0
     try:
-        count = sum(1 for _ in db.collection("reports")
-                    .where(filter=FieldFilter("content_id", "==", content_id)).stream())
-    except Exception as e:  # noqa: BLE001
-        print(f"moderation.report_content: count failed ({e})")
-        count = 1  # we at least wrote this reporter's report above
+        agg = (db.collection("reports")
+               .where(filter=FieldFilter("content_id", "==", content_id))
+               .count().get())
+        count = int(agg[0][0].value)
+    except Exception as e:  # noqa: BLE001 — older SDK/emulator: fall back to streaming
+        try:
+            count = sum(1 for _ in db.collection("reports")
+                        .where(filter=FieldFilter("content_id", "==", content_id)).stream())
+        except Exception as e2:  # noqa: BLE001
+            print(f"moderation.report_content: count failed ({e}; {e2})")
+            count = 1  # we at least wrote this reporter's report above
 
     _set_reported(db, content_id, count)
 

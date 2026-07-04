@@ -23,6 +23,7 @@ and any consumption (draft pre-fill / search pre-filter).
 from __future__ import annotations
 
 import csv
+import functools
 import json
 import os
 import re
@@ -39,17 +40,25 @@ _HERE = os.path.dirname(__file__)
 # Seed roster (baked users)
 # ---------------------------------------------------------------------------
 
-def seed_users() -> list[dict]:
+@functools.lru_cache(maxsize=1)
+def _seed_users_cached() -> tuple:
+    """seed_users.json is static — loaded once per process (it used to be
+    re-read from disk on nearly every request via the auth path's seed_ids())."""
     try:
         with open(os.path.join(_HERE, "seed_users.json"), encoding="utf-8") as f:
-            return json.load(f)
+            return tuple(json.load(f))
     except (FileNotFoundError, json.JSONDecodeError) as e:
         print(f"profile: could not load seed_users.json ({e})")
-        return []
+        return ()
 
 
-def seed_ids() -> set[str]:
-    return {u["id"] for u in seed_users()}
+def seed_users() -> list[dict]:
+    return list(_seed_users_cached())
+
+
+@functools.lru_cache(maxsize=1)
+def seed_ids() -> frozenset:
+    return frozenset(u["id"] for u in seed_users())
 
 
 def username_for(user_id: str) -> str:
@@ -520,7 +529,7 @@ When you have offered every crossed milestone (capturing the ones they share) or
 
 
 def _gen_json(contents: str) -> dict:
-    client = genai.Client(vertexai=True, project=posting._project(), location=posting._region())
+    client = posting.genai_client()  # shared, 60s timeout
     cfg = dict(temperature=0.4, max_output_tokens=2048, response_mime_type="application/json")
     try:
         cfg["thinking_config"] = genai.types.ThinkingConfig(thinking_budget=0)

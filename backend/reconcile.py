@@ -119,7 +119,7 @@ def explain_conflicts(conflicts: list[dict]) -> str:
             "and ASK whether they'd like to update their profile to match the message. Do not answer any "
             "immigration question. Differences:\n" + json.dumps(conflicts, ensure_ascii=False)
         )
-        client = genai.Client(vertexai=True, project=posting._project(), location=posting._region())
+        client = posting.genai_client()  # shared, 60s timeout
         cfg = dict(temperature=0.3, max_output_tokens=200)
         try:
             cfg["thinking_config"] = genai.types.ThinkingConfig(thinking_budget=0)

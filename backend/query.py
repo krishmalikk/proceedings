@@ -54,14 +54,8 @@ QUESTION: {question}
 ANSWER:"""
 
     try:
-        project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT")
-        region = os.getenv("GCP_REGION") or os.getenv("GCP_GEMINI_LOCATION", "us-central1")
-
-        client = genai.Client(
-            vertexai=True,
-            project=project_id,
-            location=region,
-        )
+        import posting
+        client = posting.genai_client()  # shared, 60s timeout
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt,
@@ -113,9 +107,8 @@ def classify_intent(message: str) -> str:
         f"Message: {message}\nIntent:"
     )
     try:
-        project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT")
-        region = os.getenv("GCP_REGION") or os.getenv("GCP_GEMINI_LOCATION", "us-central1")
-        client = genai.Client(vertexai=True, project=project_id, location=region)
+        import posting
+        client = posting.genai_client()  # shared, 60s timeout
         resp = client.models.generate_content(
             model=model,
             contents=prompt,

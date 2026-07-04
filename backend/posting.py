@@ -80,6 +80,23 @@ def _gemini_model() -> str:
     return os.getenv("GCP_GEMINI_MODEL", "gemini-2.5-flash")
 
 
+# One shared Gemini client per process (channel/auth setup is not free — the
+# old per-call `genai.Client(...)` construction added latency to every tag /
+# moderation / answer request). 60s request timeout so a hung Gemini call can
+# never wedge a worker indefinitely.
+_GENAI_CLIENT = None
+
+
+def genai_client():
+    global _GENAI_CLIENT
+    if _GENAI_CLIENT is None:
+        _GENAI_CLIENT = genai.Client(
+            vertexai=True, project=_project(), location=_region(),
+            http_options={"timeout": 60_000},  # ms
+        )
+    return _GENAI_CLIENT
+
+
 # ---------------------------------------------------------------------------
 # Master tag vocabulary (loaded once)
 # ---------------------------------------------------------------------------
@@ -304,8 +321,16 @@ GROUP_FIELDS = [
 ]
 
 
+_VOCAB_LISTS_CACHE: dict | None = None
+
+
 def vocab_lists() -> dict:
-    """The controlled vocabularies for the composer's add-tag autocomplete."""
+    """The controlled vocabularies for the composer's add-tag autocomplete.
+    Assembled once per process — the CSVs are static at runtime, and this used
+    to rebuild the whole payload (uniq passes + domain map) on every request."""
+    global _VOCAB_LISTS_CACHE
+    if _VOCAB_LISTS_CACHE is not None:
+        return _VOCAB_LISTS_CACHE
     _Vocab.load()
     # de-dupe while preserving order
     def _uniq(xs: list[str]) -> list[str]:
@@ -314,7 +339,7 @@ def vocab_lists() -> dict:
             if x not in seen:
                 seen.add(x); out.append(x)
         return out
-    return {
+    _VOCAB_LISTS_CACHE = {
         "visa": _uniq(_Vocab._visa_list),
         "consulate": _uniq(_Vocab._consulate_list),
         "consulate_options": _Vocab._consulate_opts,
@@ -331,6 +356,7 @@ def vocab_lists() -> dict:
         # key -> value-domain (incl. every form -> 'outcome')
         "stage_value_domains": stage_value_domains_map(),
     }
+    return _VOCAB_LISTS_CACHE
 
 
 # key_stages_or_info keys whose VALUE must come from a sub-vocabulary (not free text).
@@ -494,7 +520,7 @@ def _extract(title: str, description: str) -> dict:
         f"POSTING TITLE: {title}\n\nPOSTING DESCRIPTION:\n{description}\n\n"
         "Return the JSON object now."
     )
-    client = genai.Client(vertexai=True, project=_project(), location=_region())
+    client = genai_client()  # shared, 60s timeout
     cfg_kwargs = dict(
         temperature=0.1,
         max_output_tokens=4096,
@@ -506,11 +532,13 @@ def _extract(title: str, description: str) -> dict:
         cfg_kwargs["thinking_config"] = genai.types.ThinkingConfig(thinking_budget=0)
     except Exception:  # noqa: BLE001 - older SDK without ThinkingConfig
         pass
-    resp = client.models.generate_content(
+    # Retry transient GCP errors (same backoff policy as documents.import) —
+    # tag extraction was previously a single unguarded attempt.
+    resp = _retry(lambda: client.models.generate_content(
         model=_gemini_model(),
         contents=f"{_SYSTEM_PROMPT}\n\n{user}",
         config=genai.types.GenerateContentConfig(**cfg_kwargs),
-    )
+    ), attempts=2)
     raw = (resp.text or "").strip()
     # tolerate accidental fences
     raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()

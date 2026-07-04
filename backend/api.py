@@ -767,7 +767,7 @@ def _optional_user(request: Request) -> str:
 
 
 @app.post("/api/ask", response_model=AskResponse)
-async def ask_question(body: AskRequest, request: Request):
+def ask_question(body: AskRequest, request: Request):
     """Submit a question and get a RAG-powered answer."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
@@ -785,7 +785,7 @@ async def ask_question(body: AskRequest, request: Request):
 
 
 @app.post("/api/expert", response_model=ExpertResponse)
-async def expert(body: ExpertRequest, request: Request):
+def expert(body: ExpertRequest, request: Request):
     """A US-immigration-expert answer from Gemini's general knowledge — NOT
     grounded on the ingested postings (the 'AI mode' panel). Supports follow-ups
     via the optional conversation history."""
@@ -805,7 +805,7 @@ async def expert(body: ExpertRequest, request: Request):
 
 
 @app.post("/api/tag-suggest", response_model=TagSuggestResponse)
-async def tag_suggest(body: TagSuggestRequest, request: Request):
+def tag_suggest(body: TagSuggestRequest, request: Request):
     """Auto-derive controlled-vocabulary tags from the composer's title+description,
     plus the expert-curated set of relevant sections to show. Pure read; no side effects."""
     client_ip = request.client.host if request.client else "unknown"
@@ -825,7 +825,7 @@ async def tag_suggest(body: TagSuggestRequest, request: Request):
 
 
 @app.get("/api/tag-vocab")
-async def tag_vocab():
+def tag_vocab():
     """Controlled vocabularies (visa / consulate / tag) for the composer's
     add-tag autocomplete. Static; safe to cache on the client."""
     import posting
@@ -834,7 +834,7 @@ async def tag_vocab():
 
 
 @app.post("/api/postings", response_model=PostingCreateResponse)
-async def create_posting(body: PostingCreateRequest, request: Request):
+def create_posting(body: PostingCreateRequest, request: Request):
     """Publish a new posting: build canonical sidecar JSON → write GCS sidecar →
     documents.import into DS-1 → BigQuery row. Returns the new case_id."""
     client_ip = request.client.host if request.client else "unknown"
@@ -885,14 +885,14 @@ async def create_posting(body: PostingCreateRequest, request: Request):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/users", response_model=list[SeedUser])
-async def list_users():
+def list_users():
     """The baked seed roster for the dev user-picker (no auth yet)."""
     import profile
     return [SeedUser(**u) for u in profile.seed_users()]
 
 
 @app.post("/api/users", response_model=SeedUser)
-async def create_user(body: NewUserRequest):
+def create_user(body: NewUserRequest):
     """Create/register a user account.
 
     - No `uid` (dev picker): mint a fresh "new-…" id to onboard from scratch.
@@ -928,7 +928,7 @@ async def create_user(body: NewUserRequest):
 
 
 @app.get("/api/profile")
-async def get_profile(request: Request):
+def get_profile(request: Request):
     """The active user's profile (empty shell if not yet set up)."""
     import profile
     uid = _active_user(request)
@@ -936,7 +936,7 @@ async def get_profile(request: Request):
 
 
 @app.put("/api/profile")
-async def put_profile(body: ProfilePayload, request: Request):
+def put_profile(body: ProfilePayload, request: Request):
     """Validate + save the active user's profile. Returns the stored profile."""
     import profile
     uid = _active_user(request)
@@ -944,7 +944,7 @@ async def put_profile(body: ProfilePayload, request: Request):
 
 
 @app.delete("/api/users/me")
-async def delete_account(request: Request):
+def delete_account(request: Request):
     """Delete the authenticated user's account and all associated data.
 
     This is an irreversible operation that:
@@ -1066,7 +1066,7 @@ def _generate_code() -> str:
 
 
 @app.post("/api/auth/send-code", response_model=SendCodeResponse)
-async def send_verification_code(body: SendCodeRequest, request: Request):
+def send_verification_code(body: SendCodeRequest, request: Request):
     """Generate and send a 6-digit verification code to the user's email.
 
     Stores the code in Firestore with a 10-minute TTL. Invalidates any
@@ -1143,7 +1143,7 @@ async def send_verification_code(body: SendCodeRequest, request: Request):
 
 
 @app.post("/api/auth/verify-code", response_model=VerifyCodeResponse)
-async def verify_code(body: VerifyCodeRequest, request: Request):
+def verify_code(body: VerifyCodeRequest, request: Request):
     """Verify a 6-digit code and mark the user's email as verified.
 
     On success, sets `email_verified: true` in the user's Firestore profile
@@ -1225,7 +1225,7 @@ async def verify_code(body: VerifyCodeRequest, request: Request):
 
 
 @app.get("/api/auth/check-verified/{email}")
-async def check_email_verified(email: str):
+def check_email_verified(email: str):
     """Check if an email address has been verified."""
     email = email.lower().strip()
 
@@ -1241,7 +1241,7 @@ async def check_email_verified(email: str):
 
 
 @app.post("/api/onboard", response_model=OnboardResponse)
-async def onboard(body: OnboardRequest, request: Request):
+def onboard(body: OnboardRequest, request: Request):
     """One AI-onboarding turn: expert bot message + updated validated draft + done flag."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
@@ -1257,7 +1257,7 @@ async def onboard(body: OnboardRequest, request: Request):
 
 
 @app.post("/api/reconcile", response_model=ReconcileResponse)
-async def reconcile(body: ReconcileRequest, request: Request):
+def reconcile(body: ReconcileRequest, request: Request):
     """Phase-J (D-042): merge the active user's saved profile with an in-progress
     message → reconciled field values + conflicts + a friendly 'update profile?' prompt.
     The profile is never indexed; this only shapes the single posting JSON."""
@@ -1272,7 +1272,7 @@ async def reconcile(body: ReconcileRequest, request: Request):
 
 
 @app.post("/api/connect-card", response_model=ContentPublishResponse)
-async def connect_card(body: ConnectCardRequest, request: Request):
+def connect_card(body: ConnectCardRequest, request: Request):
     """Phase-J: publish an explicit 'looking to connect' card (doc_kind=connect_card)
     from the active user's current profile state."""
     client_ip = request.client.host if request.client else "unknown"
@@ -1288,7 +1288,7 @@ async def connect_card(body: ConnectCardRequest, request: Request):
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(body: ChatRequest, request: Request):
+def chat(body: ChatRequest, request: Request):
     """Conversational turn: routes to a synthesized answer (ask) or a ranked
     list of posting cards (search), based on classified intent. `strictness`
     (broad|balanced|strict) controls search precision."""
@@ -1333,7 +1333,7 @@ async def chat(body: ChatRequest, request: Request):
 
 
 @app.get("/api/qa", response_model=QAListResponse)
-async def list_qa(limit: int = 20, offset: int = 0, category: str = ""):
+def list_qa(limit: int = 20, offset: int = 0, category: str = ""):
     """List recent Q&A pairs, optionally filtered by category label."""
     if not _db:
         return QAListResponse(items=[])
@@ -1368,7 +1368,7 @@ async def list_qa(limit: int = 20, offset: int = 0, category: str = ""):
 
 
 @app.post("/api/qa/{doc_id}/feedback")
-async def submit_feedback(doc_id: str, body: FeedbackRequest):
+def submit_feedback(doc_id: str, body: FeedbackRequest):
     """Submit feedback on a Q&A pair."""
     if not _db:
         return {"ok": False, "error": "Firestore not configured"}
@@ -1380,7 +1380,7 @@ async def submit_feedback(doc_id: str, body: FeedbackRequest):
 
 
 @app.get("/api/qa/stats")
-async def qa_stats():
+def qa_stats():
     """Get Q&A quality statistics."""
     if not _db:
         return {"total": 0, "successful": 0, "fallbacks": 0, "fallback_rate": 0, "helpful": 0, "not_helpful": 0, "top_categories": {}, "knowledge_gaps": []}
@@ -1463,7 +1463,7 @@ def _facets_filter(facets: list[str]) -> str:
 
 
 @app.get("/api/search", response_model=SearchResponse)
-async def search(
+def search(
     request: Request,
     q: str = "",
     visa: str = "",
@@ -1533,6 +1533,23 @@ def _posting_author_uid(case_id: str) -> str:
         return ""
 
 
+def _batch_posting_authors(case_ids: list[str]) -> dict[str, str]:
+    """case_id → author_uid for first-party postings, resolved in ONE batched
+    Firestore read (get_all) — the old per-card `.get()` cost a sequential
+    round-trip per search result (N+1)."""
+    if not case_ids or _db is None:
+        return {}
+    out: dict[str, str] = {}
+    try:
+        refs = [_db.collection("posting_authors").document(c) for c in case_ids]
+        for snap in _db.get_all(refs):
+            if snap.exists:
+                out[snap.id] = (snap.to_dict() or {}).get("author_uid", "")
+    except Exception as e:  # noqa: BLE001 — author stamping is best-effort
+        print(f"_batch_posting_authors: {e}")
+    return out
+
+
 def _filter_feed(results: list[dict], viewer: str) -> list[dict]:
     """Stamp each first-party card with its author uid (so the client can block
     from the feed), then drop cards that are moderation-hidden or authored by a
@@ -1543,10 +1560,12 @@ def _filter_feed(results: list[dict], viewer: str) -> list[dict]:
     blocked = moderation.blocked_uids(_db, viewer)
     case_ids = [c.get("case_id", "") for c in results if c.get("case_id")]
     hidden = moderation.hidden_content_ids(_db, case_ids)
+    authors = _batch_posting_authors(
+        [c["case_id"] for c in results if c.get("case_id") and c.get("channel") == "app"])
     out: list[dict] = []
     for c in results:
         cid = c.get("case_id", "")
-        author = _posting_author_uid(cid) if c.get("channel") == "app" else ""
+        author = authors.get(cid, "") if c.get("channel") == "app" else ""
         c["author_id"] = author
         if cid in hidden:
             continue
@@ -1557,7 +1576,7 @@ def _filter_feed(results: list[dict], viewer: str) -> list[dict]:
 
 
 @app.get("/api/postings/{case_id}", response_model=PostingDetail)
-async def posting_detail(case_id: str):
+def posting_detail(case_id: str):
     """Full detail for one posting (card fields + Markdown body + author link)."""
     card = get_posting(case_id, _project_id, _ds_location, _datastore_id)
     if card is None:
@@ -1568,7 +1587,7 @@ async def posting_detail(case_id: str):
 
 
 @app.get("/api/authors/by-handle/{handle}/postings", response_model=AuthorPostingsResponse)
-async def author_postings_by_handle(handle: str):
+def author_postings_by_handle(handle: str):
     """All first-party postings authored under `handle` (newest first). Powers the
     public author-by-handle page; works for every first-party posting since they
     all carry an author_handle. Empty for unknown/blank handles."""
@@ -1588,7 +1607,7 @@ async def author_postings_by_handle(handle: str):
 
 
 @app.get("/api/users/{uid}/public-profile")
-async def public_profile(uid: str):
+def public_profile(uid: str):
     """A posting author's structured profile (the same PII-free profile shown in
     setup). Returned for the case-page author section. 404 if no profile."""
     import profile
@@ -1599,7 +1618,7 @@ async def public_profile(uid: str):
 
 
 @app.get("/api/users/{uid}/postings", response_model=AuthorPostingsResponse)
-async def user_postings(uid: str):
+def user_postings(uid: str):
     """All app postings authored by a user (newest first), from the Firestore
     posting↔author link. Used by the case-page 'other postings by this author'."""
     if _db is None:
@@ -1631,7 +1650,7 @@ async def user_postings(uid: str):
 
 
 @app.get("/api/users/{uid}/replies", response_model=UserRepliesResponse)
-async def user_replies(uid: str):
+def user_replies(uid: str):
     """All replies a user has authored (newest first) — the profile 'your
     activity' section. Each carries the parent posting id for linking."""
     import interactions
@@ -1646,7 +1665,7 @@ async def user_replies(uid: str):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/postings/{case_id}/replies", response_model=RepliesResponse)
-async def list_replies_route(case_id: str, request: Request, sort: str = "top"):
+def list_replies_route(case_id: str, request: Request, sort: str = "top"):
     """Flat replies on a posting (each with its vote tally + the viewer's vote),
     plus the posting's own tally. Anonymous-safe (your_vote = 0 with no user)."""
     import interactions
@@ -1667,7 +1686,7 @@ async def list_replies_route(case_id: str, request: Request, sort: str = "top"):
 
 
 @app.post("/api/postings/{case_id}/replies", response_model=ReplyCard)
-async def create_reply_route(case_id: str, body: ReplyCreate, request: Request):
+def create_reply_route(case_id: str, body: ReplyCreate, request: Request):
     """Post a reply to a posting (requires an active user)."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
@@ -1684,7 +1703,7 @@ async def create_reply_route(case_id: str, body: ReplyCreate, request: Request):
 
 
 @app.delete("/api/postings/{case_id}/replies/{reply_id}")
-async def delete_reply_route(case_id: str, reply_id: str, request: Request):
+def delete_reply_route(case_id: str, reply_id: str, request: Request):
     """Soft-delete one of your own replies (author-only)."""
     import interactions
     uid = _active_user(request)
@@ -1698,7 +1717,7 @@ async def delete_reply_route(case_id: str, reply_id: str, request: Request):
 
 
 @app.post("/api/votes", response_model=VoteResponse)
-async def cast_vote_route(body: VoteRequest, request: Request):
+def cast_vote_route(body: VoteRequest, request: Request):
     """Up/down/clear a vote on a posting or reply (requires an active user).
     `dir` is the desired resulting direction (-1 | 0 | 1); the client toggles."""
     client_ip = request.client.host if request.client else "unknown"
@@ -1717,7 +1736,7 @@ async def cast_vote_route(body: VoteRequest, request: Request):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/reports", response_model=ReportResponse)
-async def report_content_route(body: ReportRequest, request: Request):
+def report_content_route(body: ReportRequest, request: Request):
     """Flag a posting/reply/message as objectionable. One report per user per
     item; auto-hides the content once enough distinct users report it and emails
     the moderation inbox so a human can act within 24 hours."""
@@ -1736,7 +1755,7 @@ async def report_content_route(body: ReportRequest, request: Request):
 
 
 @app.post("/api/blocks", response_model=BlocksResponse)
-async def block_user_route(body: BlockRequest, request: Request):
+def block_user_route(body: BlockRequest, request: Request):
     """Block an abusive user. Their content is filtered out of the blocker's feeds
     and the block notifies the moderation inbox."""
     import moderation
@@ -1749,7 +1768,7 @@ async def block_user_route(body: BlockRequest, request: Request):
 
 
 @app.delete("/api/blocks/{blocked_uid}", response_model=BlocksResponse)
-async def unblock_user_route(blocked_uid: str, request: Request):
+def unblock_user_route(blocked_uid: str, request: Request):
     """Remove a user from the caller's block list."""
     import moderation
     uid = _active_user(request)
@@ -1758,7 +1777,7 @@ async def unblock_user_route(blocked_uid: str, request: Request):
 
 
 @app.get("/api/blocks", response_model=BlocksResponse)
-async def list_blocks_route(request: Request):
+def list_blocks_route(request: Request):
     """The caller's current block list (uids)."""
     import moderation
     uid = _active_user(request)
@@ -1777,7 +1796,7 @@ def _require_admin(request: Request) -> None:
 
 
 @app.post("/api/admin/takedown")
-async def admin_takedown_route(body: AdminTakedownRequest, request: Request):
+def admin_takedown_route(body: AdminTakedownRequest, request: Request):
     """Human moderation action (24h SLA): remove reported content and optionally
     eject its author by disabling their Firebase account. Admin-token gated."""
     _require_admin(request)
@@ -1805,7 +1824,7 @@ async def admin_takedown_route(body: AdminTakedownRequest, request: Request):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/find/chat", response_model=FindChatResponse)
-async def find_chat_route(body: FindChatRequest, request: Request):
+def find_chat_route(body: FindChatRequest, request: Request):
     """One expert-chat turn that captures the user's match criteria."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
@@ -1817,7 +1836,7 @@ async def find_chat_route(body: FindChatRequest, request: Request):
 
 
 @app.post("/api/find/matches", response_model=MatchesResponse)
-async def find_matches_route(body: MatchesRequest, request: Request):
+def find_matches_route(body: MatchesRequest, request: Request):
     """Rank other users by similarity to the criteria (excludes the caller)."""
     import matching
     uid = _active_user(request)
@@ -1826,7 +1845,7 @@ async def find_matches_route(body: MatchesRequest, request: Request):
 
 
 @app.post("/api/groups", response_model=GroupCard)
-async def create_group_route(body: GroupCreate, request: Request):
+def create_group_route(body: GroupCreate, request: Request):
     """Join the existing group for this criteria signature, or create it. The
     acting user (+ any selected peers) become members. `joined`=true on join."""
     import matching
@@ -1841,7 +1860,7 @@ async def create_group_route(body: GroupCreate, request: Request):
 
 
 @app.get("/api/groups", response_model=GroupsResponse)
-async def list_groups_route(request: Request):
+def list_groups_route(request: Request):
     """The groups the active user is a member of (newest first)."""
     import matching
     uid = _active_user(request)
@@ -1850,7 +1869,7 @@ async def list_groups_route(request: Request):
 
 
 @app.get("/api/groups/all", response_model=GroupsResponse)
-async def list_all_groups_route(request: Request):
+def list_all_groups_route(request: Request):
     """All groups (browse), flagged with the viewer's membership."""
     import matching
     uid = _active_user(request)
@@ -1859,7 +1878,7 @@ async def list_all_groups_route(request: Request):
 
 
 @app.post("/api/groups/{group_id}/join", response_model=GroupCard)
-async def join_group_route(group_id: str, request: Request):
+def join_group_route(group_id: str, request: Request):
     """Join an existing group directly (browse → join)."""
     import matching
     uid = _active_user(request)
@@ -1877,7 +1896,7 @@ async def join_group_route(group_id: str, request: Request):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/groups/{group_id}", response_model=GroupCard)
-async def get_group_route(group_id: str, request: Request):
+def get_group_route(group_id: str, request: Request):
     """One group (name, members, is_member) for the group detail / chat page."""
     import matching
     uid = _active_user(request)
@@ -1889,7 +1908,7 @@ async def get_group_route(group_id: str, request: Request):
 
 
 @app.get("/api/groups/{group_id}/messages", response_model=MessagesResponse)
-async def list_messages_route(group_id: str, request: Request, since: str = "", limit: int = 200):
+def list_messages_route(group_id: str, request: Request, since: str = "", limit: int = 200):
     """Members-only message list (polled). `since` = an ISO created_at cursor → only newer."""
     import group_messages
     import moderation
@@ -1908,7 +1927,7 @@ async def list_messages_route(group_id: str, request: Request, since: str = "", 
 
 
 @app.post("/api/groups/{group_id}/messages", response_model=MessageCard)
-async def post_message_route(group_id: str, body: MessageCreate, request: Request):
+def post_message_route(group_id: str, body: MessageCreate, request: Request):
     """Post a message to a group (members only; PII-scrubbed)."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
@@ -1927,7 +1946,7 @@ async def post_message_route(group_id: str, body: MessageCreate, request: Reques
 
 
 @app.delete("/api/groups/{group_id}/messages/{message_id}")
-async def delete_message_route(group_id: str, message_id: str, request: Request):
+def delete_message_route(group_id: str, message_id: str, request: Request):
     """Soft-delete one of your own messages (author-only)."""
     import group_messages
     uid = _active_user(request)
@@ -1941,7 +1960,7 @@ async def delete_message_route(group_id: str, message_id: str, request: Request)
 
 
 @app.get("/api/health", response_model=HealthResponse)
-async def health_check():
+def health_check():
     """Health check endpoint.
 
     `chunks_loaded` is retained for client compatibility; it now reports
