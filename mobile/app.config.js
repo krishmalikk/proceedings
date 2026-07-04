@@ -26,7 +26,7 @@ name: "Meridian",
         CFBundleURLTypes: [
           {
             CFBundleURLSchemes: [
-              "com.googleusercontent.apps.971592620882-mvj696meur8j54ibu82egpl2dmvha0nf"
+              "com.googleusercontent.apps.971592620882-001kh4740otue78vp6c6fem3f7k4cadl"
             ]
           }
         ],
@@ -54,7 +54,7 @@ name: "Meridian",
       [
         "@react-native-google-signin/google-signin",
         {
-          iosUrlScheme: "com.googleusercontent.apps.971592620882-mvj696meur8j54ibu82egpl2dmvha0nf"
+          iosUrlScheme: "com.googleusercontent.apps.971592620882-001kh4740otue78vp6c6fem3f7k4cadl"
         }
       ],
       "./plugins/withModularHeaders"
