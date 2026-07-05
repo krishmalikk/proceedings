@@ -15,10 +15,13 @@ import { borderRadius } from '../constants/theme';
 export function AppleSignInButton({
   onPress,
   type = 'SIGN_IN',
+  appearance = 'black',
   style,
 }: {
   onPress: () => void;
   type?: 'SIGN_IN' | 'SIGN_UP' | 'CONTINUE';
+  /** Button appearance — Apple HIG: use 'white'/'whiteOutline' on dark backgrounds. */
+  appearance?: 'black' | 'white' | 'whiteOutline';
   style?: ViewStyle;
 }) {
   if (Platform.OS !== 'ios') return null;
@@ -30,10 +33,17 @@ export function AppleSignInButton({
       ? AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
       : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN;
 
+  const buttonStyle =
+    appearance === 'white'
+      ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+      : appearance === 'whiteOutline'
+      ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE
+      : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK;
+
   return (
     <AppleAuthentication.AppleAuthenticationButton
       buttonType={buttonType}
-      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+      buttonStyle={buttonStyle}
       cornerRadius={borderRadius.default}
       style={[styles.button, style]}
       onPress={onPress}

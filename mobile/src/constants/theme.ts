@@ -89,6 +89,27 @@ export const colors = {
   // Third-party brand (Google sign-in button icon)
   googleRed: '#DB4437',
 
+  // Welcome/onboarding hero gradient wash — brand blush → surface, run diagonally.
+  // Deeper top-left stop than the old flat pink so the hero reads as branded, not washed out.
+  welcomeWash: ['#FFC9C9', '#FFDEDC', '#FFF1EF', '#FFFFFF'] as const,
+
+  // Dark Aurora hero ground (radial: warm maroon core → near-black) for the
+  // Skia-rendered Welcome background.
+  welcomeDark: ['#2A0A0A', '#160606', '#0A0303'] as const,
+
+  // Dark-auth (Login/Signup) glass surfaces — translucent whites layered over the
+  // Aurora background. Kept here so screens carry no rgba literals.
+  authGlass: {
+    inputBg: 'rgba(255, 255, 255, 0.06)',
+    inputBorder: 'rgba(255, 255, 255, 0.22)',
+    inputBorderFocused: 'rgba(255, 255, 255, 0.50)',
+    placeholder: 'rgba(236, 240, 255, 0.55)',
+    divider: 'rgba(255, 255, 255, 0.18)',
+    checkboxBorder: 'rgba(255, 255, 255, 0.40)',
+    googleBg: 'rgba(255, 255, 255, 0.10)',
+    googleBorder: 'rgba(255, 255, 255, 0.22)',
+  },
+
   // AI orb gradient stops (previously hardcoded in AIChatScreen + ChatInput)
   orb: {
     red: '#AE0000',

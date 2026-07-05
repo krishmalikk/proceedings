@@ -1,131 +1,94 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  Dimensions,
-  TouchableOpacity,
-} from 'react-native';
+import { View, StyleSheet, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { AnimatedPressable, AppText, AuroraBackground } from '../components';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: H } = Dimensions.get('window');
+const LOGO_CY = H * 0.39; // focal point for the aurora bloom (sits behind the logo)
 
 export function WelcomeScreen() {
   const { completeWelcome } = useAuth();
+  const navigation = useNavigation<any>();
 
-  const handleGetStarted = async () => {
-    await completeWelcome();
+  // Persist "welcome seen" and route: new users → Signup, returning → Login.
+  // Navigate first, then flip the flag, so the destination survives the
+  // AuthNavigator dropping the Welcome screen from the stack.
+  const go = (route: 'Signup' | 'Login') => {
+    navigation.navigate(route);
+    completeWelcome();
   };
 
   return (
-    <LinearGradient
-      colors={['#FFDCDC', '#FFE8E8', '#FFF5F5', '#FFFFFF']}
-      locations={[0, 0.35, 0.65, 1]}
-      style={styles.gradient}
-    >
+    <View style={styles.root}>
+      <StatusBar style="light" />
+      <AuroraBackground focalY={LOGO_CY} />
+
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        {/* Decorative circles at top */}
-        <View style={styles.circlesContainer}>
-          <View style={[styles.circle, styles.circle1]} />
-          <View style={[styles.circle, styles.circle2]} />
-          <View style={[styles.circle, styles.circle3]} />
-        </View>
-
-        {/* Content */}
+        {/* Hero lockup — white torch in the bloom, wordmark + tagline below. */}
         <View style={styles.content}>
-          {/* Logo with red circle background */}
-          <Animated.View
-            style={styles.logoContainer}
-            entering={FadeIn.delay(200).duration(600)}
-          >
-            <View style={styles.logoCircle}>
-              <Image
-                source={require('../../assets/meridian-new-logo-transparent.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </View>
+          <Animated.View entering={FadeIn.delay(150).duration(800)}>
+            <Image
+              source={require('../../assets/meridian-new-logo-transparent.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </Animated.View>
 
-          {/* Welcome Text */}
           <Animated.View
-            style={styles.textContainer}
-            entering={FadeInDown.delay(400).duration(600)}
+            style={styles.textBlock}
+            entering={FadeInDown.delay(350).duration(700)}
           >
-            <Text style={styles.title}>Welcome to Meridian!</Text>
-            <Text style={styles.tagline}>
-              Your journey to a new beginning starts here
-            </Text>
+            <AppText variant="displayLg" color="onPrimary" align="center" style={styles.wordmark}>
+              Meridian
+            </AppText>
+            <AppText variant="bodyLg" color="inverseOnSurface" align="center" style={styles.tagline}>
+              Your journey begins here
+            </AppText>
           </Animated.View>
         </View>
 
-        {/* Get Started Button */}
+        {/* CTA cluster — frosted glass primary + sign-in link. */}
         <Animated.View
-          style={styles.buttonContainer}
-          entering={FadeInUp.delay(600).duration(600)}
+          style={styles.ctaCluster}
+          entering={FadeInUp.delay(450).duration(650).springify()}
         >
-          <TouchableOpacity
-            style={styles.getStartedButton}
-            onPress={handleGetStarted}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.getStartedText}>Get Started</Text>
-            <Ionicons name="arrow-forward" size={20} color={colors.onPrimary} style={styles.buttonIcon} />
-          </TouchableOpacity>
+          <AnimatedPressable onPress={() => go('Signup')} haptics="light" style={styles.ctaWrap}>
+            <BlurView intensity={38} tint="light" style={styles.getStartedBlur}>
+              <AppText variant="titleMd" color="onPrimary" style={styles.getStartedText}>
+                Get Started
+              </AppText>
+              <Ionicons name="arrow-forward" size={20} color={colors.onPrimary} />
+            </BlurView>
+          </AnimatedPressable>
+
+          <AnimatedPressable onPress={() => go('Login')} haptics="light" style={styles.signInWrap}>
+            <AppText variant="bodyMd" color="inverseOnSurface" align="center">
+              Already have an account?{' '}
+              <AppText variant="bodyMd" color="onPrimary" style={styles.signInLink}>
+                Sign in
+              </AppText>
+            </AppText>
+          </AnimatedPressable>
         </Animated.View>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
-const LOGO_CIRCLE_SIZE = 180;
-
 const styles = StyleSheet.create({
-  gradient: {
+  root: {
     flex: 1,
+    backgroundColor: colors.welcomeDark[2],
   },
   container: {
     flex: 1,
-  },
-  circlesContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: SCREEN_HEIGHT * 0.4,
-    overflow: 'hidden',
-  },
-  circle: {
-    position: 'absolute',
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-  },
-  circle1: {
-    width: SCREEN_WIDTH * 1.2,
-    height: SCREEN_WIDTH * 1.2,
-    top: -SCREEN_WIDTH * 0.6,
-    left: -SCREEN_WIDTH * 0.3,
-    opacity: 0.15,
-  },
-  circle2: {
-    width: SCREEN_WIDTH * 0.9,
-    height: SCREEN_WIDTH * 0.9,
-    top: -SCREEN_WIDTH * 0.3,
-    right: -SCREEN_WIDTH * 0.3,
-    opacity: 0.25,
-  },
-  circle3: {
-    width: SCREEN_WIDTH * 0.6,
-    height: SCREEN_WIDTH * 0.6,
-    top: SCREEN_WIDTH * 0.1,
-    left: SCREEN_WIDTH * 0.1,
-    opacity: 0.1,
   },
   content: {
     flex: 1,
@@ -133,70 +96,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.marginMobile,
   },
-  logoContainer: {
-    marginBottom: spacing.xl,
-  },
-  logoCircle: {
-    width: LOGO_CIRCLE_SIZE,
-    height: LOGO_CIRCLE_SIZE,
-    borderRadius: LOGO_CIRCLE_SIZE / 2,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
-  },
   logo: {
-    width: LOGO_CIRCLE_SIZE * 1.3,
-    height: LOGO_CIRCLE_SIZE * 1.3,
-    tintColor: '#FFFFFF',
+    width: 140,
+    height: 140,
+    tintColor: colors.onPrimary,
+    // Soft white lift so the mark reads crisply against the bloom.
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
   },
-  textContainer: {
+  textBlock: {
+    marginTop: spacing.lg,
     alignItems: 'center',
   },
-  title: {
-    fontFamily: 'Lora_700Bold',
-    fontSize: 32,
-    color: colors.onSurface,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+  wordmark: {
+    // Subtle dark backing keeps the serif crisp over the brightest part of the bloom.
+    textShadowColor: 'rgba(0, 0, 0, 0.28)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 10,
   },
   tagline: {
-    fontFamily: 'NunitoSans_500Medium',
-    fontSize: 16,
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    letterSpacing: 0.4,
+    opacity: 0.82,
   },
-  buttonContainer: {
+  ctaCluster: {
     paddingHorizontal: spacing.marginMobile,
     paddingBottom: spacing.xl,
   },
-  getStartedButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 18,
+  ctaWrap: {
     borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  getStartedBlur: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingVertical: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
   },
   getStartedText: {
-    fontFamily: 'NunitoSans_700Bold',
     fontSize: 18,
-    color: colors.onPrimary,
   },
-  buttonIcon: {
-    marginLeft: 4,
+  signInWrap: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  signInLink: {
+    fontFamily: 'NunitoSans_700Bold',
   },
 });
 

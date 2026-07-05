@@ -10,6 +10,7 @@ export { ContentActionsMenu } from './ContentActionsMenu';
 export { AppleSignInButton } from './AppleSignInButton';
 export { AnimatedListItem } from './AnimatedListItem';
 export { AnimatedPressable } from './AnimatedPressable';
+export { AuroraBackground } from './AuroraBackground';
 export { Badge } from './Badge';
 export { Button } from './Button';
 export { Card } from './Card';
