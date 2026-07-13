@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   Dimensions,
+  Linking,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { AppleSignInButton, AppText, AnimatedPressable, AuroraBackground } from '../components';
 
 const { height: H } = Dimensions.get('window');
+const PRIVACY_URL = 'https://meridianjourney.ai/privacy';
 
 export function LoginScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -227,6 +229,31 @@ export function LoginScreen() {
                 </AppText>
               </AnimatedPressable>
             </Animated.View>
+
+            {/* Terms notice — the EULA (with its zero-tolerance objectionable-content
+                policy) is presented before logging in too, not only at signup
+                (App Store Guideline 1.2). */}
+            <AppText variant="caption" color="inverseOnSurface" align="center" style={styles.termsNotice}>
+              By continuing you agree to our{' '}
+              <AppText
+                variant="caption"
+                color="onPrimary"
+                style={styles.termsLink}
+                onPress={() => navigation.navigate('Disclaimer')}
+              >
+                Terms of Use (EULA)
+              </AppText>{' '}
+              and{' '}
+              <AppText
+                variant="caption"
+                color="onPrimary"
+                style={styles.termsLink}
+                onPress={() => Linking.openURL(PRIVACY_URL)}
+              >
+                Privacy Policy
+              </AppText>
+              .
+            </AppText>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -373,6 +400,15 @@ const styles = StyleSheet.create({
   },
   signUpLink: {
     fontFamily: 'NunitoSans_700Bold',
+  },
+  termsNotice: {
+    marginTop: spacing.md,
+    opacity: 0.8,
+    paddingHorizontal: spacing.sm,
+  },
+  termsLink: {
+    fontFamily: 'NunitoSans_700Bold',
+    textDecorationLine: 'underline',
   },
 });
 

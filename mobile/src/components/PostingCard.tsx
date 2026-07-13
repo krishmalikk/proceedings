@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './Card';
 import { AnimatedPressable } from './AnimatedPressable';
+import { ContentActionsMenu } from './ContentActionsMenu';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 
 export type PostingCardData = {
@@ -23,6 +24,11 @@ export type PostingCardData = {
 interface PostingCardProps {
   posting: PostingCardData;
   onPress?: () => void;
+  // When provided, a "..." overflow appears on the card so users can report the
+  // posting or block its author without opening the detail view (App Store 1.2).
+  authorId?: string;
+  authorHandle?: string;
+  onActioned?: (action: 'reported' | 'blocked') => void;
 }
 
 // Relative "X ago" for data-freshness (mirrors ReplyItem/GroupChat).
@@ -51,14 +57,26 @@ function getOutcomeBadgeStyle(outcome: string) {
   return { backgroundColor: colors.surfaceContainerHigh, color: colors.onSurfaceVariant };
 }
 
-export function PostingCard({ posting, onPress }: PostingCardProps) {
+export function PostingCard({ posting, onPress, authorId, authorHandle, onActioned }: PostingCardProps) {
   const outcomeStyle = posting.outcome ? getOutcomeBadgeStyle(posting.outcome) : null;
 
   return (
     <AnimatedPressable onPress={onPress} scaleTo={0.97} haptics="light">
       <Card style={styles.card}>
+        {/* Report/block overflow — rendered on top-right; no-ops on own content. */}
+        {onActioned ? (
+          <ContentActionsMenu
+            contentId={posting.case_id}
+            contentType="posting"
+            authorId={authorId}
+            authorHandle={authorHandle}
+            onActioned={onActioned}
+            style={styles.overflow}
+          />
+        ) : null}
+
         {/* Badges row */}
-        <View style={styles.badgesRow}>
+        <View style={[styles.badgesRow, onActioned && styles.badgesRowWithOverflow]}>
           {posting.outcome && (
             <View style={[styles.badge, { backgroundColor: outcomeStyle?.backgroundColor }]}>
               <Text style={[styles.badgeText, { color: outcomeStyle?.color }]}>
@@ -111,11 +129,20 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.sm,
   },
+  overflow: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    zIndex: 2,
+  },
   badgesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
     marginBottom: spacing.base,
+  },
+  badgesRowWithOverflow: {
+    paddingRight: 28, // leave room for the "..." overflow
   },
   badge: {
     flexDirection: 'row',

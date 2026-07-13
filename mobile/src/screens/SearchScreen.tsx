@@ -34,6 +34,8 @@ export function SearchScreen({ navigation }: any) {
   const [query, setQuery] = useState('');
   const [strictness, setStrictness] = useState<Strictness>('balanced');
   const [results, setResults] = useState<SearchResultItem[]>([]);
+  // Case ids the viewer just reported/blocked — hidden instantly (App Store 1.2).
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [suggested, setSuggested] = useState<SuggestedFilterGroup[]>([]);
   const [selectedFacets, setSelectedFacets] = useState<Set<string>>(new Set());
   const [nextPageToken, setNextPageToken] = useState('');
@@ -222,8 +224,9 @@ export function SearchScreen({ navigation }: any) {
 
         {/* Results */}
         {searched && !loading && (() => {
-          // Hide postings from blocked authors instantly (server also filters).
-          const visible = results.filter((r) => !isBlocked(r.author_id));
+          // Hide postings from blocked authors + just-reported cards instantly
+          // (server also filters).
+          const visible = results.filter((r) => !isBlocked(r.author_id) && !hiddenIds.has(r.case_id));
           if (visible.length === 0 && !error) {
             return (
               <EmptyState
@@ -244,6 +247,8 @@ export function SearchScreen({ navigation }: any) {
               <AnimatedListItem key={r.case_id} index={Math.min(index, 6)} staggerDelay={60}>
                 <PostingCard
                   posting={r}
+                  authorId={r.author_id}
+                  onActioned={() => setHiddenIds((prev) => new Set(prev).add(r.case_id))}
                   onPress={() => navigation.navigate('CaseDetails', { caseId: r.case_id })}
                 />
               </AnimatedListItem>
