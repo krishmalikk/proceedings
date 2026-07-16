@@ -22,6 +22,7 @@ import { GlassCard, GlassButton } from '../components';
 import { ChatMessage } from '../components/chat/ChatMessage';
 import { ChatInput } from '../components/chat/ChatInput';
 import { askQuestion } from '../services/apiService';
+import { AIConsentError } from '../services/aiConsent';
 import { useAuth } from '../contexts/AuthContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -150,7 +151,10 @@ export function AIChatScreen({ navigation }: any) {
       console.error('Chat error:', error);
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'I encountered an error processing your request. Please try again.',
+        content:
+          error instanceof AIConsentError
+            ? 'AI answers are turned off because AI data sharing hasn’t been enabled. You can turn it on in Profile → AI answers.'
+            : 'I encountered an error processing your request. Please try again.',
         timestamp: new Date(),
       };
 

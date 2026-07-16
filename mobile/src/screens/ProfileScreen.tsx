@@ -9,12 +9,14 @@ import {
   RefreshControl,
   Linking,
   Alert,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Header, Card, Badge, Button, Markdown } from '../components';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { useAIConsent } from '../contexts/AIConsentContext';
 import { getProfile, getCachedProfile, clearProfileCache, getActiveUserId, deleteAccount } from '../services/apiService';
 import { useExperienceFacets } from '../hooks/useExperienceFacets';
 import { ProfileActivity } from '../components/ProfileActivity';
@@ -48,6 +50,7 @@ export function ProfileScreen() {
   // Hidden when Profile is a bottom-tab root (nothing to go back to); shown when
   // pushed from another stack via the header profile icon.
     const { user, signOut } = useAuth();
+  const { hasAIConsent, grantAIConsent, declineAIConsent } = useAIConsent();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -538,6 +541,22 @@ export function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* AI data-sharing consent (App Store 5.1.1(i)/5.1.2(i)) */}
+        <View style={styles.aiRow}>
+          <Ionicons name="sparkles-outline" size={18} color={colors.onSurfaceVariant} />
+          <View style={styles.aiRowText}>
+            <Text style={styles.legalRowText}>AI answers</Text>
+            <Text style={styles.aiRowNote}>
+              Send your questions and profile details to Google’s Gemini AI to generate answers.
+            </Text>
+          </View>
+          <Switch
+            value={hasAIConsent}
+            onValueChange={(v) => (v ? grantAIConsent() : declineAIConsent())}
+            trackColor={{ false: colors.outlineVariant, true: colors.primary }}
+          />
+        </View>
+
         {/* Legal */}
         <TouchableOpacity
           style={styles.legalRow}
@@ -637,6 +656,23 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   editButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 14 },
+  aiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    marginTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant,
+  },
+  aiRowText: { flex: 1 },
+  aiRowNote: {
+    fontSize: typography.caption.fontSize,
+    color: colors.onSurfaceVariant,
+    marginTop: 2,
+    lineHeight: 16,
+  },
   legalRow: {
     flexDirection: 'row',
     alignItems: 'center',

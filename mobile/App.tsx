@@ -19,6 +19,7 @@ import {
 } from '@expo-google-fonts/lora';
 import { MainNavigator } from './src/navigation/MainNavigator';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { AIConsentProvider } from './src/contexts/AIConsentContext';
 import { colors } from './src/constants/theme';
 
 export default function App() {
@@ -48,10 +49,12 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <NavigationContainer>
-            <StatusBar style="dark" />
-            <MainNavigator />
-          </NavigationContainer>
+          <AIConsentProvider>
+            <NavigationContainer>
+              <StatusBar style="dark" />
+              <MainNavigator />
+            </NavigationContainer>
+          </AIConsentProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

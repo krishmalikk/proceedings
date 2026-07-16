@@ -2,6 +2,7 @@
 // Connects to the same backend API as the website
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { assertAIConsent } from './aiConsent';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://immiguide-api-971592620882.us-central1.run.app';
 
@@ -105,6 +106,9 @@ export interface QAItem {
  * Submit an immigration question to the AI
  */
 export async function askQuestion(question: string): Promise<AskResponse> {
+  // Do not transmit the user's question to the AI backend without consent
+  // (App Store 5.1.1(i)/5.1.2(i)).
+  assertAIConsent();
   const response = await fetch(`${API_URL}/api/ask`, {
     method: 'POST',
     headers: {
@@ -535,6 +539,8 @@ export async function onboardTurn(
   messages: { role: string; content: string }[],
   draft: OnboardProfile
 ): Promise<OnboardResponse> {
+  // Onboarding sends profile/background details to the AI backend — gated on consent.
+  assertAIConsent();
   const response = await fetch(`${API_URL}/api/onboard`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
@@ -861,6 +867,8 @@ export interface ReconcileResult {
 }
 
 export async function reconcile(message: Partial<Criteria>): Promise<ReconcileResult> {
+  // Reconciliation runs the user's message/profile through the AI backend — gated.
+  assertAIConsent();
   const response = await fetch(`${API_URL}/api/reconcile`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),

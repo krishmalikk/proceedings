@@ -1,10 +1,39 @@
-# App Store Review — Guideline 1.2 (UGC) resubmission kit
+# App Store Review — resubmission kit
 
-Everything needed to clear the repeat **Guideline 1.2 – User-Generated Content** rejection.
-The four required safeguards are **already implemented**; the previous submission was
-rejected because no demonstration recording or reviewer notes were provided, so the
-reviewer could not locate them. This kit provides the notes to paste into App Store
-Connect and a shot-by-shot recording script.
+Notes + demo scripts for the App Review rejections. Guideline 1.2 (UGC) is covered first;
+the Guideline 5.1.1(i)/5.1.2(i) (AI privacy) and 2.3.6 (age rating) items from the
+build 11 review follow at the bottom.
+
+---
+
+## Build 11 review — Guideline 5.1.1(i) / 5.1.2(i) (third-party AI) and 2.3.6 (age rating)
+
+### 5.1.1(i) / 5.1.2(i) — AI data-sharing consent (code fix, build 12)
+The app sends user-entered text (questions + onboarding profile details) to Google's Gemini
+(Google Cloud AI). Build 12 adds the required **in-app disclosure + affirmative permission
+before any data is sent**:
+- A one-time **AI consent screen** (`AIConsentScreen`) shown after sign-in, before onboarding
+  — states *what* is sent (your questions + profile details), *who* it goes to (Google's
+  Gemini / Google Cloud AI), and *how* it's used, with **Agree & continue** / **Not now** and
+  a Privacy Policy link.
+- Enforcement is global: `askQuestion` (AI chat), `onboardTurn` (AI onboarding), and
+  `reconcile` refuse to transmit until consent is granted (`assertAIConsent`). Declining keeps
+  the rest of the app usable with AI off.
+- A **Profile → "AI answers"** toggle lets users enable/disable anytime.
+- The **Privacy Policy** (meridianjourney.ai/privacy, Section 1 + Section 6) now names Google's
+  Gemini and the exact data shared, and the in-app consent + opt-out.
+
+**Reviewer note to paste:** *"Before any data is sent to our AI provider, the app shows an AI
+data-sharing consent screen (after sign-in) that discloses what is sent (your questions and
+profile details), who it is sent to (Google's Gemini / Google Cloud AI), and how it is used,
+and requires an explicit 'Agree & continue'. Users can decline and still use the app, and can
+toggle AI in Profile → 'AI answers' at any time. Our Privacy Policy (Sections 1 and 6) details
+this."*
+
+### 2.3.6 — Age Rating "In-App Controls" (App Store Connect, no code)
+App Store Connect → the app → **App Information** → **Age Rating** → **Edit** → set
+**Age Assurance** (and any Parental/In-App Controls) to **None** → Save. Applies to the
+existing submission; no rebuild required for this item.
 
 ---
 

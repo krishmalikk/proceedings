@@ -12,6 +12,7 @@ export { GroupChatScreen } from './GroupChatScreen';
 export { LoginScreen } from './LoginScreen';
 export { SignupScreen } from './SignupScreen';
 export { EmailVerificationScreen } from './EmailVerificationScreen';
+export { AIConsentScreen } from './AIConsentScreen';
 export { ProfileScreen } from './ProfileScreen';
 export { DisclaimerScreen } from './DisclaimerScreen';
 export { BackgroundOnboardingScreen } from './BackgroundOnboardingScreen';

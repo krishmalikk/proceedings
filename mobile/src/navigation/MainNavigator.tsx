@@ -13,6 +13,7 @@ import {
   LoginScreen,
   SignupScreen,
   EmailVerificationScreen,
+  AIConsentScreen,
   ProfileScreen,
   DisclaimerScreen,
   BackgroundOnboardingScreen,
@@ -26,6 +27,7 @@ import { colors, spacing } from '../constants/theme';
 import { FloatingChatButton, ChatModal } from '../components/chat';
 import { FloatingTabBar } from '../components/FloatingTabBar';
 import { useAuth } from '../contexts/AuthContext';
+import { useAIConsent } from '../contexts/AIConsentContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -213,12 +215,13 @@ function TabNavigator() {
 
 export function MainNavigator() {
   const { user, loading, isDevMode, isEmailVerified, hasSeenWelcome, hasCompletedOnboarding } = useAuth();
+  const { loading: aiConsentLoading, decision: aiConsentDecision } = useAIConsent();
 
   // Dev mode bypass only works in __DEV__ builds; production builds always require auth
   const allowDevMode = __DEV__ && isDevMode;
 
   // Show loading screen while checking auth state
-  if (loading) {
+  if (loading || aiConsentLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -235,6 +238,14 @@ export function MainNavigator() {
   // (Google Sign-In users are auto-verified and skip this)
   if (user && !isEmailVerified && !allowDevMode) {
     return <EmailVerificationScreen />;
+  }
+
+  // Third-party AI data-sharing consent (App Store 5.1.1(i)/5.1.2(i)) — must be
+  // decided before onboarding, which itself sends data to the AI. Shown once
+  // (including in dev mode, since AI enforcement is global); both "Agree" and
+  // "Not now" record a decision and fall through.
+  if (aiConsentDecision === null) {
+    return <AIConsentScreen />;
   }
 
   // Show onboarding if user hasn't completed it (dev mode only works in __DEV__ builds)

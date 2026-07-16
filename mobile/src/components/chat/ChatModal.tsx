@@ -23,6 +23,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { AnimatedPressable } from '../AnimatedPressable';
 import { askQuestion } from '../../services/apiService';
+import { AIConsentError } from '../../services/aiConsent';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -125,7 +126,10 @@ export function ChatModal({ visible, onClose }: ChatModalProps) {
       console.error('Chat error:', error);
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'I encountered an error processing your request. Please try again.',
+        content:
+          error instanceof AIConsentError
+            ? 'AI answers are turned off because AI data sharing hasn’t been enabled. You can turn it on in Profile → AI answers.'
+            : 'I encountered an error processing your request. Please try again.',
         timestamp: new Date(),
       };
 
