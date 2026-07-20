@@ -6,6 +6,17 @@ follow it for every merge-to-`main` that reaches production, whether you're a
 human or Claude acting on a human's behalf. See also [`docs/CI-CD.md`](CI-CD.md)
 for how `main` gets built/tested/deployed.
 
+## Releases are explicit, not automatic
+
+**Not every merge to `main`, and not every deploy, produces a tag or a
+release.** There is no automation that tags on push or on a successful
+`deploy.yml` run — tagging is a deliberate, manual decision, made only when a
+human explicitly asks for a new version to be cut (e.g. "tag this as
+backend-v1.2.0" / "cut a release for the website deploy that just went out").
+Most day-to-day merges and deploys are untagged; that's expected, not a gap.
+Claude must never tag or create a release on its own initiative just because
+a PR merged or a deploy succeeded — always wait to be asked.
+
 ## Principle: tag per component, not per repo
 
 `backend`, `website`, and `mobile` deploy independently and on different
@@ -42,8 +53,9 @@ trustworthy.
    `workflow_dispatch` — pick `target` (backend/website/both) and `ref` (defaults
    to `main`'s tip). This is gated on a required-reviewer approval before
    anything touches GCP (see [`docs/CI-CD.md`](CI-CD.md#deploy-workflow-manual-approval-scaffold)).
-3. **After the deploy is confirmed healthy** (traffic promoted, smoke passed),
-   tag the exact commit that's now live:
+3. **Only when explicitly asked to cut a release** — after the deploy is
+   confirmed healthy (traffic promoted, smoke passed) — tag the exact commit
+   that's now live:
    ```bash
    git tag -a backend-v1.4.0 <commit-sha> -m "Backend v1.4.0"
    git push origin backend-v1.4.0
@@ -99,7 +111,9 @@ git tag -l 'mobile-v*'  --sort=-v:refname | head -1
 
 ## Current state
 
-No tags exist yet as of this writing — `main` has no branch protection and
-this monorepo has never been formally versioned. This document establishes
-the process going forward; the first tag for each component should be cut the
-next time that component is deployed to production.
+`main` has no branch protection. The first tags — `backend-v1.0.0`,
+`website-v1.0.0`, `mobile-v1.0.0` — were cut on `aebb303` (the PR #35 merge),
+the first deploy this process was formally applied to. Not every commit after
+it will get a tag — only ask for one when a specific deploy needs to be
+version-pinned or is worth marking as a release (see
+[Releases are explicit, not automatic](#releases-are-explicit-not-automatic)).

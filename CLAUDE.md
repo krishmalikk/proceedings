@@ -62,15 +62,15 @@ See [`docs/CI-CD.md`](docs/CI-CD.md) for the tiering model, one-time GitHub
 setup, the deferred GCP/WIF work, and the follow-up task list.
 
 ### Release & tagging
-**Every merge to `main` that gets deployed to production MUST be tagged** —
-this is not optional. Follow [`docs/RELEASE-TAGGING.md`](docs/RELEASE-TAGGING.md)
-exactly: component-scoped annotated SemVer tags (`backend-vX.Y.Z` /
-`website-vX.Y.Z` / `mobile-vX.Y.Z`), tag the exact deployed commit only after
-the deploy is confirmed healthy, then cut a GitHub Release with
+Follow [`docs/RELEASE-TAGGING.md`](docs/RELEASE-TAGGING.md) exactly:
+component-scoped annotated SemVer tags (`backend-vX.Y.Z` / `website-vX.Y.Z` /
+`mobile-vX.Y.Z`), tag the exact deployed commit only after the deploy is
+confirmed healthy, then cut a GitHub Release with
 `gh release create <tag> --generate-notes`. Never move a published tag; roll
-forward with a new patch tag instead. When a human merges a PR and confirms a
-deploy went out, proactively tag and release it per that doc rather than
-waiting to be asked.
+forward with a new patch tag instead. **Tagging/releasing is never automatic**
+— not every merge or deploy gets one. Only tag or create a release when a
+human explicitly asks for a new version to be cut; do not do it proactively
+just because a PR merged or a deploy succeeded.
 
 ## Environment Variables
 
