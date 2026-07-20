@@ -57,6 +57,13 @@ jest.mock('firebase/auth', () => ({
   },
 }));
 
+// @shopify/react-native-skia ships an ESM entrypoint (`import` syntax) that
+// jest can't parse under the CommonJS transform, and the native Canvas has no
+// JS implementation under jest anyway. Use the library's official jest mock
+// (see the react-native-skia testing guide) so anything importing it (e.g.
+// AuroraBackground) loads cleanly.
+require('@shopify/react-native-skia/jestSetup');
+
 // expo-apple-authentication is an iOS-native module with no JS impl under jest.
 // Provide a light mock so anything importing it (AuthContext, AppleSignInButton)
 // loads. The official button is mocked to a plain host component.
