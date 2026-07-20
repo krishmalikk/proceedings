@@ -47,33 +47,47 @@ trustworthy.
 
 ## Process: from merged PR to tagged release
 
+Deploying and releasing happen in **one dispatch** of
+[`deploy.yml`](../.github/workflows/deploy.yml) — tagging is an *optional
+input on the same workflow run*, not a separate manual step performed
+afterward.
+
 1. **Merge the PR to `main`** (squash or merge commit — either is fine; `main`
    has no linear-history requirement).
-2. **Deploy** via the manual [`deploy.yml`](../.github/workflows/deploy.yml)
-   `workflow_dispatch` — pick `target` (backend/website/both) and `ref` (defaults
-   to `main`'s tip). This is gated on a required-reviewer approval before
-   anything touches GCP (see [`docs/CI-CD.md`](CI-CD.md#deploy-workflow-manual-approval-scaffold)).
-3. **Only when explicitly asked to cut a release** — after the deploy is
-   confirmed healthy (traffic promoted, smoke passed) — tag the exact commit
-   that's now live:
-   ```bash
-   git tag -a backend-v1.4.0 <commit-sha> -m "Backend v1.4.0"
-   git push origin backend-v1.4.0
-   ```
-   Tag `main`'s tip directly (`HEAD`) if that's what was deployed — don't tag
-   a branch, tag the resolved commit SHA so the pointer never drifts.
-4. **Cut a GitHub Release from the tag**, with auto-generated notes from the
-   merged PRs since the last tag of that component:
-   ```bash
-   gh release create backend-v1.4.0 \
-     --title "Backend v1.4.0" \
-     --generate-notes \
-     --notes-start-tag backend-v1.3.2
-   ```
-   `--generate-notes` pulls PR titles/authors since the start tag — no manual
-   changelog upkeep required.
-5. **If it's a "both" deploy** (backend + website changed together), create
-   both tags/releases — don't invent a combined tag.
+2. **Dispatch the deploy** — Actions tab → `Deploy (manual approval)` → Run
+   workflow, and set:
+   - `target`: `backend` / `website` / `both`
+   - `ref`: what to deploy (defaults to `main`'s tip)
+   - `cut_release`: **leave `false` for most deploys.** Set to `true` only
+     when this specific deploy is worth marking as a version (see
+     [Releases are explicit, not automatic](#releases-are-explicit-not-automatic)
+     — this is still a human decision, just made at dispatch time instead of
+     after the fact).
+   - `bump`: `patch` / `minor` / `major` (only read when `cut_release=true`)
+3. The run is gated on a required-reviewer approval before anything touches
+   GCP (see [`docs/CI-CD.md`](CI-CD.md#deploy-workflow-manual-approval-scaffold)).
+   It deploys, smoke-tests, and promotes traffic.
+4. **If `cut_release=true`**, the workflow's last step computes the next
+   SemVer per target (reading the last `<prefix>-v*` tag, applying `bump`),
+   then tags the exact deployed commit and runs
+   `gh release create --generate-notes` — for `both`, it cuts `backend-v*`
+   *and* `website-v*` independently (never a combined tag).
+
+No GitHub UI access, or want it from the CLI instead? Same effect:
+```bash
+gh workflow run deploy.yml -f target=backend -f ref=main -f cut_release=true -f bump=patch
+```
+
+### Known limitation
+
+The `gcloud run deploy` / traffic-promotion steps in `deploy.yml` are still
+`TODO` placeholders (GCP auth isn't wired up yet — see the workflow's header
+comment). Until that's filled in, a dispatch with `cut_release=true` would
+create a *real* tag/release against a deploy that didn't actually touch GCP.
+Don't use `cut_release=true` on a real dispatch until those TODOs are done —
+until then, deploy manually (see `CLAUDE.md`'s `gcloud run deploy` command)
+and ask Claude to cut the tag/release by hand afterward, same commands as
+above.
 
 ### Mobile is a variant of the same flow
 
