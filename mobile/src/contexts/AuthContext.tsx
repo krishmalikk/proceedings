@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import {
   User,
   onAuthStateChanged,
@@ -7,12 +8,16 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   signInWithCredential,
+  updateProfile as updateFirebaseProfile,
   GoogleAuthProvider,
+  OAuthProvider,
   AuthError,
 } from 'firebase/auth';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
-import { registerBackendUser, setActiveUserId, setIdToken, checkEmailVerified, getProfile } from '../services/apiService';
+import { registerBackendUser, setActiveUserId, setIdToken, checkEmailVerified, getProfile, getBlockedUsers, blockUser as apiBlockUser } from '../services/apiService';
 
 // Dev mode uses a consistent mock user ID so API calls work during testing
 const DEV_MODE_USER_ID = 'dev-mode-user-12345';
@@ -49,7 +54,14 @@ interface AuthContextType {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
+  // UGC safety (App Store Guideline 1.2): the set of uids the current user has
+  // blocked, so blocked authors' content can be hidden from feeds instantly.
+  blockedUids: Set<string>;
+  isBlocked: (uid?: string) => boolean;
+  blockUser: (uid: string) => Promise<void>;
+  refreshBlocks: () => Promise<void>;
   enableDevMode: () => Promise<void>;
   disableDevMode: () => Promise<void>;
   completeWelcome: () => Promise<void>;
@@ -70,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isEmailVerified, setIsEmailVerifiedState] = useState(false);
   const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [blockedUids, setBlockedUids] = useState<Set<string>>(new Set());
 
   // Check for dev mode and onboarding status on mount
   useEffect(() => {
@@ -111,12 +124,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           firebaseUser.displayName?.trim() || firebaseUser.email?.split('@')[0] || '';
         await registerBackendUser(firebaseUser.uid, username);
 
+        // Load the user's block list so blocked authors are hidden from feeds
+        // immediately (best-effort — never blocks sign-in).
+        getBlockedUsers().then((ids) => setBlockedUids(new Set(ids))).catch(() => {});
+
         // Check email verification status
-        // Google Sign-In users are auto-verified (skip verification check)
-        const isGoogleUser = firebaseUser.providerData?.some(
-          (p) => p.providerId === 'google.com'
+        // Federated sign-in (Google / Apple) users are auto-verified — Apple and
+        // Google have already verified the email (Apple may relay a private one).
+        const isFederatedUser = firebaseUser.providerData?.some(
+          (p) => p.providerId === 'google.com' || p.providerId === 'apple.com'
         );
-        if (isGoogleUser) {
+        if (isFederatedUser) {
           setIsEmailVerifiedState(true);
         } else if (firebaseUser.email) {
           // Check with backend if email is verified
@@ -128,12 +146,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // This restores onboarding flags that were cleared on sign-out
         try {
           const profile = await getProfile();
-          const hasProfileData = profile && (
-            (profile.current_visa_or_greencard_category as string[] | undefined)?.length > 0 ||
-            (profile.visa_applying_for as string[] | undefined)?.length > 0 ||
-            (profile.tags as string[] | undefined)?.length > 0 ||
+          const hasProfileData = !!profile && (
+            ((profile.current_visa_or_greencard_category as string[] | undefined)?.length ?? 0) > 0 ||
+            ((profile.visa_applying_for as string[] | undefined)?.length ?? 0) > 0 ||
+            ((profile.tags as string[] | undefined)?.length ?? 0) > 0 ||
             ((profile.background_text as string | undefined)?.trim().length ?? 0) > 0 ||
-            (profile.journey as unknown[] | undefined)?.length > 0
+            ((profile.journey as unknown[] | undefined)?.length ?? 0) > 0
           );
 
           if (hasProfileData) {
@@ -149,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setIsEmailVerifiedState(false);
+        setBlockedUids(new Set());
       }
       setLoading(false);
     });
@@ -235,6 +254,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Sign in with Apple (App Store Guideline 4.8 — the privacy-preserving login
+  // required alongside Google). Native flow: Apple issues an identityToken bound
+  // to a nonce; we hand it to Firebase via an 'apple.com' OAuthProvider credential
+  // (same shape as the Google flow above). iOS-only.
+  const signInWithApple = async () => {
+    if (Platform.OS !== 'ios') {
+      throw new Error('Sign in with Apple is only available on iOS.');
+    }
+    if (!(await AppleAuthentication.isAvailableAsync())) {
+      throw new Error('Sign in with Apple is not available on this device.');
+    }
+
+    // Firebase requires the RAW nonce; Apple is given its SHA-256 hash.
+    const rawNonce = Crypto.randomUUID();
+    const hashedNonce = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      rawNonce
+    );
+
+    try {
+      const appleCredential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+
+      const { identityToken, fullName } = appleCredential;
+      if (!identityToken) {
+        throw new Error('No identity token received from Apple');
+      }
+
+      const credential = new OAuthProvider('apple.com').credential({
+        idToken: identityToken,
+        rawNonce,
+      });
+      const result = await signInWithCredential(auth, credential);
+
+      // Apple returns the user's name ONLY on the first authorization. Capture it
+      // onto the Firebase profile so later sessions (and the backend username)
+      // have a real display name instead of a blank / relay handle.
+      const displayName = [fullName?.givenName, fullName?.familyName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      if (displayName && result.user && !result.user.displayName) {
+        try {
+          await updateFirebaseProfile(result.user, { displayName });
+        } catch {
+          // Non-fatal — the account is created; name is a nicety.
+        }
+      }
+    } catch (error: any) {
+      // User tapped Cancel on the Apple sheet — not an error worth surfacing.
+      if (error?.code === 'ERR_REQUEST_CANCELED') {
+        console.log('Sign in with Apple cancelled by user');
+        return;
+      }
+      // Surface the underlying provider/Firebase code so failures are diagnosable
+      // in the field instead of collapsing to an opaque "try again" (e.g.
+      // auth/operation-not-allowed = Apple provider not enabled in Firebase;
+      // auth/invalid-credential = Apple Services ID / nonce misconfigured).
+      const code = error?.code ? ` (${error.code})` : '';
+      console.error('Sign in with Apple error:', error?.code, error?.message, error);
+      throw new Error(`Sign in with Apple failed. Please try again.${code}`);
+    }
+  };
+
   const signOut = async () => {
     try {
       // Clear all local state BEFORE Firebase sign-out to avoid race conditions.
@@ -304,6 +392,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsEmailVerifiedState(verified);
   };
 
+  const isBlocked = (uid?: string) => !!uid && blockedUids.has(uid);
+
+  const blockUser = async (uid: string) => {
+    const ids = await apiBlockUser(uid);
+    setBlockedUids(new Set(ids));
+  };
+
+  const refreshBlocks = async () => {
+    const ids = await getBlockedUsers();
+    setBlockedUids(new Set(ids));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -316,7 +416,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithEmail,
         signUpWithEmail,
         signInWithGoogle,
+        signInWithApple,
         signOut,
+        blockedUids,
+        isBlocked,
+        blockUser,
+        refreshBlocks,
         enableDevMode,
         disableDevMode,
         completeWelcome,

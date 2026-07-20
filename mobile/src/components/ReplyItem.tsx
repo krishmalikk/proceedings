@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { VoteControl } from './VoteControl';
+import { ContentActionsMenu } from './ContentActionsMenu';
 import { colors, spacing, borderRadius } from '../constants/theme';
 
 export type ReplyCardData = {
@@ -9,6 +10,7 @@ export type ReplyCardData = {
   parent_case_id: string;
   body: string;
   author_handle: string;
+  author_id?: string;
   created_at: string;
   deleted: boolean;
   up: number;
@@ -21,6 +23,8 @@ export type ReplyCardData = {
 interface ReplyItemProps {
   reply: ReplyCardData;
   onDelete?: (id: string) => void;
+  // Called after the viewer reports or blocks — the parent removes it from view.
+  onHide?: (id: string) => void;
 }
 
 function timeAgo(iso: string): string {
@@ -37,7 +41,7 @@ function timeAgo(iso: string): string {
   return new Date(t).toLocaleDateString();
 }
 
-export function ReplyItem({ reply, onDelete }: ReplyItemProps) {
+export function ReplyItem({ reply, onDelete, onHide }: ReplyItemProps) {
   const handleDelete = () => {
     Alert.alert(
       'Delete Reply',
@@ -63,10 +67,21 @@ export function ReplyItem({ reply, onDelete }: ReplyItemProps) {
           <Text style={styles.author}>{reply.author_handle}</Text>
           <Text style={styles.separator}>·</Text>
           <Text style={styles.time}>{timeAgo(reply.created_at)}</Text>
-          {reply.is_author && (
+          {reply.is_author ? (
             <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
               <Ionicons name="trash-outline" size={16} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
+          ) : (
+            <ContentActionsMenu
+              contentId={reply.id}
+              contentType="reply"
+              authorId={reply.author_id}
+              authorHandle={reply.author_handle}
+              isAuthor={reply.is_author}
+              onActioned={() => onHide?.(reply.id)}
+              size={16}
+              style={styles.menuButton}
+            />
           )}
         </View>
         <Text style={styles.body}>{reply.body}</Text>
@@ -114,6 +129,9 @@ const styles = StyleSheet.create({
   deleteButton: {
     marginLeft: 'auto',
     padding: 4,
+  },
+  menuButton: {
+    marginLeft: 'auto',
   },
   body: {
     fontSize: 14,

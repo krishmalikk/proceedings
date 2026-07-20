@@ -17,12 +17,16 @@ name: "Meridian",
       supportsTablet: true,
       bundleIdentifier: "com.krishmalik.meridian",
       buildNumber: "1",
+      // Sign in with Apple (App Store Guideline 4.8). Injects the
+      // com.apple.developer.applesignin entitlement on prebuild (CNG) — do NOT
+      // hand-edit ios/*.entitlements, it is regenerated.
+      usesAppleSignIn: true,
       googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || "./config/GoogleService-Info.plist",
       infoPlist: {
         CFBundleURLTypes: [
           {
             CFBundleURLSchemes: [
-              "com.googleusercontent.apps.971592620882-mvj696meur8j54ibu82egpl2dmvha0nf"
+              "com.googleusercontent.apps.971592620882-001kh4740otue78vp6c6fem3f7k4cadl"
             ]
           }
         ],
@@ -50,7 +54,7 @@ name: "Meridian",
       [
         "@react-native-google-signin/google-signin",
         {
-          iosUrlScheme: "com.googleusercontent.apps.971592620882-mvj696meur8j54ibu82egpl2dmvha0nf"
+          iosUrlScheme: "com.googleusercontent.apps.971592620882-001kh4740otue78vp6c6fem3f7k4cadl"
         }
       ],
       "./plugins/withModularHeaders"

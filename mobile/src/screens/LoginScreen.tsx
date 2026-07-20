@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -10,17 +9,25 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Dimensions,
+  Linking,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { AppleSignInButton, AppText, AnimatedPressable, AuroraBackground } from '../components';
+
+const { height: H } = Dimensions.get('window');
+const PRIVACY_URL = 'https://meridianjourney.ai/privacy';
 
 export function LoginScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { signInWithEmail, signInWithGoogle } = useAuth();
+  const { signInWithEmail, signInWithGoogle, signInWithApple } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -58,137 +65,209 @@ export function LoginScreen() {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setError('');
+    try {
+      await signInWithApple();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sign in with Apple failed');
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+    <View style={styles.root}>
+      <StatusBar style="light" />
+      <AuroraBackground focalY={H * 0.3} />
+
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          {/* Logo / Header */}
-          <View style={styles.header}>
-            <View style={styles.logoCircle}>
-              <Image
-                source={require('../../assets/meridian-new-logo-transparent.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue your immigration journey</Text>
-          </View>
-
-          {/* Error message */}
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={20} color={colors.error} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Email input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color={colors.onSurfaceVariant} style={styles.inputIcon} />
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter your email"
-                placeholderTextColor={colors.onSurfaceVariant}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="off"
-                textContentType="none"
-                style={styles.input}
-              />
-            </View>
-          </View>
-
-          {/* Password input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color={colors.onSurfaceVariant} style={styles.inputIcon} />
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
-                placeholderTextColor={colors.onSurfaceVariant}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="off"
-                textContentType="oneTimeCode"
-                style={styles.input}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.onSurfaceVariant}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Logo / Header */}
+            <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.header}>
+              <View style={styles.logoCircle}>
+                <Image
+                  source={require('../../assets/meridian-new-logo-transparent.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
                 />
-              </TouchableOpacity>
+              </View>
+              <AppText variant="headlineLg" color="onPrimary" align="center" style={styles.title}>
+                Welcome Back
+              </AppText>
+              <AppText variant="bodyMd" color="inverseOnSurface" align="center" style={styles.subtitle}>
+                Sign in to continue your immigration journey
+              </AppText>
+            </Animated.View>
+
+            {/* Error message */}
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={20} color={colors.error} />
+                <AppText variant="bodyMd" color="onErrorContainer" style={styles.errorText}>
+                  {error}
+                </AppText>
+              </View>
+            ) : null}
+
+            {/* Email input */}
+            <View style={styles.inputContainer}>
+              <AppText variant="labelMd" color="inverseOnSurface" style={styles.label}>
+                Email
+              </AppText>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="mail-outline" size={20} color={colors.inverseOnSurface} style={styles.inputIcon} />
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Enter your email"
+                  placeholderTextColor={colors.authGlass.placeholder}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="off"
+                  textContentType="none"
+                  style={styles.input}
+                />
+              </View>
             </View>
-          </View>
 
-          {/* Sign In button */}
-          <TouchableOpacity
-            style={[styles.primaryButton, loading && styles.buttonDisabled]}
-            onPress={handleEmailSignIn}
-            disabled={loading || googleLoading}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.onPrimary} />
-            ) : (
-              <Text style={styles.primaryButtonText}>Sign In</Text>
-            )}
-          </TouchableOpacity>
+            {/* Password input */}
+            <View style={styles.inputContainer}>
+              <AppText variant="labelMd" color="inverseOnSurface" style={styles.label}>
+                Password
+              </AppText>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="lock-closed-outline" size={20} color={colors.inverseOnSurface} style={styles.inputIcon} />
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  placeholderTextColor={colors.authGlass.placeholder}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="off"
+                  textContentType="oneTimeCode"
+                  style={styles.input}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={colors.inverseOnSurface}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
+            {/* Sign In button */}
+            <AnimatedPressable
+              onPress={handleEmailSignIn}
+              haptics="medium"
+              disabled={loading || googleLoading}
+              style={styles.primaryButton}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <AppText variant="titleMd" color="onPrimary" style={styles.primaryButtonText}>
+                  Sign In
+                </AppText>
+              )}
+            </AnimatedPressable>
 
-          {/* Google Sign In */}
-          <TouchableOpacity
-            style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
-            onPress={handleGoogleSignIn}
-            disabled={loading || googleLoading}
-          >
-            {googleLoading ? (
-              <ActivityIndicator color={colors.onSurface} />
-            ) : (
-              <>
-                <Ionicons name="logo-google" size={20} color="#DB4437" />
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <AppText variant="bodyMd" color="inverseOnSurface" style={styles.dividerText}>
+                or
+              </AppText>
+              <View style={styles.dividerLine} />
+            </View>
 
-          {/* Sign Up link */}
-          <View style={styles.signUpContainer}>
-            <Text style={styles.signUpText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-              <Text style={styles.signUpLink}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            {/* Sign in with Apple (iOS only — Apple Guideline 4.8) */}
+            <AppleSignInButton
+              type="SIGN_IN"
+              appearance="white"
+              onPress={handleAppleSignIn}
+              style={styles.appleButton}
+            />
+
+            {/* Google Sign In */}
+            <AnimatedPressable
+              onPress={handleGoogleSignIn}
+              haptics="medium"
+              disabled={loading || googleLoading}
+              style={styles.googleButton}
+            >
+              {googleLoading ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={20} color={colors.onPrimary} />
+                  <AppText variant="titleMd" color="onPrimary" style={styles.googleButtonText}>
+                    Continue with Google
+                  </AppText>
+                </>
+              )}
+            </AnimatedPressable>
+
+            {/* Sign Up link */}
+            <Animated.View entering={FadeInUp.delay(150).duration(400)} style={styles.signUpContainer}>
+              <AnimatedPressable onPress={() => navigation.navigate('Signup')} haptics="light">
+                <AppText variant="bodyMd" color="inverseOnSurface" align="center">
+                  Don't have an account?{' '}
+                  <AppText variant="bodyMd" color="onPrimary" style={styles.signUpLink}>
+                    Sign Up
+                  </AppText>
+                </AppText>
+              </AnimatedPressable>
+            </Animated.View>
+
+            {/* Terms notice — the EULA (with its zero-tolerance objectionable-content
+                policy) is presented before logging in too, not only at signup
+                (App Store Guideline 1.2). */}
+            <AppText variant="caption" color="inverseOnSurface" align="center" style={styles.termsNotice}>
+              By continuing you agree to our{' '}
+              <AppText
+                variant="caption"
+                color="onPrimary"
+                style={styles.termsLink}
+                onPress={() => navigation.navigate('Disclaimer')}
+              >
+                Terms of Use (EULA)
+              </AppText>{' '}
+              and{' '}
+              <AppText
+                variant="caption"
+                color="onPrimary"
+                style={styles.termsLink}
+                onPress={() => Linking.openURL(PRIVACY_URL)}
+              >
+                Privacy Policy
+              </AppText>
+              .
+            </AppText>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.welcomeDark[2],
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   flex: {
     flex: 1,
@@ -211,27 +290,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 6,
   },
   logo: {
     width: 130,
     height: 130,
-    tintColor: '#FFFFFF',
+    tintColor: colors.onPrimary,
   },
   title: {
-    fontFamily: 'Lora_700Bold',
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.onSurface,
     marginBottom: spacing.base,
   },
   subtitle: {
-    fontSize: 16,
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
+    opacity: 0.82,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -245,24 +318,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    fontSize: 14,
-    color: colors.onErrorContainer,
   },
   inputContainer: {
     marginBottom: spacing.md,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.onSurface,
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.authGlass.inputBg,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: colors.authGlass.inputBorder,
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.sm,
   },
@@ -273,7 +341,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     fontSize: 16,
-    color: colors.onSurface,
+    color: colors.inverseOnSurface,
   },
   eyeButton: {
     padding: 8,
@@ -283,15 +351,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: borderRadius.default,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: spacing.sm,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.onPrimary,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
+    fontSize: 17,
   },
   divider: {
     flexDirection: 'row',
@@ -301,42 +370,45 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.outlineVariant,
+    backgroundColor: colors.authGlass.divider,
   },
   dividerText: {
-    fontSize: 14,
-    color: colors.onSurfaceVariant,
     marginHorizontal: spacing.sm,
+    opacity: 0.8,
+  },
+  appleButton: {
+    marginBottom: spacing.sm,
   },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.authGlass.googleBg,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: colors.authGlass.googleBorder,
     paddingVertical: 14,
     borderRadius: borderRadius.default,
     gap: 10,
   },
   googleButtonText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: colors.onSurface,
   },
   signUpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: spacing.lg,
   },
-  signUpText: {
-    fontSize: 14,
-    color: colors.onSurfaceVariant,
-  },
   signUpLink: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
+    fontFamily: 'NunitoSans_700Bold',
+  },
+  termsNotice: {
+    marginTop: spacing.md,
+    opacity: 0.8,
+    paddingHorizontal: spacing.sm,
+  },
+  termsLink: {
+    fontFamily: 'NunitoSans_700Bold',
+    textDecorationLine: 'underline',
   },
 });
 

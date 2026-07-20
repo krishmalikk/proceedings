@@ -2,6 +2,7 @@
 // Connects to the same backend API as the website
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { assertAIConsent } from './aiConsent';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://immiguide-api-971592620882.us-central1.run.app';
 
@@ -105,6 +106,9 @@ export interface QAItem {
  * Submit an immigration question to the AI
  */
 export async function askQuestion(question: string): Promise<AskResponse> {
+  // Do not transmit the user's question to the AI backend without consent
+  // (App Store 5.1.1(i)/5.1.2(i)).
+  assertAIConsent();
   const response = await fetch(`${API_URL}/api/ask`, {
     method: 'POST',
     headers: {
@@ -200,6 +204,82 @@ export async function castVote(contentId: string, dir: -1 | 0 | 1): Promise<Vote
   return data;
 }
 
+// ============= UGC safety: report + block (App Store Guideline 1.2) =============
+
+export type ContentType = 'posting' | 'reply' | 'message';
+export type ReportReason =
+  | 'harassment' | 'hate' | 'violence' | 'sexual' | 'spam'
+  | 'self_harm' | 'illegal' | 'other';
+
+export interface ReportResult {
+  ok: boolean;
+  report_count: number;
+  hidden: boolean;
+}
+
+/** Flag a posting/reply/message as objectionable. `containerId` is the group id
+ *  when reporting a group message. */
+export async function reportContent(
+  contentId: string,
+  contentType: ContentType,
+  reason: ReportReason = 'other',
+  containerId = ''
+): Promise<ReportResult> {
+  const response = await fetch(`${API_URL}/api/reports`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({
+      content_id: contentId,
+      content_type: contentType,
+      container_id: containerId,
+      reason,
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not submit report');
+  }
+  return data;
+}
+
+/** Block an abusive user. Returns the caller's updated block list (uids). */
+export async function blockUser(blockedUid: string): Promise<string[]> {
+  const response = await fetch(`${API_URL}/api/blocks`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ blocked_uid: blockedUid }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not block user');
+  }
+  return data.blocked_uids || [];
+}
+
+export async function unblockUser(blockedUid: string): Promise<string[]> {
+  const response = await fetch(`${API_URL}/api/blocks/${encodeURIComponent(blockedUid)}`, {
+    method: 'DELETE',
+    headers: userHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not unblock user');
+  }
+  return data.blocked_uids || [];
+}
+
+/** The caller's current block list (uids). Best-effort — returns [] on error. */
+export async function getBlockedUsers(): Promise<string[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/blocks`, { headers: userHeaders() });
+    const data = await response.json();
+    if (!response.ok) return [];
+    return data.blocked_uids || [];
+  } catch {
+    return [];
+  }
+}
+
 // ============= Replies =============
 
 export interface ReplyCardData {
@@ -207,6 +287,7 @@ export interface ReplyCardData {
   parent_case_id: string;
   body: string;
   author_handle: string;
+  author_id?: string; // author uid (blank on your own) — enables block-user
   created_at: string;
   deleted: boolean;
   up: number;
@@ -458,6 +539,8 @@ export async function onboardTurn(
   messages: { role: string; content: string }[],
   draft: OnboardProfile
 ): Promise<OnboardResponse> {
+  // Onboarding sends profile/background details to the AI backend — gated on consent.
+  assertAIConsent();
   const response = await fetch(`${API_URL}/api/onboard`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
@@ -487,6 +570,7 @@ export interface SearchResultItem {
   url: string;
   date: string;
   timestamp?: string; // full ingestion timestamp (for relative "X ago")
+  author_id?: string; // authoring app user (first-party only) — enables block-user
 }
 
 export interface SearchFacetValue {
@@ -724,6 +808,7 @@ export async function leaveGroup(groupId: string): Promise<void> {
 export interface ChatMessage {
   id: string;
   author_handle: string;
+  author_id?: string; // author uid (blank on your own) — enables block-user
   text: string;
   created_at: string;
   deleted: boolean;
@@ -782,6 +867,8 @@ export interface ReconcileResult {
 }
 
 export async function reconcile(message: Partial<Criteria>): Promise<ReconcileResult> {
+  // Reconciliation runs the user's message/profile through the AI backend — gated.
+  assertAIConsent();
   const response = await fetch(`${API_URL}/api/reconcile`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),

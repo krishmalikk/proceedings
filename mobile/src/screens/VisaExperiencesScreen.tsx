@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { PostingCard, AnimatedPressable, AnimatedListItem } from '../components';
+import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import {
   searchPostings,
@@ -33,9 +34,12 @@ const STRICTNESS_LEVELS: { value: Strictness; label: string }[] = [
 
 export function VisaExperiencesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const { isBlocked } = useAuth();
   const [query, setQuery] = useState('');
   const [strictness, setStrictness] = useState<Strictness>('balanced');
   const [results, setResults] = useState<SearchResultItem[]>([]);
+  // Case ids the viewer just reported/blocked — hidden instantly (App Store 1.2).
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [suggested, setSuggested] = useState<SuggestedFilterGroup[]>([]);
   const [selectedFacets, setSelectedFacets] = useState<Set<string>>(new Set());
   const [nextPageToken, setNextPageToken] = useState('');
@@ -221,17 +225,23 @@ export function VisaExperiencesScreen() {
         )}
 
         {/* Results */}
-        {searched && !loading && (
+        {searched && !loading && (() => {
+          // Hide postings from blocked authors instantly (server also filters).
+          const visible = results.filter((r) => !isBlocked(r.author_id) && !hiddenIds.has(r.case_id));
+          return (
           <Animated.View style={styles.results} entering={FadeIn.duration(300)}>
             <Text style={styles.resultsCount}>
-              {results.length === 0
+              {visible.length === 0
                 ? 'No results - try broadening your search.'
-                : `${results.length} result${results.length === 1 ? '' : 's'}`}
+                : `${visible.length} result${visible.length === 1 ? '' : 's'}`}
             </Text>
-            {results.map((r, index) => (
-              <AnimatedListItem key={r.case_id} index={index} staggerDelay={60}>
+            {visible.map((r, index) => (
+              // Stagger capped at 6 (A4 policy) so long feeds appear promptly.
+              <AnimatedListItem key={r.case_id} index={Math.min(index, 6)} staggerDelay={60}>
                 <PostingCard
                   posting={r}
+                  authorId={r.author_id}
+                  onActioned={() => setHiddenIds((prev) => new Set(prev).add(r.case_id))}
                   onPress={() => navigation.navigate('CaseDetails', { caseId: r.case_id })}
                 />
               </AnimatedListItem>
@@ -242,7 +252,8 @@ export function VisaExperiencesScreen() {
               </AnimatedPressable>
             ) : null}
           </Animated.View>
-        )}
+          );
+        })()}
 
         <View style={{ height: spacing.xl }} />
         </ScrollView>
@@ -272,7 +283,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: 'Lora_600SemiBold',
     fontSize: 17,
-    fontWeight: '600',
     color: colors.onSurface,
   },
   content: { flex: 1, paddingHorizontal: spacing.md },
@@ -297,14 +307,14 @@ const styles = StyleSheet.create({
     minWidth: 76,
     alignItems: 'center',
   },
-  searchButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 14, fontFamily: 'NunitoSans_600SemiBold' },
+  searchButtonText: { color: colors.onPrimary, fontSize: 14, fontFamily: 'NunitoSans_600SemiBold' },
   strictnessRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: spacing.md,
   },
-  strictnessLabel: { fontSize: 13, color: colors.onSurfaceVariant, fontWeight: '500', fontFamily: 'NunitoSans_500Medium' },
+  strictnessLabel: { fontSize: 13, color: colors.onSurfaceVariant, fontFamily: 'NunitoSans_500Medium' },
   segmented: {
     flexDirection: 'row',
     backgroundColor: colors.surfaceContainerHigh,
@@ -314,7 +324,7 @@ const styles = StyleSheet.create({
   segment: { paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: borderRadius.full },
   segmentActive: { backgroundColor: colors.primary },
   segmentText: { fontSize: 13, color: colors.onSurfaceVariant, fontFamily: 'NunitoSans_400Regular' },
-  segmentTextActive: { color: colors.onPrimary, fontWeight: '600', fontFamily: 'NunitoSans_600SemiBold' },
+  segmentTextActive: { color: colors.onPrimary, fontFamily: 'NunitoSans_600SemiBold' },
   filtersBlock: { marginTop: spacing.md },
   filtersHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
   filtersTitle: { fontSize: 13, fontWeight: '600', color: colors.onSurface },

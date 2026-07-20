@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.base,
   },
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: colors.onSurface },
+  headerTitle: { fontFamily: 'Lora_600SemiBold', fontSize: 17, color: colors.onSurface },
   content: { flex: 1, paddingHorizontal: spacing.md },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.base },
   overline: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, color: colors.onSurfaceVariant },

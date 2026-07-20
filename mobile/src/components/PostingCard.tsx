@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './Card';
-import { colors, spacing, borderRadius } from '../constants/theme';
+import { AnimatedPressable } from './AnimatedPressable';
+import { ContentActionsMenu } from './ContentActionsMenu';
+import { colors, spacing, borderRadius, typography } from '../constants/theme';
 
 export type PostingCardData = {
   case_id: string;
@@ -22,6 +24,11 @@ export type PostingCardData = {
 interface PostingCardProps {
   posting: PostingCardData;
   onPress?: () => void;
+  // When provided, a "..." overflow appears on the card so users can report the
+  // posting or block its author without opening the detail view (App Store 1.2).
+  authorId?: string;
+  authorHandle?: string;
+  onActioned?: (action: 'reported' | 'blocked') => void;
 }
 
 // Relative "X ago" for data-freshness (mirrors ReplyItem/GroupChat).
@@ -42,19 +49,34 @@ function timeAgo(iso: string): string {
 function getOutcomeBadgeStyle(outcome: string) {
   const o = outcome.toLowerCase();
   if (o === 'approved' || o === 'issued') {
-    return { backgroundColor: colors.secondaryContainer, color: colors.onSecondaryContainer };
+    return { backgroundColor: colors.successContainer, color: colors.onSuccessContainer };
+  }
+  if (o === 'denied' || o === 'refused' || o === 'rejected') {
+    return { backgroundColor: colors.errorContainer, color: colors.onErrorContainer };
   }
   return { backgroundColor: colors.surfaceContainerHigh, color: colors.onSurfaceVariant };
 }
 
-export function PostingCard({ posting, onPress }: PostingCardProps) {
+export function PostingCard({ posting, onPress, authorId, authorHandle, onActioned }: PostingCardProps) {
   const outcomeStyle = posting.outcome ? getOutcomeBadgeStyle(posting.outcome) : null;
 
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+    <AnimatedPressable onPress={onPress} scaleTo={0.97} haptics="light">
       <Card style={styles.card}>
+        {/* Report/block overflow — rendered on top-right; no-ops on own content. */}
+        {onActioned ? (
+          <ContentActionsMenu
+            contentId={posting.case_id}
+            contentType="posting"
+            authorId={authorId}
+            authorHandle={authorHandle}
+            onActioned={onActioned}
+            style={styles.overflow}
+          />
+        ) : null}
+
         {/* Badges row */}
-        <View style={styles.badgesRow}>
+        <View style={[styles.badgesRow, onActioned && styles.badgesRowWithOverflow]}>
           {posting.outcome && (
             <View style={[styles.badge, { backgroundColor: outcomeStyle?.backgroundColor }]}>
               <Text style={[styles.badgeText, { color: outcomeStyle?.color }]}>
@@ -64,13 +86,13 @@ export function PostingCard({ posting, onPress }: PostingCardProps) {
           )}
           {posting.visa.slice(0, 2).map((v) => (
             <View key={v} style={[styles.badge, styles.primaryBadge]}>
-              <Text style={styles.primaryBadgeText}>{v}</Text>
+              <Text style={[styles.badgeText, styles.primaryBadgeText]}>{v}</Text>
             </View>
           ))}
           {posting.consulates.slice(0, 2).map((c) => (
             <View key={c} style={[styles.badge, styles.locationBadge]}>
               <Ionicons name="location-outline" size={12} color={colors.onSurfaceVariant} />
-              <Text style={styles.locationBadgeText}>{c}</Text>
+              <Text style={[styles.badgeText, styles.locationBadgeText]}>{c}</Text>
             </View>
           ))}
         </View>
@@ -99,7 +121,7 @@ export function PostingCard({ posting, onPress }: PostingCardProps) {
           </View>
         </View>
       </Card>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
@@ -107,48 +129,52 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.sm,
   },
+  overflow: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    zIndex: 2,
+  },
   badgesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
     marginBottom: spacing.base,
   },
+  badgesRowWithOverflow: {
+    paddingRight: 28, // leave room for the "..." overflow
+  },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: borderRadius.sm,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
     gap: 4,
   },
   badgeText: {
+    fontFamily: 'NunitoSans_600SemiBold',
     fontSize: 11,
-    fontWeight: '500',
   },
   primaryBadge: {
     backgroundColor: colors.primaryContainer,
   },
   primaryBadgeText: {
-    fontSize: 11,
-    fontWeight: '500',
     color: colors.onPrimaryContainer,
   },
   locationBadge: {
     backgroundColor: colors.surfaceContainerHigh,
   },
   locationBadgeText: {
-    fontSize: 11,
-    fontWeight: '500',
     color: colors.onSurfaceVariant,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...typography.titleMd,
     color: colors.onSurface,
-    lineHeight: 22,
     marginBottom: spacing.base,
   },
   description: {
+    fontFamily: 'NunitoSans_400Regular',
     fontSize: 14,
     color: colors.onSurfaceVariant,
     lineHeight: 20,
@@ -159,11 +185,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: spacing.sm,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.outlineVariant,
   },
   source: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.onSurfaceVariant,
   },
   viewMore: {
@@ -172,9 +198,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   viewMoreText: {
+    fontFamily: 'NunitoSans_600SemiBold',
     fontSize: 12,
     color: colors.primary,
-    fontWeight: '500',
   },
 });
 

@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>971592620882-s40vq9s0j2dskitsk4g0n7sshpioek7g.apps.googleusercontent.com</string>
+	<string>971592620882-001kh4740otue78vp6c6fem3f7k4cadl.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.971592620882-s40vq9s0j2dskitsk4g0n7sshpioek7g</string>
+	<string>com.googleusercontent.apps.971592620882-001kh4740otue78vp6c6fem3f7k4cadl</string>
 	<key>API_KEY</key>
 	<string>AIzaSyAi5ga9JPNSNOZHuFmNCLNwrpngpdvqMv0</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +13,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.krishmalik.proceedings</string>
+	<string>com.krishmalik.meridian</string>
 	<key>PROJECT_ID</key>
 	<string>proceedings-490601</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:971592620882:ios:130d9786411a1c76def88b</string>
+	<string>1:971592620882:ios:061e55d12dc68809def88b</string>
 </dict>
 </plist>

@@ -70,21 +70,25 @@ def _norm_dir(value: int) -> int:
 # ---------------------------------------------------------------------------
 
 def _reply_view(doc: dict, tally: dict, your_vote: int, viewer_id: str) -> dict:
-    """Client-facing reply shape. `user_id` is intentionally omitted; the only
-    thing the client learns about authorship is the boolean `is_author`."""
+    """Client-facing reply shape. `author_id` (the author's uid) is exposed so a
+    reader can block an abusive author (App Store Guideline 1.2); it is omitted
+    (blanked) on the reader's OWN replies to avoid leaking it needlessly, and
+    `is_author` still drives author-only affordances like delete."""
     deleted = bool(doc.get("deleted"))
+    is_author = bool(viewer_id) and doc.get("user_id") == viewer_id
     return {
         "id": doc["id"],
         "parent_case_id": doc.get("parent_case_id", ""),
         "body": "" if deleted else doc.get("body", ""),
         "author_handle": doc.get("author_handle", ""),
+        "author_id": "" if is_author else doc.get("user_id", ""),
         "created_at": doc.get("created_at", ""),
         "deleted": deleted,
         "up": tally["up"],
         "down": tally["down"],
         "score": tally["score"],
         "your_vote": your_vote,
-        "is_author": bool(viewer_id) and doc.get("user_id") == viewer_id,
+        "is_author": is_author,
     }
 
 
@@ -184,6 +188,11 @@ def add_reply(db, parent_case_id: str, body: str, user_id: str, author_handle: s
         raise ValueError(f"Reply is too long (max {MAX_BODY} characters).")
     if not user_id:
         raise ValueError("A user id is required to reply.")
+
+    # Content moderation (App Store Guideline 1.2): reject objectionable replies
+    # before storage. Raises ValueError → HTTP 422 at the create_reply route.
+    import moderation
+    moderation.check_text(body)
 
     # Redact PII (email / phone / A-number) before storing — same defensive
     # scrub applied to profiles and group messages, so a reply can never expose

@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 
-const LAST_UPDATED = 'June 14, 2026';
+const LAST_UPDATED = 'July 3, 2026';
 const SUPPORT_EMAIL = 'support@meridianjourney.ai';
 
 // Standard legal disclaimer - mirrors the website /disclaimer page. Plain,
@@ -43,7 +43,22 @@ const SECTIONS: { heading: string; body: string }[] = [
       'legal advice. You rely on user-generated content at your own risk.',
   },
   {
-    heading: '4. AI-Generated Information',
+    heading: '4. Community Guidelines — Zero Tolerance for Objectionable Content',
+    body:
+      'By using the Service you agree to this End User License Agreement (EULA) and our community ' +
+      'guidelines. There is ZERO TOLERANCE for objectionable content or abusive behavior. You will ' +
+      'not post, upload, or transmit any content that is unlawful, harassing, threatening, abusive, ' +
+      'hateful, defamatory, obscene, sexually explicit, or that promotes violence or discrimination, ' +
+      'and you will not harass, bully, impersonate, or abuse other users. Objectionable content is ' +
+      'filtered on submission and may be automatically blocked. You can flag/report any content and ' +
+      'block any user directly in the app (via the "..." menu on a posting, reply, or message). ' +
+      'Reported content is reviewed and, where it violates these terms, removed within 24 hours, and ' +
+      'the responsible user may be suspended or permanently removed. We may remove content and ' +
+      'terminate accounts that violate these terms at our sole discretion. To report abuse you may ' +
+      'also contact us at ' + SUPPORT_EMAIL + '.',
+  },
+  {
+    heading: '5. AI-Generated Information',
     body:
       'Certain features of the Service use automated and artificial-intelligence systems to ' +
       'generate responses or summaries. These outputs may be incomplete, outdated, or incorrect, ' +
@@ -52,7 +67,7 @@ const SECTIONS: { heading: string; body: string }[] = [
       'should be independently verified with a qualified attorney before you act on it.',
   },
   {
-    heading: '5. Not a Law Firm or Government Agency',
+    heading: '6. Not a Law Firm or Government Agency',
     body:
 'Meridian is not a law firm, is not a substitute for an attorney or law firm, and does ' +
       'not practice law. Meridian is not affiliated with, endorsed by, or acting on behalf of ' +
@@ -61,7 +76,7 @@ const SECTIONS: { heading: string; body: string }[] = [
       'relevant government source.',
   },
   {
-    heading: '6. No Warranty; Accuracy Not Guaranteed',
+    heading: '7. No Warranty; Accuracy Not Guaranteed',
     body:
       'Immigration law and government procedures change frequently and vary by individual ' +
       'circumstances and jurisdiction. The Service is provided on an “as is” and “as available” ' +
@@ -71,7 +86,7 @@ const SECTIONS: { heading: string; body: string }[] = [
       'or applicable to your situation.',
   },
   {
-    heading: '7. No Endorsement of Third Parties',
+    heading: '8. No Endorsement of Third Parties',
     body:
       'Any reference to, or listing of, attorneys, consultants, professionals, organizations, or ' +
       'external resources is provided for convenience only and does not constitute an endorsement, ' +
@@ -79,7 +94,7 @@ const SECTIONS: { heading: string; body: string }[] = [
       'responsible for evaluating and selecting any professional you choose to engage.',
   },
   {
-    heading: '8. Limitation of Liability',
+    heading: '9. Limitation of Liability',
     body:
 'To the fullest extent permitted by law, Meridian and its owners, operators, employees, ' +
       'and contributors shall not be liable for any loss, damage, or harm of any kind arising out ' +
@@ -87,7 +102,7 @@ const SECTIONS: { heading: string; body: string }[] = [
       'through it. Your use of the Service is entirely at your own risk.',
   },
   {
-    heading: '9. Consult a Licensed Attorney',
+    heading: '10. Consult a Licensed Attorney',
     body:
       'For advice about your specific immigration matter, you should consult a licensed immigration ' +
       'attorney admitted to practice in the relevant jurisdiction. Do not delay seeking ' +
@@ -95,7 +110,7 @@ const SECTIONS: { heading: string; body: string }[] = [
       'received through the Service.',
   },
   {
-    heading: '10. Changes to This Disclaimer',
+    heading: '11. Changes to This Disclaimer',
     body:
       'We may update this disclaimer from time to time. Any changes will be effective upon posting ' +
       'within the Service, with the “Last updated” date revised accordingly. Your continued use of ' +
@@ -160,7 +175,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.outlineVariant,
   },
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: colors.onSurface },
+  headerTitle: { fontFamily: 'Lora_600SemiBold', fontSize: 17, color: colors.onSurface },
   content: { flex: 1 },
   contentInner: { paddingHorizontal: spacing.marginMobile, paddingTop: spacing.md },
   overline: {

@@ -7,6 +7,8 @@ jest.mock('../../services/apiService', () => ({ getPosting: jest.fn() }));
 // Stub the heavy children that fetch on their own - isolate the screen's own UI.
 jest.mock('../../components/VoteControl', () => ({ VoteControl: () => null }));
 jest.mock('../../components/Replies', () => ({ Replies: () => null }));
+// The report/block overflow pulls the auth context; stub it out for this screen test.
+jest.mock('../../components/ContentActionsMenu', () => ({ ContentActionsMenu: () => null }));
 jest.mock('../../components/AuthorCard', () => {
   const React = require('react');
   const { Text } = require('react-native');

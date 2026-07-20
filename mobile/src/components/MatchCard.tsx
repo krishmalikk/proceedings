@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { AnimatedPressable } from './AnimatedPressable';
 import { colors, spacing, borderRadius } from '../constants/theme';
 
 export type MatchData = {
@@ -20,9 +21,10 @@ interface MatchCardProps {
 
 export function MatchCard({ match, checked, onToggle }: MatchCardProps) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
+    <AnimatedPressable
       onPress={() => onToggle(match.user_id)}
+      scaleTo={0.97}
+      haptics="medium"
       style={[
         styles.container,
         checked ? styles.containerChecked : styles.containerUnchecked,
@@ -56,7 +58,7 @@ export function MatchCard({ match, checked, onToggle }: MatchCardProps) {
           ))}
         </View>
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
@@ -92,21 +94,23 @@ const styles = StyleSheet.create({
     gap: spacing.base,
   },
   username: {
+    fontFamily: 'NunitoSans_700Bold',
     fontSize: 14,
-    fontWeight: '600',
     color: colors.onSurface,
   },
   score: {
+    fontFamily: 'NunitoSans_400Regular',
     fontSize: 12,
     color: colors.onSurfaceVariant,
   },
   summary: {
+    fontFamily: 'NunitoSans_600SemiBold',
     fontSize: 12,
-    fontWeight: '500',
     color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   background: {
+    fontFamily: 'NunitoSans_400Regular',
     fontSize: 12,
     color: colors.onSurfaceVariant,
     marginTop: 4,

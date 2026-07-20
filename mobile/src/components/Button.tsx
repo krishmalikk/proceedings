@@ -154,7 +154,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   text: {
-    fontWeight: '600',
+    // Brand body face; weight lives in the family name (see AGENTS.md).
+    fontFamily: 'NunitoSans_600SemiBold',
     textAlign: 'center',
   },
 });

@@ -15,11 +15,18 @@ import { Card, Markdown, AnimatedPressable } from '../components';
 import { AuthorCard } from '../components/AuthorCard';
 import { VoteControl } from '../components/VoteControl';
 import { Replies } from '../components/Replies';
+import { ContentActionsMenu } from '../components/ContentActionsMenu';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { Skeleton } from '../components/Skeleton';
+import { ErrorState } from '../components/ErrorState';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { getPosting, PostingData } from '../services/apiService';
 
 type Tally = { up: number; down: number; score: number; your_vote: number };
 const ZERO_TALLY: Tally = { up: 0, down: 0, score: 0, your_vote: 0 };
+
+// Flip on when the verified-attorney guidance feature actually ships.
+const ATTORNEY_GUIDANCE_TEASER = false;
 
 function outcomeBadgeStyle(outcome: string) {
   const o = outcome.toLowerCase();
@@ -36,18 +43,23 @@ export function CaseDetailsScreen({ navigation, route }: any) {
   const [error, setError] = useState('');
   const [postingTally, setPostingTally] = useState<Tally>(ZERO_TALLY);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!caseId) {
       setError('No posting selected.');
       setLoading(false);
       return;
     }
     setLoading(true);
+    setError('');
     getPosting(caseId)
       .then(setData)
       .catch((e) => setError(e instanceof Error ? e.message : 'Could not load posting'))
       .finally(() => setLoading(false));
   }, [caseId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const onPostingTally = useCallback((t: Tally) => setPostingTally(t), []);
 
@@ -57,27 +69,29 @@ export function CaseDetailsScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Case Details</Text>
-        <View style={styles.backButton} />
-      </View>
+      <ScreenHeader
+        title="Case Details"
+        onBack={() => navigation.goBack()}
+        rightAction={
+          data && !isReddit ? (
+            <ContentActionsMenu
+              contentId={data.case_id}
+              contentType="posting"
+              authorId={data.author_id}
+              authorHandle={data.author_handle}
+              onActioned={() => navigation.goBack()}
+              color={colors.onSurface}
+            />
+          ) : undefined
+        }
+      />
 
       {loading && (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading posting…</Text>
+        <View style={styles.skeletonWrap}>
+          <Skeleton.Card count={2} />
         </View>
       )}
-      {!!error && !loading && (
-        <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={40} color={colors.error} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+      {!!error && !loading && <ErrorState body={error} onRetry={load} />}
 
       {data && !loading && (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -213,13 +227,16 @@ export function CaseDetailsScreen({ navigation, route }: any) {
             </TouchableOpacity>
           )}
 
-          {/* Coming Soon tile (website parity) */}
-          <Card style={styles.comingSoon}>
-            <Text style={styles.comingSoonTitle}>Coming Soon</Text>
-            <Text style={styles.comingSoonText}>
-              Personalized guidance from a verified immigration attorney is coming soon.
-            </Text>
-          </Card>
+          {/* Attorney-guidance teaser — flag-gated OFF until the feature ships;
+              a permanent "Coming Soon" box read as unfinished on every posting. */}
+          {ATTORNEY_GUIDANCE_TEASER && (
+            <Card style={styles.comingSoon}>
+              <Text style={styles.comingSoonTitle}>Coming Soon</Text>
+              <Text style={styles.comingSoonText}>
+                Personalized guidance from a verified immigration attorney is coming soon.
+              </Text>
+            </Card>
+          )}
 
           {/* Replies - same component as the rest of the app */}
           <View style={styles.repliesWrap}>
@@ -235,18 +252,7 @@ export function CaseDetailsScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.base,
-  },
-  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: colors.onSurface },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
-  loadingText: { marginTop: spacing.base, color: colors.onSurfaceVariant },
-  errorText: { marginTop: spacing.base, color: colors.error, textAlign: 'center' },
+  skeletonWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
   content: { flex: 1, paddingHorizontal: spacing.md },
   titleRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.base },
   titleBlock: { flex: 1, minWidth: 0 },

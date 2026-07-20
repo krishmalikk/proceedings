@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { AnimatedPressable } from '../components/AnimatedPressable';
 import { ChipSelector } from '../components/ChipSelector';
+import { ProgressStepper } from '../components/ProgressStepper';
 import Markdown from '../components/Markdown';
 import {
   VISA_CATEGORIES,
@@ -347,6 +348,8 @@ export function BackgroundOnboardingScreen() {
 
           {/* Header */}
           <Animated.View style={styles.header} entering={FadeInDown.delay(100).duration(400)}>
+            {/* Step 1 of 2 — users can finally see how long onboarding is. */}
+            <ProgressStepper steps={[{ label: 'Background' }, { label: 'Experiences' }]} currentStep={0} />
             <Text style={styles.title}>Tell us about your journey</Text>
             <Text style={styles.subtitle}>
               This helps us connect you with others in similar situations

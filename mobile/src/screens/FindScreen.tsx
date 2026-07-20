@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, borderRadius } from '../constants/theme';
-import { MatchCard, Card, Markdown, Header } from '../components';
+import { MatchCard, Card, Markdown, Header, Skeleton, EmptyState, AnimatedPressable, AnimatedListItem } from '../components';
 import {
   getUsers,
   getTagVocab,
@@ -347,32 +347,37 @@ export function FindScreen() {
         {tab === 'browse' ? (
           <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
             {browseLoading ? (
-              <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+              <Skeleton.Card count={3} />
             ) : (
               <>
                 <Text style={styles.sectionTitle}>Your Groups</Text>
                 {myGroups.length === 0 ? (
-                  <Card style={styles.emptyCard}>
-                    <Text style={styles.emptyText}>
-                      You haven't joined any group yet. Create or find one!
-                    </Text>
-                  </Card>
+                  <EmptyState
+                    icon="people-outline"
+                    title="No groups yet"
+                    body="Find people in the same boat, or start your own group."
+                    actionLabel="Find your group"
+                    onAction={() => setTab('find')}
+                  />
                 ) : (
-                  myGroups.map((g) => (
-                    <TouchableOpacity
-                      key={g.group_id}
-                      style={styles.groupCard}
-                      onPress={() => navigation.navigate('GroupChat', { groupId: g.group_id, groupName: g.name })}
-                    >
-                      <View style={styles.groupHeader}>
-                        <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-                        <Text style={styles.groupName}>{g.name}</Text>
-                      </View>
-                      {g.criteria_text ? <Text style={styles.groupCriteria}>{g.criteria_text}</Text> : null}
-                      <Text style={styles.groupMembers}>
-                        {g.members.length} member{g.members.length !== 1 ? 's' : ''}
-                      </Text>
-                    </TouchableOpacity>
+                  myGroups.map((g, index) => (
+                    <AnimatedListItem key={g.group_id} index={Math.min(index, 6)} staggerDelay={60}>
+                      <AnimatedPressable
+                        style={styles.groupCard}
+                        scaleTo={0.97}
+                        haptics="light"
+                        onPress={() => navigation.navigate('GroupChat', { groupId: g.group_id, groupName: g.name })}
+                      >
+                        <View style={styles.groupHeader}>
+                          <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                          <Text style={styles.groupName}>{g.name}</Text>
+                        </View>
+                        {g.criteria_text ? <Text style={styles.groupCriteria}>{g.criteria_text}</Text> : null}
+                        <Text style={styles.groupMembers}>
+                          {g.members.length} member{g.members.length !== 1 ? 's' : ''}
+                        </Text>
+                      </AnimatedPressable>
+                    </AnimatedListItem>
                   ))
                 )}
 

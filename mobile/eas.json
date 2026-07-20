@@ -4,17 +4,33 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://immiguide-api-971592620882.us-central1.run.app",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDP54OKGTYch6BtKOLRCPDZJzooP1XOPnU",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "proceedings-490601.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "proceedings-490601",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "proceedings-490601.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "971592620882",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:971592620882:web:47b14e2e710fd940def88b",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "971592620882-001kh4740otue78vp6c6fem3f7k4cadl.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "971592620882-el3u8esdfnui8kdeqtkv0jgp0rm51aeo.apps.googleusercontent.com"
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
       "distribution": "internal"
     },
     "preview": {
+      "extends": "base",
       "distribution": "internal",
       "ios": {
         "simulator": true
       }
     },
     "production": {
+      "extends": "base",
       "autoIncrement": true
     }
   },

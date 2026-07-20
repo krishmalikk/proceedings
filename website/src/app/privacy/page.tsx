@@ -170,7 +170,7 @@ const BLOCKS: Block[] = [
   },
   {
     "type": "p",
-    "text": "Sensitive Information. We do not process sensitive information."
+    "text": "Sensitive Information. To operate the Service, we process the information you choose to provide about your immigration situation — such as visa type or category, consulate, key dates, and the background and questions you enter. Where required, we do so with your consent. This information, along with the questions you submit to our AI features, is shared with our third-party AI service provider (Google's Gemini / Google Cloud AI) to generate responses and structure onboarding, as described in \"DO WE OFFER ARTIFICIAL INTELLIGENCE-BASED PRODUCTS?\" below. You are asked for permission in the app before any data is sent to the AI service, and you can disable AI features at any time in the app's Profile settings."
   },
   {
     "type": "p",
@@ -335,7 +335,7 @@ const BLOCKS: Block[] = [
   },
   {
     "type": "p",
-    "text": "We provide the AI Products through third-party service providers (\"AI Service Providers\"), including Google Cloud AI. As outlined in this Privacy Notice, your input, output, and personal information will be shared with and processed by these AI Service Providers to enable your use of our AI Products for purposes outlined in \"WHAT LEGAL BASES DO WE RELY ON TO PROCESS YOUR PERSONAL INFORMATION?\" You must not use the AI Products in any way that violates the terms or policies of any AI Service Provider."
+    "text": "We provide the AI Products through third-party service providers (\"AI Service Providers\"), specifically Google's Gemini models (Google Cloud AI). The data shared with the AI Service Provider is the text you enter into AI features — your questions and the profile details you provide, such as visa type or category, consulate, key dates, and background. Your input, the generated output, and this personal information are shared with and processed by the AI Service Provider solely to generate responses and structure your onboarding, for the purposes outlined in \"WHAT LEGAL BASES DO WE RELY ON TO PROCESS YOUR PERSONAL INFORMATION?\" We ask for your permission in the app before any data is sent to the AI Service Provider, and you can decline or later disable AI features in the app's Profile settings without sending any data. You must not use the AI Products in any way that violates the terms or policies of any AI Service Provider."
   },
   {
     "type": "p",

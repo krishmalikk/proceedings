@@ -66,7 +66,9 @@ export function GroupChatScreen() {
 
   const handleMemberPress = (userId: string) => {
     setShowMembersModal(false);
-    navigation.navigate('AuthorProfile', { userId });
+    // 'Author' is the uid-based profile route registered in every stack
+    // (there is no 'AuthorProfile' route — the old name silently no-opped).
+    navigation.navigate('Author', { uid: userId });
   };
 
   return (
@@ -172,8 +174,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
+    fontFamily: 'Lora_600SemiBold',
     fontSize: 17,
-    fontWeight: '600',
     color: colors.onSurface,
   },
   membersLink: {
