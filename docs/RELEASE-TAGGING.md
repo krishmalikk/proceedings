@@ -84,9 +84,27 @@ The `gcloud run deploy` / traffic-promotion steps in `deploy.yml` are still
 `TODO` placeholders (GCP auth isn't wired up yet — see the workflow's header
 comment). Until that's filled in, a dispatch with `cut_release=true` would
 create a *real* tag/release against a deploy that didn't actually touch GCP.
-Don't use `cut_release=true` on a real dispatch until those TODOs are done —
-until then, deploy manually (see `CLAUDE.md`'s `gcloud run deploy` command)
-and ask Claude to cut the tag/release by hand afterward, same commands as
+**Don't use `cut_release=true` on a real dispatch until those TODOs are
+done.**
+
+### Interim checklist — next release, until GCP auth is wired up
+
+Until the workflow can deploy for real, do this instead:
+
+1. **Deploy manually** — run the `gcloud run deploy` command from `CLAUDE.md`
+   by hand for whichever component(s) changed (backend and/or website).
+2. **Confirm it's healthy** — smoke-test / spot-check the live URL before
+   treating it as done.
+3. **Ask for the tag/release explicitly** — tell Claude (or run the commands
+   yourself) which component(s) shipped and the bump type, e.g. *"cut a patch
+   release for backend."* Claude finds the last `<prefix>-v*` tag, computes
+   the next SemVer, tags the deployed commit, and runs
+   `gh release create --generate-notes` — the same logic `deploy.yml`'s
+   `cut_release` step runs, just invoked by hand instead of by the workflow.
+
+Once the GCP TODOs are filled in, steps 1–3 collapse into a single dispatch:
+merge → Run workflow with `cut_release: true` + `bump` set → approve. See
+[Process: from merged PR to tagged release](#process-from-merged-pr-to-tagged-release)
 above.
 
 ### Mobile is a variant of the same flow
