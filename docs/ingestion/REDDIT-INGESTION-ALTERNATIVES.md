@@ -1,7 +1,7 @@
 # Reddit Ingestion — Alternatives & Cost Analysis (API blocked)
 
-**Status:** Evaluation / decision-pending
-**Last updated:** 2026-06-19
+**Status:** Evaluation / decision-pending — see §7 for the narrowed-pilot-scope re-evaluation
+**Last updated:** 2026-07-22
 **Context owner:** see MEMORY.md (D-012, D-022, D-026, D-039)
 
 > **Why this doc exists.** The official Reddit Data API path (PRAW, the project's
@@ -121,9 +121,91 @@ scraping; you consume results via their API/dataset.
 
 ---
 
-## 6. References
+## 7. Re-evaluation — narrowed pilot scope (2026-07-22)
+
+The original analysis above assumed the full pipeline spec's scope (all
+comments >5 upvotes, volume modeled at ~5,000 posts/mo). Re-evaluated against
+a **much narrower actual pilot scope**: **2-3 named subreddits only**, and
+**top 3 replies per post by upvote count only** (not all qualifying
+comments) — plus a fresh check on Reddit's API approval timeline. The
+architecture question (can the pipeline write into the current live
+datastore) is **not** re-litigated here — already confirmed elsewhere
+(`REDDIT-SCRAPING-MIGRATION-PLAN.md`): `posting.py`'s canonical schema
+already has `subreddit`/`reddit_post_id`/`doc_kind` fields, and
+`search_client.py` has an unused `channel:"reddit"` boost — no schema
+changes needed for any access path below.
+
+### 7.1 Reddit API approval timeline — fresh check
+
+No published SLA exists (Reddit's own Responsible Builder Policy page
+returned HTTP 403 to automated fetch; findings below are from current
+third-party trackers of the same 2026 process — see §8 sources):
+
+- Reported waits range from **a couple of days to several weeks to
+  indefinite silence** — "a meaningful share of applicants never get a yes."
+- **Small/personal/vague project descriptions are the most-rejected
+  category** — being under-specified hurts approval odds more than framing
+  as commercial does.
+- What correlates with better outcomes: a **specific, detailed submission**
+  — name the exact subreddits, exact data scope, call-volume estimate,
+  explicit "no posting/voting/automation/bot-account" confirmation, and a
+  privacy policy link if applicable.
+- Approved free-tier apps get ~100 QPM (effectively ~60 QPM sustained) — far
+  more than this pilot's volume needs.
+
+**Action**: our filed ticket is a month old with no response. Worth
+**re-filing now with the narrowed scope spelled out explicitly** (name the
+2-3 subreddits, top-3-comments-by-upvote only, read-only, no bot account) —
+zero cost, runs in parallel, no downside. Do not treat it as a plan on its
+own timeline; there is no guaranteed response window.
+
+### 7.2 How the narrowed scope changes the Track 2 cost math
+
+| Option | Original verdict (§4) | Re-evaluated at narrowed scope |
+|---|---|---|
+| **3-A Official commercial API** | Disproportionate (~$12k/mo floor) | **Still disproportionate** — the minimum commitment is flat, not usage-based; shrinking volume doesn't move it |
+| **3-B Third-party scraper (Apify)** | ~$40–65/mo at ~5k posts/mo, residual ToS risk | **Cost objection nearly disappears.** 2-3 subreddits + top-3-comments-only is a fraction of the original 5k-post pilot volume — likely a few hundred to low-thousands of post/comment fetches per month. At Apify's per-unit pricing (~$1.15/1k posts, ~$0.58/1k comments) that's **under $5/month, inside the free tier.** The decision is now purely legal/ToS, not cost |
+| **1-D Public JSON, unauthenticated** | Dev/smoke only, never production | **Still no**, for a second reason beyond ToS: no documented rate-limit headers, and Reddit "can throttle or block the JSON endpoint for a given client at any time" with "no contact, dashboard, or appeal." Even trivial volume can be silently cut off — a reliability problem independent of how small our footprint is |
+
+### 7.3 Legal aspect at narrowed scope
+
+Two distinct risks — narrowing scope only addresses one of them:
+
+- **Copyright/republication risk** — already mitigated regardless of scope
+  by this project's existing paraphrase posture ([D-017](../../MEMORY.md)):
+  the pipeline stores paraphrases + controlled tags, never verbatim Reddit
+  content.
+- **ToS-violation-for-unauthorized-scraping risk** — this is about the
+  *method* of collection, not volume. Reddit's suits against scrapers
+  (Anthropic, SerpApi) were about principle, not scale. Narrowing to 2-3
+  subreddits / top-3-comments lowers the **detection profile and probability
+  of being targeted**, but does not change the **qualitative legal
+  category** if targeted. For a legal-domain product, treat "small-scale via
+  3-B" as **lower-risk-in-practice, not risk-free** — get explicit legal
+  sign-off before relying on it, rather than treating this as an
+  engineering call.
+
+### 7.4 Updated recommendation
+
+1. **Re-file the Reddit API ticket immediately** with the narrowed scope
+   spelled out (§7.1) — no downside, runs in parallel with everything else.
+2. **While waiting, 3-B (Apify) is now the practical near-term path** — at
+   this volume the earlier cost hesitation is gone (~$0–5/mo). Get explicit
+   legal sign-off first (§7.3); the residual ToS risk doesn't scale down to
+   zero just because volume did.
+3. **Do not use 1-D (public JSON) for production**, even at this tiny scale
+   — keep it strictly to dev/smoke validation, per the original guidance
+   (§2, option 1-D) and reinforced by the reliability findings in §7.2.
+4. **Keep 1-A/1-C (DS-2, manual curation) running in parallel** — zero-risk
+   ways to seed the same 2-3 subreddits' worth of quality content
+   immediately, independent of whichever Track 2 decision is made.
+
+---
+
+## 8. References
 - [REDDIT-INGESTION-PIPELINE.md](REDDIT-INGESTION-PIPELINE.md) — pipeline spec, §3.5/§7.6 (Reddit access + cost)
 - [PREREQUISITES-IAM-INFRASTRUCTURE.md §7](PREREQUISITES-IAM-INFRASTRUCTURE.md) — Reddit access runbook + dev-only public-JSON sanction
+- [REDDIT-SCRAPING-MIGRATION-PLAN.md](REDDIT-SCRAPING-MIGRATION-PLAN.md) — confirms current schema/pipeline can ingest Reddit content into the live datastore with no redesign
 - MEMORY.md — D-012 (PRAW/Devvit), D-022 (approval critical-path), D-026 (manual batch), D-016/D-039 (managed sinks, DS-2), D-017 (paraphrase posture), D-036 (channel-agnostic schema)
 - External pricing/policy (retrieved 2026-06-19):
   - Reddit commercial API pricing — [techloy](https://www.techloy.com/reddit-api-pricing-in-2026-complete-guide-for-developers-and-businesses/), [PainOnSocial](https://painonsocial.com/blog/how-much-does-reddit-api-cost)
@@ -131,5 +213,8 @@ scraping; you consume results via their API/dataset.
   - Apify Reddit scrapers — [prodiger](https://apify.com/prodiger/reddit-scraper), [parseforge](https://apify.com/parseforge/reddit-posts-scraper), [trudax](https://apify.com/trudax/reddit-scraper)
   - Bright Data pricing — [Bright Data web scraping APIs](https://brightdata.com/blog/web-data/best-web-scraping-apis)
   - Self-serve API shutdown — [RedditorShop](https://redditorshop.com/blog/the-end-of-the-self-serve-reddit-api-why-you-can-t-create-an-api-key-in-2026), [Responsible Builder Policy](https://support.reddithelp.com/hc/en-us/articles/42728983564564-Responsible-Builder-Policy)
+- Fresh 2026 API-approval-timeline check (retrieved 2026-07-22):
+  - [How to Get a Reddit API Key in 2026 (Step-by-Step + Approval Fix)](https://www.redditapis.com/blogs/how-to-get-reddit-api-key-2026)
+  - [Reddit Data API 2026: Lockdown, Approval, Rate Limits](https://www.redditapis.com/blogs/reddit-data-api-2026)
 </content>
 </invoke>
