@@ -646,12 +646,19 @@ def suggest_tags(title: str, description: str) -> dict:
     ptype = extracted.get("posting_type")
     if ptype not in _POSTING_TYPES:
         ptype = ""
+    key_dates = _clean_dates(extracted.get("key_dates"))
+    # Any posting with dated milestones gets `timeline` deterministically —
+    # the model's own judgment on this thin/generic tag is inconsistent, so
+    # don't leave it to chance (same rule build_experience_canonical() already
+    # applies for phase-J experiences).
+    if key_dates and "timeline" not in groups["tags"]:
+        groups["tags"].append("timeline")
     return {
         "groups": groups,
         "relevant_sections": _relevant_sections(extracted, groups),
         "posting_type": ptype,
         "key_stages_or_info": _clean_stages(extracted.get("key_stages_or_info")),
-        "key_dates": _clean_dates(extracted.get("key_dates")),
+        "key_dates": key_dates,
     }
 
 
@@ -738,6 +745,18 @@ def build_canonical(title: str, description: str, tags: dict,
     if not groups["primary_consulate"] and groups["consulates"]:
         groups["primary_consulate"] = groups["consulates"][0]
 
+    bg = str(ex.get("background_summary") or "").strip() or "<summary_pending_llm>"
+    cq = str(ex.get("concerns_or_questions_summary") or "").strip() or title
+    # Prefer the user-edited stages/dates; fall back to the model's extraction.
+    stages = _clean_stages(key_stages) or _clean_stages(ex.get("key_stages_or_info"))
+    dates = _clean_dates(key_dates) or _clean_dates(ex.get("key_dates"))
+    # Any document with dated milestones gets `timeline` deterministically —
+    # single point of truth for every caller (suggest_tags already adds it too,
+    # so this is normally a no-op there; it also covers callers that build
+    # `tags` directly, e.g. build_experience_canonical()'s own duplicate check).
+    if dates and "timeline" not in groups["tags"]:
+        groups["tags"].append("timeline")
+
     all_tags = (
         groups["current_visa_or_greencard_category"]
         + groups["visa_applying_for"]
@@ -745,11 +764,6 @@ def build_canonical(title: str, description: str, tags: dict,
         + groups["tags"]
         + groups["concerns_or_questions_tags"]
     )
-    bg = str(ex.get("background_summary") or "").strip() or "<summary_pending_llm>"
-    cq = str(ex.get("concerns_or_questions_summary") or "").strip() or title
-    # Prefer the user-edited stages/dates; fall back to the model's extraction.
-    stages = _clean_stages(key_stages) or _clean_stages(ex.get("key_stages_or_info"))
-    dates = _clean_dates(key_dates) or _clean_dates(ex.get("key_dates"))
     embedding_text = (
         f"{title}. {bg}. {cq}. Tags: {', '.join(all_tags)}. "
         f"Stages: {', '.join(f'{k}:{v}' for k, v in stages.items())}. "
