@@ -53,11 +53,31 @@ roadmap rather than being throwaway.
 - **Approval / ToS:** Cleanest posture for a legal-domain product (manual reading of public content; no automated collection).
 - **Cost:** Labor only. Doesn't scale, but seeds quality immediately.
 
-### 1-D. Public JSON / RSS endpoints — **dev/smoke only, NOT production**
+### 1-D. Public JSON / RSS endpoints — **confirmed non-viable in practice, not just policy (2026-07-24)**
 - **What:** Unauthenticated `https://www.reddit.com/r/<sub>/new.json`, `/comments/<id>.json` (~10 req/min, returns full structured JSON incl. `score`/comments/ids), or `/r/<sub>/.rss` (no upvotes/comments).
 - **Approval / ToS:** ⚠️ **Against Reddit's automated-access ToS at production scale.** [`PREREQUISITES-IAM-INFRASTRUCTURE.md §7`](PREREQUISITES-IAM-INFRASTRUCTURE.md) sanctions it **for local dev and smoke tests only — never production/backfill.**
 - **Use:** Build & validate the Scraper → tag → GCS → datastore flow against real post shapes, so swapping to PRAW (or a paid provider) later is a one-line auth change.
 - **Cost:** Free.
+- **⚠️ Update — tested and confirmed blocked, from BOTH a cloud/datacenter IP
+  and a residential home connection.** `www.reddit.com/r/h1b/top.json` and
+  `old.reddit.com/r/h1b/top.json` both returned `HTTP 403 Blocked` from a
+  developer's own laptop (normal home internet), not just from a sandboxed
+  cloud environment. This means the block is **not just IP-reputation
+  filtering** — it's consistent with TLS/HTTP fingerprint-based bot
+  detection (e.g. Cloudflare/Akamai/PerimeterX-style), which flags
+  non-browser HTTP clients (`curl`, Python `urllib`) regardless of network
+  origin. **Practical implication: this option no longer works reliably even
+  for the "dev/smoke" use it was originally sanctioned for** — the original
+  framing assumed a production-scale/volume problem; the real problem is
+  more fundamental than that. See
+  [`APIFY-SCRAPER-LEGAL-AND-INTEGRATION.md` §2.4](APIFY-SCRAPER-LEGAL-AND-INTEGRATION.md#24-fresh-check-2026-07-23--the-actual-apify-reddit-scraper-actors-own-disclosures)
+  for why this is also the underlying reason Apify's Reddit-scraper actor
+  needs residential-proxy-rotation infrastructure rather than a plain
+  connection — a single request from a single IP, even residential, isn't
+  sufficient against this kind of detection. **Do not attempt to defeat this
+  detection** (browser-fingerprint spoofing, header mimicry, proxy rotation)
+  — that crosses into the same circumvention risk category flagged
+  throughout this doc and the Apify legal assessment.
 
 ---
 
@@ -102,7 +122,7 @@ scraping; you consume results via their API/dataset.
 | 1-A DS-2 public sites | None | ✅ Clean | n/a (different source) | $0 extra | ✅ | Now (build) |
 | 1-B First-party app | None | ✅ Clean (owned) | n/a | ~$0 | ✅ | Built |
 | 1-C Manual curation | None | ✅ Cleanest for Reddit | ✅ (human) | Labor | ❌ | Now |
-| 1-D Public JSON/RSS | None | ⚠️ Dev/smoke only | ✅ JSON / ❌ RSS | $0 | ❌ (not prod) | Now |
+| 1-D Public JSON/RSS | None | ⚠️ Confirmed blocked in practice — see update in §2 | ✅ JSON / ❌ RSS | $0 | ❌ (not prod, and now confirmed not reliably dev either) | ~~Now~~ Blocked |
 | 3-A Official commercial API | Yes (paid) | ✅ Licensed | ✅ Full | **~$12k/mo floor** | ✅✅ | Weeks |
 | 3-B 3rd-party scraper | None | ⚠️ Residual risk | ✅ Full | **~$40–65/mo** | ✅ | Hours–days |
 | 3-C Devvit | Easy | ✅ | ✅ | Free | n/a | — (rejected) |
@@ -111,7 +131,7 @@ scraping; you consume results via their API/dataset.
 
 ## 5. Recommendation
 
-1. **Now (Track 1):** Build **DS-2 (1-A)** — the highest-value, fully-compliant, already-decided unblocked work — and keep growing **first-party app content (1-B)**. Use **manual curation (1-C)** to seed any must-have Reddit threads. Build the Scraper against **public JSON (1-D) in dev** so the automated path is ready.
+1. **Now (Track 1):** Build **DS-2 (1-A)** — the highest-value, fully-compliant, already-decided unblocked work — and keep growing **first-party app content (1-B)**. Use **manual curation (1-C)** to seed any must-have Reddit threads. ~~Build the Scraper against public JSON (1-D) in dev so the automated path is ready.~~ **Superseded 2026-07-24: confirmed blocked even from a residential IP — see the 1-D update above. Don't build against it.**
 2. **Parallel:** Re-file / escalate the Reddit ticket framed explicitly as **non-commercial / research** (lighter review).
 3. **Track 2 decision — only when Reddit volume is justified:**
    - If budget is tight and some residual ToS risk is acceptable → **3-B (Apify/Bright Data), ~$40–65/mo at pilot.**
