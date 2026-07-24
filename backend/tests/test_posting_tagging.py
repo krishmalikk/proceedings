@@ -230,6 +230,25 @@ def group_e_build() -> None:
     check("E12 form-number tag not treated as a visa code",
           c12["visa_applying_for"] == [], c12["visa_applying_for"])
 
+    # E13-E16: I-130 -> family-based-immigration (deterministic, tags-only —
+    # I-130 alone can't tell us the specific greencard category, so
+    # current_visa_or_greencard_category is deliberately left untouched).
+    gc_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+               "primary_consulate": "", "consulates": [],
+               "tags": ["I-130", "I-485", "aos-filing", "aos-approval"],
+               "concerns_or_questions_tags": []}
+    c13 = p.build_canonical("Got my green card 9 days after interview", "Body text.", gc_tags)
+    check("E13 I-130 -> family-based-immigration tag added",
+          "family-based-immigration" in c13["tags"], c13["tags"])
+    check("E14 category still left blank (I-130 doesn't imply a specific code)",
+          c13["current_visa_or_greencard_category"] == [], c13["current_visa_or_greencard_category"])
+    check("E15 validate() still requires a specific category (not silently satisfied)",
+          any("Capture a visa" in e for e in p.validate(c13)), str(p.validate(c13)))
+
+    c16 = p.build_canonical("t", "d", {"tags": ["i130-approval", "family-based-immigration"]})
+    check("E16 no duplicate when family-based-immigration already present",
+          c16["tags"].count("family-based-immigration") == 1, c16["tags"])
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)

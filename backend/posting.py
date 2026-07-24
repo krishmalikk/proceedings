@@ -591,6 +591,13 @@ def _normalize_groups(groups: dict) -> dict:
 
 _POSTING_TYPES = {"consular_visa", "in_us_status", "experience", "general_question"}
 
+# Form I-130 ("Petition for Alien Relative") has exactly one use: family-based
+# immigrant petitions — no employment/diversity/investor/asylum path ever
+# touches it. Unlike I-130 -> a specific greencard category (8 possible
+# codes: IR-1/IR-2/IR-5/F1/F2A/F2B/F3/F4, indistinguishable from the form
+# alone), I-130 -> "this is family-based" is a safe, unambiguous inference.
+_I130_TAGS = {"I-130", "i130-filing", "i130-approval"}
+
 
 # UI tag sections (primary_consulate is omitted from the UI — it's derived from
 # consulates[0] at submit; consulates is the single consulate section).
@@ -681,6 +688,11 @@ def suggest_tags(title: str, description: str) -> dict:
         derived = _derive_visa_from_tags(groups["tags"])
         if derived:
             groups["visa_applying_for"] = [derived]
+    # I-130 in any form -> family-based-immigration, deterministically (see
+    # _I130_TAGS). Doesn't touch current_visa_or_greencard_category — I-130
+    # alone can't tell us the specific category (spouse/parent/sibling/etc.).
+    if _I130_TAGS & set(groups["tags"]) and "family-based-immigration" not in groups["tags"]:
+        groups["tags"].append("family-based-immigration")
     return {
         "groups": groups,
         "relevant_sections": _relevant_sections(extracted, groups),
@@ -794,6 +806,11 @@ def build_canonical(title: str, description: str, tags: dict,
         derived = _derive_visa_from_tags(groups["tags"])
         if derived:
             groups["visa_applying_for"] = [derived]
+
+    # I-130 in any form -> family-based-immigration, deterministically —
+    # single point of truth for every caller, same reasoning as above.
+    if _I130_TAGS & set(groups["tags"]) and "family-based-immigration" not in groups["tags"]:
+        groups["tags"].append("family-based-immigration")
 
     all_tags = (
         groups["current_visa_or_greencard_category"]
