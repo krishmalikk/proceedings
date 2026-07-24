@@ -4,10 +4,11 @@
 advice (see disclaimer below). No code built yet.
 **Scope assumed**: 2-3 named subreddits, top 3 comments per post by upvote
 count only — per [`REDDIT-INGESTION-ALTERNATIVES.md §7`](REDDIT-INGESTION-ALTERNATIVES.md#7-re-evaluation--narrowed-pilot-scope-2026-07-22).
-**Last updated**: 2026-07-23 — see §2.4 for the most recent findings (Apify
+**Last updated**: 2026-07-24 — see §2.4 for the most recent findings (Apify
 not currently named in Reddit's litigation, but the specific
 `prodiger/reddit-scraper` actor admits the ToS violation and uses an
-IP-evasion technique).
+IP-evasion technique), and §2.5 for empirical confirmation that Reddit's
+blocking is a bot-detection problem, not just an IP-reputation one.
 
 > **⚠️ Not legal advice.** The author of this document is a developer, not a
 > lawyer, and this repo has no in-house legal team. Everything in the "Legal
@@ -181,6 +182,30 @@ more cautious, not less — the paid-consult step there is even more
 warranted now that we know the concrete tool involved both acknowledges the
 ToS violation and actively evades platform-level blocking, not just reads
 public pages passively.
+
+### 2.5 Empirical confirmation (2026-07-24) — the blocking is real and not just about IP reputation
+
+Built and tested a plain, non-evasive unauthenticated JSON export script
+(`scripts/curation/reddit-export.py`) as a possible alternative to Apify —
+no proxies, no browser-fingerprint spoofing, just a descriptive User-Agent
+and stdlib HTTP. It returned `HTTP 403 Blocked` from **both** a sandboxed
+cloud environment **and** a developer's own residential home connection.
+
+This matters for the §2.4 assessment above: it confirms Reddit's blocking
+of non-browser HTTP clients isn't simply IP-reputation filtering (which a
+home connection would bypass) — it's consistent with TLS/HTTP
+fingerprint-based bot detection that flags the *client*, not just the
+*network origin*. That's the concrete, first-hand reason
+`prodiger/reddit-scraper` needs residential-proxy-rotation infrastructure
+rather than a plain connection — a single request from a single IP, even a
+legitimate residential one, isn't sufficient to get past this. The
+evasion techniques flagged in §2.4 aren't incidental engineering choices;
+they're load-bearing for the actor to function at all. No attempt was made
+to defeat this detection (fingerprint spoofing, header mimicry, proxy
+use) — that would be the same circumvention risk category as the rest of
+this section. See
+[`REDDIT-INGESTION-ALTERNATIVES.md`'s 1-D update](REDDIT-INGESTION-ALTERNATIVES.md#1-d-public-json--rss-endpoints--confirmed-non-viable-in-practice-not-just-policy-2026-07-24)
+for the companion finding.
 
 ## 3. Mitigating factors already in place
 
