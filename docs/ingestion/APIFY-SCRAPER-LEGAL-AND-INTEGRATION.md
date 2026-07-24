@@ -4,6 +4,10 @@
 advice (see disclaimer below). No code built yet.
 **Scope assumed**: 2-3 named subreddits, top 3 comments per post by upvote
 count only — per [`REDDIT-INGESTION-ALTERNATIVES.md §7`](REDDIT-INGESTION-ALTERNATIVES.md#7-re-evaluation--narrowed-pilot-scope-2026-07-22).
+**Last updated**: 2026-07-23 — see §2.4 for the most recent findings (Apify
+not currently named in Reddit's litigation, but the specific
+`prodiger/reddit-scraper` actor admits the ToS violation and uses an
+IP-evasion technique).
 
 > **⚠️ Not legal advice.** The author of this document is a developer, not a
 > lawyer, and this repo has no in-house legal team. Everything in the "Legal
@@ -42,6 +46,17 @@ pure infrastructure/tooling relationship. If Reddit ever pursued a claim
 related to scraped content, Apify is contractually positioned to point
 entirely at us (and we'd be on the hook for their legal costs too, per the
 indemnification clause, if Apify itself got named).
+
+**Free tier vs. paid — no difference to this analysis.** Apify's Terms &
+Conditions don't distinguish by billing tier; the liability-on-user /
+indemnify-Apify structure above applies identically whether the account is
+on the free tier or a paid plan. The only thing billing tier actually
+changes is *Apify's* liability *to us* if their own infrastructure fails —
+capped at the amount paid to Apify in the prior 12 months, so effectively
+near-$0 on the free tier (plus a small statutory floor, ~$1,000, per their
+general terms). That's irrelevant to whether ingesting Reddit content is
+legal; it only matters if Apify's service itself fails and we wanted
+damages from *them*.
 
 ## 2. Legal landscape (case law, informational)
 
@@ -118,6 +133,54 @@ materially different (and likely lower-risk) fact pattern than what Reddit
 is currently litigating — closer to the Bright Data fact pattern (§2.2) than
 the Perplexity one. This distinction should be a specific instruction to
 whichever Apify actor is used, and a specific question to raise with counsel.
+**Update (§2.4 below): the specific, commercially-available actor checked
+does NOT meet this bar by default** — worth reading before assuming it does.
+
+### 2.4 Fresh check (2026-07-23) — the actual Apify Reddit Scraper actor's own disclosures
+
+Checked Reddit's active litigation for whether Apify is named, and read the
+`prodiger/reddit-scraper` actor's own documentation directly (the specific
+actor cited in §5 below). Two findings — one favorable, one that revises
+§2.3's optimistic framing:
+
+**Favorable: Apify is not currently named as a defendant.** Neither the June
+2025 Anthropic suit nor the October 2025 Perplexity/SerpApi/Oxylabs/AWM
+Proxy suit names Apify. The October suit's specific legal theory is **DMCA
+anti-circumvention** for scraping Reddit content *via Google Search* at
+industrial scale (~3 billion pages in two weeks) — a different technical
+method than Apify's direct-to-Reddit approach. **Caveat**: "not currently
+sued" is not "legally cleared" — litigation can expand, and this doesn't
+change the underlying open legal question.
+
+**Concerning: the actor's own docs admit the ToS violation, and use an
+evasion technique.** Reading `prodiger/reddit-scraper`'s documentation
+directly surfaced two things:
+- A section titled "Is it legal to scrape Reddit?" states outright:
+  *"Reddit's ToS restricts automated access, but ToS violations are a
+  contractual matter, not a criminal one."* The vendor isn't unaware this
+  violates Reddit's ToS — they're explicitly betting on it being civil, not
+  criminal, exposure.
+- **It uses rotating residential proxies specifically to evade Reddit's
+  IP-based blocking of scrapers** — the docs state Reddit "aggressively
+  blocks datacenter IP ranges," so the actor routes around that with
+  residential IPs plus "reactive 429 backoff" retry logic.
+
+**Why this matters**: IP rotation to defeat a platform's blocking mechanism
+is a form of circumvention — conceptually closer to the theory Reddit is
+currently litigating against Perplexity/SerpApi/Oxylabs/AWM Proxy (DMCA
+anti-circumvention) than to the more favorable *Bright Data v. Meta*
+fact pattern (§2.2, plain logged-out page reads, no evasion). **The
+"only reads public pages without any evasion mechanism" instruction in the
+paragraph above is not satisfied by this actor's default behavior** — it
+would need to be explicitly configured differently (if possible) or a
+different actor chosen, and that choice should be surfaced to counsel
+specifically, not assumed away.
+
+**Net effect on the overall assessment**: revises §4's recommendation to be
+more cautious, not less — the paid-consult step there is even more
+warranted now that we know the concrete tool involved both acknowledges the
+ToS violation and actively evades platform-level blocking, not just reads
+public pages passively.
 
 ## 3. Mitigating factors already in place
 
@@ -146,7 +209,12 @@ whichever Apify actor is used, and a specific question to raise with counsel.
 2. **Instruct the integration to never bypass anti-scraping protections** —
    logged-out, public-page-only, no CAPTCHA-solving, no IP-rotation-to-evade
    blocks. This keeps the fact pattern closer to Bright Data (favorable) than
-   Perplexity (currently being sued).
+   Perplexity (currently being sued). **Known gap (§2.4): the default
+   `prodiger/reddit-scraper` actor does NOT meet this bar** — it uses
+   rotating residential proxies specifically to evade Reddit's IP blocking.
+   Either find/configure an actor that only reads public pages without
+   evasion, or explicitly flag this trade-off to counsel rather than
+   assuming the actor complies.
 3. **Stage the rollout**: start at the smallest possible volume (a handful of
    posts to validate the pipeline end-to-end), monitor for any response from
    Reddit (blocks, cease-and-desist, changes to robots.txt/ToS), before
@@ -161,9 +229,12 @@ Assuming legal sign-off is obtained (§4.1):
 
 1. **Pick an Apify actor.** `prodiger/reddit-scraper` ($1.15/1k posts, cheapest
    at this volume) or `trudax/reddit-scraper` are the two cited in
-   `REDDIT-INGESTION-ALTERNATIVES.md §3-B`. Confirm the actor's own
-   documentation states logged-out/public-only operation (§2.3/§4.2 above)
-   before selecting it.
+   `REDDIT-INGESTION-ALTERNATIVES.md §3-B`. **Already checked (§2.4):
+   `prodiger/reddit-scraper` reads public pages logged-out, but also uses
+   residential-proxy IP rotation to evade Reddit's anti-scraper blocking** —
+   read whichever actor's documentation directly before selecting it (don't
+   assume "public data only" marketing copy means "no evasion techniques");
+   `trudax/reddit-scraper` hasn't been checked the same way yet.
 2. **Create an Apify account**, add the actor, configure inputs: the 2-3
    target subreddits, sort mode (e.g. `top`/`hot`), and a low
    `postsPerSubreddit` cap matching pilot volume.
