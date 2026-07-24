@@ -246,6 +246,7 @@ class _Vocab:
     form: set[str] = set()            # 1.5 forms (profile key_stages KEYS; value domain = outcome)
     misc: set[str] = set()            # 1.3 + 1.10 (profile 'miscellaneous tags & topics')
     profile_stage_keys: set[str] = set()  # 1.7 + 1.5 + 1.1 + 1.3 (NO 1.6) — profile key_stages keys
+    visa_form_map: dict[str, str] = {}    # 1.6 tag -> its "Associated Visa/Form" column value
     # ordered lists for compact prompt blocks
     _visa_list: list[str] = []
     _consulate_list: list[str] = []
@@ -277,6 +278,7 @@ class _Vocab:
             + _load_col("1.6-visa-form-actions.csv")
             + _load_col("1.9-outcomes.csv")
         )
+        cls.visa_form_map = dict(_load_pairs("1.6-visa-form-actions.csv", desc_col=1))
         cls._misc_pairs = _load_pairs("1.10-common-misc.csv")
         cls._tag_list = cls._tag_plain_list + [t for t, _ in cls._misc_pairs]
         cls._stage_list = (
@@ -620,6 +622,23 @@ def _clean_dates(value) -> dict:
     return out
 
 
+def _derive_visa_from_tags(tags: list[str]) -> str:
+    """Deterministically infer a single visa/GC code from process tags already
+    applied (e.g. 'h1b-petition' -> 'H-1B'), for posts that reference a
+    specific visa's process without a personal status claim (tips/advice/
+    discussion content that would otherwise fail validate()'s visa-required
+    rule). Only backfills when the 1.6 "Associated Visa/Form" mapping is
+    unambiguous (a single code, not 'L-1 / H-1B') and that code is itself a
+    valid 1.1/1.2 vocab entry — skips form numbers ('I-129') and generic
+    values ('Any visa') automatically, since those aren't in _Vocab.visa."""
+    _Vocab.load()
+    for t in tags:
+        mapped = _Vocab.visa_form_map.get(t, "")
+        if mapped and "/" not in mapped and mapped in _Vocab.visa:
+            return mapped
+    return ""
+
+
 def _relevant_sections(extracted: dict, groups: dict) -> list[str]:
     """The model decides which tag sections apply; fall back to a sensible heuristic."""
     raw = extracted.get("relevant_sections")
@@ -653,6 +672,15 @@ def suggest_tags(title: str, description: str) -> dict:
     # applies for phase-J experiences).
     if key_dates and "timeline" not in groups["tags"]:
         groups["tags"].append("timeline")
+    # Tips/advice/discussion content often references a specific visa's
+    # process tags (e.g. h1b-petition) without a personal status claim,
+    # which otherwise fails validate()'s visa-required rule. Backfill
+    # deterministically from the post's own tags rather than requiring a
+    # human to notice and hand-add it every time — see _derive_visa_from_tags.
+    if not groups["visa_applying_for"] and not groups["current_visa_or_greencard_category"]:
+        derived = _derive_visa_from_tags(groups["tags"])
+        if derived:
+            groups["visa_applying_for"] = [derived]
     return {
         "groups": groups,
         "relevant_sections": _relevant_sections(extracted, groups),
@@ -756,6 +784,16 @@ def build_canonical(title: str, description: str, tags: dict,
     # `tags` directly, e.g. build_experience_canonical()'s own duplicate check).
     if dates and "timeline" not in groups["tags"]:
         groups["tags"].append("timeline")
+
+    # Tips/advice/discussion content often references a specific visa's
+    # process tags (e.g. h1b-petition) without a personal status claim,
+    # which otherwise fails validate()'s visa-required rule. Backfill
+    # deterministically from the post's own tags — single point of truth
+    # for every caller, same reasoning as the timeline rule above.
+    if not groups["visa_applying_for"] and not groups["current_visa_or_greencard_category"]:
+        derived = _derive_visa_from_tags(groups["tags"])
+        if derived:
+            groups["visa_applying_for"] = [derived]
 
     all_tags = (
         groups["current_visa_or_greencard_category"]
