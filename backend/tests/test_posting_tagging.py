@@ -195,6 +195,41 @@ def group_e_build() -> None:
           "H-1B stamping at Mumbai" in c["embedding_text"] and "visa-stamping" in c["embedding_text"])
     check("E7 extracted context used (severity=high)", c["severity"] == "high", c["severity"])
 
+    # E8-E12: _derive_visa_from_tags() / visa backfill in build_canonical() —
+    # tips/advice content (e.g. "Tips for Tracking Your H-1B Petition") often
+    # has no personal visa claim but does reference process tags like
+    # h1b-petition; validate() requires a visa/status, so build_canonical()
+    # deterministically backfills one from the post's own tags when possible.
+    tips_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                 "primary_consulate": "", "consulates": [],
+                 "tags": ["I-797", "USCIS", "RFE", "h1b-petition", "processing-time", "tips"],
+                 "concerns_or_questions_tags": []}
+    c8 = p.build_canonical("Tips for Tracking Your H-1B Petition", "Body text here.", tips_tags)
+    check("E8 visa backfilled from process tag (h1b-petition -> H-1B)",
+          c8["visa_applying_for"] == ["H-1B"], c8["visa_applying_for"])
+    check("E9 backfilled doc passes validation", p.validate(c8) == [], str(p.validate(c8)))
+
+    explicit_tags = {"visa_applying_for": ["L-1"], "current_visa_or_greencard_category": [],
+                      "primary_consulate": "", "consulates": [], "tags": ["h1b-petition"],
+                      "concerns_or_questions_tags": []}
+    c10 = p.build_canonical("My L-1 experience", "Some L-1 story.", explicit_tags)
+    check("E10 explicit visa never overridden by backfill",
+          c10["visa_applying_for"] == ["L-1"], c10["visa_applying_for"])
+
+    ambiguous_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                       "primary_consulate": "", "consulates": [], "tags": ["l1-to-h1b"],
+                       "concerns_or_questions_tags": []}
+    c11 = p.build_canonical("Status change question", "Thinking about changing status.", ambiguous_tags)
+    check("E11 ambiguous multi-value mapping (L-1 / H-1B) not backfilled",
+          c11["visa_applying_for"] == [], c11["visa_applying_for"])
+
+    form_only_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                       "primary_consulate": "", "consulates": [], "tags": ["i129-filing"],
+                       "concerns_or_questions_tags": []}
+    c12 = p.build_canonical("Filing question", "About my I-129 filing.", form_only_tags)
+    check("E12 form-number tag not treated as a visa code",
+          c12["visa_applying_for"] == [], c12["visa_applying_for"])
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)
