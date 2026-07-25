@@ -629,6 +629,18 @@ def _clean_dates(value) -> dict:
     return out
 
 
+def _add_tag_once(groups: dict, tag: str) -> None:
+    """Append `tag` to groups['tags'] unless it's already there OR already in
+    concerns_or_questions_tags. validate() rejects a tag appearing in more
+    than one bucket, so every deterministic auto-tag rule (timeline,
+    family-based-immigration, ...) must go through this rather than
+    checking groups['tags'] alone — the model may have legitimately put the
+    same tag in concerns_or_questions_tags instead (e.g. a post that ASKS
+    about a case timeline, not just states one)."""
+    if tag not in groups["tags"] and tag not in groups["concerns_or_questions_tags"]:
+        groups["tags"].append(tag)
+
+
 def _derive_visa_from_tags(tags: list[str]) -> str:
     """Deterministically infer a single visa/GC code from process tags already
     applied (e.g. 'h1b-petition' -> 'H-1B'), for posts that reference a
@@ -677,8 +689,8 @@ def suggest_tags(title: str, description: str) -> dict:
     # the model's own judgment on this thin/generic tag is inconsistent, so
     # don't leave it to chance (same rule build_experience_canonical() already
     # applies for phase-J experiences).
-    if key_dates and "timeline" not in groups["tags"]:
-        groups["tags"].append("timeline")
+    if key_dates:
+        _add_tag_once(groups, "timeline")
     # Tips/advice/discussion content often references a specific visa's
     # process tags (e.g. h1b-petition) without a personal status claim,
     # which otherwise fails validate()'s visa-required rule. Backfill
@@ -691,8 +703,8 @@ def suggest_tags(title: str, description: str) -> dict:
     # I-130 in any form -> family-based-immigration, deterministically (see
     # _I130_TAGS). Doesn't touch current_visa_or_greencard_category — I-130
     # alone can't tell us the specific category (spouse/parent/sibling/etc.).
-    if _I130_TAGS & set(groups["tags"]) and "family-based-immigration" not in groups["tags"]:
-        groups["tags"].append("family-based-immigration")
+    if _I130_TAGS & set(groups["tags"]):
+        _add_tag_once(groups, "family-based-immigration")
     return {
         "groups": groups,
         "relevant_sections": _relevant_sections(extracted, groups),
@@ -794,8 +806,8 @@ def build_canonical(title: str, description: str, tags: dict,
     # single point of truth for every caller (suggest_tags already adds it too,
     # so this is normally a no-op there; it also covers callers that build
     # `tags` directly, e.g. build_experience_canonical()'s own duplicate check).
-    if dates and "timeline" not in groups["tags"]:
-        groups["tags"].append("timeline")
+    if dates:
+        _add_tag_once(groups, "timeline")
 
     # Tips/advice/discussion content often references a specific visa's
     # process tags (e.g. h1b-petition) without a personal status claim,
@@ -809,8 +821,8 @@ def build_canonical(title: str, description: str, tags: dict,
 
     # I-130 in any form -> family-based-immigration, deterministically —
     # single point of truth for every caller, same reasoning as above.
-    if _I130_TAGS & set(groups["tags"]) and "family-based-immigration" not in groups["tags"]:
-        groups["tags"].append("family-based-immigration")
+    if _I130_TAGS & set(groups["tags"]):
+        _add_tag_once(groups, "family-based-immigration")
 
     all_tags = (
         groups["current_visa_or_greencard_category"]
