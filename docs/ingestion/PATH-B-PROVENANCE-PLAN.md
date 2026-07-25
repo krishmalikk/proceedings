@@ -177,6 +177,17 @@ release since [PR #35](https://github.com/krishmalikk/proceedings/pull/35)**
 the next mobile release is actually cut and approved, a step that is
 separate from and later than this PR merging.
 
+**Current status**: backend and website are being deployed together now.
+The **mobile v1.0.0 build in the stores still does not send
+`client_platform`** — the code change is merged but not yet in a released
+build — so mobile-originated postings will show `client_platform: ""` until
+the next mobile release ships this. This is expected and intentional, not a
+bug: backend/website did not need to wait on mobile, per the no-hard-
+dependency reasoning above (`PostingCreateRequest` has no `extra="forbid"`
+and the field defaults to `""`, so old and new clients interoperate with any
+backend version in either direction). The next mobile release is what
+actually turns this field on for mobile traffic.
+
 Practical consequence: **`client_platform` should be expected to arrive at
 `""` (empty) for a meaningful share of mobile-originated postings
 indefinitely**, not just during a short rollout window — every user who
