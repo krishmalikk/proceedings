@@ -68,6 +68,58 @@ def username_for(user_id: str) -> str:
     return user_id
 
 
+@functools.lru_cache(maxsize=1)
+def seed_usernames() -> frozenset:
+    """The baked seed-roster handles (e.g. `arjun-h1b`) — never treated as a
+    real-name leak by the anonymization migration."""
+    return frozenset(u.get("username", "") for u in seed_users() if u.get("username"))
+
+
+# ---------------------------------------------------------------------------
+# Anonymous Reddit-style handles (real names never seed a username)
+# ---------------------------------------------------------------------------
+
+def is_anonymous_handle(handle: str) -> bool:
+    """True if `handle` is already an anonymous handle — a generated
+    `adj-noun-NNNN` (posting.HANDLE_RE) or a baked seed-roster username. Anything
+    else is assumed to be a legacy real-name/email-seeded username to scrub."""
+    h = (handle or "").strip()
+    return bool(posting.HANDLE_RE.match(h)) or h in seed_usernames()
+
+
+def _handle_taken(db, handle: str) -> bool:
+    """True if some users/{uid} already holds this username (best-effort)."""
+    if db is None or not handle:
+        return False
+    try:
+        for _ in db.collection("users").where("username", "==", handle).limit(1).stream():
+            return True
+    except Exception as e:  # noqa: BLE001 — a lookup failure must not block registration
+        print(f"profile._handle_taken error: {e}")
+    return False
+
+
+def random_username(db=None, *, attempts: int = 8) -> str:
+    """A fresh anonymous handle (adj-noun-NNNN), retried against existing
+    usernames to avoid collisions. Falls back to the last generated handle after
+    `attempts` (the ~9k number space makes a real clash negligible)."""
+    handle = posting.generate_handle()
+    for _ in range(attempts):
+        if not _handle_taken(db, handle):
+            return handle
+        handle = posting.generate_handle()
+    return handle
+
+
+def _clean_username(raw) -> str:
+    """Sanitize a user-chosen handle. Returns "" on reject (the caller then keeps
+    the prior handle). Rejects email-like values (`@`); caps length at 40."""
+    u = str(raw or "").strip()
+    if not u or "@" in u:
+        return ""
+    return u[:40]
+
+
 # ---------------------------------------------------------------------------
 # Profile shape + validation
 # ---------------------------------------------------------------------------
@@ -232,7 +284,7 @@ def clean_profile(p: dict) -> dict:
         _COUNTRY_SET = _country_codes()
 
     out = empty_profile()
-    out["username"] = str(p.get("username") or "")
+    out["username"] = _clean_username(p.get("username"))
     out["current_visa_or_greencard_category"] = posting._clean_group(
         "current_visa_or_greencard_category", p.get("current_visa_or_greencard_category"))
     out["visa_applying_for"] = posting._clean_group("visa_applying_for", p.get("visa_applying_for"))
@@ -257,6 +309,9 @@ def validate_profile(p: dict) -> list[str]:
     """Non-fatal hints about values that were dropped/invalid (UI can surface)."""
     errs: list[str] = []
     cleaned = clean_profile(p)
+    raw_username = str(p.get("username") or "").strip()
+    if raw_username and not cleaned["username"]:
+        errs.append("username rejected (no email addresses / must be ≤40 chars)")
     for f in ("current_visa_or_greencard_category", "visa_applying_for", "consulates", "tags"):
         dropped = set(p.get(f) or []) - set(cleaned[f])
         if dropped:

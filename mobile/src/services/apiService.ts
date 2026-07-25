@@ -59,16 +59,67 @@ function userHeaders(extra: Record<string, string> = {}): Record<string, string>
   return headers;
 }
 
+/** Error carrying the HTTP status (0 = network/timeout) so callers can branch on it. */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status = 0) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+// 30s: long enough for a slow RAG+Gemini answer, short enough that a truly hung
+// socket surfaces an error instead of spinning at the OS default (~60s+).
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/**
+ * Drop-in replacement for `fetch` that aborts after `timeoutMs` so a stalled
+ * (not failed) connection can't hang the UI forever. On timeout/network error it
+ * rejects with an `ApiError` carrying a user-readable message (status 0).
+ * (Audit P0: no request had a timeout — a captive-portal/hung socket froze screens.)
+ */
+async function apiFetch(
+  input: string,
+  init: RequestInit = {},
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new ApiError('Request timed out. Check your connection and try again.', 0);
+    }
+    throw new ApiError(
+      e instanceof Error ? e.message : 'Network error. Check your connection and try again.',
+      0,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Parse a JSON body but never throw on a non-JSON (e.g. HTML 5xx) body. */
+async function safeJson<T = any>(response: Response): Promise<T> {
+  return (await response.json().catch(() => ({}))) as T;
+}
+
 /**
  * Register a Firebase uid with the backend (idempotent POST /api/users) so the
  * X-User-Id gate accepts it, then make it the active user for all API calls.
+ *
+ * No username is sent: the backend assigns a random anonymous handle
+ * (adj-noun-NNNN) so a user's real name never becomes their username. Users can
+ * rename themselves later from the profile screen.
  */
-export async function registerBackendUser(uid: string, username: string): Promise<void> {
+export async function registerBackendUser(uid: string): Promise<void> {
   try {
-    await fetch(`${API_URL}/api/users`, {
+    await apiFetch(`${API_URL}/api/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, username }),
+      body: JSON.stringify({ uid }),
     });
   } catch {
     // Best-effort - re-run on the next auth-state change; calls 404 until then.
@@ -109,7 +160,7 @@ export async function askQuestion(question: string): Promise<AskResponse> {
   // Do not transmit the user's question to the AI backend without consent
   // (App Store 5.1.1(i)/5.1.2(i)).
   assertAIConsent();
-  const response = await fetch(`${API_URL}/api/ask`, {
+  const response = await apiFetch(`${API_URL}/api/ask`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -129,7 +180,7 @@ export async function askQuestion(question: string): Promise<AskResponse> {
  * Get recent Q&A history
  */
 export async function getQAHistory(limit = 20, offset = 0): Promise<{ items: QAItem[] }> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/qa?limit=${limit}&offset=${offset}`
   );
 
@@ -144,7 +195,7 @@ export async function getQAHistory(limit = 20, offset = 0): Promise<{ items: QAI
  * Submit feedback on an answer
  */
 export async function submitFeedback(qaId: string, helpful: boolean): Promise<{ ok: boolean }> {
-  const response = await fetch(`${API_URL}/api/qa/${qaId}/feedback`, {
+  const response = await apiFetch(`${API_URL}/api/qa/${qaId}/feedback`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -163,7 +214,7 @@ export async function submitFeedback(qaId: string, helpful: boolean): Promise<{ 
  * Check if the API is healthy
  */
 export async function checkHealth(): Promise<{ status: string; chunks_loaded: number }> {
-  const response = await fetch(`${API_URL}/api/health`);
+  const response = await apiFetch(`${API_URL}/api/health`);
   return response.json();
 }
 
@@ -176,11 +227,11 @@ export interface SeedUser {
 }
 
 export async function getUsers(): Promise<SeedUser[]> {
-  const response = await fetch(`${API_URL}/api/users`);
+  const response = await apiFetch(`${API_URL}/api/users`);
   if (!response.ok) {
     throw new Error(`Failed to fetch users: ${response.status}`);
   }
-  const data = await response.json();
+  const data = await safeJson(response);
   return Array.isArray(data) ? data : [];
 }
 
@@ -192,12 +243,12 @@ export interface VoteResult {
 }
 
 export async function castVote(contentId: string, dir: -1 | 0 | 1): Promise<VoteResult> {
-  const response = await fetch(`${API_URL}/api/votes`, {
+  const response = await apiFetch(`${API_URL}/api/votes`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ content_id: contentId, dir }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Vote failed');
   }
@@ -225,7 +276,7 @@ export async function reportContent(
   reason: ReportReason = 'other',
   containerId = ''
 ): Promise<ReportResult> {
-  const response = await fetch(`${API_URL}/api/reports`, {
+  const response = await apiFetch(`${API_URL}/api/reports`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
@@ -235,7 +286,7 @@ export async function reportContent(
       reason,
     }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not submit report');
   }
@@ -244,12 +295,12 @@ export async function reportContent(
 
 /** Block an abusive user. Returns the caller's updated block list (uids). */
 export async function blockUser(blockedUid: string): Promise<string[]> {
-  const response = await fetch(`${API_URL}/api/blocks`, {
+  const response = await apiFetch(`${API_URL}/api/blocks`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ blocked_uid: blockedUid }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not block user');
   }
@@ -257,11 +308,11 @@ export async function blockUser(blockedUid: string): Promise<string[]> {
 }
 
 export async function unblockUser(blockedUid: string): Promise<string[]> {
-  const response = await fetch(`${API_URL}/api/blocks/${encodeURIComponent(blockedUid)}`, {
+  const response = await apiFetch(`${API_URL}/api/blocks/${encodeURIComponent(blockedUid)}`, {
     method: 'DELETE',
     headers: userHeaders(),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not unblock user');
   }
@@ -271,8 +322,8 @@ export async function unblockUser(blockedUid: string): Promise<string[]> {
 /** The caller's current block list (uids). Best-effort — returns [] on error. */
 export async function getBlockedUsers(): Promise<string[]> {
   try {
-    const response = await fetch(`${API_URL}/api/blocks`, { headers: userHeaders() });
-    const data = await response.json();
+    const response = await apiFetch(`${API_URL}/api/blocks`, { headers: userHeaders() });
+    const data = await safeJson(response);
     if (!response.ok) return [];
     return data.blocked_uids || [];
   } catch {
@@ -303,11 +354,11 @@ export interface RepliesResponse {
 }
 
 export async function getReplies(postingId: string, sort: 'top' | 'new' = 'new'): Promise<RepliesResponse> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/postings/${encodeURIComponent(postingId)}/replies?sort=${sort}`,
     { headers: userHeaders() }
   );
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not load replies');
   }
@@ -315,12 +366,12 @@ export async function getReplies(postingId: string, sort: 'top' | 'new' = 'new')
 }
 
 export async function postReply(postingId: string, body: string): Promise<ReplyCardData> {
-  const response = await fetch(`${API_URL}/api/postings/${encodeURIComponent(postingId)}/replies`, {
+  const response = await apiFetch(`${API_URL}/api/postings/${encodeURIComponent(postingId)}/replies`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ body }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not post reply');
   }
@@ -328,7 +379,7 @@ export async function postReply(postingId: string, body: string): Promise<ReplyC
 }
 
 export async function deleteReply(postingId: string, replyId: string): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/postings/${encodeURIComponent(postingId)}/replies/${encodeURIComponent(replyId)}`,
     { method: 'DELETE', headers: userHeaders() }
   );
@@ -389,7 +440,7 @@ export interface AuthorPostingCard {
 
 export async function getPublicProfile(uid: string): Promise<PublicProfile | null> {
   try {
-    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/public-profile`);
+    const r = await apiFetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/public-profile`);
     if (!r.ok) return null;
     return (await r.json()) as PublicProfile;
   } catch {
@@ -399,7 +450,7 @@ export async function getPublicProfile(uid: string): Promise<PublicProfile | nul
 
 export async function getUserPostings(uid: string): Promise<AuthorPostingCard[]> {
   try {
-    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/postings`);
+    const r = await apiFetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/postings`);
     if (!r.ok) return [];
     const d = await r.json();
     return (d.postings || []) as AuthorPostingCard[];
@@ -412,7 +463,7 @@ export async function getUserPostings(uid: string): Promise<AuthorPostingCard[]>
 // the author-by-handle screen (mirrors the website /author-by-handle/[handle]).
 export async function getPostingsByHandle(handle: string): Promise<AuthorPostingCard[]> {
   try {
-    const r = await fetch(`${API_URL}/api/authors/by-handle/${encodeURIComponent(handle)}/postings`);
+    const r = await apiFetch(`${API_URL}/api/authors/by-handle/${encodeURIComponent(handle)}/postings`);
     if (!r.ok) return [];
     const d = await r.json();
     return (d.postings || []) as AuthorPostingCard[];
@@ -431,7 +482,7 @@ export interface UserReplyCard {
 // All replies a user has authored (their 'activity'), newest first.
 export async function getUserReplies(uid: string): Promise<UserReplyCard[]> {
   try {
-    const r = await fetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/replies`);
+    const r = await apiFetch(`${API_URL}/api/users/${encodeURIComponent(uid)}/replies`);
     if (!r.ok) return [];
     const d = await r.json();
     return (d.replies || []) as UserReplyCard[];
@@ -450,10 +501,10 @@ export interface PostingGroups {
 }
 
 export async function getPosting(caseId: string): Promise<PostingData> {
-  const response = await fetch(`${API_URL}/api/postings/${encodeURIComponent(caseId)}`, {
+  const response = await apiFetch(`${API_URL}/api/postings/${encodeURIComponent(caseId)}`, {
     headers: userHeaders(),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not load posting');
   }
@@ -467,12 +518,12 @@ export async function createPosting(
   key_stages_or_info: Record<string, string>,
   key_dates: Record<string, string>
 ): Promise<{ case_id: string; author_handle: string }> {
-  const response = await fetch(`${API_URL}/api/postings`, {
+  const response = await apiFetch(`${API_URL}/api/postings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, description, tags, key_stages_or_info, key_dates }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not publish posting');
   }
@@ -489,12 +540,12 @@ export async function suggestTags(
   relevant_sections: string[];
   posting_type: string;
 }> {
-  const response = await fetch(`${API_URL}/api/tag-suggest`, {
+  const response = await apiFetch(`${API_URL}/api/tag-suggest`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, description }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not analyze posting');
   }
@@ -541,12 +592,12 @@ export async function onboardTurn(
 ): Promise<OnboardResponse> {
   // Onboarding sends profile/background details to the AI backend — gated on consent.
   assertAIConsent();
-  const response = await fetch(`${API_URL}/api/onboard`, {
+  const response = await apiFetch(`${API_URL}/api/onboard`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ stage, messages, draft }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Onboarding assistant error');
   }
@@ -605,8 +656,8 @@ export async function searchPostings(
   p.set('strictness', opts.strictness || 'balanced');
   p.set('page_size', String(opts.pageSize ?? 15));
   if (opts.pageToken) p.set('page_token', opts.pageToken);
-  const response = await fetch(`${API_URL}/api/search?${p.toString()}`);
-  const data = await response.json();
+  const response = await apiFetch(`${API_URL}/api/search?${p.toString()}`);
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Search failed');
   }
@@ -646,9 +697,9 @@ let vocabCache: TagVocab | null = null;
 export async function getTagVocab(): Promise<TagVocab | null> {
   if (vocabCache) return vocabCache;
   try {
-    const response = await fetch(`${API_URL}/api/tag-vocab`);
+    const response = await apiFetch(`${API_URL}/api/tag-vocab`);
     if (!response.ok) return null;
-    const data = await response.json();
+    const data = await safeJson(response);
     vocabCache = {
       visa: data.visa || [],
       consulate: data.consulate || [],
@@ -695,12 +746,12 @@ export async function findChat(
   messages: { role: string; content: string }[],
   draft: Criteria
 ): Promise<{ reply: string; criteria: Criteria }> {
-  const response = await fetch(`${API_URL}/api/find/chat`, {
+  const response = await apiFetch(`${API_URL}/api/find/chat`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ messages, draft }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Find chat error');
   }
@@ -708,12 +759,12 @@ export async function findChat(
 }
 
 export async function findMatches(criteria: Criteria): Promise<{ matches: MatchData[] }> {
-  const response = await fetch(`${API_URL}/api/find/matches`, {
+  const response = await apiFetch(`${API_URL}/api/find/matches`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ criteria }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not find matches');
   }
@@ -743,10 +794,10 @@ export interface GroupResult {
 }
 
 export async function getGroup(groupId: string): Promise<GroupInfo> {
-  const response = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
     headers: userHeaders(),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not load group');
   }
@@ -754,10 +805,10 @@ export async function getGroup(groupId: string): Promise<GroupInfo> {
 }
 
 export async function getAllGroups(): Promise<{ groups: GroupInfo[] }> {
-  const response = await fetch(`${API_URL}/api/groups/all`, {
+  const response = await apiFetch(`${API_URL}/api/groups/all`, {
     headers: userHeaders(),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not load groups');
   }
@@ -769,12 +820,12 @@ export async function createGroup(
   criteria: Criteria,
   members: GroupMember[]
 ): Promise<GroupResult> {
-  const response = await fetch(`${API_URL}/api/groups`, {
+  const response = await apiFetch(`${API_URL}/api/groups`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ criteria_text: criteriaText, criteria, members }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not create group');
   }
@@ -782,7 +833,7 @@ export async function createGroup(
 }
 
 export async function joinGroup(groupId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/join`, {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/join`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
   });
@@ -793,7 +844,7 @@ export async function joinGroup(groupId: string): Promise<void> {
 }
 
 export async function leaveGroup(groupId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/leave`, {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/leave`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
   });
@@ -822,11 +873,11 @@ export async function getGroupMessages(
   const url = since
     ? `${API_URL}/api/groups/${encodeURIComponent(groupId)}/messages?since=${encodeURIComponent(since)}`
     : `${API_URL}/api/groups/${encodeURIComponent(groupId)}/messages`;
-  const response = await fetch(url, { headers: userHeaders() });
+  const response = await apiFetch(url, { headers: userHeaders() });
   if (response.status === 403) {
     return { messages: [], denied: true };
   }
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not load messages');
   }
@@ -834,12 +885,12 @@ export async function getGroupMessages(
 }
 
 export async function sendGroupMessage(groupId: string, text: string): Promise<ChatMessage> {
-  const response = await fetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/messages`, {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/messages`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ text }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not send message');
   }
@@ -847,7 +898,7 @@ export async function sendGroupMessage(groupId: string, text: string): Promise<C
 }
 
 export async function deleteGroupMessage(groupId: string, messageId: string): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/api/groups/${encodeURIComponent(groupId)}/messages/${encodeURIComponent(messageId)}`,
     { method: 'DELETE', headers: userHeaders() }
   );
@@ -869,12 +920,12 @@ export interface ReconcileResult {
 export async function reconcile(message: Partial<Criteria>): Promise<ReconcileResult> {
   // Reconciliation runs the user's message/profile through the AI backend — gated.
   assertAIConsent();
-  const response = await fetch(`${API_URL}/api/reconcile`, {
+  const response = await apiFetch(`${API_URL}/api/reconcile`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ message }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Reconcile failed');
   }
@@ -882,12 +933,16 @@ export async function reconcile(message: Partial<Criteria>): Promise<ReconcileRe
 }
 
 // Profile cache key
-const PROFILE_CACHE_KEY = 'proceedings_profile_cache';
+// Profile cache is namespaced per active uid so one account never reads another's
+// cached profile on a shared device (audit P1: cross-user profile leak).
+const PROFILE_CACHE_PREFIX = 'proceedings_profile_cache';
+const profileCacheKey = (uid: string | null = activeUserId): string =>
+  `${PROFILE_CACHE_PREFIX}_${uid ?? 'anon'}`;
 
-// Get cached profile (returns null if not cached)
+// Get cached profile for the active user (returns null if not cached)
 export async function getCachedProfile(): Promise<Record<string, unknown> | null> {
   try {
-    const cached = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
+    const cached = await AsyncStorage.getItem(profileCacheKey());
     if (cached) {
       return JSON.parse(cached);
     }
@@ -897,36 +952,39 @@ export async function getCachedProfile(): Promise<Record<string, unknown> | null
   return null;
 }
 
-// Save profile to cache
+// Save the active user's profile to cache
 async function cacheProfile(profile: Record<string, unknown>): Promise<void> {
   try {
-    await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    await AsyncStorage.setItem(profileCacheKey(), JSON.stringify(profile));
   } catch {
     // Ignore cache errors
   }
 }
 
-// Clear profile cache (call on sign out)
+// Clear the active user's profile cache (call on sign out, before clearing the uid)
 export async function clearProfileCache(): Promise<void> {
   try {
-    await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
+    await AsyncStorage.removeItem(profileCacheKey());
   } catch {
     // Ignore cache errors
   }
 }
 
 export async function getProfile(): Promise<Record<string, unknown>> {
-  const response = await fetch(`${API_URL}/api/profile`, {
+  const response = await apiFetch(`${API_URL}/api/profile`, {
     headers: userHeaders(),
   });
-  const data = await response.json();
-  // Cache the fresh profile
+  const data = await safeJson<Record<string, unknown>>(response);
+  // Only cache a real profile — never cache a 4xx/5xx error body (audit P1).
+  if (!response.ok) {
+    throw new ApiError((data as any)?.detail || `Request failed: ${response.status}`, response.status);
+  }
   await cacheProfile(data);
   return data;
 }
 
 export async function updateProfile(profile: Record<string, unknown>): Promise<void> {
-  const response = await fetch(`${API_URL}/api/profile`, {
+  const response = await apiFetch(`${API_URL}/api/profile`, {
     method: 'PUT',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(profile),
@@ -948,11 +1006,11 @@ export async function updateProfile(profile: Record<string, unknown>): Promise<v
  * - Firebase Auth account
  */
 export async function deleteAccount(): Promise<{ ok: boolean; deleted_uid: string }> {
-  const response = await fetch(`${API_URL}/api/users/me`, {
+  const response = await apiFetch(`${API_URL}/api/users/me`, {
     method: 'DELETE',
     headers: userHeaders(),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not delete account');
   }
@@ -966,12 +1024,12 @@ export async function deleteAccount(): Promise<{ ok: boolean; deleted_uid: strin
  * Rate limited to 3 requests per hour per email.
  */
 export async function sendVerificationCode(email: string): Promise<{ ok: boolean; message?: string }> {
-  const response = await fetch(`${API_URL}/api/auth/send-code`, {
+  const response = await apiFetch(`${API_URL}/api/auth/send-code`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Failed to send verification code');
   }
@@ -983,12 +1041,12 @@ export async function sendVerificationCode(email: string): Promise<{ ok: boolean
  * Returns { verified: true } on success, or { verified: false, error: string } on failure.
  */
 export async function verifyCode(email: string, code: string): Promise<{ verified: boolean; error?: string }> {
-  const response = await fetch(`${API_URL}/api/auth/verify-code`, {
+  const response = await apiFetch(`${API_URL}/api/auth/verify-code`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, code }),
   });
-  const data = await response.json();
+  const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Verification failed');
   }
@@ -1000,9 +1058,9 @@ export async function verifyCode(email: string, code: string): Promise<{ verifie
  */
 export async function checkEmailVerified(email: string): Promise<boolean> {
   try {
-    const response = await fetch(`${API_URL}/api/auth/check-verified/${encodeURIComponent(email)}`);
+    const response = await apiFetch(`${API_URL}/api/auth/check-verified/${encodeURIComponent(email)}`);
     if (!response.ok) return false;
-    const data = await response.json();
+    const data = await safeJson(response);
     return data.verified === true;
   } catch {
     return false;

@@ -718,6 +718,19 @@ def _synthetic_handle() -> str:
     return f"{secrets.choice(_ADJ)}-{secrets.choice(_NOUN)}-{secrets.randbelow(9000) + 1000}"
 
 
+# Strict shape of a generated handle. Used to tell an anonymous handle apart from
+# a legacy real-name/email-seeded username (profile.is_anonymous_handle / the
+# anonymize_usernames migration).
+HANDLE_RE = re.compile(r"^[a-z]+-[a-z]+-\d{4}$")
+
+
+def generate_handle() -> str:
+    """Public alias for the anonymous Reddit-style handle generator (adj-noun-NNNN).
+    Single source of truth for BOTH per-posting author handles AND profile
+    usernames — real names never seed either."""
+    return _synthetic_handle()
+
+
 def build_canonical(title: str, description: str, tags: dict,
                     key_stages: dict | None = None, key_dates: dict | None = None,
                     extracted: dict | None = None) -> dict:
