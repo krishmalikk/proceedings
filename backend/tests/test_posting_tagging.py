@@ -263,6 +263,48 @@ def group_e_build() -> None:
     check("E18 no cross-bucket-duplicate validation error",
           not any("both" in e for e in p.validate(c17)), str(p.validate(c17)))
 
+    # E19-E27: Path B provenance overrides (docs/ingestion/PATH-B-PROVENANCE-PLAN.md)
+    # — build_canonical()'s new keyword-only params, and the client_platform
+    # allowlist clamp. All app-composer defaults (no kwargs passed) must stay
+    # byte-for-byte identical to E1-E18 above; only explicit overrides change.
+    reddit_tags = {"visa_applying_for": ["H-1B"], "current_visa_or_greencard_category": [],
+                   "primary_consulate": "", "consulates": [], "tags": ["h1b-rfe"],
+                   "concerns_or_questions_tags": []}
+    cr = p.build_canonical(
+        "H-1B RFE approved", "Body text.", reddit_tags,
+        channel="reddit", ingestion_method="manual_curation", source_system="reddit",
+        subreddit="h1b", reddit_post_id="1abc2de",
+        full_url="https://www.reddit.com/r/h1b/comments/1abc2de/x/",
+        posting_date="2026-06-15",
+    )
+    check("E19 channel override applied", cr["channel"] == "reddit", cr["channel"])
+    check("E20 ingestion_method override applied",
+          cr["ingestion_method"] == "manual_curation", cr["ingestion_method"])
+    check("E21 source_system override applied", cr["source_system"] == "reddit", cr["source_system"])
+    check("E22 deterministic reddit case_id (channel-date-subreddit-postid)",
+          cr["case_id"] == "reddit-2026-06-15-h1b-1abc2de", cr["case_id"])
+    check("E23 posting_date override applied (not today)",
+          cr["posting_date"] == "2026-06-15", cr["posting_date"])
+    check("E24 gcs_path uses the overridden channel, not the app default",
+          cr["gcs_path"] == "gs://imm-postings-ingestion/2026-06-15/reddit/", cr["gcs_path"])
+    check("E25 full_url override applied (real reddit permalink, not APP_BASE_URL)",
+          cr["full_url"] == "https://www.reddit.com/r/h1b/comments/1abc2de/x/", cr["full_url"])
+    check("E26 subreddit/reddit_post_id round-trip",
+          cr["subreddit"] == "h1b" and cr["reddit_post_id"] == "1abc2de",
+          (cr["subreddit"], cr["reddit_post_id"]))
+
+    c_default = p.build_canonical("App post", "Body text.", reddit_tags)
+    check("E27 no-kwargs default still produces channel=app, random case_id (E2's format)",
+          c_default["channel"] == "app" and c_default["case_id"].startswith("app-"),
+          c_default["case_id"])
+
+    cp_web = p.build_canonical("t", "d", reddit_tags, client_platform="web")
+    cp_bad = p.build_canonical("t", "d", reddit_tags, client_platform="not-a-real-platform")
+    cp_default = p.build_canonical("t", "d", reddit_tags)
+    check("E28 client_platform: valid value passes through", cp_web["client_platform"] == "web")
+    check("E29 client_platform: invalid value clamps to ''", cp_bad["client_platform"] == "")
+    check("E30 client_platform: omitted defaults to ''", cp_default["client_platform"] == "")
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)
