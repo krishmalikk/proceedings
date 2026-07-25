@@ -156,6 +156,40 @@ non-public function needed for this one.
 - **Website** (`website/src/app/post/page.tsx`): always `"web"` — a static
   value, no runtime detection needed.
 
+### Mobile rollout timeline reality
+
+Landing the mobile code change (`apiService.ts`/`PostScreen.tsx` sending
+`Platform.OS`) is **not** the same as mobile users actually sending
+`client_platform`. Unlike the backend and website — both Cloud Run, live the
+moment a deploy is approved — mobile has to clear a full
+**EAS Build → App Store / Play Store review → user update** cycle before any
+installed device runs the new code, and none of those steps are instant or
+guaranteed:
+- App Store/Play Store review is typically days, not minutes.
+- Store review can reject a build, adding another round trip.
+- Even once approved, updates are not force-installed — a real cohort of
+  users stays on old binaries indefinitely (auto-update disabled, app
+  rarely opened, etc.).
+
+At the time of this plan, the mobile app is still at **v1.0.0 with no
+release since [PR #35](https://github.com/krishmalikk/proceedings/pull/35)**
+— so this specific change doesn't reach a single real device until whenever
+the next mobile release is actually cut and approved, a step that is
+separate from and later than this PR merging.
+
+Practical consequence: **`client_platform` should be expected to arrive at
+`""` (empty) for a meaningful share of mobile-originated postings
+indefinitely**, not just during a short rollout window — every user who
+never updates past the pre-this-change build contributes to that
+indefinitely, the same way any mobile feature's adoption has a long tail.
+This isn't a bug to fix later; it's a structural property of mobile
+distribution that this feature (and any future mobile-only field) has to be
+designed to tolerate. It's part of why `client_platform` is optional/
+best-effort rather than required (see the "required?" open question above)
+— and it means "done" for this feature, on the mobile side specifically,
+means "shipped in the next mobile release," not "every mobile posting has
+this field populated."
+
 ### Backend changes
 
 1. `PostingCreateRequest` (`backend/api.py`): new optional field
