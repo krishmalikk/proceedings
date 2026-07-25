@@ -465,12 +465,13 @@ export async function createPosting(
   description: string,
   tags: PostingGroups,
   key_stages_or_info: Record<string, string>,
-  key_dates: Record<string, string>
+  key_dates: Record<string, string>,
+  client_platform: string = ''
 ): Promise<{ case_id: string; author_handle: string }> {
   const response = await fetch(`${API_URL}/api/postings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, description, tags, key_stages_or_info, key_dates }),
+    body: JSON.stringify({ title, description, tags, key_stages_or_info, key_dates, client_platform }),
   });
   const data = await response.json();
   if (!response.ok) {

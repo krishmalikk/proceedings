@@ -216,7 +216,10 @@ export default function PostPage() {
       const res = await fetch('/api/postings', {
         // Send the active user so the backend records the posting↔author link.
         method: 'POST', headers: userHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ title, description, tags: groups, key_stages_or_info: stages, key_dates: dates }),
+        body: JSON.stringify({
+          title, description, tags: groups, key_stages_or_info: stages, key_dates: dates,
+          client_platform: 'web',
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Could not publish posting')

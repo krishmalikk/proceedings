@@ -185,6 +185,12 @@ class PostingCreateRequest(BaseModel):
     tags: TagGroups = TagGroups()
     key_stages_or_info: dict[str, str] = {}
     key_dates: dict[str, str] = {}
+    # Soft analytics field the client reports about itself ("web"/"ios"/
+    # "android") — see docs/ingestion/PATH-B-PROVENANCE-PLAN.md. Unlike
+    # channel/posting_date, a client lying about its own platform has no
+    # content-integrity stakes, so this is safe to accept on the public
+    # route; invalid values are clamped to "" server-side, never rejected.
+    client_platform: str = ""
 
 
 class PostingCreateResponse(BaseModel):
@@ -851,6 +857,7 @@ def create_posting(body: PostingCreateRequest, request: Request):
         result = _guard(lambda: posting.publish_posting(
             body.title, body.description, body.tags.model_dump(),
             body.key_stages_or_info, body.key_dates,
+            client_platform=body.client_platform,
         ))
     except ValueError as e:
         # vocabulary / schema validation failure → 422

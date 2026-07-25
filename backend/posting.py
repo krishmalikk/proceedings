@@ -777,18 +777,51 @@ def _synthetic_handle() -> str:
     return f"{secrets.choice(_ADJ)}-{secrets.choice(_NOUN)}-{secrets.randbelow(9000) + 1000}"
 
 
+# Valid client_platform values — a soft analytics field, not content-integrity
+# critical (see docs/ingestion/PATH-B-PROVENANCE-PLAN.md), so an invalid/unknown
+# value clamps to "" rather than raising.
+_CLIENT_PLATFORMS = {"web", "ios", "android"}
+
+
 def build_canonical(title: str, description: str, tags: dict,
                     key_stages: dict | None = None, key_dates: dict | None = None,
-                    extracted: dict | None = None) -> dict:
+                    extracted: dict | None = None,
+                    *,
+                    channel: str = CHANNEL,
+                    ingestion_method: str = "user_post",
+                    source_system: str = "",
+                    subreddit: str = "",
+                    reddit_post_id: str = "",
+                    full_url: str = "",
+                    posting_date: str = "",
+                    client_platform: str = "") -> dict:
     """Assemble the full sidecar JSON. `tags`/`key_stages`/`key_dates` (user-edited)
-    override the model; remaining context fields come from `extracted`."""
+    override the model; remaining context fields come from `extracted`.
+
+    The keyword-only params exist for backend-ingested (Reddit) content —
+    see docs/ingestion/PATH-B-PROVENANCE-PLAN.md. Every default reproduces
+    today's exact app-composer behavior; only `publish_reddit_posting()`
+    (not any public route) ever passes them explicitly."""
     ex = extracted or {}
     now = datetime.now(timezone.utc)
-    date_str = now.strftime("%Y-%m-%d")
+    # posting_date: the ORIGINAL posting date (overridable for backend-ingested
+    # content) — defaults to today for a live app submission, where posting IS
+    # the ingestion moment. ingestion_timestamp (below) is ALWAYS "now",
+    # regardless — "when WE processed it" is a separate concept from "when it
+    # was originally posted." See PATH-B-PROVENANCE-PLAN.md's field table.
+    date_str = posting_date or now.strftime("%Y-%m-%d")
     ts = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    short = secrets.token_hex(4)
-    case_id = f"{CHANNEL}-{date_str}-{short}"
-    prefix = f"gs://{_bucket_name()}/{date_str}/{CHANNEL}/"
+    if subreddit and reddit_post_id:
+        # Deterministic ID (doubles as a dedup key) for backend-ingested
+        # content with a real source post — matches the scheme from the
+        # original ingestion pipeline spec, rather than a random suffix.
+        case_id = f"{channel}-{date_str}-{subreddit}-{reddit_post_id}"
+    else:
+        short = secrets.token_hex(4)
+        case_id = f"{channel}-{date_str}-{short}"
+    prefix = f"gs://{_bucket_name()}/{date_str}/{channel}/"
+    if client_platform not in _CLIENT_PLATFORMS:
+        client_platform = ""
 
     groups = {f: _clean_group(f, tags.get(f)) for f in GROUP_FIELDS}
     groups = _normalize_groups(groups)
@@ -840,23 +873,27 @@ def build_canonical(title: str, description: str, tags: dict,
     return {
         "case_id": case_id,
         # provenance
-        "ingestion_method": "user_post",
-        "source_system": SOURCE_SYSTEM,
-        "channel": CHANNEL,
+        "ingestion_method": ingestion_method,
+        "source_system": source_system or SOURCE_SYSTEM,
+        "channel": channel,
         "source_url": APP_BASE_URL,
         "source_uri": f"{APP_BASE_URL}/case/{case_id}",
-        "subreddit": "",
+        "subreddit": subreddit,
         "author_handle": _synthetic_handle(),
-        "full_url": f"{APP_BASE_URL}/case/{case_id}",
+        "full_url": full_url or f"{APP_BASE_URL}/case/{case_id}",
         "post_title": title,
         "language": str(ex.get("language") or "en"),
+        "client_platform": client_platform,
         # timestamps
         "posting_date": date_str,
         "ingestion_timestamp": ts,
         "last_updated_timestamp": ts,
         # quality
         "tagging_confidence": float(ex.get("tagging_confidence") or 0.9),
-        "source_metadata": "Submitted via meridianjourney.ai web composer",
+        "source_metadata": (
+            f"Manually curated from r/{subreddit}" if subreddit
+            else "Submitted via meridianjourney.ai web composer"
+        ),
         "gcs_path": prefix,
         # summaries
         "background_summary": bg,
@@ -882,7 +919,7 @@ def build_canonical(title: str, description: str, tags: dict,
         # provenance for analytics
         "doc_kind": "post",
         "parent_case_id": "",
-        "reddit_post_id": "",
+        "reddit_post_id": reddit_post_id,
     }
 
 
@@ -899,7 +936,10 @@ def _write_gcs(canonical: dict, md_body: str) -> tuple[str, str]:
     bucket_name = _bucket_name()
     case_id = canonical["case_id"]
     date_str = canonical["posting_date"]
-    base = f"{date_str}/{CHANNEL}/{case_id}"
+    # Bug fixed: this used to reference the module-level CHANNEL constant
+    # ("app") unconditionally, so backend-ingested (channel="reddit") content
+    # would land under an "app/" GCS prefix regardless of its real channel.
+    base = f"{date_str}/{canonical['channel']}/{case_id}"
     client = storage.Client(project=_project())
     bucket = client.bucket(bucket_name)
     bucket.blob(f"{base}.md").upload_from_string(md_body, content_type="text/markdown")
@@ -965,7 +1005,9 @@ def _import_to_datastore(canonical: dict, md_uri: str) -> None:
 
 
 _BQ_SCHEMA_FIELDS = [
-    ("case_id", "STRING"), ("source_system", "STRING"), ("source_uri", "STRING"),
+    ("case_id", "STRING"), ("channel", "STRING"), ("ingestion_method", "STRING"),
+    ("client_platform", "STRING"),
+    ("source_system", "STRING"), ("source_uri", "STRING"),
     ("subreddit", "STRING"), ("full_url", "STRING"), ("post_title", "STRING"),
     ("language", "STRING"), ("posting_date", "DATE"), ("ingestion_timestamp", "TIMESTAMP"),
     ("last_updated_timestamp", "TIMESTAMP"), ("tagging_confidence", "FLOAT64"),
@@ -984,7 +1026,12 @@ _BQ_SCHEMA_FIELDS = [
 
 
 def _ensure_bq_table(client, dataset_id: str, table_id: str):
-    """Create the postings dataset + postings_metadata table if they don't exist."""
+    """Create the postings dataset + postings_metadata table if they don't exist;
+    if the table already exists, add any _BQ_SCHEMA_FIELDS columns it's missing
+    (BigQuery allows adding NULLABLE columns to a live table with no downtime).
+    Without this, adding a new field here + to the row dict in _write_bigquery
+    would silently break every future insert against an already-existing table
+    — insert_rows_json rejects rows with fields the live schema doesn't have."""
     from google.cloud import bigquery
     from google.api_core.exceptions import NotFound
 
@@ -994,14 +1041,23 @@ def _ensure_bq_table(client, dataset_id: str, table_id: str):
         ds = bigquery.Dataset(f"{client.project}.{dataset_id}")
         ds.location = "US"
         client.create_dataset(ds, exists_ok=True)
+
+    schema = [bigquery.SchemaField(f[0], f[1], mode=(f[2] if len(f) > 2 else "NULLABLE"))
+              for f in _BQ_SCHEMA_FIELDS]
     try:
-        return client.get_table(table_id)
+        table = client.get_table(table_id)
     except NotFound:
-        schema = [bigquery.SchemaField(f[0], f[1], mode=(f[2] if len(f) > 2 else "NULLABLE"))
-                  for f in _BQ_SCHEMA_FIELDS]
         table = bigquery.Table(table_id, schema=schema)
         table.time_partitioning = bigquery.TimePartitioning(field="posting_date")
         return client.create_table(table, exists_ok=True)
+
+    existing_names = {f.name for f in table.schema}
+    missing = [f for f in schema if f.name not in existing_names]
+    if missing:
+        table.schema = list(table.schema) + missing
+        table = client.update_table(table, ["schema"])
+        print(f"posting: added BQ column(s): {[f.name for f in missing]}")
+    return table
 
 
 def _pipeline_run_id() -> str:
@@ -1041,9 +1097,11 @@ def purge_test_bq_rows(marker_prefix: str = "test-") -> int:
         return 0
 
 
-def _write_bigquery(canonical: dict) -> None:
+def _write_bigquery(canonical: dict, pipeline_run_id: str = "") -> None:
     """Append a row to postings.postings_metadata (self-provisions dataset+table;
-    non-blocking for the user if BQ is unavailable)."""
+    non-blocking for the user if BQ is unavailable). `pipeline_run_id` lets a
+    caller other than the live web/mobile route (e.g. a Reddit curation script)
+    stamp its own marker instead of the _pipeline_run_id() env-var default."""
     try:
         from google.cloud import bigquery  # noqa: F401
     except ImportError:
@@ -1054,6 +1112,9 @@ def _write_bigquery(canonical: dict) -> None:
     table_id = f"{_project()}.postings.postings_metadata"
     row = {
         "case_id": canonical["case_id"],
+        "channel": canonical["channel"],
+        "ingestion_method": canonical["ingestion_method"],
+        "client_platform": canonical.get("client_platform", ""),
         "source_system": canonical["source_system"],
         "source_uri": canonical["source_uri"],
         "subreddit": canonical["subreddit"],
@@ -1084,7 +1145,7 @@ def _write_bigquery(canonical: dict) -> None:
         "doc_kind": canonical["doc_kind"],
         "parent_case_id": canonical["parent_case_id"],
         "reddit_post_id": canonical["reddit_post_id"],
-        "pipeline_run_id": _pipeline_run_id(),
+        "pipeline_run_id": pipeline_run_id or _pipeline_run_id(),
     }
     try:
         _ensure_bq_table(client, "postings", table_id)
@@ -1096,8 +1157,13 @@ def _write_bigquery(canonical: dict) -> None:
 
 
 def publish_posting(title: str, description: str, tags: dict,
-                    key_stages: dict | None = None, key_dates: dict | None = None) -> dict:
-    """Full publish path. Returns {case_id, gcs_path, indexed, author_handle}."""
+                    key_stages: dict | None = None, key_dates: dict | None = None,
+                    client_platform: str = "") -> dict:
+    """Full publish path. Returns {case_id, gcs_path, indexed, author_handle}.
+    `client_platform` ("web"/"ios"/"android") is a soft analytics field the
+    caller (the composer UI) reports about itself — see
+    docs/ingestion/PATH-B-PROVENANCE-PLAN.md. Invalid/unknown values are
+    clamped to "" inside build_canonical(), never rejected."""
     # Redact PII (email / phone / A-number) before anything is tagged, written to
     # GCS, indexed, or sent to BigQuery — postings are read by other users, so
     # contact info must never survive into the stored content. Local import
@@ -1118,7 +1184,8 @@ def publish_posting(title: str, description: str, tags: dict,
     except Exception as e:  # noqa: BLE001 - fall back to placeholders if the tagger fails
         print(f"posting: extraction for context failed ({e}); using placeholders")
 
-    canonical = build_canonical(title, description, tags, key_stages, key_dates, extracted)
+    canonical = build_canonical(title, description, tags, key_stages, key_dates, extracted,
+                                client_platform=client_platform)
     errs = validate(canonical)
     if errs:
         raise ValueError("; ".join(errs))
@@ -1126,6 +1193,45 @@ def publish_posting(title: str, description: str, tags: dict,
     md_uri, _json_uri = _write_gcs(canonical, _markdown_body(title, description))
     _import_to_datastore(canonical, md_uri)
     _write_bigquery(canonical)
+    return {
+        "case_id": canonical["case_id"],
+        "gcs_path": canonical["gcs_path"],
+        "indexed": True,
+        "author_handle": canonical["author_handle"],
+    }
+
+
+def publish_reddit_posting(title: str, description: str, tags: dict,
+                           subreddit: str, reddit_post_id: str, full_url: str,
+                           posting_date: str, key_stages: dict | None = None,
+                           key_dates: dict | None = None,
+                           extracted: dict | None = None) -> dict:
+    """Publish path for backend-ingested (Reddit) content — Path B, see
+    docs/ingestion/PATH-B-PROVENANCE-PLAN.md. Deliberately NOT wired to any
+    FastAPI route: channel/ingestion_method/source_system/posting_date are
+    trust-sensitive (a public route accepting them would let any user spoof
+    Reddit provenance or backdate a post), so this is only ever called from
+    a local script with direct repo/GCP access, never over HTTP.
+
+    Unlike publish_posting(), this does NOT call profile.scrub_pii() or
+    moderation.check_text() — Reddit content is already public (D-017: not
+    treated as containing sensitive PII the way a live user's private
+    submission is) and is expected to have already passed human curator
+    review before this is called. Returns the same shape as
+    publish_posting()."""
+    canonical = build_canonical(
+        title, description, tags, key_stages, key_dates, extracted,
+        channel="reddit", ingestion_method="manual_curation", source_system="reddit",
+        subreddit=subreddit, reddit_post_id=reddit_post_id, full_url=full_url,
+        posting_date=posting_date,
+    )
+    errs = validate(canonical)
+    if errs:
+        raise ValueError("; ".join(errs))
+
+    md_uri, _json_uri = _write_gcs(canonical, _markdown_body(title, description))
+    _import_to_datastore(canonical, md_uri)
+    _write_bigquery(canonical, pipeline_run_id="reddit-manual-curation")
     return {
         "case_id": canonical["case_id"],
         "gcs_path": canonical["gcs_path"],
@@ -1285,7 +1391,13 @@ def delete_content(case_id: str) -> None:
         print(f"posting.delete_content: datastore delete failed ({e})")
     m = re.search(r"(\d{4}-\d{2}-\d{2})", case_id)
     if m:
-        base = f"{m.group(1)}/{CHANNEL}/{case_id}"
+        # Bug fixed: this used to hardcode CHANNEL ("app"), so deleting a
+        # channel="reddit" doc's GCS sidecars would silently look in the
+        # wrong prefix and leave them orphaned. case_id always starts with
+        # "<channel>-" (app-, app-exp-, app-connect-, reddit-, ...), so its
+        # own leading segment is the correct channel regardless of shape.
+        channel_prefix = case_id.split("-", 1)[0] or CHANNEL
+        base = f"{m.group(1)}/{channel_prefix}/{case_id}"
         try:
             bkt = storage.Client(project=project).bucket(_bucket_name())
             for ext in (".md", ".json"):
