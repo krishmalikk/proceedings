@@ -249,6 +249,20 @@ def group_e_build() -> None:
     check("E16 no duplicate when family-based-immigration already present",
           c16["tags"].count("family-based-immigration") == 1, c16["tags"])
 
+    # E17-E18: cross-bucket duplicate regression (1862-notice.txt case) — a
+    # post ASKING about timeline puts "timeline" in concerns_or_questions_tags
+    # only; the deterministic timeline rule must not also add it to tags,
+    # since validate() rejects a tag appearing in more than one bucket.
+    asking_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                    "primary_consulate": "", "consulates": [], "tags": ["EAD", "asylum"],
+                    "concerns_or_questions_tags": ["processing-delay", "timeline"]}
+    c17 = p.build_canonical("1862 notice", "Body text.", asking_tags,
+                            key_dates={"ead_approved_date": "2025-03-01"})
+    check("E17 timeline not duplicated into tags when already in concerns_or_questions_tags",
+          "timeline" not in c17["tags"], c17["tags"])
+    check("E18 no cross-bucket-duplicate validation error",
+          not any("both" in e for e in p.validate(c17)), str(p.validate(c17)))
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)
