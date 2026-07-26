@@ -275,13 +275,29 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
         "consulates": consulates,
         "outcome": str(meta.get("outcome_status") or stages.get("outcome_status") or ""),
         "subreddit": str(meta.get("subreddit") or meta.get("source_container") or ""),
-        "channel": str(meta.get("channel") or ""),
+        # `channel` is present in every doc's struct_data, but — verified
+        # live — the Discovery Engine schema has it registered as a bare
+        # {"type": "string"} (not `retrievable`), so Search API result
+        # snippets omit it entirely (get_posting()'s single-document fetch
+        # isn't affected — that returns full struct_data regardless).
+        # Fallback to deriving it from case_id's leading segment, which is
+        # always accurate by construction — same convention
+        # delete_content() already relies on. Fixes blank "Source" labels
+        # on every list-view card (Search *and* News tabs), not just
+        # gov-news — this was a pre-existing gap, not one introduced here.
+        "channel": str(meta.get("channel") or "").strip() or case_id.split("-", 1)[0],
         "tags": tags[:8],
         "url": str(meta.get("full_url") or meta.get("source_uri") or ""),
         "date": str(meta.get("posting_date") or ""),
         # Full ingestion timestamp for relative "X ago" display + recency sort;
         # falls back to the day-granular posting_date when absent.
         "timestamp": str(meta.get("ingestion_timestamp") or meta.get("posting_date") or ""),
+        # First-party/source author identity — a synthetic per-item handle for
+        # app postings, or a fixed per-source handle (e.g. "USCIS") for
+        # gov-news content (GOV-NEWS-INGESTION-PLAN.md §3.6). Single point of
+        # truth here so both search-result cards and the detail view
+        # (get_posting(), which builds on this) carry it consistently.
+        "author_handle": str(meta.get("author_handle") or "").strip(),
     }
 
 
@@ -561,11 +577,8 @@ def get_posting(case_id: str, project_id: str, location: str, datastore_id: str)
         return None
 
     meta = _struct_to_dict(doc.struct_data)
-    card = _card_from_struct(case_id, meta)
+    card = _card_from_struct(case_id, meta)  # author_handle already included
     card["tag_sections"] = _tag_sections_from_meta(meta)
-    # First-party author identity (synthetic handle or username). Empty for
-    # external (Reddit/other) ingests — they carry no author_handle.
-    card["author_handle"] = str(meta.get("author_handle") or "").strip()
 
     # Body lives in the GCS sidecar (.md), referenced by content.uri / gcs_path.
     body = ""
