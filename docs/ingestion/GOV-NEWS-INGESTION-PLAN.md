@@ -311,39 +311,55 @@ uniformly fine:
 
 **Decision: `DELETE`+`INSERT`, not accept-duplicates.** This project already
 has a working pattern for exactly this class of problem —
-`purge_test_bq_rows()` ([`posting.py:1070-1088`](../../backend/posting.py)) already
-had to `DELETE` rows from `postings_metadata` and hit BigQuery's
-"UPDATE/DELETE on recently streamed rows" restriction (rows inserted via
-`insert_rows_json` sit in a streaming buffer for up to ~90 min and can't be
-mutated during that window). Its fix — guard the `DELETE` with
-`AND posting_date < CURRENT_DATE()` — is exactly what gov-news edits should
-reuse rather than inventing a new mechanism:
+`purge_test_bq_rows()` ([`posting.py`](../../backend/posting.py)) already had to
+`DELETE` rows from `postings_metadata` and hit BigQuery's "UPDATE/DELETE on
+recently streamed rows" restriction (rows inserted via `insert_rows_json`
+sit in a streaming buffer for up to ~90 min and can't be mutated during that
+window).
+
+**Correction (caught while implementing, not in the original design above):**
+the guard must be on **`ingestion_timestamp`**, not `posting_date` the way
+`purge_test_bq_rows()` guards it. `purge_test_bq_rows()`'s rows are never
+backdated, so for its rows `posting_date` and "the day the row was inserted"
+are always the same — guarding on either gives the same answer there. **Gov-news
+content is backdated by design** (`posting_date` is the source's real,
+possibly months-old, original publish date — that's the whole point of §1's
+`pubDate` field). Guarding on `posting_date < CURRENT_DATE()` here would let
+a `DELETE` through for a historical article that was inserted moments ago
+during a backfill (its old `posting_date` easily passes "before today," but
+the row is still genuinely in the streaming buffer) — exactly the error this
+guard exists to prevent. The actual implementation:
 
 ```sql
 DELETE FROM `{project}.postings.postings_metadata`
-WHERE case_id = @case_id AND posting_date < CURRENT_DATE()
+WHERE case_id = @case_id
+AND ingestion_timestamp < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 MINUTE)
 ```
-followed by a normal `insert_rows_json()` of the fresh row.
+followed by a normal `insert_rows_json()` of the fresh row. This checks
+actual insert recency — what the streaming-buffer restriction actually
+depends on — regardless of what historical date the content carries.
 
-**Same-day-edit edge case, handled by self-healing, not special-cased:** if
-an item is edited the same day it was first ingested, the `DELETE` guard
-excludes it (0 rows affected) and the fresh row gets inserted alongside the
-stale one — a temporary duplicate, not a bug. Two things make this
-self-correcting without extra logic:
+**Recently-ingested-edit edge case, handled by self-healing, not
+special-cased:** if an item is edited within ~90 min of its own ingestion,
+the `DELETE` guard excludes it (0 rows affected) and the fresh row gets
+inserted alongside the stale one — a temporary duplicate, not a bug (rarer
+in practice than the original "same calendar day" framing implied, now that
+the window is the actual ~90-min buffer rather than "any time before
+midnight"). Two things make this self-correcting without extra logic:
 1. §5.2's dedup-map query must select the row **`QUALIFY ROW_NUMBER() OVER
    (PARTITION BY source_item_id ORDER BY ingestion_timestamp DESC) = 1`**
    (latest per `guid`) rather than assuming one row per `case_id` — this
    makes next run's new/unchanged/edited classification correct even while
-   a same-day duplicate briefly exists.
-2. The stale row ages out of the streaming buffer by the next day, at which
+   a duplicate briefly exists.
+2. The stale row clears the streaming buffer within the hour, at which
    point a normal `DELETE`+`INSERT` (triggered the next time that item's
    hash is checked — which only happens if it's edited *again*) would clean
    it up. **Being fully honest about the gap this leaves:** if an item is
-   edited exactly once, same-day, the stale duplicate row has no future
-   trigger to actually delete it (nothing re-touches that `case_id` again).
-   Acceptable for now given `content_hash`-based reads already de-duplicate
-   correctly (#1), but worth a periodic cleanup pass (mirroring
-   `purge_test_bq_rows()`'s own existence) if stale same-day duplicates
+   edited exactly once, within that ~90-min window, the stale duplicate row
+   has no future trigger to actually delete it (nothing re-touches that
+   `case_id` again). Acceptable for now given `content_hash`-based reads
+   already de-duplicate correctly (#1), but worth a periodic cleanup pass
+   (mirroring `purge_test_bq_rows()`'s own existence) if stale duplicates
    actually accumulate in practice — not building that preemptively.
 
 ### 5.4 Items removed from the feed — not treated as a deletion signal

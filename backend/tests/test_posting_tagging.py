@@ -166,6 +166,17 @@ def group_d_validate() -> None:
     check("D6 primary_consulate must be within consulates",
           any("within consulates" in e for e in p.validate(badcons)), str(p.validate(badcons)))
 
+    # D7-D8: news-update bypasses the visa/status-required rule
+    # (GOV-NEWS-INGESTION-PLAN.md §3.4) — general policy news doesn't
+    # represent anyone's personal status claim.
+    news = _doc(current_visa_or_greencard_category=[], visa_applying_for=[], tags=["news-update"])
+    check("D7 news-update tag bypasses the visa/status-required rule (fully valid doc)",
+          p.validate(news) == [], str(p.validate(news)))
+
+    news_and_visa = _doc(current_visa_or_greencard_category=["H-1B"], tags=["news-update"])
+    check("D8 news-update doesn't suppress other validation (still fully valid doc)",
+          p.validate(news_and_visa) == [], str(p.validate(news_and_visa)))
+
 
 # ---------------------------------------------------------------------------
 # E — build_canonical (UNIT)
@@ -304,6 +315,66 @@ def group_e_build() -> None:
     check("E28 client_platform: valid value passes through", cp_web["client_platform"] == "web")
     check("E29 client_platform: invalid value clamps to ''", cp_bad["client_platform"] == "")
     check("E30 client_platform: omitted defaults to ''", cp_default["client_platform"] == "")
+
+    # E31-E38: gov-news provenance (docs/ingestion/GOV-NEWS-INGESTION-PLAN.md)
+    # — content_hash, the gov-news case_id scheme, and author_handle/
+    # source_item_id overrides.
+    check("E31 content_hash_for is deterministic for identical input",
+          p.content_hash_for("t", "d") == p.content_hash_for("t", "d"))
+    check("E32 content_hash_for differs when content differs",
+          p.content_hash_for("t", "d1") != p.content_hash_for("t", "d2"))
+
+    news_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                 "primary_consulate": "", "consulates": [], "tags": ["news-update"],
+                 "concerns_or_questions_tags": []}
+    gc = p.build_canonical(
+        "USCIS Reaches Fiscal Year 2027 H-1B Cap", "Body text.", news_tags,
+        channel="gov_news", ingestion_method="rss_feed", source_system="uscis",
+        full_url="https://www.uscis.gov/newsroom/alerts/uscis-reaches-fiscal-year-2027-h-1b-cap",
+        posting_date="2026-07-17", author_handle="USCIS",
+        source_item_id="8d0937a2-6564-412c-8b12-7db83e9fbb39",
+    )
+    import hashlib
+    expected_short = hashlib.sha256(b"8d0937a2-6564-412c-8b12-7db83e9fbb39").hexdigest()[:8]
+    check("E33 gov-news case_id format channel-source-date-hash",
+          gc["case_id"] == f"gov_news-uscis-2026-07-17-{expected_short}", gc["case_id"])
+    check("E34 case_id leading segment matches channel exactly (delete_content() convention)",
+          gc["case_id"].split("-", 1)[0] == "gov_news", gc["case_id"])
+    check("E35 author_handle override applied (fixed source handle, not synthetic)",
+          gc["author_handle"] == "USCIS", gc["author_handle"])
+    check("E36 source_item_id round-trips into the canonical dict",
+          gc["source_item_id"] == "8d0937a2-6564-412c-8b12-7db83e9fbb39", gc["source_item_id"])
+    check("E37 content_hash present and matches content_hash_for(title, description)",
+          gc["content_hash"] == p.content_hash_for("USCIS Reaches Fiscal Year 2027 H-1B Cap", "Body text."),
+          gc["content_hash"])
+    check("E38 gov-news doc passes validation (news-update bypasses visa requirement)",
+          p.validate(gc) == [], str(p.validate(gc)))
+
+    # E39a-E39c: backdated ingestion (GOV-NEWS-INGESTION-PLAN.md — gov-news
+    # content is routinely months old by the time it's ingested). Confirms
+    # posting_date carries the real historical source date while
+    # ingestion_timestamp stays "when WE actually processed it" regardless —
+    # the two must never be conflated, which is exactly what the
+    # _write_bigquery() delete-guard bug (fixed alongside this test) would
+    # have gotten wrong for backdated content specifically.
+    from datetime import datetime, timezone
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    old = p.build_canonical(
+        "Old backdated article", "Body text.", news_tags,
+        channel="gov_news", source_system="uscis", posting_date="2020-01-01",
+        source_item_id="old-item-1",
+    )
+    check("E39 backdated posting_date carries the real historical date, not today",
+          old["posting_date"] == "2020-01-01", old["posting_date"])
+    check("E40 ingestion_timestamp is today regardless of how backdated posting_date is",
+          old["ingestion_timestamp"].startswith(today_str), old["ingestion_timestamp"])
+    check("E41 backdated case_id uses the historical date, not today",
+          old["case_id"].startswith("gov_news-uscis-2020-01-01-"), old["case_id"])
+
+    c_no_override = p.build_canonical("t", "d", reddit_tags)
+    check("E42 author_handle omitted still defaults to a synthetic handle",
+          bool(c_no_override["author_handle"]) and c_no_override["author_handle"] != "USCIS",
+          c_no_override["author_handle"])
 
 
 # ---------------------------------------------------------------------------
