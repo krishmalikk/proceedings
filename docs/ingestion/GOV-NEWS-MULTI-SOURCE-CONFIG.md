@@ -80,39 +80,117 @@ can be added (stored, visible in `list`/`show`) but will never actually be
 polled until the paraphrase/review posture that license needs is built —
 config alone can't accidentally turn on unsafe automation.
 
-## 3. `travel.state.gov` — evaluated, not added this round
+## 3. `travel.state.gov` — full options evaluation
 
-Checked directly (browser + plain HTTP, same discipline as the original
-USCIS evaluation):
+First pass (above, in the original PR) found no RSS feed and a Cloudflare
+block, and stopped there per explicit direction. Follow-up request: fully
+evaluate *how* this could be ingested, not just confirm the USCIS approach
+doesn't transfer. Checked several additional angles directly (browser +
+plain HTTP + web search) before writing this up.
 
-- **No RSS feed exists for "U.S. Visas News."** The only feed the site
-  offers (`travel.state.gov/_res/rss/TAsTWs.xml`, discovered via the
-  site's own `rss.html` hub page) was fetched and inspected directly — its
-  content is **Travel Advisories** (per-country travel warnings, e.g.
-  "Belgium - Level 2: Exercise Increased Caution"), entirely unrelated to
-  visa-process news. There is no feed for the requested content.
-- **The site blocks plain HTTP clients sitewide.** Unlike USCIS (which
-  only blocked its HTML listing page at the bot-fingerprint level while
-  leaving articles and `robots.txt` open), `travel.state.gov` returns a
-  Cloudflare `403 Attention Required` to a plain `requests.get()` on
-  **both** the news page **and `robots.txt` itself**. A real browser
-  passes after a few seconds (used for this evaluation), but the
-  lightweight script-based approach this pipeline runs on cannot.
+### 3.1 Confirmed facts
 
-**Conclusion:** the USCIS approach (poll an RSS feed with a plain HTTP
-client) does not transfer to this site. The only way to actually ingest it
-would be headless browser automation (e.g., Playwright solving the
-Cloudflare challenge) — a materially heavier engineering lift than
-anything built so far, and closer to the anti-bot-circumvention line this
-project has deliberately stayed away from elsewhere (even though the
-underlying content would still be legally clean — federal government,
-public domain).
+- **No RSS feed for "U.S. Visas News."** The only feed on
+  `travel.state.gov` (`_res/rss/TAsTWs.xml`) is **Travel Advisories**
+  content (per-country warnings), fetched and inspected directly —
+  unrelated to visa-process news.
+- **The main `state.gov` domain has its own, richer RSS set** (Press
+  Releases, Department Press Briefings, Collected Department Releases,
+  regional feeds — found via `state.gov/rss-feeds`), but **none specific
+  to visa/consular news** either. "Press Releases" is department-wide and
+  would need additional relevance-filtering to extract just the
+  visa-related subset — noisier and less precise than a dedicated feed,
+  and (next point) **also blocked** the same way.
+- **Both domains block plain HTTP clients sitewide** — not just the one
+  news page. `travel.state.gov` returns an explicit Cloudflare
+  `403 Attention Required`. `state.gov` is arguably worse: it returns
+  **`200 OK` with a generic "Technical Difficulties" HTML page** for
+  *every* path tested, including its own RSS feed URLs and `robots.txt` —
+  a silent failure mode, not a clear error code, that any polling script
+  would need to explicitly detect (content-type / title sniffing) rather
+  than trust the status code.
+- **No `robots.txt` file exists on `travel.state.gov` at all** — confirmed
+  via a real browser reaching the actual origin (a genuine `404`, "Last
+  Updated: December 31, 2024," not a block page). This matters: there is
+  no explicit machine-readable "don't crawl this" policy here, unlike
+  Reddit's case (explicit ToS language, lawsuits against scrapers, *and*
+  its own bot-fingerprint blocking, layered together). What's here is
+  generic bot-mitigation (Cloudflare on one domain, a different WAF-style
+  block on the other) — evidently a department-wide security posture
+  applied uniformly, not a targeted "no bots on this content" signal.
+- **A real browser passes both domains' challenges automatically**, in a
+  few seconds, with no special handling — used throughout this
+  evaluation. This is a JS-capable-client check, not a
+  CAPTCHA/human-verification step.
+- **No official API.** Searched for a State Department developer
+  portal/API — found only **archived** snapshots
+  (`2009-2017.state.gov/developer`, `2017-2021.state.gov/developer`) in
+  search results. Checked the live URL directly via browser:
+  `state.gov/developer` → **"Page not found."** The public API program
+  appears to have been discontinued; nothing current exists to check
+  against.
 
-**Decision (explicit, per request):** do not build browser-automation
-scraping right now. Ship the multi-source framework with `uscis` as its
-only active source; `travel.state.gov` stays unaddressed until either (a)
-a browser-automation adapter is explicitly requested and scoped separately,
-or (b) an actual RSS/API path for this specific content is found later.
+### 3.2 Options
+
+**A. Headless browser automation** (e.g. Playwright driving real Chromium,
+letting the Cloudflare/WAF challenge resolve the way any real browser's
+would — not fingerprint spoofing or header mimicry).
+- Legal/access posture is genuinely better here than it first looked, and
+  better than the Reddit case: public-domain content, no `robots.txt`
+  disallow, and the technique itself (running an actual browser engine) is
+  less aggressive than what this project already ruled out for Reddit
+  (spoofing signals from a fake client). Still not zero-risk — it's
+  automated access to a site with *some* generic bot-mitigation in place —
+  but a materially different, lower-risk category than Reddit's case.
+- Real engineering cost, though: a new dependency (Playwright + a Chromium
+  binary, ~300 MB), a new `fetch_method` adapter (HTML scraping of the
+  listing page, not a stable feed contract — page markup can change
+  without notice, unlike RSS), and more Cloud Run resources / slower
+  per-request time than anything built so far. The once/day cadence and
+  low item volume (§3.3) make the *operational* cost tolerable; the
+  *engineering* cost (new adapter class, new failure modes to handle) is
+  the real ask here.
+
+**B. Manual curation** (mirrors this project's own established pattern —
+`scripts/curation/publish_reddit.py` for Reddit, or Path B's reasoning
+generally): a human periodically reads the page in a real browser and
+publishes via `posting.publish_gov_news_item()` directly (a tiny one-off
+script, or even by hand with the CLI plumbing that already exists).
+- Zero legal/technical risk — a human reading a public government webpage
+  is unambiguously fine, same as reading any public page. Zero new
+  engineering: the publish path is already built and tested.
+- Doesn't satisfy "fully automatic," but given the update cadence
+  observed on this page (roughly a handful of items per month, based on
+  the dates visible when this was checked), the manual burden is genuinely
+  small — a few minutes, a few times a month.
+
+**C. Wait for / enable DS-2** (this project's own already-decided,
+unbuilt, Google-crawled public-website grounding tier, D-039) — would
+likely cover `travel.state.gov` content for free once turned on
+(`GCP_VERTEX_PUBLIC_ENGINE_ID` is currently unset/off), since Google's own
+crawler isn't subject to the same generic bot-mitigation a home-grown
+script hits. **Does not substitute for this feature**, though — DS-2 only
+feeds the QA/grounding surface ("ask a question"), not a structured
+News-tab item with its own reply thread, which is what this pipeline
+exists to produce. Worth knowing about as a complementary, zero-scraper
+path for the *grounding* use case specifically, not a replacement for
+ingestion here.
+
+**D. Official API** — confirmed not to exist (§3.1). Not a live option.
+
+### 3.3 Recommendation
+
+Given the apparently low update volume on this specific page, **Option B
+(manual curation) is the pragmatic default** — it can be live essentially
+immediately, at zero technical/legal risk, using infrastructure that
+already exists. **Option A (headless browser automation)** is a real,
+buildable path with a defensible risk posture if full automation for this
+specific source is a priority worth the new engineering surface — should
+be scoped as its own decision (new adapter type, new dependency,
+Cloud Run resourcing) rather than folded into this framework PR.
+
+**No decision made here — flagging both live options for an explicit
+choice, not picking one.**
 
 ## 4. What adding a *real* second source looks like, end to end
 
