@@ -1361,6 +1361,16 @@ def publish_gov_news_item(title: str, description: str, source_system: str,
         full_url=full_url, posting_date=posting_date,
         author_handle=author_handle, source_item_id=source_item_id,
     )
+    # Same post-hoc override pattern as build_experience_canonical()/
+    # publish_connect_card() (doc_kind isn't a build_canonical() param).
+    # doc_kind, not channel, is what the datastore actually has registered
+    # as an indexable/filterable field today (confirmed live: `channel` is
+    # present in the schema but as a bare {"type": "string"} — not
+    # indexable/searchable/dynamicFacetable — so `channel: ANY(...)` filter
+    # expressions 400. `doc_kind` is fully indexed, same as "post"/
+    # "experience"/"connect_card" already rely on.). This is what the News
+    # tab's search facet actually filters on — see GOV-NEWS-INGESTION-PLAN.md §7.
+    canonical["doc_kind"] = "gov_news"
     errs = validate(canonical)
     if errs:
         raise ValueError("; ".join(errs))

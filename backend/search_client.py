@@ -282,6 +282,12 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
         # Full ingestion timestamp for relative "X ago" display + recency sort;
         # falls back to the day-granular posting_date when absent.
         "timestamp": str(meta.get("ingestion_timestamp") or meta.get("posting_date") or ""),
+        # First-party/source author identity — a synthetic per-item handle for
+        # app postings, or a fixed per-source handle (e.g. "USCIS") for
+        # gov-news content (GOV-NEWS-INGESTION-PLAN.md §3.6). Single point of
+        # truth here so both search-result cards and the detail view
+        # (get_posting(), which builds on this) carry it consistently.
+        "author_handle": str(meta.get("author_handle") or "").strip(),
     }
 
 
@@ -561,11 +567,8 @@ def get_posting(case_id: str, project_id: str, location: str, datastore_id: str)
         return None
 
     meta = _struct_to_dict(doc.struct_data)
-    card = _card_from_struct(case_id, meta)
+    card = _card_from_struct(case_id, meta)  # author_handle already included
     card["tag_sections"] = _tag_sections_from_meta(meta)
-    # First-party author identity (synthetic handle or username). Empty for
-    # external (Reddit/other) ingests — they carry no author_handle.
-    card["author_handle"] = str(meta.get("author_handle") or "").strip()
 
     # Body lives in the GCS sidecar (.md), referenced by content.uri / gcs_path.
     body = ""

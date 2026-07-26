@@ -400,7 +400,20 @@ mobile" ask is real new frontend work, not automatic:
 - A new News/Updates tab (website `src/app/...`, mobile
   `src/screens/...`) querying content filtered to `doc_kind="gov_news"`
   (needs a filter added to `search_client.py`/`api.py`'s query path — small,
-  additive, same shape as the existing `channel` facet).
+  additive, same shape as the existing tag/visa facets).
+  **Implementation note (found live while building the website tab, not
+  anticipated at plan time):** filter on `doc_kind`, not `channel`, even
+  though `channel="gov_news"` is still set correctly on every document.
+  Checked the live Discovery Engine schema directly — `channel` is
+  registered as a bare `{"type": "string"}` field only (not `indexable`,
+  `searchable`, or `dynamicFacetable`), so a `channel: ANY("gov_news")`
+  filter expression 400s (`Unsupported field "channel" on ":" operator`).
+  `doc_kind` is already fully indexed (same as how `"post"`/`"experience"`/
+  `"connect_card"` already work as a filter), so `publish_gov_news_item()`
+  explicitly overrides `canonical["doc_kind"] = "gov_news"` after
+  `build_canonical()` (same post-hoc-override pattern as
+  `build_experience_canonical()`), and `_facets_filter()`'s allowlist
+  includes `doc_kind`, not `channel`.
 - Feed UI: title, source (`author_handle`/`source_system`), `posting_date`,
   summary, tags — then reuse the **existing** reply-thread UI components
   from the postings detail view (phase-L) rather than building new ones,
