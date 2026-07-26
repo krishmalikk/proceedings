@@ -15,19 +15,22 @@ vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading
 vi.mock('@/lib/activeUser', () => ({ USER_KEY: 'demo-user-id' }))
 
 describe('TopAppBar nav (consistency renames)', () => {
-  it('shows Community and Groups, and not the old / removed labels', () => {
+  it('shows Community, Groups, and News; not the old renamed labels', () => {
     render(<TopAppBar />)
     expect(screen.getByText('Community')).toBeInTheDocument()
     expect(screen.getByText('Groups')).toBeInTheDocument()
-    // old labels renamed / News removed
+    // News re-enabled once the tab had real content behind it (gov-news
+    // ingestion) — see docs/ingestion/GOV-NEWS-INGESTION-PLAN.md.
+    expect(screen.getByText('News')).toBeInTheDocument()
+    // old labels renamed
     expect(screen.queryByText('Case Search')).not.toBeInTheDocument()
     expect(screen.queryByText('Find Peers')).not.toBeInTheDocument()
-    expect(screen.queryByText('News')).not.toBeInTheDocument()
   })
 
-  it('Community points at /search and Groups at /find', () => {
+  it('Community points at /search, Groups at /find, News at /news', () => {
     render(<TopAppBar />)
     expect(screen.getByText('Community').closest('a')).toHaveAttribute('href', '/search')
     expect(screen.getByText('Groups').closest('a')).toHaveAttribute('href', '/find')
+    expect(screen.getByText('News').closest('a')).toHaveAttribute('href', '/news')
   })
 })
