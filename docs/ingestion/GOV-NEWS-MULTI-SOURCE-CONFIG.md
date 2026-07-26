@@ -192,25 +192,101 @@ Cloud Run resourcing) rather than folded into this framework PR.
 **No decision made here — flagging both live options for an explicit
 choice, not picking one.**
 
-## 4. What adding a *real* second source looks like, end to end
+## 4. Adding a new website — full runbook
 
-For any future **federal-government source with a real RSS feed** (the
-one fully-supported shape today):
+For any **federal-government source with a real RSS feed for the specific
+content wanted** (the one fully-automated shape today — a `forum_posting`
+source follows a different, manual-publish path; see §5).
 
-1. Check it directly — RSS feed exists for the actual desired content?
-   `robots.txt` clean? Plain HTTP works (or blocked, like
-   `travel.state.gov`)? Same §1/§2-style check `GOV-NEWS-INGESTION-PLAN.md`
-   did for USCIS — **do this per source, never assume it transfers.**
-2. `manage_news_sources.py add <slug> ... --content-license public_domain --source-category government`
-3. Done. The next scheduled poll (`gov-news-poll-uscis`'s Cloud Scheduler
-   job, or a manually-triggered one) reads the registry fresh, sees the new
-   source, and starts polling it — no code change, no deploy.
+### 4.1 Step 1 — Vet the source directly (never assume it transfers)
+
+Do the same §1/§2-style check `GOV-NEWS-INGESTION-PLAN.md` did for USCIS,
+and this doc did for `travel.state.gov` (§3) — every source gets this,
+because the answer genuinely varies (USCIS: yes; `travel.state.gov`: no):
+
+1. **Does an RSS feed exist for the *specific* content wanted?** Not just
+   "does the site have RSS somewhere" — `travel.state.gov` has one, but for
+   unrelated content (§3.1). Find the feed, fetch it directly, and read a
+   few real `<item>`s to confirm it's actually the content you want.
+2. **Is plain HTTP access viable?** `requests.get()` the feed URL directly.
+   If it works, you're most of the way there. If it 403s/blocks, check
+   whether a *real browser* passes (Cloudflare-style JS challenges often
+   do, automatically, after a few seconds) — that tells you whether this
+   is even a same-shape problem as `travel.state.gov`'s, before assuming
+   browser automation would be needed.
+3. **Check `robots.txt`** (fetched directly, not assumed) — an explicit
+   `Disallow` on the feed/content path is a different, harder "no" than
+   generic bot-mitigation with no file-based policy at all (the
+   distinction that mattered for `travel.state.gov`, §3.1).
+4. **Confirm `content_license` independently** — is this a genuine federal
+   agency (17 U.S.C. § 105, public domain)? Don't infer it from the domain
+   name alone; state-level, quasi-governmental, and federally-adjacent
+   entities don't all get the same treatment.
+5. **Decide `content_type`** — "news" (official-site updates; the only
+   type with an automated publish handler, §5) vs. `forum_posting` (not
+   auto-published regardless of what else checks out).
+6. **Decide `channel`** — share `"gov_news"` if this source's content and
+   trust level are genuinely analogous to USCIS's, or use a distinct value
+   if it warrants its own search-boost weighting later (see
+   `GOV-NEWS-INGESTION-PLAN.md` §4.2 on why `channel` isn't shared blindly
+   across categories).
+7. **Note the feed's window size and this source's typical publish
+   cadence** — needed for §6's incremental-vs-full-load reasoning below,
+   and to catch a source where polling once/day genuinely risks missing
+   items (§6.3).
+
+### 4.2 Step 2 — Register it (config only, no code, no deploy)
+
+```bash
+manage_news_sources.py add dol \
+  --display-name "Department of Labor" \
+  --site-url https://www.dol.gov \
+  --feed-url https://www.dol.gov/some/rss/feed.xml \
+  --content-license public_domain --content-type news --source-category government \
+  --disabled   # recommended: verify before this can be picked up live (see 4.3)
+```
+
+`--disabled` is optional but recommended for a first-time addition — it
+lets you verify (next step) before the source is eligible to be picked up
+by a scheduled run you don't control the timing of.
+
+### 4.3 Step 3 — Verify before enabling
+
+```bash
+manage_news_sources.py show dol        # confirm the stored config looks right
+poll_gov_news.py --source dol --dry-run   # confirms: feed parses, items classify as
+                                           # expected (everything "new" on a first run,
+                                           # not errors), without publishing anything
+```
+
+If the dry-run looks right, do one real (non-dry-run) run manually and
+spot-check a few published items directly (GCS `.json`, or
+`/api/search?facet=doc_kind:gov_news`) the way USCIS's launch was verified
+— confirm `doc_kind`/`channel`/`content_license`-appropriate fields, real
+dates, and correct tagging — **before** trusting it to the daily schedule
+unattended.
+
+### 4.4 Step 4 — Enable it
+
+```bash
+manage_news_sources.py enable dol
+```
+
+**No new Cloud Scheduler job needed.** The existing job
+(`gov-news-poll-uscis` — the name is now a slight misnomer, a holdover
+from when USCIS was the only source; it triggers `POST
+/internal/gov-news/poll` with no `source` parameter, which polls *every*
+enabled source, confirmed directly against the live job's configured
+target) will pick up `dol` on its very next scheduled run. Nothing about
+the schedule, the job, or the deployed code needs to change — this is the
+entire point of the framework.
 
 A source needing a different `fetch_method` (JSON API, or a site that
 needs browser automation) is **not** a config-only addition — `add`
 accepts the value but `poll_source()` still only has an adapter for
 `"rss"`; anything else is stored and visible but skipped every run with a
-clear reason, until adapter code is actually written for that fetch shape.
+clear reason (§2), until adapter code is actually written for that fetch
+shape.
 
 ## 5. `content_type` — the registry supports two content types, not one
 
@@ -295,3 +371,75 @@ that does have a real RSS/API (some do — just not Reddit, per
 publish (since D-017's paraphrase posture means forum content can never
 auto-publish verbatim the way `news` content does) are both real,
 separate, bigger decisions — not built here.
+
+## 6. Is ingestion incremental or full-load? — Neither, precisely: full-fetch, incremental-publish
+
+Explicit follow-up request to document this. The honest answer is a
+specific hybrid, not a single word — worth being precise about because
+"incremental" and "full-load" each get part of it right and part of it
+wrong.
+
+### 6.1 The fetch is a full reload of the feed's current window, every run
+
+`_parse_feed()` (`backend/gov_news_poll.py`) has no concept of "since last
+run" — RSS itself doesn't support that. Every poll — scheduled or manual —
+downloads and parses the **entire feed as it currently exists**. For
+USCIS, that's up to 250 items, every single run, whether it's the first
+run ever or the 500th. There's no cursor, no `?since=` param, no
+`If-Modified-Since` conditional request — the network cost of a poll is
+the same on day 1000 as it was on day 1.
+
+### 6.2 The publish is incremental — driven by content_hash, not by the fetch
+
+What happens to those 250 items *after* the fetch is where "incremental"
+actually applies. Each item is compared against a `{source_item_id:
+content_hash}` map read fresh from BigQuery
+(`_existing_hashes()`) and classified:
+
+- **hash matches what's stored** → `unchanged`, skipped entirely — no
+  Gemini call, no GCS write, no Discovery Engine import, no BigQuery row.
+  This is the steady-state case for the vast majority of the 250 items on
+  every run after the first.
+- **guid unknown** → `new` → full publish (`publish_gov_news_item()`).
+- **guid known, hash differs** → `edited` → full re-publish, upserting the
+  same `case_id` (§5.3 of `GOV-NEWS-INGESTION-PLAN.md`).
+
+So the *work done* is incremental (proportional to what actually changed
+— typically a handful of items per day for USCIS, per the cadence
+observed while building this), even though the *fetch* is not (always the
+full current window). This is why the once/day cadence decided earlier is
+cheap: one feed download plus one BigQuery query, then near-zero
+additional cost for the ~245 unchanged items on a normal day.
+
+### 6.3 What this means for historical depth and coverage — source-dependent, not something the operator controls
+
+- **A source's ingestible history is capped by whatever window its own
+  feed currently exposes** — nothing more. USCIS's feed happens to expose
+  ~250 items (roughly a year+ of history at its observed cadence,
+  confirmed empirically during the initial backfill). A different source
+  with a smaller feed window (say, the most recent 20 items only) can
+  **never** be backfilled further back than that 20-item window via this
+  mechanism, no matter how long the poll job has been running or how
+  often it's triggered — there's no way to ask the feed for "item 21."
+  This is why §4.1's vetting step includes checking the feed's actual
+  window size, not just confirming a feed exists.
+- **Once ingested, content is retained even after it ages out of the
+  source's feed.** If an item scrolls out of the feed's current window
+  (because enough newer items have since pushed it out), the poller
+  simply stops seeing it in future fetches — but it was already published,
+  and nothing deletes it just because the source stopped listing it. The
+  pipeline has no "this fell out of the upstream feed, remove it" logic,
+  by design (§5.4 of `GOV-NEWS-INGESTION-PLAN.md` already noted the
+  parallel case for a genuinely-removed article — same reasoning: no
+  reliable signal to distinguish "aged out of a rolling window" from "the
+  agency actually retracted it," so neither triggers automatic deletion).
+- **A real, source-dependent risk worth checking per source (§4.1 step
+  7):** if a source publishes faster than its feed window can hold between
+  two polls, an item could theoretically be published *and* age out of the
+  feed window before this pipeline ever sees it — a silent miss, not an
+  error. For USCIS at once/day polling against a ~250-item/~1-year window
+  and an observed ~2–5 items/week cadence, this is not a practical
+  concern — the margin is enormous. It would matter for a hypothetical
+  future source with a much smaller window and a much higher publish
+  rate; comparing those two numbers is exactly why §4.1 asks for both
+  before a source is added, not just "does a feed exist."
