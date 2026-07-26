@@ -275,7 +275,17 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
         "consulates": consulates,
         "outcome": str(meta.get("outcome_status") or stages.get("outcome_status") or ""),
         "subreddit": str(meta.get("subreddit") or meta.get("source_container") or ""),
-        "channel": str(meta.get("channel") or ""),
+        # `channel` is present in every doc's struct_data, but — verified
+        # live — the Discovery Engine schema has it registered as a bare
+        # {"type": "string"} (not `retrievable`), so Search API result
+        # snippets omit it entirely (get_posting()'s single-document fetch
+        # isn't affected — that returns full struct_data regardless).
+        # Fallback to deriving it from case_id's leading segment, which is
+        # always accurate by construction — same convention
+        # delete_content() already relies on. Fixes blank "Source" labels
+        # on every list-view card (Search *and* News tabs), not just
+        # gov-news — this was a pre-existing gap, not one introduced here.
+        "channel": str(meta.get("channel") or "").strip() or case_id.split("-", 1)[0],
         "tags": tags[:8],
         "url": str(meta.get("full_url") or meta.get("source_uri") or ""),
         "date": str(meta.get("posting_date") or ""),

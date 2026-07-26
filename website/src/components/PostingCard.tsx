@@ -20,10 +20,23 @@ export type PostingCardData = {
 // Human-readable source label: r/subreddit for Reddit content, the source's
 // own handle (e.g. "USCIS") when present, else a generic per-channel label
 // rather than the raw internal channel token.
+//
+// `author_handle` is reliably present on the case detail page (a direct
+// document fetch) but — verified live — is absent from list-view search
+// results specifically (Discovery Engine's schema has it registered as
+// non-`retrievable`, so Search API result snippets omit it; only a
+// single-document fetch returns it). `channel` itself is derived
+// server-side from case_id when the same gap applies to it (see
+// search_client.py's _card_from_struct()), so it's reliably present here
+// even when author_handle isn't — hence the gov_news-specific fallback
+// below, so a News-tab list card reads "Government News" instead of the
+// internal "gov_news" token when the nicer per-source name isn't available.
 function sourceLabel(r: PostingCardData): string {
   if (r.subreddit) return `r/${r.subreddit}`
   if (r.author_handle) return r.author_handle
-  return r.channel === 'app' ? 'Meridian' : r.channel
+  if (r.channel === 'app') return 'Meridian'
+  if (r.channel === 'gov_news') return 'Government News'
+  return r.channel
 }
 
 export function outcomeBadge(outcome: string) {
