@@ -88,6 +88,7 @@ Engine→BigQuery fan-out, same tagging model.
 | `author_handle` | The source's display name (e.g. `"USCIS"`) | **Decided — see §3.6.** Not a synthetic per-item handle; one fixed value per source, from the registry. |
 | `subreddit` / `reddit_post_id` | unused (`""`) | Reddit-specific; harmless to leave blank, same as how `channel="app"` postings already leave them blank today. |
 | *(new)* `source_item_id` | RSS `guid` | Needed as the **dedup key** — `guid` is stable and URL-independent (a source could restructure URLs without breaking dedup). Case for one new field, since nothing existing fits this role cleanly. |
+| *(new)* `content_hash` | hash of `title+description` | Needed to detect an **edited** item (same `guid`, changed content) without diffing full text on every poll — see §5.2. |
 | `case_id` | `f"{channel}-{source_slug}-{date_str}-{short(guid)}"` → e.g. `gov_news-uscis-2026-07-26-a1b2c3d4` | Deterministic from `guid`, same dedup-by-construction pattern as the Reddit `reddit-{date}-{subreddit}-{post_id}` scheme. Leading segment matches `channel` exactly, consistent with `delete_content()`'s existing `case_id.split("-", 1)[0]` channel-recovery convention ([`posting.py`](../../backend/posting.py), see the Path B GCS-path bug it fixed). |
 
 ### 3.2 New function: `publish_gov_news_item()`
@@ -246,25 +247,91 @@ now, so a vetted source is cheap to add later. It does **not** vet or add
 any second source (government or law firm) — each one needs its own §1/§2-style
 check, done explicitly, before it goes in the registry.
 
-## 5. Automation design (sketch — this can genuinely run unattended, for `public_domain` sources)
+## 5. Change detection & automation design
+
+### 5.1 Confirmed empirically: polling is the only mechanism, with a huge safety margin
+
+Checked the live feed directly (not assumed):
+- **No WebSub/PubSubHubbub hub link** and **no `<lastBuildDate>`** on the
+  channel — so there's no push/webhook option and no cheap "did anything
+  change" shortcut at the channel level. Polling + diffing items is the only
+  mechanism available, which is what §5.2 below does.
+- **The feed returns 250 items**, not just the ~10 shown per page on the
+  HTML site. Against the observed cadence of roughly 2–5 new items/week,
+  that's a window of **roughly a year** before an item could naturally fall
+  out of the feed. Practical implication: **polling frequency is a product-
+  freshness decision, not a data-loss-risk one** — even a 6-hour or daily
+  poll would carry essentially zero risk of silently missing an item at this
+  volume. Recommend polling every 30–60 min anyway, purely so a new alert
+  shows up in the app reasonably promptly — not because a slower cadence
+  would lose data.
+
+### 5.2 The diff algorithm — new / unchanged / edited
 
 ```
 Cloud Scheduler (e.g. every 30–60 min)
   → Cloud Run job / Cloud Function
       1. For each source in the registry with fetch_method="rss":
-           fetch its feed_url
-      2. Parse items; for each, check `source_item_id` (guid) against
-         already-ingested case_ids (a cheap BigQuery/Firestore existence
-         check, same dedup pattern as Reddit's deterministic case_id)
-      3. For each NEW item: publish_gov_news_item(source_slug, item)
-      4. Log a run summary (per source: items seen / new / published / failed)
+         a. One BigQuery query: SELECT source_item_id, content_hash
+            FROM postings_metadata WHERE source_system = <slug>
+            → load into an in-memory {guid: hash} map. (One query per run,
+            not one per item — trivial at this volume, avoids N lookups.)
+         b. Fetch feed_url, parse all items.
+         c. For each item, compute content_hash = hash(title + description):
+              - guid not in map            → NEW      → publish_gov_news_item(...)
+              - guid in map, hash matches  → unchanged → skip, no work
+              - guid in map, hash differs  → EDITED    → re-publish (§5.3)
+      2. Log a per-source run summary: items in feed / new / edited /
+         unchanged / failed.
 ```
 
-No credentials, no auth, no per-request cost beyond the Cloud Run
-invocation — the cheapest ingestion path in this project by a wide margin,
-because the source wants to be polled. (A `copyrighted`-license source with
-a human-review step, if one is ever added, would not be fully unattended the
-same way — closer to the Reddit manual-curation shape.)
+Any failure publishing one item is logged and skipped, not fatal to the
+run — because `case_id` is deterministic from `guid`, a failed item simply
+still looks "new" on the next scheduled run and retries itself naturally.
+No manual retry bookkeeping needed.
+
+### 5.3 Edited items — GCS/Discovery Engine upsert cleanly; BigQuery does not (open point)
+
+Re-publishing an item under its existing (deterministic) `case_id` behaves
+differently per sink, worth being explicit about rather than assuming it's
+uniformly fine:
+- **GCS** — overwrites the same blob path. Clean.
+- **Discovery Engine** — `_import_to_datastore()` already uses `INCREMENTAL`
+  reconciliation keyed by `case_id` ([`posting.py:998`](../../backend/posting.py)),
+  which is upsert behavior by design (confirmed in this doc's own docstring
+  reading — used specifically so re-issuing a publish is safe). Clean.
+- **BigQuery** — `_write_bigquery()` calls `insert_rows_json()`
+  ([`posting.py`](../../backend/posting.py)), which only **appends**. Re-publishing an
+  edited item under the same `case_id` would insert a **second row**, not
+  update the first — `postings_metadata` isn't currently upsert-friendly.
+  This has never mattered before because nothing has re-published under an
+  existing `case_id` in current usage; gov-news edits would be the first
+  real case. **Needs a decision before §3.2 is built**, not solved in this
+  doc: either (a) accept duplicate rows and have downstream BigQuery queries
+  always select the latest row per `case_id` by `ingestion_timestamp` (§3.3
+  in `TIMESTAMPS-AND-ANALYTICS.md`'s pattern already does something similar
+  conceptually), or (b) do a real `DELETE`+`INSERT` (or `MERGE`) for the
+  edited case rather than a plain append.
+
+### 5.4 Items removed from the feed — not treated as a deletion signal
+
+Given the ~year-long window (§5.1), an item disappearing between polls
+during normal operation is far more likely a genuine retraction than the
+item aging out — but this doc deliberately does **not** propose auto-
+deleting on feed-absence: a transient partial response would look
+identical to a real removal, and that's too risky a trigger for a
+destructive action. Recommend leaving this as a manual/known limitation for
+now rather than building deletion-detection logic without a clear signal to
+key it off.
+
+### 5.5 Cost/ops summary
+
+No credentials, no auth, one feed request + one BigQuery query per source
+per run, beyond the Cloud Run invocation itself — the cheapest ingestion
+path in this project by a wide margin, because the source wants to be
+polled. (A `copyrighted`-license source with a human-review step, if one is
+ever added, would not be fully unattended the same way — closer to the
+Reddit manual-curation shape.)
 
 ## 6. Reply/comment support — already works, zero new backend code
 
@@ -317,3 +384,6 @@ mobile" ask is real new frontend work, not automatic:
   detail (paraphrase rules, review step) — flagged in §4.2 as needed
   *before* any such source is added, not designed here since none is in
   scope yet.
+- Does not resolve the BigQuery append-vs-upsert question for edited items
+  (§5.3) — flagged as needed before `publish_gov_news_item()` is built,
+  not decided here.
