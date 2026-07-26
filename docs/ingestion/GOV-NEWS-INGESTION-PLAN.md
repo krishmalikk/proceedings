@@ -31,7 +31,8 @@ category of block seen on Reddit) and found:
   independent of the URL).
 - **`robots.txt`**: `/newsroom/`, `/news/rss-feed/`, and article permalinks
   are **not disallowed**. Only a generic `Crawl-delay: 10` applies (trivial
-  to satisfy — polling every 15–60 min is one request per poll, not a crawl).
+  to satisfy at any polling cadence considered here — even hourly is one
+  request per poll, not a crawl; §5.1 lands on once/day).
   The specific disallowed paths are unrelated admin/export/search endpoints.
 - **~303 total articles** in "All News", recent cadence looks like roughly
   2–5 new items/week from the visible dates (this will vary with news cycle).
@@ -262,14 +263,17 @@ Checked the live feed directly (not assumed):
   out of the feed. Practical implication: **polling frequency is a product-
   freshness decision, not a data-loss-risk one** — even a 6-hour or daily
   poll would carry essentially zero risk of silently missing an item at this
-  volume. Recommend polling every 30–60 min anyway, purely so a new alert
-  shows up in the app reasonably promptly — not because a slower cadence
-  would lose data.
+  volume. **Decided: poll once a day.** Well within the safety margin above
+  (a year-long feed window vs. a 24-hour gap between checks), and matches
+  this content's actual freshness need — official policy/news updates don't
+  need near-real-time surfacing the way a live user reply thread does. Also
+  the cheapest possible schedule: 1 feed fetch + 1 BigQuery dedup query per
+  source per day.
 
 ### 5.2 The diff algorithm — new / unchanged / edited
 
 ```
-Cloud Scheduler (e.g. every 30–60 min)
+Cloud Scheduler (once/day, per §5.1)
   → Cloud Run job / Cloud Function
       1. For each source in the registry with fetch_method="rss":
          a. One BigQuery query: SELECT source_item_id, content_hash
