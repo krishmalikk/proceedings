@@ -97,6 +97,14 @@ Same publish orchestration as `publish_posting()`/`publish_reddit_posting()`
 - **Can store full article text**, not just the RSS description, if fetching
   the article page turns out to matter for tag/search quality (open question,
   §5). Either way there's no paraphrase requirement.
+- **Deterministically adds the `news-update` tag** to every item it
+  publishes — see §3.4. Not left to the Gemini tagger to remember, same
+  reasoning as the existing deterministic `timeline` tag (added whenever
+  `key_dates` is present, [`posting.py:842-843`](../../backend/posting.py)) and
+  `family-based-immigration` (added whenever an I-130 tag is present,
+  [`posting.py:857-858`](../../backend/posting.py)) — both single-point-of-truth
+  backfills rather than relying on model judgment for something that should
+  never be inconsistent.
 
 ### 3.3 Tagging — reuse the existing Gemini extraction, don't build a new one
 
@@ -106,6 +114,31 @@ title+description (or full article text, if fetched) through the **existing**
 Gemini-based tagger already used for every posting today, against the same
 controlled vocabulary. This is the single biggest reason this is cheap to
 build: zero new tagging infrastructure, zero new vocabulary.
+
+### 3.4 `news-update` tag — decided (resolves §5 #1 below)
+
+**Decision:** general policy/news content that doesn't represent a personal
+visa/status claim (e.g. *"DHS Announces Move to Revoke Citizenship from 10
+Naturalized Criminals"*) gets a new controlled tag, **`news-update`**. When
+that tag is present, `validate()` no longer requires
+`current_visa_or_greencard_category`/`visa_applying_for` to be non-empty.
+
+Implementation shape:
+- New vocab entry in `tags-cleaned/1.10-common-misc.csv` (the same
+  cross-cutting bucket `premium-processing`/`pp-clock` already live in —
+  §1.10 in this repo's own controlled vocabulary is exactly the "doesn't
+  belong to one visa" bucket).
+- `publish_gov_news_item()` adds `news-update` to every item's `tags`
+  deterministically (§3.2) — it's a property of the *source* (this is a gov
+  news item, full stop), not something to leave to the model's per-item
+  judgment.
+- `validate()` ([`posting.py:728-733`](../../backend/posting.py)) gets one
+  additional condition: skip the visa/status-required check when
+  `"news-update" in c.get("tags", [])`. A gov-news item that *also*
+  genuinely ties to a specific visa (like the H-1B cap alert) still gets
+  tagged with that visa normally via the existing Gemini extraction — the
+  bypass only kicks in when no visa tag was found at all, so no signal is
+  lost for the items that do have one.
 
 ## 4. Automation design (sketch — this can genuinely run unattended)
 
@@ -124,20 +157,14 @@ No credentials, no auth, no per-request cost beyond the Cloud Run
 invocation — the cheapest ingestion path in this project by a wide margin,
 because the source wants to be polled.
 
-## 5. Open design questions (flagging, not deciding here)
+## 5. Open design questions
 
-1. **`validate()`'s "capture a visa/status" rule doesn't fit general policy
-   news.** `posting.py`'s `validate()` ([`posting.py:728-733`](../../backend/posting.py))
-   requires `current_visa_or_greencard_category` or `visa_applying_for` to be
-   non-empty — built for *personal* user experience content. A USCIS alert
-   like *"USCIS Reaches Fiscal Year 2027 H-1B Cap"* maps cleanly to `H-1B`,
-   but something like *"DHS Announces Move to Revoke Citizenship from 10
-   Naturalized Criminals"* doesn't represent anyone's "current status" or
-   "visa applying for" — it's enforcement news, not personal-status content.
-   Needs a decision: relax/skip this rule for `doc_kind="gov_news"`, or
-   reinterpret the visa fields as "which categories this news affects"
-   (possibly plural, unlike a personal posting's single status) rather than
-   "the poster's own status."
+1. ~~`validate()`'s "capture a visa/status" rule doesn't fit general policy
+   news.~~ **Decided — see §3.4.** New `news-update` tag, deterministically
+   applied to every gov-news item; `validate()` skips the visa/status
+   requirement whenever that tag is present. Items that do tie to a specific
+   visa (e.g. the H-1B cap alert) still get that visa tagged normally
+   alongside it.
 2. **RSS description vs. full article text.** The RSS `description` is a
    real paragraph (not just a headline), which may be enough for both
    tagging and display. Fetching the full article page adds one more request
@@ -183,7 +210,7 @@ mobile" ask is real new frontend work, not automatic:
 
 ## 8. Recommended incremental order
 
-1. Settle the §5 open questions (mainly #1 — the `validate()` rule).
+1. Settle the remaining §5 open questions (#2–#4 — §5 #1 is decided, §3.4).
 2. Build `publish_gov_news_item()` + the RSS poll/dedup script, run it
    **manually** first (like `scripts/curation/publish_reddit.py`) against a
    handful of real items to sanity-check tagging quality before automating.
