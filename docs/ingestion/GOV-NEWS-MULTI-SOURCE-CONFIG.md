@@ -211,3 +211,87 @@ needs browser automation) is **not** a config-only addition — `add`
 accepts the value but `poll_source()` still only has an adapter for
 `"rss"`; anything else is stored and visible but skipped every run with a
 clear reason, until adapter code is actually written for that fetch shape.
+
+## 5. `content_type` — the registry supports two content types, not one
+
+Explicit follow-up request: make sure this framework has room for both
+**news updates from official sites** (USCIS, what's live today) and
+**postings from forums like Reddit**, not just the former.
+
+### 5.1 Why this is a second, independent gate — not folded into `content_license`
+
+It's tempting to think `content_license` already covers this — Reddit
+content is `copyrighted`, so it's already excluded from auto-polling. But
+that conflates two different questions:
+
+- `content_license` answers: **is this legally safe to store verbatim?**
+- `content_type` answers: **does a publish handler that fits this
+  content's risk profile even exist?**
+
+These aren't the same question, and collapsing them would hide a real gap.
+`publish_gov_news_item()` — the only automated publish handler that
+exists — was built specifically for official/authoritative content: it
+skips PII scrubbing and moderation checks (`posting.py`'s
+`publish_gov_news_item()` docstring is explicit about this, matching
+`publish_reddit_posting()`'s same reasoning), because a USCIS press
+release has no PII risk and isn't user-generated. A forum posting is the
+opposite on both counts — real PII risk, real moderation need — even
+setting the copyright question aside entirely. A hypothetical future forum
+source that somehow *was* public-domain licensed (unlikely, but the
+registry shouldn't assume it can't exist) would still be wrong to run
+through `publish_gov_news_item()`, because that handler was never built to
+scrub PII or check moderation on the content it publishes. `content_type`
+exists to catch exactly that case — independently of licensing.
+
+### 5.2 What `content_type` does today
+
+Two values, `news` and `forum_posting` (`news_sources.VALID_CONTENT_TYPES`).
+`get_enabled_sources()` requires `content_type == "news"` in addition to
+`content_license == "public_domain"` — **both** gates, not either. A
+source can fail one, the other, or both; any failure excludes it from
+automated polling, logged loudly with the specific reason (see the sample
+output in §5.3).
+
+`forum_posting` sources are **fully representable and storable** in this
+same registry (`manage_news_sources.py add ... --content-type
+forum_posting`) — that's the actual point of this field, a single source
+of truth across both content types — but are **never auto-published**
+through `gov_news_poll.py`. Publishing forum content stays exactly the
+existing path it already was: `scripts/curation/publish_reddit.py`, a
+human-curated script calling `posting.publish_reddit_posting()` directly.
+Registering a subreddit as a `forum_posting` source here doesn't change
+how it gets published — it changes where its provenance metadata
+(display name, site URL, license, category) is recorded, so it's alongside
+`news` sources in one registry instead of living only in a curator's head
+or a hardcoded literal somewhere.
+
+### 5.3 Example: registering a subreddit
+
+```bash
+manage_news_sources.py add reddit-h1b \
+  --display-name "r/h1b" --site-url https://www.reddit.com/r/h1b \
+  --feed-url "" --fetch-method manual \
+  --content-license copyrighted --content-type forum_posting --source-category forum
+
+manage_news_sources.py list
+# reddit-h1b  [configured but not automatable  ] r/h1b — forum_posting/copyrighted/forum — (no feed — manual)
+```
+
+`--fetch-method manual` signals "no poll mechanism at all" — distinct from
+`rss`/`api`/`scrape`, which describe automated-but-not-yet-adapted fetch
+shapes. A `manual` source is never expected to gain an adapter; it's
+inherently a config-only, human-published entry.
+
+### 5.4 What this does *not* do
+
+This is the schema/registry extension only, per the explicit scope
+decision for this round — **no behavior change to Reddit ingestion
+itself**. `scripts/curation/publish_reddit.py` does not read from this
+registry yet (it still takes subreddit/post details as CLI args, same as
+before). Wiring it to pull provenance config from a registered
+`forum_posting` source, and/or building automated *discovery* for a forum
+that does have a real RSS/API (some do — just not Reddit, per
+`REDDIT-INGESTION-ALTERNATIVES.md`) with a human-review queue before
+publish (since D-017's paraphrase posture means forum content can never
+auto-publish verbatim the way `news` content does) are both real,
+separate, bigger decisions — not built here.

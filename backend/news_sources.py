@@ -1,10 +1,10 @@
 """
-news_sources.py — Firestore-backed, deploy-free registry of government/
-law-firm news sources.
+news_sources.py — Firestore-backed, deploy-free registry of content
+sources: official-site news updates AND forum postings (e.g. Reddit).
 
 See docs/ingestion/GOV-NEWS-INGESTION-PLAN.md §4 for the original design,
 and docs/ingestion/GOV-NEWS-MULTI-SOURCE-CONFIG.md for why this moved from
-a hardcoded Python dict to Firestore.
+a hardcoded Python dict to Firestore, and for §5's `content_type` design.
 
 Sources live in the `news_sources` Firestore collection (one document per
 source, document id = slug) — NOT in this file. Adding a new source is a
@@ -13,14 +13,31 @@ change and not a deploy: gov_news_poll.py's poll_all() calls
 get_enabled_sources() fresh at the start of every run, so a newly-added
 source is picked up automatically the next time the scheduled job fires.
 
-`content_license` is the one field that must never be assumed — see §4.2 of
-the plan doc. `public_domain` (federal government works, 17 U.S.C. § 105)
-must be independently confirmed per source, not inherited from any other
-entry. A `copyrighted` source needs the Reddit-style paraphrase posture
-(D-017), which this pipeline does not implement yet — get_enabled_sources()
-deliberately excludes (with a loud warning, not a silent skip) any source
-whose content_license isn't "public_domain", so a misconfigured entry can
-never silently start verbatim-storing copyrighted content.
+Two independent safety gates, both required for a source to be auto-polled
+— see get_enabled_sources():
+
+- `content_license` — must never be assumed, see GOV-NEWS-INGESTION-PLAN.md
+  §4.2. `public_domain` (federal government works, 17 U.S.C. § 105) must be
+  independently confirmed per source, not inherited from any other entry. A
+  `copyrighted` source (e.g. any forum/Reddit source) needs the Reddit-style
+  paraphrase posture (D-017), which this pipeline does not implement — it's
+  deliberately excluded from automated publishing, matching how
+  `publish_reddit_posting()` has stayed a manually-invoked, human-curated
+  path from the start (see PATH-B-PROVENANCE-PLAN.md), never a polled one.
+- `content_type` — "news" (official-site updates, e.g. USCIS/gov agencies)
+  is the only type with a publish handler today (`publish_gov_news_item()`,
+  which assumes official/authoritative content: no PII scrub, no moderation
+  check, a fixed per-source author handle). "forum_posting" (community
+  forums like Reddit — genuinely different concerns: user-generated
+  content, PII risk, needs human curation) is a valid, storable value —
+  representing a source like this in the same registry is the point of
+  this field — but is never auto-published through the news pipeline,
+  regardless of `content_license`, because that pipeline is simply the
+  wrong handler for that content's risk profile.
+
+A misconfigured entry can never silently start auto-publishing something
+unsafe: get_enabled_sources() excludes (with a loud warning, not a silent
+skip) any source failing either gate.
 """
 
 from __future__ import annotations
@@ -30,14 +47,19 @@ from datetime import datetime, timezone
 
 REQUIRED_FIELDS = {
     "display_name", "site_url", "fetch_method", "feed_url",
-    "source_category", "content_license", "channel",
+    "source_category", "content_license", "content_type", "channel",
 }
 
-# The only content_license this pipeline is actually safe to run
-# unattended for — see the module docstring and GOV-NEWS-INGESTION-PLAN.md
-# §4.2. Anything else is excluded from get_enabled_sources() regardless of
-# its `enabled` flag.
+# The only values this pipeline is actually safe to run unattended for —
+# see the module docstring. Anything else is excluded from
+# get_enabled_sources() regardless of the source's `enabled` flag.
 _SAFE_TO_AUTOMATE_LICENSE = "public_domain"
+_SAFE_TO_AUTOMATE_CONTENT_TYPE = "news"
+
+# Documented, valid values — not enforced here (that's
+# manage_news_sources.py's job, at add-time), but the canonical list this
+# module's docstring and get_enabled_sources() refer to.
+VALID_CONTENT_TYPES = {"news", "forum_posting"}
 
 _COLLECTION = "news_sources"
 
@@ -58,11 +80,14 @@ def list_all_sources() -> dict[str, dict]:
 
 def get_enabled_sources() -> dict[str, dict]:
     """Sources the poll job should actually process this run: `enabled` is
-    not False, all required fields present, and content_license is
-    "public_domain" — the one license this pipeline is safe to automate
-    without a human review step. Read fresh from Firestore on every call
-    (no caching), so a config change is visible on the very next poll run,
-    scheduled or manual, with no restart or redeploy needed."""
+    not False, all required fields present, content_license is
+    "public_domain", AND content_type is "news" — see the module docstring
+    for why both gates are independently required (license = "is this
+    legally safe to store verbatim", content_type = "does a publish
+    handler for this content's risk profile even exist"). Read fresh from
+    Firestore on every call (no caching), so a config change is visible on
+    the very next poll run, scheduled or manual, with no restart or
+    redeploy needed."""
     out: dict[str, dict] = {}
     for slug, cfg in list_all_sources().items():
         if cfg.get("enabled") is False:
@@ -75,6 +100,11 @@ def get_enabled_sources() -> dict[str, dict]:
             print(f"news_sources: skipping {slug!r} — content_license={cfg.get('content_license')!r} "
                   f"is not automatable yet (only {_SAFE_TO_AUTOMATE_LICENSE!r} is); "
                   f"see GOV-NEWS-INGESTION-PLAN.md §4.2")
+            continue
+        if cfg.get("content_type") != _SAFE_TO_AUTOMATE_CONTENT_TYPE:
+            print(f"news_sources: skipping {slug!r} — content_type={cfg.get('content_type')!r} "
+                  f"has no automated publish handler yet (only {_SAFE_TO_AUTOMATE_CONTENT_TYPE!r} "
+                  f"does); see GOV-NEWS-MULTI-SOURCE-CONFIG.md §5")
             continue
         out[slug] = cfg
     return out

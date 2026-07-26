@@ -30,7 +30,10 @@ _TEST_SLUG_OK = "test-source-public-domain"
 _TEST_SLUG_BAD_LICENSE = "test-source-copyrighted"
 _TEST_SLUG_DISABLED = "test-source-disabled"
 _TEST_SLUG_INCOMPLETE = "test-source-incomplete"
-_ALL_TEST_SLUGS = [_TEST_SLUG_OK, _TEST_SLUG_BAD_LICENSE, _TEST_SLUG_DISABLED, _TEST_SLUG_INCOMPLETE]
+_TEST_SLUG_FORUM = "test-source-forum-posting"
+_TEST_SLUG_REDDIT_LIKE = "test-source-reddit-like"
+_ALL_TEST_SLUGS = [_TEST_SLUG_OK, _TEST_SLUG_BAD_LICENSE, _TEST_SLUG_DISABLED, _TEST_SLUG_INCOMPLETE,
+                   _TEST_SLUG_FORUM, _TEST_SLUG_REDDIT_LIKE]
 
 
 def _cleanup(ns) -> None:
@@ -48,7 +51,7 @@ def group_a_registry() -> None:
         _TEST_SLUG_OK, display_name="Test Source", site_url="https://example.gov",
         feed_url="https://example.gov/rss.xml", fetch_method="rss",
         source_category="government", content_license="public_domain",
-        channel="gov_news", enabled=True,
+        content_type="news", channel="gov_news", enabled=True,
     )
     check("A1 upsert_source then get_source round-trips all fields",
           ns.get_source(_TEST_SLUG_OK) is not None and
@@ -61,23 +64,59 @@ def group_a_registry() -> None:
 
     # A4-A5: the content_license safety gate — a copyrighted source is
     # stored (visible in list_all_sources()) but must NEVER be auto-polled.
+    # content_type="news" here deliberately isolates content_license as the
+    # only reason for exclusion (content_type gate covered separately below).
     ns.upsert_source(
         _TEST_SLUG_BAD_LICENSE, display_name="Test Copyrighted Source",
         site_url="https://example-firm.com", feed_url="https://example-firm.com/rss.xml",
         fetch_method="rss", source_category="law_firm", content_license="copyrighted",
-        channel="law_firm_news", enabled=True,
+        content_type="news", channel="law_firm_news", enabled=True,
     )
     check("A4 copyrighted source IS stored (visible in list_all_sources())",
           _TEST_SLUG_BAD_LICENSE in ns.list_all_sources())
     check("A5 copyrighted source is EXCLUDED from get_enabled_sources() despite enabled=True",
           _TEST_SLUG_BAD_LICENSE not in ns.get_enabled_sources())
 
+    # A4c-A4d: the content_type safety gate — the mirror image of A4-A5.
+    # A public_domain, forum_posting source is stored but never auto-polled:
+    # only "news" has an automated publish handler (see the module
+    # docstring on why content_type is a SEPARATE gate from content_license,
+    # not folded into it — per the explicit "framework should support both
+    # content types" request).
+    ns.upsert_source(
+        _TEST_SLUG_FORUM, display_name="Test Forum Source", site_url="https://example-forum.com",
+        feed_url="https://example-forum.com/rss.xml", fetch_method="rss",
+        source_category="forum", content_license="public_domain",
+        content_type="forum_posting", channel="forum_posting", enabled=True,
+    )
+    check("A4c forum_posting source IS stored (visible in list_all_sources())",
+          _TEST_SLUG_FORUM in ns.list_all_sources())
+    check("A4d forum_posting source is EXCLUDED from get_enabled_sources() despite public_domain + enabled",
+          _TEST_SLUG_FORUM not in ns.get_enabled_sources())
+
+    # A4e: the realistic Reddit-shaped registration — copyrighted AND
+    # forum_posting AND fetch_method="manual" (no poll mechanism at all).
+    # Registering a source like this is the actual point of this field: a
+    # single source of truth across both content types, even though
+    # publishing this content stays the existing human-curated
+    # scripts/curation/publish_reddit.py path, never gov_news_poll.py.
+    ns.upsert_source(
+        _TEST_SLUG_REDDIT_LIKE, display_name="r/test-subreddit", site_url="https://www.reddit.com/r/test",
+        feed_url="", fetch_method="manual", source_category="forum",
+        content_license="copyrighted", content_type="forum_posting",
+        channel="reddit", enabled=True,
+    )
+    check("A4f Reddit-shaped source IS stored for a single source of truth",
+          _TEST_SLUG_REDDIT_LIKE in ns.list_all_sources())
+    check("A4g Reddit-shaped source is EXCLUDED from get_enabled_sources() on both gates",
+          _TEST_SLUG_REDDIT_LIKE not in ns.get_enabled_sources())
+
     # A6: disabled source excluded
     ns.upsert_source(
         _TEST_SLUG_DISABLED, display_name="Test Disabled Source",
         site_url="https://example.gov", feed_url="https://example.gov/rss.xml",
         fetch_method="rss", source_category="government", content_license="public_domain",
-        channel="gov_news", enabled=False,
+        content_type="news", channel="gov_news", enabled=False,
     )
     check("A6 disabled source excluded from get_enabled_sources()",
           _TEST_SLUG_DISABLED not in ns.get_enabled_sources())
@@ -114,7 +153,7 @@ def group_b_poll_integration() -> None:
         _TEST_SLUG_BAD_LICENSE, display_name="Test Copyrighted Source",
         site_url="https://example-firm.com", feed_url="https://example-firm.com/rss.xml",
         fetch_method="rss", source_category="law_firm", content_license="copyrighted",
-        channel="law_firm_news", enabled=True,
+        content_type="news", channel="law_firm_news", enabled=True,
     )
     results = poll_all(source_slug=_TEST_SLUG_BAD_LICENSE, dry_run=True)
     check("B1 polling a copyrighted-license source by slug reports skipped, not silently ignored",
