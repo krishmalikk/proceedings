@@ -290,7 +290,7 @@ run — because `case_id` is deterministic from `guid`, a failed item simply
 still looks "new" on the next scheduled run and retries itself naturally.
 No manual retry bookkeeping needed.
 
-### 5.3 Edited items — GCS/Discovery Engine upsert cleanly; BigQuery does not (open point)
+### 5.3 Edited items — decided: `DELETE`+`INSERT` in BigQuery, reusing the existing streaming-buffer-safe pattern
 
 Re-publishing an item under its existing (deterministic) `case_id` behaves
 differently per sink, worth being explicit about rather than assuming it's
@@ -302,16 +302,45 @@ uniformly fine:
   reading — used specifically so re-issuing a publish is safe). Clean.
 - **BigQuery** — `_write_bigquery()` calls `insert_rows_json()`
   ([`posting.py`](../../backend/posting.py)), which only **appends**. Re-publishing an
-  edited item under the same `case_id` would insert a **second row**, not
-  update the first — `postings_metadata` isn't currently upsert-friendly.
-  This has never mattered before because nothing has re-published under an
-  existing `case_id` in current usage; gov-news edits would be the first
-  real case. **Needs a decision before §3.2 is built**, not solved in this
-  doc: either (a) accept duplicate rows and have downstream BigQuery queries
-  always select the latest row per `case_id` by `ingestion_timestamp` (§3.3
-  in `TIMESTAMPS-AND-ANALYTICS.md`'s pattern already does something similar
-  conceptually), or (b) do a real `DELETE`+`INSERT` (or `MERGE`) for the
-  edited case rather than a plain append.
+  edited item under the same `case_id` would otherwise insert a **second
+  row**, not update the first.
+
+**Decision: `DELETE`+`INSERT`, not accept-duplicates.** This project already
+has a working pattern for exactly this class of problem —
+`purge_test_bq_rows()` ([`posting.py:1070-1088`](../../backend/posting.py)) already
+had to `DELETE` rows from `postings_metadata` and hit BigQuery's
+"UPDATE/DELETE on recently streamed rows" restriction (rows inserted via
+`insert_rows_json` sit in a streaming buffer for up to ~90 min and can't be
+mutated during that window). Its fix — guard the `DELETE` with
+`AND posting_date < CURRENT_DATE()` — is exactly what gov-news edits should
+reuse rather than inventing a new mechanism:
+
+```sql
+DELETE FROM `{project}.postings.postings_metadata`
+WHERE case_id = @case_id AND posting_date < CURRENT_DATE()
+```
+followed by a normal `insert_rows_json()` of the fresh row.
+
+**Same-day-edit edge case, handled by self-healing, not special-cased:** if
+an item is edited the same day it was first ingested, the `DELETE` guard
+excludes it (0 rows affected) and the fresh row gets inserted alongside the
+stale one — a temporary duplicate, not a bug. Two things make this
+self-correcting without extra logic:
+1. §5.2's dedup-map query must select the row **`QUALIFY ROW_NUMBER() OVER
+   (PARTITION BY source_item_id ORDER BY ingestion_timestamp DESC) = 1`**
+   (latest per `guid`) rather than assuming one row per `case_id` — this
+   makes next run's new/unchanged/edited classification correct even while
+   a same-day duplicate briefly exists.
+2. The stale row ages out of the streaming buffer by the next day, at which
+   point a normal `DELETE`+`INSERT` (triggered the next time that item's
+   hash is checked — which only happens if it's edited *again*) would clean
+   it up. **Being fully honest about the gap this leaves:** if an item is
+   edited exactly once, same-day, the stale duplicate row has no future
+   trigger to actually delete it (nothing re-touches that `case_id` again).
+   Acceptable for now given `content_hash`-based reads already de-duplicate
+   correctly (#1), but worth a periodic cleanup pass (mirroring
+   `purge_test_bq_rows()`'s own existence) if stale same-day duplicates
+   actually accumulate in practice — not building that preemptively.
 
 ### 5.4 Items removed from the feed — not treated as a deletion signal
 
@@ -384,6 +413,6 @@ mobile" ask is real new frontend work, not automatic:
   detail (paraphrase rules, review step) — flagged in §4.2 as needed
   *before* any such source is added, not designed here since none is in
   scope yet.
-- Does not resolve the BigQuery append-vs-upsert question for edited items
-  (§5.3) — flagged as needed before `publish_gov_news_item()` is built,
-  not decided here.
+- Does not build a periodic cleanup pass for the rare same-day-edit stale-
+  duplicate case (§5.3) — noted as a possible future addition if it proves
+  to matter in practice, not built preemptively.
