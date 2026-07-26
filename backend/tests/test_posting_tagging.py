@@ -376,6 +376,23 @@ def group_e_build() -> None:
           bool(c_no_override["author_handle"]) and c_no_override["author_handle"] != "USCIS",
           c_no_override["author_handle"])
 
+    # E43-E46: _gov_news_tags() — the news-update tag is gated on
+    # content_type explicitly (GOV-NEWS-MULTI-SOURCE-CONFIG.md §5), not
+    # implicitly assumed from "this function only gets called for news
+    # sources today". A forum_posting-type call must never get news-update.
+    check("E43 content_type='news' adds news-update",
+          "news-update" in p._gov_news_tags(["USCIS", "fraud"], "news"),
+          p._gov_news_tags(["USCIS", "fraud"], "news"))
+    check("E44 content_type='forum_posting' does NOT add news-update",
+          "news-update" not in p._gov_news_tags(["USCIS", "fraud"], "forum_posting"),
+          p._gov_news_tags(["USCIS", "fraud"], "forum_posting"))
+    check("E45 unrecognized content_type also does NOT add news-update (fail closed, not open)",
+          "news-update" not in p._gov_news_tags(["tag1"], "something-unexpected"),
+          p._gov_news_tags(["tag1"], "something-unexpected"))
+    check("E46 no duplicate news-update if the model already produced one",
+          p._gov_news_tags(["a", "news-update", "b"], "news").count("news-update") == 1,
+          p._gov_news_tags(["a", "news-update", "b"], "news"))
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)

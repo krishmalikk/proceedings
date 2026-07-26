@@ -183,6 +183,7 @@ def poll_source(source_slug: str, source: dict, dry_run: bool = False, force: bo
                 source_system=source_slug, author_handle=source["display_name"],
                 source_item_id=item["guid"], full_url=item["link"],
                 posting_date=item["posting_date"] or "", channel=source["channel"],
+                content_type=source.get("content_type", "news"),
                 is_edit=is_edit,
             )
             published.append({"title": item["title"], "case_id": result["case_id"],

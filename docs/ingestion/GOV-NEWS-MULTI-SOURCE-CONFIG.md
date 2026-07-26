@@ -341,6 +341,34 @@ how it gets published — it changes where its provenance metadata
 `news` sources in one registry instead of living only in a curator's head
 or a hardcoded literal somewhere.
 
+### 5.2a Tagging follows `content_type` too — explicitly, not just by construction
+
+Explicit follow-up request: make sure `content_type` actually drives
+*tagging*, so a forum/user-posting source is never tagged `news-update` —
+that tag specifically means "official policy/news, not a personal status
+claim" (§3.4 of `GOV-NEWS-INGESTION-PLAN.md`), which is exactly wrong for
+a Reddit-style personal posting.
+
+Before this, the guarantee was **implicit**: `news-update` is applied in
+exactly one place in the whole codebase
+(`posting.py`'s `publish_gov_news_item()`), and that function is only ever
+*called* for a `content_type="news"` source, because
+`get_enabled_sources()` already excludes anything else (§5.2 above). True
+today, but it relied entirely on an upstream filter — nothing *inside*
+`publish_gov_news_item()` itself checked the assumption it was built on.
+
+Made **explicit**: `publish_gov_news_item()` now takes `content_type` as a
+parameter (`gov_news_poll.py`'s `poll_source()` passes the resolved
+source's actual registry value, not a hardcoded default), and the tagging
+decision is a small, pure, unit-tested function
+(`posting._gov_news_tags()`, `tests/test_posting_tagging.py` E43-E46):
+`news-update` is added when `content_type == "news"`, and — deliberately
+fails *closed*, not open — anything else, including an unrecognized value,
+gets no `news-update` tag at all. A future change to the dispatch logic (a
+bug, a refactor, a new caller) can no longer silently start tagging forum
+content as an official news update; the guarantee now holds at the point
+of tagging, not only at the point of dispatch.
+
 ### 5.3 Example: registering a subreddit
 
 ```bash
