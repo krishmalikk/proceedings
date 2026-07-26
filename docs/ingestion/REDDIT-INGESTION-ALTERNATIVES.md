@@ -1,7 +1,7 @@
 # Reddit Ingestion — Alternatives & Cost Analysis (API blocked)
 
-**Status:** Evaluation / decision-pending — see §7 for the narrowed-pilot-scope re-evaluation
-**Last updated:** 2026-07-22
+**Status:** Evaluation / decision-pending — see §7 for the narrowed-pilot-scope re-evaluation, §8 for the Claude Skill (fetch-reddit/Redlib) evaluation
+**Last updated:** 2026-07-25
 **Context owner:** see MEMORY.md (D-012, D-022, D-026, D-039)
 
 > **Why this doc exists.** The official Reddit Data API path (PRAW, the project's
@@ -79,6 +79,24 @@ roadmap rather than being throwaway.
   — that crosses into the same circumvention risk category flagged
   throughout this doc and the Apify legal assessment.
 
+### 1-E. Claude Skill (`fetch-reddit` / Redlib) — **evaluated, rejected** (see §8 for full analysis)
+- **What:** A community-built Claude Skill that fetches Reddit content by
+  scraping **Redlib**, an unofficial third-party Reddit mirror, solving its
+  Anubis anti-bot proof-of-work challenge on every request.
+- **Approval / ToS:** ⚠️ **Worse than 1-D, not an alternative to it** — its
+  core mechanism is the exact bot-detection circumvention 1-D's update
+  above says not to attempt, routed through an unaffiliated third party on
+  top of that.
+- **Reliability:** No SLA — Redlib instances get blocked "periodically as
+  Reddit tightens its crackdown on alternative frontends," by the skill's
+  own documentation.
+- **Functional fit:** No search, no date/time-range or flair filtering, no
+  pagination (~25 posts/call, hot/new/rising/top only) — can't do the
+  pipeline's targeted historical retrieval. Also not invocable as headless
+  pipeline code — it only runs inside an interactive Claude chat session.
+- **Verdict:** Rejected for both recurring pipeline use and one-time/manual
+  use. Full writeup: §8.
+
 ---
 
 ## 3. Track 2 — Paid options (costs)
@@ -123,6 +141,7 @@ scraping; you consume results via their API/dataset.
 | 1-B First-party app | None | ✅ Clean (owned) | n/a | ~$0 | ✅ | Built |
 | 1-C Manual curation | None | ✅ Cleanest for Reddit | ✅ (human) | Labor | ❌ | Now |
 | 1-D Public JSON/RSS | None | ⚠️ Confirmed blocked in practice — see update in §2 | ✅ JSON / ❌ RSS | $0 | ❌ (not prod, and now confirmed not reliably dev either) | ~~Now~~ Blocked |
+| 1-E Claude Skill (fetch-reddit/Redlib) | None | ❌ Anti-bot circumvention — worse than 1-D | ✅ (live scrape) | $0 | ❌ Rejected — see §8 | ❌ Rejected |
 | 3-A Official commercial API | Yes (paid) | ✅ Licensed | ✅ Full | **~$12k/mo floor** | ✅✅ | Weeks |
 | 3-B 3rd-party scraper | None | ⚠️ Residual risk | ✅ Full | **~$40–65/mo** | ✅ | Hours–days |
 | 3-C Devvit | Easy | ✅ | ✅ | Free | n/a | — (rejected) |
@@ -159,7 +178,7 @@ changes needed for any access path below.
 
 No published SLA exists (Reddit's own Responsible Builder Policy page
 returned HTTP 403 to automated fetch; findings below are from current
-third-party trackers of the same 2026 process — see §8 sources):
+third-party trackers of the same 2026 process — see §9 sources):
 
 - Reported waits range from **a couple of days to several weeks to
   indefinite silence** — "a meaningful share of applicants never get a yes."
@@ -222,7 +241,83 @@ Two distinct risks — narrowing scope only addresses one of them:
 
 ---
 
-## 8. References
+## 8. Claude Skill route (`fetch-reddit` / Redlib) — evaluated and rejected (2026-07-25)
+
+Explored a specific proposal: use the community `fetch-reddit` Claude Skill
+(v2, shared publicly — see §8.4) instead of Apify/PRAW/manual curation.
+Downloaded the skill and read its full source (`SKILL.md`, `scripts/fetch.py`,
+`references/*.md`) rather than relying on its own description of itself.
+
+### 8.1 How it actually works
+
+Not a Reddit API client. `fetch.py` scrapes **Redlib** — a volunteer-run,
+unofficial third-party Reddit mirror — via `requests`/`BeautifulSoup`, and:
+1. Solves an **Anubis proof-of-work anti-bot challenge** on every request
+   (brute-forces a SHA-256 nonce to pass Redlib's bot detection).
+2. Parses the returned HTML (fragile — the skill's own troubleshooting doc
+   lists "Redlib changed their HTML structure" as an expected failure mode).
+3. Fails over across ~7 hardcoded Redlib instance URLs when one is down,
+   blocked, or serving an error page.
+
+### 8.2 Rejected for pipeline use — three independent reasons
+
+1. **Legal/ToS — worse than 1-D, not an alternative to it.** §2 (1-D)
+   already concluded that defeating Reddit's bot-fingerprint detection
+   (header mimicry, proxy rotation, etc.) "crosses into the same
+   circumvention risk category" flagged throughout this doc. This skill's
+   core mechanism *is* that circumvention — solving an anti-bot PoW
+   challenge, then routing through unaffiliated third-party mirrors that are
+   themselves scraping Reddit without authorization.
+2. **Reliability — no SLA, by the skill's own documentation.** Its
+   troubleshooting doc states Redlib instances get blocked "periodically as
+   Reddit tightens its crackdown on alternative frontends," with no owner to
+   escalate to.
+3. **Functional fit — can't do what the pipeline needs, independent of the
+   legal question.** No keyword search, no date/time-range or flair
+   filtering, no pagination — capped at ~25 posts per call, sorted only by
+   hot/new/rising/top (per the skill's own `references/browsing-live.md`
+   "Limitations" section). The pipeline needs targeted historical retrieval
+   (e.g., "H-1B RFE approved" threads across months); this can only show
+   "what's currently hot right now." It's also not invocable as headless
+   pipeline code at all — it's an instruction file for an LLM to follow
+   inside an interactive Claude.ai/Desktop chat session with Code Execution
+   + Network Egress enabled, so the GCP pipeline has no way to call it
+   regardless of the other two objections.
+
+### 8.3 Re-evaluated for one-time (not recurring) ingestion
+
+Two of the three objections above weaken for a single, human-driven,
+one-time pull — but the load-bearing one does not:
+- **Reliability** becomes moot — a failed attempt can just be retried;
+  there's no ongoing-uptime dependency for a single session.
+- **No search/pagination** becomes moot *if* the target posts are already
+  known (found via normal reddit.com browsing) — `live-post`/`live-share`
+  on a specific known ID/URL doesn't hit the `live-browse` limitations.
+- **Legal/ToS does not shrink with volume.** Same reasoning already applied
+  to Apify at narrowed scope in §7.3: *"this is about the method of
+  collection, not volume... narrowing scope lowers the detection profile...
+  but does not change the qualitative legal category."* Invoking the
+  anti-bot-circumvention mechanism once is still that mechanism — lower
+  exposure, not a different category.
+
+**Verdict:** since a human still has to open/identify each post as
+curation-worthy in the first place under the existing manual-curation
+workflow (1-C), the marginal convenience this skill adds over just reading
+the post in the browser tab already open is small, while it's the only path
+of the two that raises the ToS question at all. **Recommendation: do not use
+it, even for one-time ingestion** — keep doing 1-C exactly as today (read
+directly on reddit.com, paraphrase into the curation script).
+
+### 8.4 Reference
+
+- Source: [r/claudexplorers — "v2 of my fetch-reddit skill for sharing all things..."](https://www.reddit.com/r/claudexplorers/comments/1rnuxch/v2_of_my_fetchreddit_skill_for_sharing_all_things/)
+  (page itself not fetchable via WebFetch — evaluated directly from the
+  downloaded skill source instead: `SKILL.md`, `scripts/fetch.py`,
+  `references/troubleshooting.md`, `references/browsing-live.md`)
+
+---
+
+## 9. References
 - [REDDIT-INGESTION-PIPELINE.md](REDDIT-INGESTION-PIPELINE.md) — pipeline spec, §3.5/§7.6 (Reddit access + cost)
 - [PREREQUISITES-IAM-INFRASTRUCTURE.md §7](PREREQUISITES-IAM-INFRASTRUCTURE.md) — Reddit access runbook + dev-only public-JSON sanction
 - [REDDIT-SCRAPING-MIGRATION-PLAN.md](REDDIT-SCRAPING-MIGRATION-PLAN.md) — confirms current schema/pipeline can ingest Reddit content into the live datastore with no redesign
@@ -236,5 +331,3 @@ Two distinct risks — narrowing scope only addresses one of them:
 - Fresh 2026 API-approval-timeline check (retrieved 2026-07-22):
   - [How to Get a Reddit API Key in 2026 (Step-by-Step + Approval Fix)](https://www.redditapis.com/blogs/how-to-get-reddit-api-key-2026)
   - [Reddit Data API 2026: Lockdown, Approval, Rate Limits](https://www.redditapis.com/blogs/reddit-data-api-2026)
-</content>
-</invoke>
