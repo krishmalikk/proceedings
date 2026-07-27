@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -133,6 +134,60 @@ export function PostScreen() {
   useEffect(() => {
     getTagVocab().then(setVocab).catch(() => {});
   }, []);
+
+  // Draft persistence (audit P0): a long structured post used to be lost entirely
+  // on crash/background-kill. Autosave the editable fields (per user) and restore
+  // them on mount; cleared on successful publish or reset.
+  const draftKey = useMemo(() => `proceedings_post_draft_${getActiveUserId() ?? 'anon'}`, []);
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(draftKey);
+        if (raw) {
+          const d = JSON.parse(raw);
+          if (d.title) setTitle(d.title);
+          if (d.description) setDescription(d.description);
+          if (d.groups) setGroups(d.groups);
+          if (d.stages) setStages(d.stages);
+          if (d.dates) setDates(d.dates);
+          if (d.postingType) setPostingType(d.postingType);
+        }
+      } catch {
+        // Ignore corrupt/absent draft.
+      } finally {
+        hydrated.current = true;
+      }
+    })();
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const hasContent = !!(
+      title.trim() ||
+      description.trim() ||
+      postingType ||
+      Object.keys(stages).length ||
+      Object.keys(dates).length ||
+      Object.values(groups).some((a) => Array.isArray(a) && a.length)
+    );
+    const t = setTimeout(() => {
+      if (hasContent) {
+        AsyncStorage.setItem(
+          draftKey,
+          JSON.stringify({ title, description, groups, stages, dates, postingType })
+        ).catch(() => {});
+      } else {
+        AsyncStorage.removeItem(draftKey).catch(() => {});
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [title, description, groups, stages, dates, postingType, draftKey]);
+
+  const clearDraft = () => {
+    AsyncStorage.removeItem(draftKey).catch(() => {});
+  };
 
   const consulateByCode = useMemo(
     () => new Map(vocab?.consulate_options?.map((o) => [o.code, o.label]) || []),
@@ -303,6 +358,7 @@ export function PostScreen() {
     setError('');
     try {
       const result = await createPosting(title, description, groups, stages, dates);
+      clearDraft();
       setDone(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not publish posting');
@@ -312,6 +368,7 @@ export function PostScreen() {
   };
 
   const handleReset = () => {
+    clearDraft();
     setDone(null);
     setTitle('');
     setDescription('');

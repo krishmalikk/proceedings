@@ -144,8 +144,8 @@ const styles = StyleSheet.create({
     backgroundColor: Platform.OS === 'ios'
       ? 'rgba(255, 255, 255, 0.7)'
       : 'rgba(255, 255, 255, 0.95)',
-    // Shadow for floating effect
-    shadowColor: '#000',
+    // Shadow for floating effect (normalized to the shadow-color token)
+    shadowColor: colors.shadowTint,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 24,

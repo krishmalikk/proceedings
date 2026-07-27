@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { PostingCard, AnimatedPressable, AnimatedListItem } from '../components';
+import { PostingCard, AnimatedPressable, AnimatedListItem, Skeleton, ErrorState } from '../components';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import {
@@ -199,10 +199,16 @@ export function VisaExperiencesScreen() {
           </View>
         )}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {/* Loading skeleton — matches the results layout so the screen doesn't
+            flash blank while searching (UI_AUDIT §8). */}
+        {loading && <Skeleton.Card count={4} style={styles.results} />}
+
+        {error && !loading ? (
+          <ErrorState body={error} onRetry={() => submit(query)} style={styles.results} />
+        ) : null}
 
         {/* Empty state with example prompts */}
-        {!searched && !loading && (
+        {!searched && !loading && !error && (
           <Animated.View style={styles.emptyState} entering={FadeInUp.delay(200).duration(400)}>
             <Ionicons name="search" size={40} color={colors.onSurfaceVariant} />
             <Text style={styles.emptyTitle}>Search real visa experiences</Text>
@@ -225,7 +231,7 @@ export function VisaExperiencesScreen() {
         )}
 
         {/* Results */}
-        {searched && !loading && (() => {
+        {searched && !loading && !error && (() => {
           // Hide postings from blocked authors instantly (server also filters).
           const visible = results.filter((r) => !isBlocked(r.author_id) && !hiddenIds.has(r.case_id));
           return (

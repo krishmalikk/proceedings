@@ -336,6 +336,7 @@ export async function getBlockedUsers(): Promise<string[]> {
 export interface ReplyCardData {
   id: string;
   parent_case_id: string;
+  parent_reply_id?: string; // empty/absent = top-level; else the reply this answers (threading)
   body: string;
   author_handle: string;
   author_id?: string; // author uid (blank on your own) — enables block-user
@@ -365,11 +366,15 @@ export async function getReplies(postingId: string, sort: 'top' | 'new' = 'new')
   return data;
 }
 
-export async function postReply(postingId: string, body: string): Promise<ReplyCardData> {
+export async function postReply(
+  postingId: string,
+  body: string,
+  parentReplyId = '',
+): Promise<ReplyCardData> {
   const response = await apiFetch(`${API_URL}/api/postings/${encodeURIComponent(postingId)}/replies`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, parent_reply_id: parentReplyId }),
   });
   const data = await safeJson(response);
   if (!response.ok) {

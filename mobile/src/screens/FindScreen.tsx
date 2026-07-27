@@ -981,12 +981,14 @@ const styles = StyleSheet.create({
   offerDetail: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 },
   offerButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.base, marginTop: spacing.md },
   offerPrimary: {
-    backgroundColor: colors.secondaryContainer,
+    // Recommended action → filled primary (was gray secondaryContainer, an inverted
+    // hierarchy below the screen's other red buttons — UI_AUDIT §2).
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.full,
     paddingVertical: 8,
     paddingHorizontal: spacing.md,
   },
-  offerPrimaryText: { color: colors.onSecondaryContainer, fontWeight: '600', fontSize: 13 },
+  offerPrimaryText: { color: colors.onPrimary, fontWeight: '600', fontSize: 13 },
   offerSecondary: {
     backgroundColor: colors.surfaceContainerHigh,
     borderRadius: borderRadius.full,
