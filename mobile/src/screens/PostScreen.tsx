@@ -357,7 +357,7 @@ export function PostScreen() {
     setSubmitting(true);
     setError('');
     try {
-      const result = await createPosting(title, description, groups, stages, dates);
+      const result = await createPosting(title, description, groups, stages, dates, Platform.OS);
       clearDraft();
       setDone(result);
     } catch (e) {

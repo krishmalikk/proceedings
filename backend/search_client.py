@@ -275,13 +275,39 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
         "consulates": consulates,
         "outcome": str(meta.get("outcome_status") or stages.get("outcome_status") or ""),
         "subreddit": str(meta.get("subreddit") or meta.get("source_container") or ""),
-        "channel": str(meta.get("channel") or ""),
+        # `channel` is present in every doc's struct_data, but — verified
+        # live — the Discovery Engine schema has it registered as a bare
+        # {"type": "string"} (not `retrievable`), so Search API result
+        # snippets omit it entirely (get_posting()'s single-document fetch
+        # isn't affected — that returns full struct_data regardless).
+        # Fallback to deriving it from case_id's leading segment, which is
+        # always accurate by construction — same convention
+        # delete_content() already relies on. Fixes blank "Source" labels
+        # on every list-view card (Search *and* News tabs), not just
+        # gov-news — this was a pre-existing gap, not one introduced here.
+        "channel": str(meta.get("channel") or "").strip() or case_id.split("-", 1)[0],
         "tags": tags[:8],
         "url": str(meta.get("full_url") or meta.get("source_uri") or ""),
         "date": str(meta.get("posting_date") or ""),
-        # Full ingestion timestamp for relative "X ago" display + recency sort;
-        # falls back to the day-granular posting_date when absent.
+        # Full ingestion timestamp — when WE processed it, not when the
+        # content was originally published. Kept for any existing caller
+        # still relying on it; `event_timestamp` below is what the News tab
+        # (and anything else caring about "when did this actually happen")
+        # should display/sort by instead — see search_postings()'s
+        # _SORT_FIELDS docstring for why these routinely diverge for
+        # backend-ingested (gov-news/immihelp/reddit) content.
         "timestamp": str(meta.get("ingestion_timestamp") or meta.get("posting_date") or ""),
+        # The original event date — when the content was actually posted/
+        # published at its source, per posting_date (day-granularity; no
+        # source in this pipeline currently captures original time-of-day
+        # more precisely than that). Never ingestion_timestamp.
+        "event_timestamp": str(meta.get("posting_date") or ""),
+        # First-party/source author identity — a synthetic per-item handle for
+        # app postings, or a fixed per-source handle (e.g. "USCIS") for
+        # gov-news content (GOV-NEWS-INGESTION-PLAN.md §3.6). Single point of
+        # truth here so both search-result cards and the detail view
+        # (get_posting(), which builds on this) carry it consistently.
+        "author_handle": str(meta.get("author_handle") or "").strip(),
     }
 
 
@@ -409,6 +435,18 @@ def _boost_from_facets(facets: dict):
     return de.SearchRequest.BoostSpec(condition_boost_specs=specs) if specs else None
 
 
+# Discovery Engine field each `sort` value orders by — both are registered
+# identically in the live schema (retrievable+indexable, type "datetime";
+# confirmed live via SchemaService.GetSchema), so either sorts correctly.
+# "recent" (ingestion_timestamp) is the long-standing default everywhere;
+# "event" (posting_date, the source's own original publish date) exists
+# specifically for the News tab, where content is routinely backdated
+# (ingested today, published weeks/months ago at the source) — sorting by
+# ingestion there would show unrelated old/new items interleaved, not a
+# real "most recently published" order. See website's news/page.tsx.
+_SORT_FIELDS = {"recent": "ingestion_timestamp", "event": "posting_date"}
+
+
 def search_postings(
     query: str,
     project_id: str,
@@ -418,6 +456,7 @@ def search_postings(
     page_token: str = "",
     filter_expr: str = "",
     boost=None,
+    sort: str = "recent",
 ) -> dict:
     """
     Ranked posting search (Google-results style) via the Discovery Engine
@@ -428,15 +467,16 @@ def search_postings(
     client = _search_client(project_id, location)
     serving_config = _serving_config(project_id, location, engine_id)
 
+    order_field = _SORT_FIELDS.get(sort, _SORT_FIELDS["recent"])
     request = de.SearchRequest(
         serving_config=serving_config,
         query=query,
         page_size=page_size,
         page_token=page_token or "",
         filter=filter_expr or "",
-        # Most-recent-first: matching postings are returned ordered by ingestion
-        # time (descending), so the freshest content leads every result page.
-        order_by="ingestion_timestamp desc",
+        # Most-recent-first by whichever timestamp `sort` selects (see
+        # _SORT_FIELDS) — always descending, so the freshest content leads.
+        order_by=f"{order_field} desc",
         content_search_spec=de.SearchRequest.ContentSearchSpec(
             snippet_spec=de.SearchRequest.ContentSearchSpec.SnippetSpec(return_snippet=True),
         ),
@@ -468,6 +508,7 @@ def search_with_strictness(
     page_token: str = "",
     strictness: str = "balanced",
     extra_filter: str = "",
+    sort: str = "recent",
 ) -> dict:
     """
     Search with a user-chosen precision level:
@@ -476,7 +517,8 @@ def search_with_strictness(
       - 'balanced' : boost matching facets (relevant ones rank first, others kept).
       - 'broad'    : pure semantic search (no facet constraints).
     `extra_filter` (explicitly selected facet chips) is ALWAYS applied as a hard
-    filter regardless of strictness. Adds `applied_filters`, `relaxed`,
+    filter regardless of strictness. `sort` — see search_postings()'s
+    _SORT_FIELDS — passes straight through. Adds `applied_filters`, `relaxed`,
     `effective_strictness`.
     """
     facets = extract_filters(query)
@@ -492,23 +534,23 @@ def search_with_strictness(
 
     if strictness == "strict" and facets:
         data = search_postings(query, project_id, location, engine_id, page_size, page_token,
-                               filter_expr=_and(_filter_expr_from_facets(facets), extra_filter))
+                               filter_expr=_and(_filter_expr_from_facets(facets), extra_filter), sort=sort)
         if not data["results"] and not page_token:
             # No exact matches — fall back to a boosted (balanced) search (keeping
             # any explicitly-selected facets as a hard filter).
             data = search_postings(query, project_id, location, engine_id, page_size, "",
-                                   filter_expr=extra_filter, boost=_boost_from_facets(facets))
+                                   filter_expr=extra_filter, boost=_boost_from_facets(facets), sort=sort)
             return _wrap(data, "balanced", True)
         return _wrap(data, "strict", False)
 
     if strictness == "broad":
         data = search_postings(query, project_id, location, engine_id, page_size, page_token,
-                               filter_expr=extra_filter)
+                               filter_expr=extra_filter, sort=sort)
         return _wrap(data, "broad", False)
 
     # balanced (default)
     data = search_postings(query, project_id, location, engine_id, page_size, page_token,
-                           filter_expr=extra_filter, boost=_boost_from_facets(facets))
+                           filter_expr=extra_filter, boost=_boost_from_facets(facets), sort=sort)
     return _wrap(data, "balanced", False)
 
 
@@ -561,11 +603,8 @@ def get_posting(case_id: str, project_id: str, location: str, datastore_id: str)
         return None
 
     meta = _struct_to_dict(doc.struct_data)
-    card = _card_from_struct(case_id, meta)
+    card = _card_from_struct(case_id, meta)  # author_handle already included
     card["tag_sections"] = _tag_sections_from_meta(meta)
-    # First-party author identity (synthetic handle or username). Empty for
-    # external (Reddit/other) ingests — they carry no author_handle.
-    card["author_handle"] = str(meta.get("author_handle") or "").strip()
 
     # Body lives in the GCS sidecar (.md), referenced by content.uri / gcs_path.
     body = ""

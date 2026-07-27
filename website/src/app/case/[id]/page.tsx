@@ -23,6 +23,7 @@ type PostingDetail = {
   tags: string[]
   url: string
   date: string
+  event_timestamp?: string
   body: string
   author_id: string
   author_handle?: string
@@ -89,17 +90,16 @@ export default function CaseDetailsPage() {
                 ))}
               </div>
               <h1 className="text-headline-lg text-on-surface mb-2">{data.title}</h1>
-              {data.description && (
-                <p className="text-body-md text-on-surface-variant">{data.description}</p>
-              )}
               </div>
             </div>
 
-            {/* Full posting body */}
+            {/* Original content, verbatim — the AI-generated summary lives
+                in its own labeled box in the sidebar (below), never mixed
+                in here, so it's always clear which is which. */}
             <div className="card">
               <div className="flex items-center gap-2 mb-4">
                 <span className="material-symbols-outlined text-secondary">forum</span>
-                <h2 className="text-headline-md text-on-surface">Full Experience</h2>
+                <h2 className="text-headline-md text-on-surface">Original Content</h2>
               </div>
               <div className="text-body-md text-on-surface leading-relaxed">
                 {data.body ? <Markdown>{data.body}</Markdown> : 'No content available.'}
@@ -115,11 +115,21 @@ export default function CaseDetailsPage() {
             <div className="card">
               <h3 className="text-label-md font-semibold text-on-surface mb-3">Details</h3>
               <dl className="space-y-2 text-body-md">
-                <div className="flex justify-between"><dt className="text-on-surface-variant">Source</dt><dd className="text-on-surface">{data.subreddit ? `r/${data.subreddit}` : data.channel}</dd></div>
+                <div className="flex justify-between"><dt className="text-on-surface-variant">Source</dt><dd className="text-on-surface">{data.subreddit ? `r/${data.subreddit}` : data.author_handle || (data.channel === 'app' ? 'Meridian' : data.channel)}</dd></div>
                 <div className="flex justify-between"><dt className="text-on-surface-variant">Posted</dt><dd className="text-on-surface">{data.date || '—'}</dd></div>
                 {data.outcome && <div className="flex justify-between"><dt className="text-on-surface-variant">Outcome</dt><dd className="text-on-surface">{data.outcome}</dd></div>}
               </dl>
             </div>
+
+            {data.description && (
+              <div className="card">
+                <h3 className="text-label-md font-semibold text-on-surface mb-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-[20px]">auto_awesome</span>
+                  AI Summary
+                </h3>
+                <p className="text-body-md text-on-surface-variant">{data.description}</p>
+              </div>
+            )}
 
             {(() => {
               // Show every tag category as its own labeled section. Fall back to
@@ -150,12 +160,35 @@ export default function CaseDetailsPage() {
               )
             })()}
 
-            {/* Author. A real in-app author (uid) gets the rich profile card;
-                otherwise a first-party posting links its anonymous handle to the
-                author-by-handle page. External (Reddit) postings show nothing. */}
+            {/* Author. A real in-app author (uid) gets the rich profile card.
+                A first-party (channel="app") posting links its anonymous
+                handle to the in-app author-by-handle page. gov-news content
+                has a fixed per-source handle (e.g. "USCIS") with no in-app
+                profile behind it, so it links out to the source URL instead
+                — see docs/ingestion/GOV-NEWS-INGESTION-PLAN.md §3.6. Other
+                external content (Reddit) shows nothing, same as before. */}
             {data.author_id ? (
               <AuthorSection authorId={data.author_id} channel={data.channel} currentCaseId={data.case_id} />
-            ) : data.author_handle ? (
+            ) : data.channel === 'gov_news' && data.author_handle ? (
+              <div className="card">
+                <h3 className="text-label-md font-semibold text-on-surface mb-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-[20px]">account_circle</span>
+                  Source
+                </h3>
+                <a
+                  href={data.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-body-md font-medium text-primary hover:underline"
+                >
+                  {data.author_handle}
+                  <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                </a>
+                <p className="text-caption text-on-surface-variant mt-1">
+                  View the original announcement
+                </p>
+              </div>
+            ) : data.channel === 'app' && data.author_handle ? (
               <div className="card">
                 <h3 className="text-label-md font-semibold text-on-surface mb-3 flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-[20px]">account_circle</span>
