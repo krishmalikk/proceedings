@@ -342,6 +342,7 @@ class PostingCard(BaseModel):
     url: str
     date: str
     timestamp: str = ""  # full ingestion timestamp (for relative "X ago" + recency sort)
+    event_timestamp: str = ""  # the ORIGINAL source event date — never ingestion time
     # Authoring app user's uid (first-party postings only), resolved from the
     # Firestore posting↔author link. Lets the client block an author from the
     # feed and hide their cards instantly (App Store Guideline 1.2).
@@ -1491,12 +1492,17 @@ def search(
     facet: list[str] = Query(default=[]),
     page_size: int = 10,
     page_token: str = "",
+    sort: str = "recent",
 ):
     """Ranked posting search (result cards). Browse/search mode, not Q&A.
 
     Explicit `visa`/`consulate`/`outcome` params and selected `facet` chips
     ('field:value') apply exact filters. `strictness` (broad|balanced|strict)
-    controls how the NL query's extracted facets are applied."""
+    controls how the NL query's extracted facets are applied. `sort`
+    ("recent" | "event" — see search_client.py's _SORT_FIELDS): "recent"
+    (default, unchanged) orders by ingestion time; "event" orders by the
+    source's own original publish date — what the News tab uses, since
+    that content is routinely backdated relative to ingestion."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
@@ -1504,14 +1510,24 @@ def search(
         return SearchResponse(results=[], next_page_token="", total=0)
 
     page_size = max(1, min(page_size, 50))
-    query = q or "immigration experience"
     selected = _facets_filter(facet)
 
     explicit = _build_filter(visa, consulate, outcome)
     hard = " AND ".join(e for e in (explicit, selected) if e)
     if hard:
-        data = search_postings(query, _project_id, _ds_location, _engine_id,
-                               page_size=page_size, page_token=page_token, filter_expr=hard)
+        # A hard filter (facet chips / visa / consulate / outcome) already
+        # scopes results correctly on its own — don't ALSO force a fallback
+        # query string here. Confirmed live: with no filter this fallback
+        # ("immigration experience") is harmless, but combined with a facet
+        # filter it does real damage — e.g. `doc_kind: ANY("gov_news")`
+        # alone correctly matches all 250 USCIS articles, but adding that
+        # fallback text drops it to 6, because Discovery Engine's relevance
+        # matching excludes non-matching documents entirely regardless of
+        # order_by. This is exactly what silently starved the News tab
+        # (facet-only, no typed query) down to a handful of items. An empty
+        # `query` here still returns the full, correctly-filtered set.
+        data = search_postings(q, _project_id, _ds_location, _engine_id,
+                               page_size=page_size, page_token=page_token, filter_expr=hard, sort=sort)
         explicit_filters = {k: v for k, v in {
             "consulate": [consulate] if consulate else [],
             "visa": [visa] if visa else [],
@@ -1521,8 +1537,11 @@ def search(
         data.setdefault("effective_strictness", "strict")
         data.setdefault("relaxed", False)
     else:
-        data = search_with_strictness(query, _project_id, _ds_location, _engine_id,
-                                      page_size=page_size, page_token=page_token, strictness=strictness)
+        # No hard filter — a free-text/relevance search, where Discovery
+        # Engine genuinely needs some query text to rank against.
+        q = q or "immigration experience"
+        data = search_with_strictness(q, _project_id, _ds_location, _engine_id,
+                                      page_size=page_size, page_token=page_token, strictness=strictness, sort=sort)
 
     # Hide moderation-taken-down postings and any authored by users the viewer
     # has blocked; also stamps each card's author_id for client-side blocking.
@@ -1535,7 +1554,7 @@ def search(
         applied_filters=data.get("applied_filters", {}),
         relaxed=data.get("relaxed", False),
         effective_strictness=data.get("effective_strictness", ""),
-        suggested_filters=[SuggestedFilter(**g) for g in _suggest(query)],
+        suggested_filters=[SuggestedFilter(**g) for g in _suggest(q)],
     )
 
 
