@@ -25,6 +25,7 @@ For each enabled source with fetch_method="rss":
 from __future__ import annotations
 
 import os
+import time
 from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree
 
@@ -35,6 +36,20 @@ import posting
 from news_sources import get_enabled_sources
 
 GCP_PROJECT = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT", "")
+
+
+def _timed(label: str, start: float) -> None:
+    """Checkpoint logging added 2026-07-27 to diagnose a production hang in
+    /internal/gov-news/poll: two consecutive real Cloud Scheduler triggers
+    each ran for exactly the Cloud Run request timeout (300s) and were
+    killed, regardless of whether there was 0 or 1 new item to publish —
+    the identical work completed in 146s when run directly (not through the
+    HTTP route), so the hang is somewhere in this call chain but specific to
+    that invocation path. No application-level print() output survived
+    either killed request (block-buffered stdout, fixed alongside this via
+    Dockerfile's PYTHONUNBUFFERED=1) — these checkpoints exist to show,
+    next time, exactly which step never returns."""
+    print(f"  [timing] {label}: {time.monotonic() - start:.2f}s", flush=True)
 
 # Below this length (words), the RSS description is treated as too thin to
 # tag well and the full article page is fetched as a fallback — decided in
@@ -138,17 +153,20 @@ def poll_source(source_slug: str, source: dict, dry_run: bool = False, force: bo
     still in BigQuery's ~90-min streaming buffer, so a DELETE-based cleanup
     couldn't run — the Discovery Engine/GCS side can still be corrected
     immediately since those aren't subject to the same restriction)."""
+    t0 = time.monotonic()
     if source["fetch_method"] != "rss":
         return {"source": source_slug, "skipped": True,
                 "reason": f"fetch_method={source['fetch_method']!r} has no adapter yet"}
 
     known = {} if force else _existing_hashes(source_slug)
+    _timed(f"{source_slug}: _existing_hashes ({len(known)} known)", t0)
     items = _parse_feed(source["feed_url"])
+    _timed(f"{source_slug}: _parse_feed ({len(items)} items)", t0)
 
     counts = {"new": 0, "edited": 0, "unchanged": 0, "failed": 0}
     published: list[dict] = []
     failures: list[dict] = []
-    for item in items:
+    for i, item in enumerate(items):
         # Resolve the description BEFORE hashing, not after — content_hash
         # must be computed from the exact text that gets published (and
         # therefore stored), or classification permanently disagrees with
@@ -159,9 +177,23 @@ def poll_source(source_slug: str, source: dict, dry_run: bool = False, force: bo
         # freshly-computed classification hash (pre-fallback) for any item
         # whose RSS description was thin — every poll re-classified those
         # items as "edited" forever, even completely unchanged ones.
+        if i > 0 and i % 50 == 0:
+            _timed(f"{source_slug}: loop checkpoint ({i}/{len(items)} items processed)", t0)
+
         description = item["description"]
         if len(description.split()) < _THIN_DESCRIPTION_WORDS:
+            t_fetch = time.monotonic()
             fuller = _fetch_full_article_text(item["link"])
+            fetch_elapsed = time.monotonic() - t_fetch
+            # ~170/250 USCIS items hit this path every run (thin RSS
+            # descriptions) — logging every one is too noisy for daily
+            # production logs (confirmed via this exact instrumentation,
+            # 2026-07-27: 170 fetches, ~0.12-0.3s each, ~37s total, not the
+            # root cause of that day's failures). Only flag a genuine
+            # outlier, so a future real stall is still visible without the
+            # noise.
+            if fetch_elapsed > 3.0:
+                _timed(f"{source_slug}: SLOW thin-description fallback fetch for {item['guid']!r}", t_fetch)
             if fuller:
                 description = fuller
 
@@ -178,6 +210,7 @@ def poll_source(source_slug: str, source: dict, dry_run: bool = False, force: bo
                               "action": "edited" if is_edit else "new", "dry_run": True})
             continue
         try:
+            t_pub = time.monotonic()
             result = posting.publish_gov_news_item(
                 title=item["title"], description=description,
                 source_system=source_slug, author_handle=source["display_name"],
@@ -186,6 +219,7 @@ def poll_source(source_slug: str, source: dict, dry_run: bool = False, force: bo
                 content_type=source.get("content_type", "news"),
                 is_edit=is_edit,
             )
+            _timed(f"{source_slug}: publish_gov_news_item for {item['guid']!r}", t_pub)
             published.append({"title": item["title"], "case_id": result["case_id"],
                               "action": "edited" if is_edit else "new"})
         except Exception as e:  # noqa: BLE001 - one bad item must not abort the whole run
@@ -193,6 +227,7 @@ def poll_source(source_slug: str, source: dict, dry_run: bool = False, force: bo
             failures.append({"title": item["title"], "guid": item["guid"],
                              "error": f"{type(e).__name__}: {e}"})
 
+    _timed(f"{source_slug}: poll_source total", t0)
     return {
         "source": source_slug, "display_name": source["display_name"],
         "items_in_feed": len(items), "already_known": len(known),
@@ -205,7 +240,9 @@ def poll_all(source_slug: str = "", dry_run: bool = False, force: bool = False) 
     Resolves the registry from Firestore exactly once per call — a fresh
     read every run, so a source added/edited/disabled since the last run is
     reflected immediately, with no restart or redeploy needed."""
+    t0 = time.monotonic()
     sources = get_enabled_sources()
+    _timed(f"poll_all: get_enabled_sources ({len(sources)} enabled)", t0)
     if source_slug:
         if source_slug not in sources:
             return [{"source": source_slug, "skipped": True,
