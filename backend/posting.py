@@ -1318,9 +1318,23 @@ def publish_reddit_posting(title: str, description: str, tags: dict,
     }
 
 
+def _gov_news_tags(extracted_tags: list[str], content_type: str) -> list[str]:
+    """Deterministically add `news-update` when — and only when —
+    content_type == "news". Pure/no-network on purpose: this is the exact
+    decision docs/ingestion/GOV-NEWS-MULTI-SOURCE-CONFIG.md §5 documents
+    (a news source's content gets tagged as a news update; a forum
+    posting's content does not, since it isn't one), pulled out of
+    publish_gov_news_item() so it's unit-testable without GCP — see
+    tests/test_posting_tagging.py."""
+    if content_type == "news":
+        return list(dict.fromkeys([*extracted_tags, "news-update"]))
+    return list(dict.fromkeys(extracted_tags))
+
+
 def publish_gov_news_item(title: str, description: str, source_system: str,
                           author_handle: str, source_item_id: str, full_url: str,
                           posting_date: str, channel: str = "gov_news",
+                          content_type: str = "news",
                           is_edit: bool = False) -> dict:
     """Publish path for automated government-agency news ingestion — see
     docs/ingestion/GOV-NEWS-INGESTION-PLAN.md. Deliberately NOT wired to any
@@ -1335,6 +1349,19 @@ def publish_gov_news_item(title: str, description: str, source_system: str,
     moderation.check_text() like publish_reddit_posting() (official
     government content, not a live user submission).
 
+    `content_type` — the caller's `news_sources` registry entry's field
+    (GOV-NEWS-MULTI-SOURCE-CONFIG.md §5) — gates the deterministic
+    `news-update` tag explicitly, not implicitly: this function only ever
+    gets *called* for a `content_type="news"` source today, because
+    `news_sources.get_enabled_sources()` already excludes anything else
+    (§5.2 of that doc) — but that's an upstream filter, not a check *in*
+    this function. Requiring the caller to state `content_type` here too,
+    and only tagging `news-update` when it's `"news"`, means a future
+    change to the dispatch logic (a bug, a refactor, a new caller) can't
+    silently start tagging forum/user-posting content as an official news
+    update — the guarantee holds at the point of tagging, not just at the
+    point of dispatch.
+
     `is_edit=True` (the poll script detected a changed content_hash for an
     already-known source_item_id) triggers a delete-before-insert in
     BigQuery so the edit updates in place instead of duplicating — see
@@ -1346,13 +1373,8 @@ def publish_gov_news_item(title: str, description: str, source_system: str,
         print(f"posting: extraction for gov-news item failed ({e}); publishing with minimal tags")
         extracted = {}
 
-    # news-update is added deterministically, not left to the model — it's a
-    # property of the source (this IS a gov-news item), same reasoning as
-    # the timeline/family-based-immigration deterministic tags elsewhere in
-    # this file. This is what lets validate() accept an item with no
-    # personal visa/status claim (§3.4).
     tags = dict(extracted)
-    tags["tags"] = list(dict.fromkeys([*(extracted.get("tags") or []), "news-update"]))
+    tags["tags"] = _gov_news_tags(extracted.get("tags") or [], content_type)
 
     canonical = build_canonical(
         title, description, tags,

@@ -6,7 +6,11 @@ Shared by two callers:
   - scripts/curation/poll_gov_news.py — manual CLI runs
   - api.py's POST /internal/gov-news/poll — the Cloud Scheduler target
 
-For each source in news_sources.NEWS_SOURCES with fetch_method="rss":
+Sources come from news_sources.get_enabled_sources() (Firestore-backed,
+read fresh every run — see docs/ingestion/GOV-NEWS-MULTI-SOURCE-CONFIG.md).
+Adding a source there is picked up here with no code change or deploy.
+
+For each enabled source with fetch_method="rss":
   1. Query BigQuery for every already-known source_item_id + content_hash
      for that source (latest row per id, in case a recently-ingested-edit
      duplicate is briefly present — see GOV-NEWS-INGESTION-PLAN.md §5.3).
@@ -28,7 +32,7 @@ import requests
 from bs4 import BeautifulSoup
 
 import posting
-from news_sources import NEWS_SOURCES
+from news_sources import get_enabled_sources
 
 GCP_PROJECT = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT", "")
 
@@ -117,10 +121,15 @@ def _existing_hashes(source_slug: str) -> dict[str, str]:
         return {}
 
 
-def poll_source(source_slug: str, dry_run: bool = False, force: bool = False) -> dict:
-    """Poll one registered source. Returns a JSON-serializable summary dict —
-    used both for the CLI's printed output and the internal API route's
-    response body.
+def poll_source(source_slug: str, source: dict, dry_run: bool = False, force: bool = False) -> dict:
+    """Poll one already-resolved source config. Returns a JSON-serializable
+    summary dict — used both for the CLI's printed output and the internal
+    API route's response body.
+
+    Takes `source` as a plain dict rather than looking it up itself, so this
+    function has no dependency on *how* sources are stored (Firestore today)
+    — that's entirely news_sources.py's concern; poll_all() below resolves
+    the registry once per run and passes each source in.
 
     `force=True` bypasses the content_hash dedup check entirely (every item
     is republished as an edit) — NOT for normal/scheduled runs, only for a
@@ -129,7 +138,6 @@ def poll_source(source_slug: str, dry_run: bool = False, force: bool = False) ->
     still in BigQuery's ~90-min streaming buffer, so a DELETE-based cleanup
     couldn't run — the Discovery Engine/GCS side can still be corrected
     immediately since those aren't subject to the same restriction)."""
-    source = NEWS_SOURCES[source_slug]
     if source["fetch_method"] != "rss":
         return {"source": source_slug, "skipped": True,
                 "reason": f"fetch_method={source['fetch_method']!r} has no adapter yet"}
@@ -141,19 +149,29 @@ def poll_source(source_slug: str, dry_run: bool = False, force: bool = False) ->
     published: list[dict] = []
     failures: list[dict] = []
     for item in items:
-        content_hash = posting.content_hash_for(item["title"], item["description"])
+        # Resolve the description BEFORE hashing, not after — content_hash
+        # must be computed from the exact text that gets published (and
+        # therefore stored), or classification permanently disagrees with
+        # itself. Bug found live: hashing the raw RSS description here,
+        # while the thin-description fallback below could substitute a
+        # fetched full-article text for the description that actually gets
+        # stored, meant the STORED hash (post-fallback) could never match a
+        # freshly-computed classification hash (pre-fallback) for any item
+        # whose RSS description was thin — every poll re-classified those
+        # items as "edited" forever, even completely unchanged ones.
+        description = item["description"]
+        if len(description.split()) < _THIN_DESCRIPTION_WORDS:
+            fuller = _fetch_full_article_text(item["link"])
+            if fuller:
+                description = fuller
+
+        content_hash = posting.content_hash_for(item["title"], description)
         prior_hash = known.get(item["guid"])
         if not force and prior_hash == content_hash:
             counts["unchanged"] += 1
             continue
         is_edit = prior_hash is not None
         counts["edited" if is_edit else "new"] += 1
-
-        description = item["description"]
-        if len(description.split()) < _THIN_DESCRIPTION_WORDS:
-            fuller = _fetch_full_article_text(item["link"])
-            if fuller:
-                description = fuller
 
         if dry_run:
             published.append({"title": item["title"], "guid": item["guid"],
@@ -165,6 +183,7 @@ def poll_source(source_slug: str, dry_run: bool = False, force: bool = False) ->
                 source_system=source_slug, author_handle=source["display_name"],
                 source_item_id=item["guid"], full_url=item["link"],
                 posting_date=item["posting_date"] or "", channel=source["channel"],
+                content_type=source.get("content_type", "news"),
                 is_edit=is_edit,
             )
             published.append({"title": item["title"], "case_id": result["case_id"],
@@ -182,6 +201,14 @@ def poll_source(source_slug: str, dry_run: bool = False, force: bool = False) ->
 
 
 def poll_all(source_slug: str = "", dry_run: bool = False, force: bool = False) -> list[dict]:
-    """Poll one source (if source_slug given) or every registered source."""
-    slugs = [source_slug] if source_slug else list(NEWS_SOURCES)
-    return [poll_source(slug, dry_run=dry_run, force=force) for slug in slugs]
+    """Poll one source (if source_slug given) or every enabled source.
+    Resolves the registry from Firestore exactly once per call — a fresh
+    read every run, so a source added/edited/disabled since the last run is
+    reflected immediately, with no restart or redeploy needed."""
+    sources = get_enabled_sources()
+    if source_slug:
+        if source_slug not in sources:
+            return [{"source": source_slug, "skipped": True,
+                     "reason": "not found, disabled, or not automatable (wrong content_license) — see news_sources.get_enabled_sources()"}]
+        sources = {source_slug: sources[source_slug]}
+    return [poll_source(slug, cfg, dry_run=dry_run, force=force) for slug, cfg in sources.items()]

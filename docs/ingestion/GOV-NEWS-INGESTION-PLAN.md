@@ -178,6 +178,14 @@ would surface an empty/nonsensical profile page.
 
 ## 4. Multi-source configuration & extensibility
 
+> **Superseded storage mechanism, same design intent.** §4.1 below sketched
+> the registry as a Python dict — that's what was actually built initially.
+> A later request ("adding a source should need no deploy") moved the
+> registry to Firestore instead; the shape/fields and the `content_license`
+> safety gate are unchanged. See
+> [`GOV-NEWS-MULTI-SOURCE-CONFIG.md`](GOV-NEWS-MULTI-SOURCE-CONFIG.md) for
+> the current mechanism and the `travel.state.gov` evaluation.
+
 Per follow-up request: design this so expanding to **other government
 agencies and/or law firm websites** later is cheap. Two things need to be
 true for that, and they're different in kind:

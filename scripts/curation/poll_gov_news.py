@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 load_dotenv()
 
 from gov_news_poll import poll_all  # noqa: E402
-from news_sources import NEWS_SOURCES  # noqa: E402
 
 
 def _print_summary(r: dict) -> None:
@@ -44,7 +43,11 @@ def _print_summary(r: dict) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--source", choices=list(NEWS_SOURCES), help="poll only this source (default: all)")
+    # No fixed --source choices: sources are Firestore-backed and can be
+    # added at any time (scripts/curation/manage_news_sources.py) without a
+    # deploy, so this CLI can't know the valid slugs at parse time. An
+    # unknown/disabled slug is reported gracefully by poll_all() itself.
+    ap.add_argument("--source", default="", help="poll only this source slug (default: all enabled sources)")
     ap.add_argument("--dry-run", action="store_true", help="classify and print, but don't publish")
     ap.add_argument("--force", action="store_true",
                      help="republish every item regardless of BigQuery dedup state — "
