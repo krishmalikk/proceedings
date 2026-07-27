@@ -415,6 +415,7 @@ class UserRepliesResponse(BaseModel):
 # --- Replies + voting (phase-L) ---
 class ReplyCreate(BaseModel):
     body: str = Field(..., min_length=1, max_length=5000)
+    parent_reply_id: str = ""  # empty = top-level reply; else the reply being answered
 
 
 class VoteTally(BaseModel):
@@ -427,6 +428,7 @@ class VoteTally(BaseModel):
 class ReplyCard(BaseModel):
     id: str
     parent_case_id: str
+    parent_reply_id: str = ""  # empty = top-level; else the reply this answers (for client-side threading)
     body: str
     author_handle: str
     author_id: str = ""  # author uid (blank on your own) — for block-user (Apple 1.2)
@@ -1701,7 +1703,8 @@ def create_reply_route(case_id: str, body: ReplyCreate, request: Request):
     uid = _active_user(request)
     handle = profile.username_for(uid)
     try:
-        reply = _guard(lambda: interactions.add_reply(_db, case_id, body.body, uid, handle))
+        reply = _guard(lambda: interactions.add_reply(
+            _db, case_id, body.body, uid, handle, body.parent_reply_id))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     return ReplyCard(**reply)
