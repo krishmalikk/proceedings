@@ -23,6 +23,7 @@ type PostingDetail = {
   tags: string[]
   url: string
   date: string
+  event_timestamp?: string
   body: string
   author_id: string
   author_handle?: string
@@ -89,17 +90,16 @@ export default function CaseDetailsPage() {
                 ))}
               </div>
               <h1 className="text-headline-lg text-on-surface mb-2">{data.title}</h1>
-              {data.description && (
-                <p className="text-body-md text-on-surface-variant">{data.description}</p>
-              )}
               </div>
             </div>
 
-            {/* Full posting body */}
+            {/* Original content, verbatim — the AI-generated summary lives
+                in its own labeled box in the sidebar (below), never mixed
+                in here, so it's always clear which is which. */}
             <div className="card">
               <div className="flex items-center gap-2 mb-4">
                 <span className="material-symbols-outlined text-secondary">forum</span>
-                <h2 className="text-headline-md text-on-surface">Full Experience</h2>
+                <h2 className="text-headline-md text-on-surface">Original Content</h2>
               </div>
               <div className="text-body-md text-on-surface leading-relaxed">
                 {data.body ? <Markdown>{data.body}</Markdown> : 'No content available.'}
@@ -120,6 +120,16 @@ export default function CaseDetailsPage() {
                 {data.outcome && <div className="flex justify-between"><dt className="text-on-surface-variant">Outcome</dt><dd className="text-on-surface">{data.outcome}</dd></div>}
               </dl>
             </div>
+
+            {data.description && (
+              <div className="card">
+                <h3 className="text-label-md font-semibold text-on-surface mb-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-[20px]">auto_awesome</span>
+                  AI Summary
+                </h3>
+                <p className="text-body-md text-on-surface-variant">{data.description}</p>
+              </div>
+            )}
 
             {(() => {
               // Show every tag category as its own labeled section. Fall back to

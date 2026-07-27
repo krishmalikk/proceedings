@@ -13,6 +13,7 @@ export type PostingCardData = {
   url: string
   date: string
   timestamp?: string // full ingestion timestamp (for relative "X ago")
+  event_timestamp?: string // the ORIGINAL source event date — never ingestion time
   author_handle?: string // synthetic per-item handle, or a fixed per-source
                           // handle (e.g. "USCIS") for gov-news content
 }
@@ -87,10 +88,14 @@ export default function PostingCard({ r }: { r: PostingCardData }) {
 
       <div className="flex items-center justify-between text-caption text-on-surface-variant">
         <span title={r.date}>
-          {sourceLabel(r)} · {timeAgo(r.timestamp || r.date) || r.date}
+          {/* The ORIGINAL source date, never when we ingested it — real for
+              backend-ingested content (gov-news, Reddit) which is routinely
+              backdated relative to ingestion; falls back to `timestamp`/
+              `date` only for older cards that predate event_timestamp. */}
+          {sourceLabel(r)} · {timeAgo(r.event_timestamp || r.timestamp || r.date) || r.date}
         </span>
         <span className="flex items-center gap-1 text-primary">
-          View experience
+          View Details
           <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
         </span>
       </div>
