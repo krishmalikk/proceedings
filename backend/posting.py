@@ -1320,15 +1320,32 @@ def publish_reddit_posting(title: str, description: str, tags: dict,
 
 def _gov_news_tags(extracted_tags: list[str], content_type: str) -> list[str]:
     """Deterministically add `news-update` when — and only when —
-    content_type == "news". Pure/no-network on purpose: this is the exact
-    decision docs/ingestion/GOV-NEWS-MULTI-SOURCE-CONFIG.md §5 documents
-    (a news source's content gets tagged as a news update; a forum
-    posting's content does not, since it isn't one), pulled out of
+    content_type == "news"; STRIP it otherwise, even if already present.
+    Pure/no-network on purpose: this is the exact decision
+    docs/ingestion/GOV-NEWS-MULTI-SOURCE-CONFIG.md §5 documents (a news
+    source's content gets tagged as a news update; a forum posting's
+    content does not, since it isn't one), pulled out of
     publish_gov_news_item() so it's unit-testable without GCP — see
+    tests/test_posting_tagging.py.
+
+    The strip half matters because `news-update` is a real, LLM-selectable
+    vocabulary entry (tags-cleaned/1.10-common-misc.csv) — _extract() can
+    legitimately choose it on its own for content that reads like
+    policy/news (e.g. a forum post about a visa fee change), independent
+    of this function. A version that only ever ADDED the tag for
+    content_type=="news" left that model-chosen tag untouched for every
+    other content_type, which is exactly backwards from "can never be
+    applied" — confirmed live: a real immihelp (content_type=
+    'forum_posting') posting titled 'US visa fees going up...' came back
+    from _extract() with `news-update` already in its tags, and the old
+    implementation passed it straight through. See E45a in
     tests/test_posting_tagging.py."""
+    tags = list(dict.fromkeys(extracted_tags))
     if content_type == "news":
-        return list(dict.fromkeys([*extracted_tags, "news-update"]))
-    return list(dict.fromkeys(extracted_tags))
+        if "news-update" not in tags:
+            tags.append("news-update")
+        return tags
+    return [t for t in tags if t != "news-update"]
 
 
 def publish_gov_news_item(title: str, description: str, source_system: str,
@@ -1400,6 +1417,96 @@ def publish_gov_news_item(title: str, description: str, source_system: str,
     md_uri, _json_uri = _write_gcs(canonical, _markdown_body(title, description))
     _import_to_datastore(canonical, md_uri)
     _write_bigquery(canonical, pipeline_run_id="gov-news-poll", delete_existing=is_edit)
+    return {
+        "case_id": canonical["case_id"],
+        "gcs_path": canonical["gcs_path"],
+        "indexed": True,
+        "author_handle": canonical["author_handle"],
+    }
+
+
+def publish_immihelp_posting(title: str, description: str, source_item_id: str,
+                             full_url: str, posting_date: str, dry_run: bool = False) -> dict:
+    """One-time, bounded sample-seed publish path for immihelp.com/experiences/
+    postings — see docs/ingestion/IMMIHELP-SEED-PLAN.md. Deliberately NOT
+    wired to any FastAPI route, same reasoning as publish_reddit_posting()/
+    publish_gov_news_item(): source_system/posting_date/channel are
+    trust-sensitive. Deliberately NOT part of the Firestore news_sources/
+    Cloud Scheduler framework (GOV-NEWS-MULTI-SOURCE-CONFIG.md) either —
+    immihelp's Terms of Use §12 reserves all rights and requires prior
+    written consent for reproduction/commercial use, which this project
+    doesn't have, so this is only ever invoked from
+    scripts/curation/seed_immihelp.py's bounded one-time run, never on a
+    recurring schedule.
+
+    Unlike publish_reddit_posting() (which treats already-public,
+    human-curator-reviewed Reddit content as pre-vetted and skips PII/
+    moderation checks), this DOES call scrub_pii()/moderation.check_text() —
+    there's no per-item human review step here (tagging is fully automated
+    via _extract(), same as publish_gov_news_item() and the live API's own
+    path, per explicit request), and real immihelp postings have been
+    observed containing pasted emails/personal details that a review step
+    would normally catch.
+
+    Deliberately does NOT accept or forward a real author identity: no
+    consent exists to attribute a real, identifiable immihelp user's handle
+    on this commercial product, so — like the Reddit/gov-news paths —
+    author_handle is left to build_canonical()'s synthetic default. Same
+    reasoning is why backend/immihelp_seed.py's parser drops `username`/
+    `postedBy`/`ipAddress` from the source payload before this function
+    ever sees a candidate.
+
+    content_type is always "forum_posting" (never "news") — reuses
+    _gov_news_tags() so the deterministic `news-update` tag (meaning
+    "official policy/news, not a personal experience") can never be
+    applied here, same explicit-not-implicit guarantee as
+    GOV-NEWS-MULTI-SOURCE-CONFIG.md §5.2a. An _extract() failure is left to
+    propagate (unlike publish_gov_news_item(), which falls back to minimal
+    tags) — the whole point of this path is "only what's genuinely
+    publishable," so the caller (seed_immihelp.py) treats a failed/rejected
+    item as a skip, not a degraded publish. Returns the same shape as
+    publish_posting().
+
+    `dry_run=True` runs the full pipeline through tagging + validate() —
+    the real signal of "would this be published" — but stops short of the
+    GCS/Discovery Engine/BigQuery writes, returning
+    {"case_id", "would_publish": True, "tags": [...], "author_handle"}
+    instead. Lets scripts/curation/seed_immihelp.py --dry-run report real
+    would-publish/would-skip counts (spending the same Gemini calls a real
+    run would) without writing anything to production."""
+    from profile import scrub_pii
+    title = scrub_pii(title or "")
+    description = scrub_pii(description or "")
+
+    import moderation
+    moderation.check_text(f"{title}\n\n{description}")
+
+    extracted = _extract(title, description)
+
+    tags = dict(extracted)
+    tags["tags"] = _gov_news_tags(extracted.get("tags") or [], "forum_posting")
+
+    canonical = build_canonical(
+        title, description, tags,
+        extracted.get("key_stages_or_info"), extracted.get("key_dates"), extracted,
+        channel="immihelp", ingestion_method="automated_scrape", source_system="immihelp",
+        full_url=full_url, posting_date=posting_date, source_item_id=source_item_id,
+    )
+    errs = validate(canonical)
+    if errs:
+        raise ValueError("; ".join(errs))
+
+    if dry_run:
+        return {
+            "case_id": canonical["case_id"],
+            "would_publish": True,
+            "tags": canonical.get("tags", []),
+            "author_handle": canonical["author_handle"],
+        }
+
+    md_uri, _json_uri = _write_gcs(canonical, _markdown_body(title, description))
+    _import_to_datastore(canonical, md_uri)
+    _write_bigquery(canonical, pipeline_run_id="immihelp-one-time-seed")
     return {
         "case_id": canonical["case_id"],
         "gcs_path": canonical["gcs_path"],
