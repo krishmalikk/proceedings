@@ -9,7 +9,8 @@ import BrandMark from '@/components/BrandMark';
 const navItems = [
   { href: '/search', label: 'Community', icon: 'search' },
   { href: '/find', label: 'Groups', icon: 'diversity_3' },
-  // Removed for now: 'News' (/news), 'Forum' (/community), 'Ask a Pro' (/pro).
+  { href: '/news', label: 'News', icon: 'newspaper' },
+  // Still removed: 'Forum' (/community), 'Ask a Pro' (/pro).
 ];
 
 export default function TopAppBar() {

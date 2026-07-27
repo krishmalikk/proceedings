@@ -302,7 +302,7 @@ export function PostScreen() {
     setSubmitting(true);
     setError('');
     try {
-      const result = await createPosting(title, description, groups, stages, dates);
+      const result = await createPosting(title, description, groups, stages, dates, Platform.OS);
       setDone(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not publish posting');

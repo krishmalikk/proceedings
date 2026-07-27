@@ -25,6 +25,7 @@ registering a domain later is a config flip, not a code change. Anonymous author
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import os
 import re
@@ -728,8 +729,15 @@ _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 def validate(c: dict) -> list[str]:
     _Vocab.load()
     errs: list[str] = []
-    # A visa/status MUST be captured in at least one of the two visa fields.
-    if not c.get("current_visa_or_greencard_category") and not c.get("visa_applying_for"):
+    # A visa/status MUST be captured in at least one of the two visa fields —
+    # except general policy/news content tagged `news-update` (deterministic,
+    # see build_canonical() callers like publish_gov_news_item()), which by
+    # nature doesn't represent anyone's personal status claim. A gov-news
+    # item that DOES tie to a specific visa still gets tagged with it
+    # normally alongside news-update, so no signal is lost either way — see
+    # docs/ingestion/GOV-NEWS-INGESTION-PLAN.md §3.4.
+    if (not c.get("current_visa_or_greencard_category") and not c.get("visa_applying_for")
+            and "news-update" not in c.get("tags", [])):
         errs.append("Capture a visa/status in 'Current status' or 'Visa applying for' before submitting")
     for f in ("current_visa_or_greencard_category", "visa_applying_for"):
         for t in c.get(f, []):
@@ -777,18 +785,79 @@ def _synthetic_handle() -> str:
     return f"{secrets.choice(_ADJ)}-{secrets.choice(_NOUN)}-{secrets.randbelow(9000) + 1000}"
 
 
+# Valid client_platform values — a soft analytics field, not content-integrity
+# critical (see docs/ingestion/PATH-B-PROVENANCE-PLAN.md), so an invalid/unknown
+# value clamps to "" rather than raising.
+_CLIENT_PLATFORMS = {"web", "ios", "android"}
+
+
+def content_hash_for(title: str, description: str) -> str:
+    """Deterministic fingerprint of a doc's content, used by build_canonical()
+    and by scripts/curation/poll_gov_news.py to classify a source item as
+    new/unchanged/edited BEFORE deciding whether to publish — must be a
+    shared function, not two copies of the same formula, so the two can
+    never drift out of sync."""
+    return hashlib.sha256(f"{title}\n{description}".encode()).hexdigest()
+
+
 def build_canonical(title: str, description: str, tags: dict,
                     key_stages: dict | None = None, key_dates: dict | None = None,
-                    extracted: dict | None = None) -> dict:
+                    extracted: dict | None = None,
+                    *,
+                    channel: str = CHANNEL,
+                    ingestion_method: str = "user_post",
+                    source_system: str = "",
+                    subreddit: str = "",
+                    reddit_post_id: str = "",
+                    full_url: str = "",
+                    posting_date: str = "",
+                    client_platform: str = "",
+                    author_handle: str = "",
+                    source_item_id: str = "") -> dict:
     """Assemble the full sidecar JSON. `tags`/`key_stages`/`key_dates` (user-edited)
-    override the model; remaining context fields come from `extracted`."""
+    override the model; remaining context fields come from `extracted`.
+
+    The keyword-only params exist for backend-ingested (Reddit, gov-news) content —
+    see docs/ingestion/PATH-B-PROVENANCE-PLAN.md and
+    docs/ingestion/GOV-NEWS-INGESTION-PLAN.md. Every default reproduces today's
+    exact app-composer behavior; only `publish_reddit_posting()`/
+    `publish_gov_news_item()` (neither wired to a public route) ever pass
+    them explicitly."""
     ex = extracted or {}
     now = datetime.now(timezone.utc)
-    date_str = now.strftime("%Y-%m-%d")
+    # posting_date: the ORIGINAL posting date (overridable for backend-ingested
+    # content) — defaults to today for a live app submission, where posting IS
+    # the ingestion moment. ingestion_timestamp (below) is ALWAYS "now",
+    # regardless — "when WE processed it" is a separate concept from "when it
+    # was originally posted." See PATH-B-PROVENANCE-PLAN.md's field table.
+    date_str = posting_date or now.strftime("%Y-%m-%d")
     ts = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    short = secrets.token_hex(4)
-    case_id = f"{CHANNEL}-{date_str}-{short}"
-    prefix = f"gs://{_bucket_name()}/{date_str}/{CHANNEL}/"
+    if subreddit and reddit_post_id:
+        # Deterministic ID (doubles as a dedup key) for backend-ingested
+        # content with a real source post — matches the scheme from the
+        # original ingestion pipeline spec, rather than a random suffix.
+        case_id = f"{channel}-{date_str}-{subreddit}-{reddit_post_id}"
+    elif source_item_id:
+        # Gov-news scheme (GOV-NEWS-INGESTION-PLAN.md §3.1): deterministic
+        # from the source's stable item id (e.g. an RSS guid), keyed by
+        # source_system so it doubles as the poll pipeline's dedup key.
+        # Leading segment is `channel` exactly, matching the reddit scheme
+        # above and delete_content()'s case_id.split("-", 1)[0] convention.
+        short = hashlib.sha256(source_item_id.encode()).hexdigest()[:8]
+        case_id = f"{channel}-{source_system}-{date_str}-{short}"
+    else:
+        short = secrets.token_hex(4)
+        case_id = f"{channel}-{date_str}-{short}"
+    prefix = f"gs://{_bucket_name()}/{date_str}/{channel}/"
+    if client_platform not in _CLIENT_PLATFORMS:
+        client_platform = ""
+    # Content fingerprint (title+description) — cheap to compute for every
+    # doc kind, but exists specifically so a polling ingestion pipeline
+    # (gov-news) can detect an edited source item without diffing full text
+    # on every poll. See GOV-NEWS-INGESTION-PLAN.md §5.2/§5.3. A shared
+    # helper (not inlined) so the poll script's pre-publish classification
+    # hash can never drift from what actually gets stored.
+    content_hash = content_hash_for(title, description)
 
     groups = {f: _clean_group(f, tags.get(f)) for f in GROUP_FIELDS}
     groups = _normalize_groups(groups)
@@ -840,23 +909,33 @@ def build_canonical(title: str, description: str, tags: dict,
     return {
         "case_id": case_id,
         # provenance
-        "ingestion_method": "user_post",
-        "source_system": SOURCE_SYSTEM,
-        "channel": CHANNEL,
+        "ingestion_method": ingestion_method,
+        "source_system": source_system or SOURCE_SYSTEM,
+        "channel": channel,
         "source_url": APP_BASE_URL,
         "source_uri": f"{APP_BASE_URL}/case/{case_id}",
-        "subreddit": "",
-        "author_handle": _synthetic_handle(),
-        "full_url": f"{APP_BASE_URL}/case/{case_id}",
+        "subreddit": subreddit,
+        # A fixed per-source handle (e.g. "USCIS") overrides the synthetic
+        # per-item handle for backend-ingested content with a real source
+        # identity — see GOV-NEWS-INGESTION-PLAN.md §3.6. Never generated
+        # per-item for that content: there's no "user" behind it to vary.
+        "author_handle": author_handle or _synthetic_handle(),
+        "full_url": full_url or f"{APP_BASE_URL}/case/{case_id}",
         "post_title": title,
         "language": str(ex.get("language") or "en"),
+        "client_platform": client_platform,
+        "source_item_id": source_item_id,
+        "content_hash": content_hash,
         # timestamps
         "posting_date": date_str,
         "ingestion_timestamp": ts,
         "last_updated_timestamp": ts,
         # quality
         "tagging_confidence": float(ex.get("tagging_confidence") or 0.9),
-        "source_metadata": "Submitted via meridianjourney.ai web composer",
+        "source_metadata": (
+            f"Manually curated from r/{subreddit}" if subreddit
+            else "Submitted via meridianjourney.ai web composer"
+        ),
         "gcs_path": prefix,
         # summaries
         "background_summary": bg,
@@ -882,7 +961,7 @@ def build_canonical(title: str, description: str, tags: dict,
         # provenance for analytics
         "doc_kind": "post",
         "parent_case_id": "",
-        "reddit_post_id": "",
+        "reddit_post_id": reddit_post_id,
     }
 
 
@@ -899,7 +978,10 @@ def _write_gcs(canonical: dict, md_body: str) -> tuple[str, str]:
     bucket_name = _bucket_name()
     case_id = canonical["case_id"]
     date_str = canonical["posting_date"]
-    base = f"{date_str}/{CHANNEL}/{case_id}"
+    # Bug fixed: this used to reference the module-level CHANNEL constant
+    # ("app") unconditionally, so backend-ingested (channel="reddit") content
+    # would land under an "app/" GCS prefix regardless of its real channel.
+    base = f"{date_str}/{canonical['channel']}/{case_id}"
     client = storage.Client(project=_project())
     bucket = client.bucket(bucket_name)
     bucket.blob(f"{base}.md").upload_from_string(md_body, content_type="text/markdown")
@@ -965,7 +1047,9 @@ def _import_to_datastore(canonical: dict, md_uri: str) -> None:
 
 
 _BQ_SCHEMA_FIELDS = [
-    ("case_id", "STRING"), ("source_system", "STRING"), ("source_uri", "STRING"),
+    ("case_id", "STRING"), ("channel", "STRING"), ("ingestion_method", "STRING"),
+    ("client_platform", "STRING"),
+    ("source_system", "STRING"), ("source_uri", "STRING"),
     ("subreddit", "STRING"), ("full_url", "STRING"), ("post_title", "STRING"),
     ("language", "STRING"), ("posting_date", "DATE"), ("ingestion_timestamp", "TIMESTAMP"),
     ("last_updated_timestamp", "TIMESTAMP"), ("tagging_confidence", "FLOAT64"),
@@ -980,11 +1064,17 @@ _BQ_SCHEMA_FIELDS = [
     ("derived_topic_cluster", "STRING", "REPEATED"), ("key_stages_or_info", "JSON"),
     ("key_dates", "JSON"), ("embedding_text", "STRING"), ("doc_kind", "STRING"),
     ("parent_case_id", "STRING"), ("reddit_post_id", "STRING"), ("pipeline_run_id", "STRING"),
+    ("source_item_id", "STRING"), ("content_hash", "STRING"),
 ]
 
 
 def _ensure_bq_table(client, dataset_id: str, table_id: str):
-    """Create the postings dataset + postings_metadata table if they don't exist."""
+    """Create the postings dataset + postings_metadata table if they don't exist;
+    if the table already exists, add any _BQ_SCHEMA_FIELDS columns it's missing
+    (BigQuery allows adding NULLABLE columns to a live table with no downtime).
+    Without this, adding a new field here + to the row dict in _write_bigquery
+    would silently break every future insert against an already-existing table
+    — insert_rows_json rejects rows with fields the live schema doesn't have."""
     from google.cloud import bigquery
     from google.api_core.exceptions import NotFound
 
@@ -994,14 +1084,23 @@ def _ensure_bq_table(client, dataset_id: str, table_id: str):
         ds = bigquery.Dataset(f"{client.project}.{dataset_id}")
         ds.location = "US"
         client.create_dataset(ds, exists_ok=True)
+
+    schema = [bigquery.SchemaField(f[0], f[1], mode=(f[2] if len(f) > 2 else "NULLABLE"))
+              for f in _BQ_SCHEMA_FIELDS]
     try:
-        return client.get_table(table_id)
+        table = client.get_table(table_id)
     except NotFound:
-        schema = [bigquery.SchemaField(f[0], f[1], mode=(f[2] if len(f) > 2 else "NULLABLE"))
-                  for f in _BQ_SCHEMA_FIELDS]
         table = bigquery.Table(table_id, schema=schema)
         table.time_partitioning = bigquery.TimePartitioning(field="posting_date")
         return client.create_table(table, exists_ok=True)
+
+    existing_names = {f.name for f in table.schema}
+    missing = [f for f in schema if f.name not in existing_names]
+    if missing:
+        table.schema = list(table.schema) + missing
+        table = client.update_table(table, ["schema"])
+        print(f"posting: added BQ column(s): {[f.name for f in missing]}")
+    return table
 
 
 def _pipeline_run_id() -> str:
@@ -1041,9 +1140,37 @@ def purge_test_bq_rows(marker_prefix: str = "test-") -> int:
         return 0
 
 
-def _write_bigquery(canonical: dict) -> None:
+def _write_bigquery(canonical: dict, pipeline_run_id: str = "", delete_existing: bool = False) -> None:
     """Append a row to postings.postings_metadata (self-provisions dataset+table;
-    non-blocking for the user if BQ is unavailable)."""
+    non-blocking for the user if BQ is unavailable). `pipeline_run_id` lets a
+    caller other than the live web/mobile route (e.g. a Reddit curation script)
+    stamp its own marker instead of the _pipeline_run_id() env-var default.
+
+    `delete_existing=True` (gov-news re-publishes of an edited source item,
+    GOV-NEWS-INGESTION-PLAN.md §5.3) deletes any prior row for this case_id
+    before inserting, so an edit updates in place instead of appending a
+    duplicate — insert_rows_json alone only ever appends.
+
+    The guard is on `ingestion_timestamp`, NOT `posting_date` — deliberately
+    different from purge_test_bq_rows()'s `posting_date < CURRENT_DATE()`
+    pattern, even though the underlying BigQuery constraint (rows sit in a
+    streaming buffer for up to ~90 min and can't be DELETEd during that
+    window) is the same one both guards exist for. purge_test_bq_rows()'s
+    rows are never backdated, so `posting_date` and "when the row was
+    inserted" are always the same day there — but gov-news content IS
+    backdated (posting_date is the source's real, possibly months-old,
+    original publish date; see build_canonical()'s date_str). Guarding on
+    posting_date here would evaluate "before today" for a historical article
+    inserted moments ago during a backfill, letting a DELETE through against
+    a row still genuinely in the streaming buffer — the exact error this
+    guard exists to avoid. Guarding on `ingestion_timestamp` instead checks
+    actual insert recency, which is what the streaming-buffer restriction
+    actually depends on, regardless of the content's own date. A same-day
+    (recent-ingestion) edit's DELETE is therefore a safe no-op (0 rows
+    affected, not an error) that leaves a temporary duplicate resolved by a
+    later edit or the dedup map's latest-by-ingestion_timestamp read — never
+    called for a brand-new item, where there's nothing to delete either
+    way."""
     try:
         from google.cloud import bigquery  # noqa: F401
     except ImportError:
@@ -1054,6 +1181,9 @@ def _write_bigquery(canonical: dict) -> None:
     table_id = f"{_project()}.postings.postings_metadata"
     row = {
         "case_id": canonical["case_id"],
+        "channel": canonical["channel"],
+        "ingestion_method": canonical["ingestion_method"],
+        "client_platform": canonical.get("client_platform", ""),
         "source_system": canonical["source_system"],
         "source_uri": canonical["source_uri"],
         "subreddit": canonical["subreddit"],
@@ -1084,10 +1214,19 @@ def _write_bigquery(canonical: dict) -> None:
         "doc_kind": canonical["doc_kind"],
         "parent_case_id": canonical["parent_case_id"],
         "reddit_post_id": canonical["reddit_post_id"],
-        "pipeline_run_id": _pipeline_run_id(),
+        "pipeline_run_id": pipeline_run_id or _pipeline_run_id(),
+        "source_item_id": canonical.get("source_item_id", ""),
+        "content_hash": canonical.get("content_hash", ""),
     }
     try:
         _ensure_bq_table(client, "postings", table_id)
+        if delete_existing:
+            sql = (f"DELETE FROM `{table_id}` "
+                   f"WHERE case_id = @case_id "
+                   f"AND ingestion_timestamp < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 MINUTE)")
+            cfg = bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("case_id", "STRING", canonical["case_id"])])
+            client.query(sql, job_config=cfg).result()
         errors = client.insert_rows_json(table_id, [row])
         if errors:
             print(f"posting: BQ insert errors: {errors}")
@@ -1096,8 +1235,13 @@ def _write_bigquery(canonical: dict) -> None:
 
 
 def publish_posting(title: str, description: str, tags: dict,
-                    key_stages: dict | None = None, key_dates: dict | None = None) -> dict:
-    """Full publish path. Returns {case_id, gcs_path, indexed, author_handle}."""
+                    key_stages: dict | None = None, key_dates: dict | None = None,
+                    client_platform: str = "") -> dict:
+    """Full publish path. Returns {case_id, gcs_path, indexed, author_handle}.
+    `client_platform` ("web"/"ios"/"android") is a soft analytics field the
+    caller (the composer UI) reports about itself — see
+    docs/ingestion/PATH-B-PROVENANCE-PLAN.md. Invalid/unknown values are
+    clamped to "" inside build_canonical(), never rejected."""
     # Redact PII (email / phone / A-number) before anything is tagged, written to
     # GCS, indexed, or sent to BigQuery — postings are read by other users, so
     # contact info must never survive into the stored content. Local import
@@ -1118,7 +1262,8 @@ def publish_posting(title: str, description: str, tags: dict,
     except Exception as e:  # noqa: BLE001 - fall back to placeholders if the tagger fails
         print(f"posting: extraction for context failed ({e}); using placeholders")
 
-    canonical = build_canonical(title, description, tags, key_stages, key_dates, extracted)
+    canonical = build_canonical(title, description, tags, key_stages, key_dates, extracted,
+                                client_platform=client_platform)
     errs = validate(canonical)
     if errs:
         raise ValueError("; ".join(errs))
@@ -1126,6 +1271,135 @@ def publish_posting(title: str, description: str, tags: dict,
     md_uri, _json_uri = _write_gcs(canonical, _markdown_body(title, description))
     _import_to_datastore(canonical, md_uri)
     _write_bigquery(canonical)
+    return {
+        "case_id": canonical["case_id"],
+        "gcs_path": canonical["gcs_path"],
+        "indexed": True,
+        "author_handle": canonical["author_handle"],
+    }
+
+
+def publish_reddit_posting(title: str, description: str, tags: dict,
+                           subreddit: str, reddit_post_id: str, full_url: str,
+                           posting_date: str, key_stages: dict | None = None,
+                           key_dates: dict | None = None,
+                           extracted: dict | None = None) -> dict:
+    """Publish path for backend-ingested (Reddit) content — Path B, see
+    docs/ingestion/PATH-B-PROVENANCE-PLAN.md. Deliberately NOT wired to any
+    FastAPI route: channel/ingestion_method/source_system/posting_date are
+    trust-sensitive (a public route accepting them would let any user spoof
+    Reddit provenance or backdate a post), so this is only ever called from
+    a local script with direct repo/GCP access, never over HTTP.
+
+    Unlike publish_posting(), this does NOT call profile.scrub_pii() or
+    moderation.check_text() — Reddit content is already public (D-017: not
+    treated as containing sensitive PII the way a live user's private
+    submission is) and is expected to have already passed human curator
+    review before this is called. Returns the same shape as
+    publish_posting()."""
+    canonical = build_canonical(
+        title, description, tags, key_stages, key_dates, extracted,
+        channel="reddit", ingestion_method="manual_curation", source_system="reddit",
+        subreddit=subreddit, reddit_post_id=reddit_post_id, full_url=full_url,
+        posting_date=posting_date,
+    )
+    errs = validate(canonical)
+    if errs:
+        raise ValueError("; ".join(errs))
+
+    md_uri, _json_uri = _write_gcs(canonical, _markdown_body(title, description))
+    _import_to_datastore(canonical, md_uri)
+    _write_bigquery(canonical, pipeline_run_id="reddit-manual-curation")
+    return {
+        "case_id": canonical["case_id"],
+        "gcs_path": canonical["gcs_path"],
+        "indexed": True,
+        "author_handle": canonical["author_handle"],
+    }
+
+
+def _gov_news_tags(extracted_tags: list[str], content_type: str) -> list[str]:
+    """Deterministically add `news-update` when — and only when —
+    content_type == "news". Pure/no-network on purpose: this is the exact
+    decision docs/ingestion/GOV-NEWS-MULTI-SOURCE-CONFIG.md §5 documents
+    (a news source's content gets tagged as a news update; a forum
+    posting's content does not, since it isn't one), pulled out of
+    publish_gov_news_item() so it's unit-testable without GCP — see
+    tests/test_posting_tagging.py."""
+    if content_type == "news":
+        return list(dict.fromkeys([*extracted_tags, "news-update"]))
+    return list(dict.fromkeys(extracted_tags))
+
+
+def publish_gov_news_item(title: str, description: str, source_system: str,
+                          author_handle: str, source_item_id: str, full_url: str,
+                          posting_date: str, channel: str = "gov_news",
+                          content_type: str = "news",
+                          is_edit: bool = False) -> dict:
+    """Publish path for automated government-agency news ingestion — see
+    docs/ingestion/GOV-NEWS-INGESTION-PLAN.md. Deliberately NOT wired to any
+    FastAPI route, same reasoning as publish_reddit_posting(): only ever
+    called from the scheduled poll script (scripts/curation/poll_gov_news.py),
+    never over HTTP.
+
+    Unlike publish_reddit_posting(), tagging is fully automated — no human
+    curator review step, which is the whole point of this source (§2: no
+    curation bottleneck) — so this runs _extract() itself rather than
+    accepting caller-supplied tags. Also skips scrub_pii()/
+    moderation.check_text() like publish_reddit_posting() (official
+    government content, not a live user submission).
+
+    `content_type` — the caller's `news_sources` registry entry's field
+    (GOV-NEWS-MULTI-SOURCE-CONFIG.md §5) — gates the deterministic
+    `news-update` tag explicitly, not implicitly: this function only ever
+    gets *called* for a `content_type="news"` source today, because
+    `news_sources.get_enabled_sources()` already excludes anything else
+    (§5.2 of that doc) — but that's an upstream filter, not a check *in*
+    this function. Requiring the caller to state `content_type` here too,
+    and only tagging `news-update` when it's `"news"`, means a future
+    change to the dispatch logic (a bug, a refactor, a new caller) can't
+    silently start tagging forum/user-posting content as an official news
+    update — the guarantee holds at the point of tagging, not just at the
+    point of dispatch.
+
+    `is_edit=True` (the poll script detected a changed content_hash for an
+    already-known source_item_id) triggers a delete-before-insert in
+    BigQuery so the edit updates in place instead of duplicating — see
+    _write_bigquery()'s `delete_existing` param and GOV-NEWS-INGESTION-PLAN.md
+    §5.3. Returns the same shape as publish_posting()."""
+    try:
+        extracted = _extract(title, description)
+    except Exception as e:  # noqa: BLE001 - publish with minimal tags rather than fail the whole poll run
+        print(f"posting: extraction for gov-news item failed ({e}); publishing with minimal tags")
+        extracted = {}
+
+    tags = dict(extracted)
+    tags["tags"] = _gov_news_tags(extracted.get("tags") or [], content_type)
+
+    canonical = build_canonical(
+        title, description, tags,
+        extracted.get("key_stages_or_info"), extracted.get("key_dates"), extracted,
+        channel=channel, ingestion_method="rss_feed", source_system=source_system,
+        full_url=full_url, posting_date=posting_date,
+        author_handle=author_handle, source_item_id=source_item_id,
+    )
+    # Same post-hoc override pattern as build_experience_canonical()/
+    # publish_connect_card() (doc_kind isn't a build_canonical() param).
+    # doc_kind, not channel, is what the datastore actually has registered
+    # as an indexable/filterable field today (confirmed live: `channel` is
+    # present in the schema but as a bare {"type": "string"} — not
+    # indexable/searchable/dynamicFacetable — so `channel: ANY(...)` filter
+    # expressions 400. `doc_kind` is fully indexed, same as "post"/
+    # "experience"/"connect_card" already rely on.). This is what the News
+    # tab's search facet actually filters on — see GOV-NEWS-INGESTION-PLAN.md §7.
+    canonical["doc_kind"] = "gov_news"
+    errs = validate(canonical)
+    if errs:
+        raise ValueError("; ".join(errs))
+
+    md_uri, _json_uri = _write_gcs(canonical, _markdown_body(title, description))
+    _import_to_datastore(canonical, md_uri)
+    _write_bigquery(canonical, pipeline_run_id="gov-news-poll", delete_existing=is_edit)
     return {
         "case_id": canonical["case_id"],
         "gcs_path": canonical["gcs_path"],
@@ -1285,7 +1559,13 @@ def delete_content(case_id: str) -> None:
         print(f"posting.delete_content: datastore delete failed ({e})")
     m = re.search(r"(\d{4}-\d{2}-\d{2})", case_id)
     if m:
-        base = f"{m.group(1)}/{CHANNEL}/{case_id}"
+        # Bug fixed: this used to hardcode CHANNEL ("app"), so deleting a
+        # channel="reddit" doc's GCS sidecars would silently look in the
+        # wrong prefix and leave them orphaned. case_id always starts with
+        # "<channel>-" (app-, app-exp-, app-connect-, reddit-, ...), so its
+        # own leading segment is the correct channel regardless of shape.
+        channel_prefix = case_id.split("-", 1)[0] or CHANNEL
+        base = f"{m.group(1)}/{channel_prefix}/{case_id}"
         try:
             bkt = storage.Client(project=project).bucket(_bucket_name())
             for ext in (".md", ".json"):

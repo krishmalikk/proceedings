@@ -185,6 +185,12 @@ class PostingCreateRequest(BaseModel):
     tags: TagGroups = TagGroups()
     key_stages_or_info: dict[str, str] = {}
     key_dates: dict[str, str] = {}
+    # Soft analytics field the client reports about itself ("web"/"ios"/
+    # "android") — see docs/ingestion/PATH-B-PROVENANCE-PLAN.md. Unlike
+    # channel/posting_date, a client lying about its own platform has no
+    # content-integrity stakes, so this is safe to accept on the public
+    # route; invalid values are clamped to "" server-side, never rejected.
+    client_platform: str = ""
 
 
 class PostingCreateResponse(BaseModel):
@@ -340,6 +346,10 @@ class PostingCard(BaseModel):
     # Firestore posting↔author link. Lets the client block an author from the
     # feed and hide their cards instantly (App Store Guideline 1.2).
     author_id: str = ""
+    # Source author identity — a synthetic per-item handle for app/Reddit
+    # postings, or a fixed per-source handle (e.g. "USCIS") for gov-news
+    # content. See docs/ingestion/GOV-NEWS-INGESTION-PLAN.md §3.6.
+    author_handle: str = ""
 
 
 class FacetValue(BaseModel):
@@ -851,6 +861,7 @@ def create_posting(body: PostingCreateRequest, request: Request):
         result = _guard(lambda: posting.publish_posting(
             body.title, body.description, body.tags.model_dump(),
             body.key_stages_or_info, body.key_dates,
+            client_platform=body.client_platform,
         ))
     except ValueError as e:
         # vocabulary / schema validation failure → 422
@@ -1450,10 +1461,17 @@ def _facets_filter(facets: list[str]) -> str:
             continue
         field, value = item.split(":", 1)
         field, value = field.strip(), value.strip()
-        # allow only known facet fields (avoid arbitrary filter injection)
+        # allow only known facet fields (avoid arbitrary filter injection).
+        # doc_kind added for the News tab (gov-news content) — see
+        # docs/ingestion/GOV-NEWS-INGESTION-PLAN.md §7. NOT `channel`: live-
+        # checked the Discovery Engine schema and `channel` is registered as
+        # a bare {"type": "string"} only — not indexable/searchable/
+        # dynamicFacetable — so `channel: ANY(...)` filter expressions 400.
+        # `doc_kind` is fully indexed (same as "post"/"experience"/
+        # "connect_card" already rely on), so that's the real filter field.
         if field in {"consulates", "visa_applying_for", "current_visa_or_greencard_category",
                      "key_stages_or_info.outcome_status", "tags", "concerns_or_questions_tags",
-                     "derived_topic_cluster"} and value:
+                     "derived_topic_cluster", "doc_kind"} and value:
             by_field.setdefault(field, []).append(value)
     clauses = []
     for field, values in by_field.items():
@@ -1814,6 +1832,31 @@ def admin_takedown_route(body: AdminTakedownRequest, request: Request):
             except Exception as e:  # noqa: BLE001
                 print(f"admin_takedown: eject {author} failed ({e})")
     return {"ok": True, "content_id": body.content_id, "ejected": ejected}
+
+
+def _require_internal(request: Request) -> None:
+    """Gate internal/system-triggered routes (not for any user client) on a
+    shared secret header — same pattern as _require_admin(), separate env
+    var/header so this route's secret can rotate independently of the
+    moderation admin token. 403 unless `X-Internal-Poll-Secret` matches
+    GOV_NEWS_POLL_SECRET (unset ⇒ always 403)."""
+    import secrets as _secrets
+    token = os.getenv("GOV_NEWS_POLL_SECRET", "")
+    supplied = request.headers.get("x-internal-poll-secret", "")
+    if not token or not _secrets.compare_digest(supplied, token):
+        raise HTTPException(status_code=403, detail="Internal access required.")
+
+
+@app.post("/internal/gov-news/poll")
+def gov_news_poll_route(request: Request, source: str = "", dry_run: bool = False):
+    """Cloud Scheduler's target (GOV-NEWS-INGESTION-PLAN.md §5) — polls
+    registered gov-news sources (backend/news_sources.py) and publishes any
+    new/edited items. NOT a public route: gated by _require_internal(), and
+    deliberately not something any user client calls. `source` limits the run
+    to one registered slug; `dry_run=true` classifies without publishing."""
+    _require_internal(request)
+    from gov_news_poll import poll_all
+    return {"results": poll_all(source_slug=source, dry_run=dry_run)}
 
 
 # ---------------------------------------------------------------------------

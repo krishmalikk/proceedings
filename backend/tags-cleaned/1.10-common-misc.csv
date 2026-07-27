@@ -40,6 +40,7 @@ change-of-status-COS,Change from one nonimmigrant status to another while in U.S
 visa-expired,Visa stamp has expired (status may still be valid)
 habeas,Habeas corpus petition challenging immigration detention
 pp-clock,Premium processing 15-business-day clock
+news-update,"Official government-agency news/policy update (not a personal visa/status claim) — see docs/ingestion/GOV-NEWS-INGESTION-PLAN.md"
 cap-exempt,Petition exempt from the annual H-1B cap (e.g.
 cap-subject,Petition subject to the annual H-1B cap
 date-of-admission-DOA,Date of admission to the U.S. (per CBP record)
