@@ -13,6 +13,54 @@
 
 ---
 
+## 0. Current sources scanned by the recurring job
+
+The Cloud Scheduler job **`gov-news-poll-uscis`** (`0 6 * * *`
+America/New_York, `POST /internal/gov-news/poll`, no `source` param —
+confirmed directly against the live job's config, `state: ENABLED`) polls
+**every source in the Firestore `news_sources` registry that passes both
+safety gates** (§5.1: `content_license="public_domain"` AND
+`content_type="news"`), read fresh from Firestore at the start of every
+run.
+
+**As of 2026-07-26, that is exactly one source:**
+
+| Slug | Display name | Site | Fetch | Registered/enabled |
+|---|---|---|---|---|
+| `uscis` | USCIS | uscis.gov | RSS | Yes |
+
+**Not scanned by this job — deliberately, not omissions:**
+
+- **`travel.state.gov`** — evaluated (§3), never implemented. No dedicated
+  RSS feed exists; the site blocks plain HTTP clients (Cloudflare 403).
+  Not registered in `news_sources`.
+- **`immihelp.com/experiences/`** — evaluated and ingested, but via a
+  **one-time manual seed**, not this job — see
+  [`IMMIHELP-SEED-PLAN.md`](IMMIHELP-SEED-PLAN.md) §1. immihelp's Terms of
+  Use don't grant a license for automated recurring reproduction, so it is
+  **never** registered here and **never** touched by Cloud Scheduler, by
+  design — not a gap to close later without a licensing agreement.
+- **`reddit.com/r/h1b`** — evaluated
+  ([`REDDIT-INGESTION-ALTERNATIVES.md`](REDDIT-INGESTION-ALTERNATIVES.md)).
+  Automated access is confirmed blocked by Reddit's bot detection (tested
+  from both cloud and residential IPs, both 403); circumventing it was
+  explicitly ruled out. Not registered, not pursued further for now.
+
+**This table will go stale — the registry won't.** Sources are added via
+Firestore (§2), not code, so this list can change with zero doc update.
+Get the ground-truth current list at any time:
+
+```bash
+manage_news_sources.py list                 # everything registered, enabled or not, with reasons
+```
+
+or, for exactly what the *next* scheduled run will actually poll (the
+two-gate-passing subset):
+
+```bash
+cd backend && ../.venv/bin/python -c "from dotenv import load_dotenv; load_dotenv(); from news_sources import get_enabled_sources as g; print(list(g()))"
+```
+
 ## 1. What changed and why
 
 The original registry (`backend/news_sources.py`) was a hardcoded Python
