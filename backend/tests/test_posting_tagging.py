@@ -15,6 +15,7 @@ Groups A–E are deterministic and need no network. F + G call Gemini / GCP (ADC
 Run:  .venv/bin/python tests/test_posting_tagging.py
 """
 
+import json
 import os
 import sys
 
@@ -392,6 +393,20 @@ def group_e_build() -> None:
     check("E46 no duplicate news-update if the model already produced one",
           p._gov_news_tags(["a", "news-update", "b"], "news").count("news-update") == 1,
           p._gov_news_tags(["a", "news-update", "b"], "news"))
+    # E45a — regression: news-update is a real, LLM-selectable vocab entry
+    # (tags-cleaned/1.10-common-misc.csv), so _extract() can choose it on
+    # its own for policy/news-shaped content regardless of content_type.
+    # Found live: a real immihelp (forum_posting) posting about a visa fee
+    # change came back from _extract() with news-update already in its
+    # tags, and the pre-fix implementation only ever ADDED the tag for
+    # content_type=="news" — it never stripped one the model had already
+    # chosen for anything else, so it passed straight through.
+    check("E45a content_type='forum_posting' STRIPS a model-chosen news-update, not just avoids adding one",
+          "news-update" not in p._gov_news_tags(["h1b-petition", "news-update"], "forum_posting"),
+          p._gov_news_tags(["h1b-petition", "news-update"], "forum_posting"))
+    check("E45b unrecognized content_type also strips a pre-existing news-update (fail closed)",
+          "news-update" not in p._gov_news_tags(["news-update"], "something-unexpected"),
+          p._gov_news_tags(["news-update"], "something-unexpected"))
 
 
 # ---------------------------------------------------------------------------
@@ -548,6 +563,60 @@ def group_g_api() -> None:
             check("G6 cleanup of E2E test doc", "deleted" in notes, notes)
 
 
+def group_h_immihelp() -> None:
+    print("\nH — publish_immihelp_posting() (integration, docs/ingestion/IMMIHELP-SEED-PLAN.md)")
+    import posting as p
+
+    try:
+        result = p.publish_immihelp_posting(
+            title="[E2E] H-1B approved after RFE",
+            description=(
+                "Filed H-1B extension in January, got an RFE on specialty occupation in "
+                "February, responded with expert letter, approved in April 2026. "
+                "Contact me at throwaway@example.com if you have questions."
+            ),
+            source_item_id="e2e-test-999999",
+            full_url="https://www.immihelp.com/experiences/post/e2e-test-999999/",
+            posting_date="2026-04-10",
+        )
+    except Exception as e:  # noqa: BLE001
+        check("H1 publish_immihelp_posting() succeeds for a taggable sample", False, f"{type(e).__name__}: {e}")
+        return
+    check("H1 publish_immihelp_posting() succeeds for a taggable sample", True, str(result))
+
+    cid = result["case_id"]
+    check("H2 case_id carries the immihelp channel prefix (delete_content() convention)",
+          cid.startswith("immihelp-"), cid)
+
+    detail = None
+    try:
+        from google.cloud import discoveryengine_v1 as de
+        from google.api_core.client_options import ClientOptions
+        proj, loc, ds = p._project(), p._ds_location(), p._datastore()
+        c = de.DocumentServiceClient(client_options=ClientOptions(quota_project_id=proj))
+        name = (f"projects/{proj}/locations/{loc}/collections/default_collection"
+                f"/dataStores/{ds}/branches/default_branch/documents/{cid}")
+        doc = c.get_document(name=name)
+        detail = json.loads(type(doc).to_json(doc)).get("structData", {})
+    except Exception as e:  # noqa: BLE001
+        check("H3 published doc retrievable from datastore with correct provenance", False, f"{type(e).__name__}: {e}")
+    if detail is not None:
+        check("H3 published doc retrievable from datastore with correct provenance",
+              detail.get("channel") == "immihelp" and detail.get("source_system") == "immihelp"
+              and detail.get("ingestion_method") == "automated_scrape" and detail.get("posting_date") == "2026-04-10",
+              {k: detail.get(k) for k in ("channel", "source_system", "ingestion_method", "posting_date")})
+        check("H4 content_type='forum_posting' means news-update was never applied",
+              "news-update" not in (detail.get("tags") or []), detail.get("tags"))
+        check("H5 scrub_pii() ran — the pasted email never made it into the stored text",
+              "throwaway@example.com" not in json.dumps(detail), "checked structData for the raw email")
+        check("H6 no real author identity carried through (synthetic handle, not empty/None)",
+              bool(detail.get("author_handle")) and detail.get("author_handle") != "e2e-test-999999",
+              detail.get("author_handle"))
+
+    notes = _cleanup(cid, result["gcs_path"])
+    check("H7 cleanup of E2E immihelp test doc", "deleted" in notes, notes)
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set")
@@ -564,6 +633,8 @@ def main() -> int:
         group_f_llm()
     if only in ("all", "api"):
         group_g_api()
+    if only in ("all", "api", "immihelp"):
+        group_h_immihelp()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)
