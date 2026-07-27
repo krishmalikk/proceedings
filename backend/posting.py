@@ -1320,15 +1320,32 @@ def publish_reddit_posting(title: str, description: str, tags: dict,
 
 def _gov_news_tags(extracted_tags: list[str], content_type: str) -> list[str]:
     """Deterministically add `news-update` when — and only when —
-    content_type == "news". Pure/no-network on purpose: this is the exact
-    decision docs/ingestion/GOV-NEWS-MULTI-SOURCE-CONFIG.md §5 documents
-    (a news source's content gets tagged as a news update; a forum
-    posting's content does not, since it isn't one), pulled out of
+    content_type == "news"; STRIP it otherwise, even if already present.
+    Pure/no-network on purpose: this is the exact decision
+    docs/ingestion/GOV-NEWS-MULTI-SOURCE-CONFIG.md §5 documents (a news
+    source's content gets tagged as a news update; a forum posting's
+    content does not, since it isn't one), pulled out of
     publish_gov_news_item() so it's unit-testable without GCP — see
+    tests/test_posting_tagging.py.
+
+    The strip half matters because `news-update` is a real, LLM-selectable
+    vocabulary entry (tags-cleaned/1.10-common-misc.csv) — _extract() can
+    legitimately choose it on its own for content that reads like
+    policy/news (e.g. a forum post about a visa fee change), independent
+    of this function. A version that only ever ADDED the tag for
+    content_type=="news" left that model-chosen tag untouched for every
+    other content_type, which is exactly backwards from "can never be
+    applied" — confirmed live: a real immihelp (content_type=
+    'forum_posting') posting titled 'US visa fees going up...' came back
+    from _extract() with `news-update` already in its tags, and the old
+    implementation passed it straight through. See E45a in
     tests/test_posting_tagging.py."""
+    tags = list(dict.fromkeys(extracted_tags))
     if content_type == "news":
-        return list(dict.fromkeys([*extracted_tags, "news-update"]))
-    return list(dict.fromkeys(extracted_tags))
+        if "news-update" not in tags:
+            tags.append("news-update")
+        return tags
+    return [t for t in tags if t != "news-update"]
 
 
 def publish_gov_news_item(title: str, description: str, source_system: str,

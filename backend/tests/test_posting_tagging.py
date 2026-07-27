@@ -393,6 +393,20 @@ def group_e_build() -> None:
     check("E46 no duplicate news-update if the model already produced one",
           p._gov_news_tags(["a", "news-update", "b"], "news").count("news-update") == 1,
           p._gov_news_tags(["a", "news-update", "b"], "news"))
+    # E45a — regression: news-update is a real, LLM-selectable vocab entry
+    # (tags-cleaned/1.10-common-misc.csv), so _extract() can choose it on
+    # its own for policy/news-shaped content regardless of content_type.
+    # Found live: a real immihelp (forum_posting) posting about a visa fee
+    # change came back from _extract() with news-update already in its
+    # tags, and the pre-fix implementation only ever ADDED the tag for
+    # content_type=="news" — it never stripped one the model had already
+    # chosen for anything else, so it passed straight through.
+    check("E45a content_type='forum_posting' STRIPS a model-chosen news-update, not just avoids adding one",
+          "news-update" not in p._gov_news_tags(["h1b-petition", "news-update"], "forum_posting"),
+          p._gov_news_tags(["h1b-petition", "news-update"], "forum_posting"))
+    check("E45b unrecognized content_type also strips a pre-existing news-update (fail closed)",
+          "news-update" not in p._gov_news_tags(["news-update"], "something-unexpected"),
+          p._gov_news_tags(["news-update"], "something-unexpected"))
 
 
 # ---------------------------------------------------------------------------

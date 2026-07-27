@@ -138,6 +138,9 @@ cd backend && ../.venv/bin/python ../scripts/curation/seed_immihelp.py --dry-run
 
 # 2. Run the real (bounded, default 100) sample seed:
 cd backend && ../.venv/bin/python ../scripts/curation/seed_immihelp.py --limit 100
+
+# 3. Verify what actually landed (see §9 — this is what caught the §8 bug):
+cd backend && ../.venv/bin/python ../scripts/curation/verify_immihelp_seed.py --all
 ```
 
 Resumable: every publish/skip is written immediately to
@@ -163,3 +166,80 @@ and add a `content_hash`-based incremental-classify step in a
 `gov_news_poll.py`-style poller so re-running doesn't republish unchanged
 posts. That's future work, contingent on a real agreement — not attempted
 here.
+
+## 8. Completed run log
+
+The bounded sample seed has been run for real, once, against production.
+
+**Discovery pass:** 196 candidates fetched across the 19 curated topics
+(page 1 of each, per §2/§3).
+
+**First pass:** `seed_immihelp.py --limit 100` → **published=100,
+skipped=88, failed=0**. Tag quality spot-checked and looked accurate
+(`h1b-petition`, `PERM`, `RFE`, `N-400`, `family-based-immigration`, etc.).
+
+**Bug found during post-hoc verification** (`verify_immihelp_seed.py`,
+written specifically to spot-check a completed run against the live
+datastore — see §9): `news-update` is a real, LLM-selectable vocabulary
+entry (`tags-cleaned/1.10-common-misc.csv`: *"Official government-agency
+news/policy update (not a personal visa/status claim)"*), so `_extract()`
+can choose it on its own for content that genuinely reads like
+policy/news — independent of the caller's `content_type`. The original
+`posting._gov_news_tags()` only ever **added** `news-update` for
+`content_type=="news"`; for anything else it deduped but never **stripped**
+an instance the model had already chosen, which is backwards from the
+documented "can never be applied" guarantee.
+
+This affected exactly 2 of the 100 published items — both genuinely
+policy/news-shaped immihelp forum posts, not personal experiences:
+
+- *"US visa fees going up for Indians in 2026- New Visa Integrity Fee"*
+  (`immihelp-immihelp-2025-08-23-23c9ece5`) — still had a real personal
+  visa/status tag underneath once `news-update` was stripped, so it
+  correctly **remains published** after being deleted and republished
+  with the fixed code.
+- *"Introduction of the 540-Day Automatic Extension Rule for EAD"*
+  (`immihelp-immihelp-2025-03-11-8cb8e60b`) — a pure policy announcement
+  with no personal visa/status claim at all. Once `news-update` was
+  correctly stripped, it failed `validate()`'s visa-required rule (the
+  same rule `news-update` exists to bypass — §5) — i.e. it should never
+  have been published in the first place, and the tag leak was the only
+  reason it had slipped through. **Deleted, not republished**, and moved
+  from `published` to `skipped` in the manifest.
+
+**Fix:** `posting._gov_news_tags()` now explicitly strips `news-update`
+for any `content_type != "news"`, not just avoids re-adding it — see the
+function's docstring and `tests/test_posting_tagging.py` E45a/E45b.
+
+**Final corrected state:** `published=99, skipped=89, failed=0`.
+`verify_immihelp_seed.py --all` confirms all 99 live documents are clean
+(correct `channel`/`source_system`/`ingestion_method`/`posting_date`, no
+`news-update`, real `author_handle` present).
+
+**Known residual, self-resolving:** both corrections' original (bad) rows
+in `postings.postings_metadata` (BigQuery) couldn't be `DELETE`d
+immediately — they were still inside BigQuery's streaming-buffer window
+(`_write_bigquery()`'s `delete_existing` guard: `ingestion_timestamp <
+NOW() - 90 MINUTE`) at correction time. This is a stray analytics-only
+duplicate, not a live-serving issue (Discovery Engine + GCS were already
+corrected) — any query following this codebase's established
+latest-by-`ingestion_timestamp`-per-`case_id` dedup convention (the same
+pattern `gov_news_poll.py`'s `_existing_hashes()` uses) already reads the
+corrected row. Re-running the same `DELETE ... WHERE case_id = @case_id
+AND ingestion_timestamp < NOW() - 90 MINUTE` for
+`immihelp-immihelp-2025-08-23-23c9ece5` and
+`immihelp-immihelp-2025-03-11-8cb8e60b` any time after the buffer window
+passes will clean up the stray rows if that's ever worth doing.
+
+## 9. Verifying a completed run
+
+`scripts/curation/verify_immihelp_seed.py` re-fetches a sample (or
+`--all`) of a manifest's published `case_id`s directly from the live
+Discovery Engine datastore and confirms `channel`/`source_system`/
+`ingestion_method`/`posting_date` match what was intended, `news-update`
+never leaked in, and `author_handle` is present. This is what caught §8's
+bug — run it after any future re-run of `seed_immihelp.py`, not just once:
+
+```bash
+cd backend && ../.venv/bin/python ../scripts/curation/verify_immihelp_seed.py --all
+```
