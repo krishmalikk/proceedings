@@ -12,7 +12,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, shadows } from '../constants/theme';
 import { AnimatedPressable, Header, Skeleton } from '../components';
-import { getAllGroups, GroupInfo, searchPostings, SearchResultItem, getProfile, getCachedProfile } from '../services/apiService';
+import { getAllGroups, GroupInfo, browsePostings, SearchResultItem, getProfile, getCachedProfile } from '../services/apiService';
 import { useAuth } from '../contexts/AuthContext';
 
 export function HomeScreen() {
@@ -56,7 +56,7 @@ export function HomeScreen() {
   useEffect(() => {
     async function loadRecent() {
       try {
-        const data = await searchPostings('', { pageSize: 4 });
+        const data = await browsePostings({ sort: 'recent', pageSize: 4 });
         setRecent(data.results || []);
       } catch {
         // Silently fail — section degrades to its CTA row

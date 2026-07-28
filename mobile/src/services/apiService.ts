@@ -674,6 +674,33 @@ export async function searchPostings(
   };
 }
 
+/**
+ * Browse the postings feed most-recent-first. Unlike searchPostings, it sends an
+ * EMPTY query (no 'immigration visa experience' relevance fallback) + sort, so
+ * the backend returns the recent user-content feed ordered by recency instead of
+ * ranking by relevance. Used for the default (un-searched) feed / experiences /
+ * home views.
+ */
+export async function browsePostings(
+  opts: { sort?: 'recent' | 'event'; pageToken?: string; pageSize?: number } = {}
+): Promise<SearchResponse> {
+  const p = new URLSearchParams();
+  p.set('q', ''); // empty => backend browse path (recency), not relevance
+  p.set('sort', opts.sort || 'recent');
+  p.set('page_size', String(opts.pageSize ?? 15));
+  if (opts.pageToken) p.set('page_token', opts.pageToken);
+  const response = await apiFetch(`${API_URL}/api/search?${p.toString()}`);
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load feed');
+  }
+  return {
+    results: data.results || [],
+    next_page_token: data.next_page_token || '',
+    suggested_filters: data.suggested_filters || [],
+  };
+}
+
 export interface ConsulateCountry {
   country: string;
   country_code: string;

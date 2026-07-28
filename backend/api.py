@@ -1543,10 +1543,23 @@ def search(
         data.setdefault("applied_filters", explicit_filters)
         data.setdefault("effective_strictness", "strict")
         data.setdefault("relaxed", False)
+    elif not q.strip():
+        # Empty query, no hard filter = BROWSE the feed most-recent-first. Use
+        # the News tab's proven empty-query + doc_kind filter + order_by recipe:
+        # a relevance fallback here (below) would re-rank by relevance and drop
+        # the recency order entirely. The doc_kind filter scopes the feed to
+        # user postings/experiences (gov_news has its own surface) AND keeps us
+        # on the hard-filter path where `order_by ... desc` actually governs.
+        browse_filter = 'doc_kind: ANY("post", "experience")'
+        data = search_postings("", _project_id, _ds_location, _engine_id,
+                               page_size=page_size, page_token=page_token,
+                               filter_expr=browse_filter, sort=sort or "recent")
+        data.setdefault("applied_filters", {})
+        data.setdefault("effective_strictness", "recent")
+        data.setdefault("relaxed", False)
     else:
-        # No hard filter — a free-text/relevance search, where Discovery
-        # Engine genuinely needs some query text to rank against.
-        q = q or "immigration experience"
+        # Free-text/relevance search, where Discovery Engine genuinely needs
+        # some query text to rank against.
         data = search_with_strictness(q, _project_id, _ds_location, _engine_id,
                                       page_size=page_size, page_token=page_token, strictness=strictness, sort=sort)
 
