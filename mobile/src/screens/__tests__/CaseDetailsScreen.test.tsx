@@ -1,7 +1,20 @@
 import React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { renderScreen, fireEvent } from '../../test/render';
 import { CaseDetailsScreen } from '../CaseDetailsScreen';
 import { getPosting } from '../../services/apiService';
+
+// CaseDetailsScreen renders the shared <Header>, which reads useSafeAreaInsets() —
+// needs a real provider ancestor in the test tree (see PostScreen.test.tsx for the
+// same pattern).
+const TEST_METRICS = { insets: { top: 0, right: 0, bottom: 0, left: 0 }, frame: { x: 0, y: 0, width: 390, height: 844 } };
+function renderCaseDetails(navigation: ReturnType<typeof makeNav>) {
+  return renderScreen(
+    <SafeAreaProvider initialMetrics={TEST_METRICS}>
+      <CaseDetailsScreen navigation={navigation} route={route} />
+    </SafeAreaProvider>
+  );
+}
 
 jest.mock('../../services/apiService', () => ({ getPosting: jest.fn() }));
 // Stub the heavy children that fetch on their own - isolate the screen's own UI.
@@ -36,7 +49,7 @@ describe('CaseDetailsScreen', () => {
         { label: 'Concerns & questions', tags: ['rfe', 'wage-compliance'] },
       ],
     });
-    const screen = await renderScreen(<CaseDetailsScreen navigation={makeNav()} route={route} />);
+    const screen = await renderCaseDetails(makeNav());
 
     expect(await screen.findByText('Applying for')).toBeOnTheScreen();
     expect(screen.getByText('Concerns & questions')).toBeOnTheScreen();
@@ -47,10 +60,10 @@ describe('CaseDetailsScreen', () => {
   it('first-party posting (handle, no uid): shows a tappable author → AuthorByHandle', async () => {
     mockPosting({ author_id: '', author_handle: 'brave-maple-3272' });
     const navigation = makeNav();
-    const screen = await renderScreen(<CaseDetailsScreen navigation={navigation} route={route} />);
+    const screen = await renderCaseDetails(navigation);
 
     const handle = await screen.findByText('brave-maple-3272');
-    fireEvent.press(handle);
+    await fireEvent.press(handle);
     expect(navigation.navigate).toHaveBeenCalledWith('AuthorByHandle', { handle: 'brave-maple-3272' });
     // the rich uid-based card must NOT render here
     expect(screen.queryByText(/AUTHORCARD:/)).toBeNull();
@@ -58,7 +71,7 @@ describe('CaseDetailsScreen', () => {
 
   it('in-app author (real uid): renders the rich AuthorCard, not the handle card', async () => {
     mockPosting({ author_id: 'user-9', author_handle: 'brave-maple-3272' });
-    const screen = await renderScreen(<CaseDetailsScreen navigation={makeNav()} route={route} />);
+    const screen = await renderCaseDetails(makeNav());
 
     expect(await screen.findByText('AUTHORCARD:user-9')).toBeOnTheScreen();
     expect(screen.queryByText('brave-maple-3272')).toBeNull();
