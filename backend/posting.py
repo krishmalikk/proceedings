@@ -648,14 +648,33 @@ def _derive_visa_from_tags(tags: list[str]) -> str:
     specific visa's process without a personal status claim (tips/advice/
     discussion content that would otherwise fail validate()'s visa-required
     rule). Only backfills when the 1.6 "Associated Visa/Form" mapping is
-    unambiguous (a single code, not 'L-1 / H-1B') and that code is itself a
-    valid 1.1/1.2 vocab entry — skips form numbers ('I-129') and generic
-    values ('Any visa') automatically, since those aren't in _Vocab.visa."""
+    unambiguous and that code is itself a valid 1.1/1.2 vocab entry — skips
+    form numbers ('I-129') and generic values ('Any visa') automatically,
+    since those aren't in _Vocab.visa.
+
+    A "/"-joined mapping (e.g. 'L-1 / H-1B', 'OPT / F-1') isn't automatically
+    ambiguous — it's only a real either/or when MORE THAN ONE side is itself
+    a selectable 1.1/1.2 code. 'L-1 / H-1B' (a change-of-status pair) has two
+    valid codes on either side — genuinely ambiguous, correctly skipped.
+    'OPT / F-1' has exactly one ('OPT' is a benefit name, not a visa type,
+    so it's never in _Vocab.visa) — no real ambiguity, since OPT/CPT are
+    F-1-only benefits. Found live: a real curated post about Initial OPT
+    (opt-application -> 'OPT / F-1') failed validate() because the old
+    strict 'no "/" at all' check discarded this unambiguous case along with
+    the genuinely ambiguous ones — see
+    docs/tagging/VISA-VOCAB-GAPS-AND-CURATION-BLOCKERS.md."""
     _Vocab.load()
     for t in tags:
         mapped = _Vocab.visa_form_map.get(t, "")
-        if mapped and "/" not in mapped and mapped in _Vocab.visa:
+        if not mapped:
+            continue
+        if mapped in _Vocab.visa:
             return mapped
+        if "/" in mapped:
+            candidates = [c.strip() for c in mapped.split("/")]
+            valid = [c for c in candidates if c in _Vocab.visa]
+            if len(valid) == 1:
+                return valid[0]
     return ""
 
 

@@ -242,6 +242,41 @@ def group_e_build() -> None:
     check("E12 form-number tag not treated as a visa code",
           c12["visa_applying_for"] == [], c12["visa_applying_for"])
 
+    # E12a-E12c: a "/"-joined 1.6 mapping isn't automatically ambiguous —
+    # only when MORE THAN ONE side is itself a real 1.1/1.2 code. Found
+    # live (docs/tagging/VISA-VOCAB-GAPS-AND-CURATION-BLOCKERS.md): a real
+    # curated post about Initial OPT failed validate() because the old
+    # strict "no '/' at all" check discarded 'OPT / F-1' even though 'OPT'
+    # isn't a selectable vocab code at all — no real ambiguity, since
+    # OPT/CPT are F-1-only benefits.
+    opt_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                "primary_consulate": "", "consulates": [], "tags": ["opt-application"],
+                "concerns_or_questions_tags": []}
+    c12a = p.build_canonical("Travel on Initial OPT?", "Waiting for my EAD card.", opt_tags)
+    check("E12a one-valid-side mapping backfills (opt-application -> 'OPT / F-1' -> F-1)",
+          c12a["visa_applying_for"] == ["F-1"], c12a["visa_applying_for"])
+
+    niw_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                "primary_consulate": "", "consulates": [], "tags": ["niw-petition"],
+                "concerns_or_questions_tags": []}
+    c12b = p.build_canonical("NIW question", "About my NIW petition.", niw_tags)
+    check("E12b one-valid-side mapping backfills (niw-petition -> 'NIW / EB-2' -> EB-2)",
+          c12b["visa_applying_for"] == ["EB-2"], c12b["visa_applying_for"])
+
+    three_way_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                       "primary_consulate": "", "consulates": [], "tags": ["b1b2-to-h1b"],
+                       "concerns_or_questions_tags": []}
+    c12c = p.build_canonical("Status change question", "Thinking about changing status.", three_way_tags)
+    check("E12c genuinely multi-valid mapping (b1b2-to-h1b -> 'B-1/B-2 / H-1B', 3 valid sides) not backfilled",
+          c12c["visa_applying_for"] == [], c12c["visa_applying_for"])
+
+    zero_valid_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                        "primary_consulate": "", "consulates": [], "tags": ["aos-filing"],
+                        "concerns_or_questions_tags": []}
+    c12d = p.build_canonical("AOS filing question", "About my AOS filing.", zero_valid_tags)
+    check("E12d zero-valid-side mapping (aos-filing -> 'AOS / I-485', neither a vocab code) not backfilled",
+          c12d["visa_applying_for"] == [], c12d["visa_applying_for"])
+
     # E13-E16: I-130 -> family-based-immigration (deterministic, tags-only —
     # I-130 alone can't tell us the specific greencard category, so
     # current_visa_or_greencard_category is deliberately left untouched).
