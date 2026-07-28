@@ -426,6 +426,7 @@ class UserRepliesResponse(BaseModel):
 # --- Replies + voting (phase-L) ---
 class ReplyCreate(BaseModel):
     body: str = Field(..., min_length=1, max_length=5000)
+    parent_reply_id: str = ""  # empty = top-level reply; else the reply being answered
 
 
 class VoteTally(BaseModel):
@@ -438,6 +439,7 @@ class VoteTally(BaseModel):
 class ReplyCard(BaseModel):
     id: str
     parent_case_id: str
+    parent_reply_id: str = ""  # empty = top-level; else the reply this answers (for client-side threading)
     body: str
     author_handle: str
     author_id: str = ""  # author uid (blank on your own) — for block-user (Apple 1.2)
@@ -734,7 +736,9 @@ def _ensure_registered(uid: str, name_hint: str = "") -> None:
     if not uid or _db is None or _uid_registered(uid):
         return
     import profile
-    username = (name_hint or "").strip()[:40] or f"member-{uid[:6]}"
+    # Anonymity: assign a random Reddit-style handle — NEVER the real name in
+    # `name_hint` (the Firebase token's display name / email prefix).
+    username = profile.random_username(_db)
     try:
         profile.save_profile(_db, uid, {"username": username})
         _KNOWN_UIDS.add(uid)
@@ -927,13 +931,16 @@ def create_user(body: NewUserRequest):
             # Already registered — return the existing account untouched.
             existing = _guard(lambda: profile.get_profile(_db, uid))
             return SeedUser(id=uid, username=existing.get("username") or uid, label=existing.get("username") or uid)
-        username = (body.username or "").strip()[:40] or f"member-{uid[:6]}"
+        # Anonymity: always mint a random handle — ignore any client-supplied
+        # `body.username` (which historically carried the real display name).
+        # Users rename themselves later via PUT /api/profile.
+        username = profile.random_username(_db)
         _guard(lambda: profile.save_profile(_db, uid, {"username": username}))
         _KNOWN_UIDS.add(uid)
         return SeedUser(id=uid, username=username, label=username)
 
     new_id = "new-" + secrets.token_hex(4)
-    username = (body.username or "").strip()[:40] or f"new-user-{new_id[-4:]}"
+    username = profile.random_username(_db)
     # Register by creating the (empty) profile doc with the chosen username.
     _guard(lambda: profile.save_profile(_db, new_id, {"username": username}))
     return SeedUser(id=new_id, username=username, label=f"🆕 {username}")
@@ -1536,10 +1543,23 @@ def search(
         data.setdefault("applied_filters", explicit_filters)
         data.setdefault("effective_strictness", "strict")
         data.setdefault("relaxed", False)
+    elif not q.strip():
+        # Empty query, no hard filter = BROWSE the feed most-recent-first. Use
+        # the News tab's proven empty-query + doc_kind filter + order_by recipe:
+        # a relevance fallback here (below) would re-rank by relevance and drop
+        # the recency order entirely. The doc_kind filter scopes the feed to
+        # user postings/experiences (gov_news has its own surface) AND keeps us
+        # on the hard-filter path where `order_by ... desc` actually governs.
+        browse_filter = 'doc_kind: ANY("post", "experience")'
+        data = search_postings("", _project_id, _ds_location, _engine_id,
+                               page_size=page_size, page_token=page_token,
+                               filter_expr=browse_filter, sort=sort or "recent")
+        data.setdefault("applied_filters", {})
+        data.setdefault("effective_strictness", "recent")
+        data.setdefault("relaxed", False)
     else:
-        # No hard filter — a free-text/relevance search, where Discovery
-        # Engine genuinely needs some query text to rank against.
-        q = q or "immigration experience"
+        # Free-text/relevance search, where Discovery Engine genuinely needs
+        # some query text to rank against.
         data = search_with_strictness(q, _project_id, _ds_location, _engine_id,
                                       page_size=page_size, page_token=page_token, strictness=strictness, sort=sort)
 
@@ -1733,7 +1753,8 @@ def create_reply_route(case_id: str, body: ReplyCreate, request: Request):
     uid = _active_user(request)
     handle = profile.username_for(uid)
     try:
-        reply = _guard(lambda: interactions.add_reply(_db, case_id, body.body, uid, handle))
+        reply = _guard(lambda: interactions.add_reply(
+            _db, case_id, body.body, uid, handle, body.parent_reply_id))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     return ReplyCard(**reply)

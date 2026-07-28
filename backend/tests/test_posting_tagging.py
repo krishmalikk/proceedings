@@ -242,9 +242,52 @@ def group_e_build() -> None:
     check("E12 form-number tag not treated as a visa code",
           c12["visa_applying_for"] == [], c12["visa_applying_for"])
 
+    # E12a-E12c: a "/"-joined 1.6 mapping isn't automatically ambiguous —
+    # only when MORE THAN ONE side is itself a real 1.1/1.2 code. Found
+    # live (docs/tagging/VISA-VOCAB-GAPS-AND-CURATION-BLOCKERS.md): a real
+    # curated post about Initial OPT failed validate() because the old
+    # strict "no '/' at all" check discarded 'OPT / F-1' even though 'OPT'
+    # isn't a selectable vocab code at all — no real ambiguity, since
+    # OPT/CPT are F-1-only benefits.
+    opt_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                "primary_consulate": "", "consulates": [], "tags": ["opt-application"],
+                "concerns_or_questions_tags": []}
+    c12a = p.build_canonical("Travel on Initial OPT?", "Waiting for my EAD card.", opt_tags)
+    check("E12a one-valid-side mapping backfills (opt-application -> 'OPT / F-1' -> F-1)",
+          c12a["visa_applying_for"] == ["F-1"], c12a["visa_applying_for"])
+
+    niw_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                "primary_consulate": "", "consulates": [], "tags": ["niw-petition"],
+                "concerns_or_questions_tags": []}
+    c12b = p.build_canonical("NIW question", "About my NIW petition.", niw_tags)
+    check("E12b one-valid-side mapping backfills (niw-petition -> 'NIW / EB-2' -> EB-2)",
+          c12b["visa_applying_for"] == ["EB-2"], c12b["visa_applying_for"])
+
+    three_way_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                       "primary_consulate": "", "consulates": [], "tags": ["b1b2-to-h1b"],
+                       "concerns_or_questions_tags": []}
+    c12c = p.build_canonical("Status change question", "Thinking about changing status.", three_way_tags)
+    check("E12c genuinely multi-valid mapping (b1b2-to-h1b -> 'B-1/B-2 / H-1B', 3 valid sides) not backfilled",
+          c12c["visa_applying_for"] == [], c12c["visa_applying_for"])
+
+    zero_valid_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                        "primary_consulate": "", "consulates": [], "tags": ["aos-filing"],
+                        "concerns_or_questions_tags": []}
+    c12d = p.build_canonical("AOS filing question", "About my AOS filing.", zero_valid_tags)
+    check("E12d zero-valid-side mapping (aos-filing -> 'AOS / I-485', neither a vocab code) not backfilled",
+          c12d["visa_applying_for"] == [], c12d["visa_applying_for"])
+
     # E13-E16: I-130 -> family-based-immigration (deterministic, tags-only —
-    # I-130 alone can't tell us the specific greencard category, so
-    # current_visa_or_greencard_category is deliberately left untouched).
+    # I-130 alone can't tell us the SPECIFIC greencard category, so it never
+    # picks one). E14/E15 changed from their original assertions: this used
+    # to be where the story ended (category left blank, validate() still
+    # failed) — found live (docs/tagging/VISA-VOCAB-GAPS-AND-CURATION-BLOCKERS.md)
+    # that a real batch of curated posts hit exactly this shape (a general
+    # I-130/I-485 discussion with no stated relationship) and had no way to
+    # publish at all. _apply_visa_backfill() now takes the next, more
+    # conservative step: since I-130 already guarantees the
+    # family-based-immigration TAG is present, fall back to the generic
+    # FAMILY-UNSPECIFIED CODE rather than leaving both visa fields empty.
     gc_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
                "primary_consulate": "", "consulates": [],
                "tags": ["I-130", "I-485", "aos-filing", "aos-approval"],
@@ -252,14 +295,108 @@ def group_e_build() -> None:
     c13 = p.build_canonical("Got my green card 9 days after interview", "Body text.", gc_tags)
     check("E13 I-130 -> family-based-immigration tag added",
           "family-based-immigration" in c13["tags"], c13["tags"])
-    check("E14 category still left blank (I-130 doesn't imply a specific code)",
-          c13["current_visa_or_greencard_category"] == [], c13["current_visa_or_greencard_category"])
-    check("E15 validate() still requires a specific category (not silently satisfied)",
-          any("Capture a visa" in e for e in p.validate(c13)), str(p.validate(c13)))
+    check("E14 category backfilled to the generic fallback (I-130 doesn't imply a SPECIFIC code, but now guarantees a generic one)",
+          c13["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], c13["current_visa_or_greencard_category"])
+    check("E15 validate() now passes — the generic fallback satisfies the visa-required rule",
+          p.validate(c13) == [], str(p.validate(c13)))
 
     c16 = p.build_canonical("t", "d", {"tags": ["i130-approval", "family-based-immigration"]})
     check("E16 no duplicate when family-based-immigration already present",
           c16["tags"].count("family-based-immigration") == 1, c16["tags"])
+
+    # E16a-E16m: _apply_visa_backfill() — the generic last-resort fallback
+    # (FAMILY-UNSPECIFIED / EMPLOYMENT-UNSPECIFIED), gated behind a real
+    # family/employment-based-immigration TAG signal, and only ever as a
+    # last resort behind _derive_visa_from_tags()'s more specific answer.
+    def _backfilled(tags: list[str]) -> dict:
+        groups = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                  "primary_consulate": "", "consulates": [], "tags": tags,
+                  "concerns_or_questions_tags": []}
+        p._apply_visa_backfill(groups)
+        return groups
+
+    g_fam = _backfilled(["family-based-immigration"])
+    check("E16a family-based-immigration tag alone -> FAMILY-UNSPECIFIED",
+          g_fam["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], g_fam)
+
+    g_emp = _backfilled(["employment-based-immigration"])
+    check("E16b employment-based-immigration tag alone -> EMPLOYMENT-UNSPECIFIED",
+          g_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-UNSPECIFIED"], g_emp)
+
+    # dont-know-what-to-think.txt's real shape (I-485 pending, employment-based
+    # tag present, no EB level stated) — this exact file failed validate()
+    # in the 072826 batch; confirms it now resolves.
+    g_real_emp = _backfilled(["I-485", "biometrics", "RFE", "pending",
+                              "employment-based-immigration", "adjustment-of-status-AOS"])
+    check("E16c real dont-know-what-to-think.txt shape resolves to EMPLOYMENT-UNSPECIFIED",
+          g_real_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-UNSPECIFIED"], g_real_emp)
+
+    g_specific_wins = _backfilled(["employment-based-immigration", "h1b-petition"])
+    check("E16d a specific derivable code (h1b-petition -> H-1B) wins over the generic employment fallback",
+          g_specific_wins["visa_applying_for"] == ["H-1B"]
+          and g_specific_wins["current_visa_or_greencard_category"] == [], g_specific_wins)
+
+    g_no_signal = _backfilled(["USCIS", "timeline"])
+    check("E16e no family/employment signal at all -> stays empty (duplicate-status-updates.txt shape; still needs a human, not silently satisfied)",
+          g_no_signal["visa_applying_for"] == [] and g_no_signal["current_visa_or_greencard_category"] == [], g_no_signal)
+
+    g_never_overrides_cat = {"visa_applying_for": [], "current_visa_or_greencard_category": ["IR-1"],
+                             "primary_consulate": "", "consulates": [],
+                             "tags": ["family-based-immigration"], "concerns_or_questions_tags": []}
+    p._apply_visa_backfill(g_never_overrides_cat)
+    check("E16f never overrides an already-populated current_visa_or_greencard_category",
+          g_never_overrides_cat["current_visa_or_greencard_category"] == ["IR-1"], g_never_overrides_cat)
+
+    g_never_overrides_visa = {"visa_applying_for": ["EB-2"], "current_visa_or_greencard_category": [],
+                              "primary_consulate": "", "consulates": [],
+                              "tags": ["family-based-immigration"], "concerns_or_questions_tags": []}
+    p._apply_visa_backfill(g_never_overrides_visa)
+    check("E16g never fires at all when visa_applying_for is already populated (even if category is still empty)",
+          g_never_overrides_visa["current_visa_or_greencard_category"] == [], g_never_overrides_visa)
+
+    g_both = _backfilled(["family-based-immigration", "employment-based-immigration"])
+    check("E16h both signals present -> exactly one fallback applied, not both/duplicated",
+          len(g_both["current_visa_or_greencard_category"]) == 1, g_both["current_visa_or_greencard_category"])
+
+    # End-to-end through build_canonical() (not just the bare helper) —
+    # confirms the I-130-tag-add-then-backfill ordering (§ comment above
+    # E13) actually holds when called the same way suggest_tags()/publish
+    # paths do, not just when the tags dict is hand-constructed already
+    # containing the tag.
+    c_i130_only = p.build_canonical("t", "d", {"tags": ["I-130"]})
+    check("E16i build_canonical(): bare I-130 tag alone (deterministic add) still resolves to FAMILY-UNSPECIFIED end-to-end",
+          c_i130_only["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], c_i130_only)
+    check("E16j build_canonical(): bare I-130 case passes validate()",
+          p.validate(c_i130_only) == [], str(p.validate(c_i130_only)))
+
+    # suggest_tags() applies the same ordering (I-130 tag added before the
+    # backfill runs) via _extract() + the same code path — verified with a
+    # live Gemini call in group F/H; here we confirm the pure helper
+    # ordering directly, which is what actually matters for correctness.
+    g_order = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+               "primary_consulate": "", "consulates": [], "tags": ["I-130"],
+               "concerns_or_questions_tags": []}
+    if p._I130_TAGS & set(g_order["tags"]):
+        p._add_tag_once(g_order, "family-based-immigration")
+    p._apply_visa_backfill(g_order)
+    check("E16k I-130-tag-add-then-backfill ordering resolves to FAMILY-UNSPECIFIED (mirrors suggest_tags()'s call order)",
+          g_order["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], g_order)
+
+    g_vocab = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+               "primary_consulate": "", "consulates": [], "tags": ["family-based-immigration"],
+               "concerns_or_questions_tags": []}
+    p._apply_visa_backfill(g_vocab)
+    c_vocab = p.build_canonical("t", "d", g_vocab)
+    check("E16l FAMILY-UNSPECIFIED is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
+          not any("not in visa vocab" in e for e in p.validate(c_vocab)), str(p.validate(c_vocab)))
+
+    g_vocab2 = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                "primary_consulate": "", "consulates": [], "tags": ["employment-based-immigration"],
+                "concerns_or_questions_tags": []}
+    p._apply_visa_backfill(g_vocab2)
+    c_vocab2 = p.build_canonical("t", "d", g_vocab2)
+    check("E16m EMPLOYMENT-UNSPECIFIED is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
+          not any("not in visa vocab" in e for e in p.validate(c_vocab2)), str(p.validate(c_vocab2)))
 
     # E17-E18: cross-bucket duplicate regression (1862-notice.txt case) — a
     # post ASKING about timeline puts "timeline" in concerns_or_questions_tags

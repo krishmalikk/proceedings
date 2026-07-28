@@ -9,7 +9,7 @@ import {
   Linking,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Markdown, AnimatedPressable } from '../components';
 import { AuthorCard } from '../components/AuthorCard';
@@ -20,6 +20,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Skeleton } from '../components/Skeleton';
 import { ErrorState } from '../components/ErrorState';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
+import { getOutcomeBadgeStyle as outcomeBadgeStyle } from '../utils/outcome';
 import { getPosting, PostingData } from '../services/apiService';
 
 type Tally = { up: number; down: number; score: number; your_vote: number };
@@ -28,15 +29,13 @@ const ZERO_TALLY: Tally = { up: 0, down: 0, score: 0, your_vote: 0 };
 // Flip on when the verified-attorney guidance feature actually ships.
 const ATTORNEY_GUIDANCE_TEASER = false;
 
-function outcomeBadgeStyle(outcome: string) {
-  const o = outcome.toLowerCase();
-  if (o === 'approved' || o === 'issued') {
-    return { backgroundColor: colors.secondaryContainer, color: colors.onSecondaryContainer };
-  }
-  return { backgroundColor: colors.surfaceContainerHigh, color: colors.onSurfaceVariant };
-}
+// The floating tab bar (FloatingTabBar) is absolutely positioned ~70pt tall
+// above the home indicator; scroll content must clear it so the reply composer
+// and the last replies stay reachable.
+const TAB_BAR_CLEARANCE = 96;
 
 export function CaseDetailsScreen({ navigation, route }: any) {
+  const insets = useSafeAreaInsets();
   const caseId: string = route?.params?.caseId || '';
   const [data, setData] = useState<PostingData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,7 +93,12 @@ export function CaseDetailsScreen({ navigation, route }: any) {
       {!!error && !loading && <ErrorState body={error} onRetry={load} />}
 
       {data && !loading && (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: insets.bottom + TAB_BAR_CLEARANCE }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Vote rail + title block (website layout) */}
           <View style={styles.titleRow}>
             <VoteControl
@@ -243,7 +247,6 @@ export function CaseDetailsScreen({ navigation, route }: any) {
             <Replies postingId={data.case_id} onPostingTally={onPostingTally} />
           </View>
 
-          <View style={{ height: spacing.xl }} />
         </ScrollView>
       )}
     </SafeAreaView>

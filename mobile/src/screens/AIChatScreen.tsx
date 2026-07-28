@@ -288,7 +288,7 @@ export function AIChatScreen({ navigation }: any) {
             <Ionicons name="chevron-back" size={22} color={colors.onSurface} />
           </GlassButton>
 
-          <Text style={styles.headerTitle}>MeridianAI</Text>
+          <Text style={styles.headerTitle}>Meridian AI</Text>
 
           {/* Spacer to keep title centered */}
           <View style={styles.headerSpacer} />
@@ -342,9 +342,9 @@ const styles = StyleSheet.create({
     height: 60,
   },
   headerTitle: {
-    fontFamily: 'Georgia',
+    // Brand serif wordmark (Georgia was unloaded → system fallback).
+    fontFamily: 'Lora_600SemiBold',
     fontSize: 18,
-    fontWeight: '600',
     color: colors.onSurface,
   },
   headerSpacer: {
@@ -419,8 +419,9 @@ const styles = StyleSheet.create({
   suggestionIconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(21, 72, 126, 0.12)',
+    borderRadius: borderRadius.full,
+    // Was a hardcoded blue tint on a red-brand app (UI_AUDIT §1) → brand tonal surface.
+    backgroundColor: colors.primaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs,

@@ -12,12 +12,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, shadows } from '../constants/theme';
 import { AnimatedPressable, Header, Skeleton } from '../components';
-import { getAllGroups, GroupInfo, searchPostings, SearchResultItem } from '../services/apiService';
+import { getAllGroups, GroupInfo, browsePostings, SearchResultItem, getProfile, getCachedProfile } from '../services/apiService';
 import { useAuth } from '../contexts/AuthContext';
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { user, isBlocked } = useAuth();
+  const { isBlocked } = useAuth();
   const [userGroups, setUserGroups] = useState<GroupInfo[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(true);
   // Real recent postings for the preview rows (replaces the old hardcoded /
@@ -25,8 +25,17 @@ export function HomeScreen() {
   const [recent, setRecent] = useState<SearchResultItem[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
 
-  // Get first name from displayName or email
-  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || '';
+  // Greet by the anonymous handle (username) — never the real name. Paint from
+  // cache instantly, then refresh from the server.
+  const [handle, setHandle] = useState('');
+  useEffect(() => {
+    getCachedProfile()
+      .then((p) => { if (p?.username) setHandle(String(p.username)); })
+      .catch(() => {});
+    getProfile()
+      .then((p) => { if (p?.username) setHandle(String(p.username)); })
+      .catch(() => {});
+  }, []);
 
   // Load user's groups on mount
   useEffect(() => {
@@ -47,7 +56,7 @@ export function HomeScreen() {
   useEffect(() => {
     async function loadRecent() {
       try {
-        const data = await searchPostings('', { pageSize: 4 });
+        const data = await browsePostings({ sort: 'recent', pageSize: 4 });
         setRecent(data.results || []);
       } catch {
         // Silently fail — section degrades to its CTA row
@@ -94,7 +103,7 @@ export function HomeScreen() {
           {/* Greeting Section */}
           <View style={styles.greetingSection}>
             <Text style={styles.greetingTitle}>
-              Hello{firstName ? `, ${firstName}` : ''}
+              Hello{handle ? `, ${handle}` : ''}
             </Text>
             <Text style={styles.greetingSubtitle}>How can I help you today?</Text>
           </View>
@@ -329,7 +338,7 @@ const styles = StyleSheet.create({
   chatInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
     borderWidth: 1.5,
     borderColor: colors.primary,
     borderRadius: borderRadius.full,
@@ -346,7 +355,7 @@ const styles = StyleSheet.create({
   },
   // Reusable section card style
   sectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     borderWidth: 1,
     borderColor: colors.outlineVariant,

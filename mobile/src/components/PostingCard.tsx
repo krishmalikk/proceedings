@@ -5,6 +5,7 @@ import { Card } from './Card';
 import { AnimatedPressable } from './AnimatedPressable';
 import { ContentActionsMenu } from './ContentActionsMenu';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
+import { getOutcomeBadgeStyle } from '../utils/outcome';
 
 export type PostingCardData = {
   case_id: string;
@@ -44,17 +45,6 @@ function timeAgo(iso: string): string {
   const d = Math.floor(h / 24);
   if (d < 30) return `${d}d ago`;
   return new Date(t).toLocaleDateString();
-}
-
-function getOutcomeBadgeStyle(outcome: string) {
-  const o = outcome.toLowerCase();
-  if (o === 'approved' || o === 'issued') {
-    return { backgroundColor: colors.successContainer, color: colors.onSuccessContainer };
-  }
-  if (o === 'denied' || o === 'refused' || o === 'rejected') {
-    return { backgroundColor: colors.errorContainer, color: colors.onErrorContainer };
-  }
-  return { backgroundColor: colors.surfaceContainerHigh, color: colors.onSurfaceVariant };
 }
 
 export function PostingCard({ posting, onPress, authorId, authorHandle, onActioned }: PostingCardProps) {

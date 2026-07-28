@@ -513,6 +513,8 @@ Return ONLY the sections that truly apply (omit the rest). Example: a consular B
 
 Always capture the applicant's visa/status in current_visa_or_greencard_category and/or visa_applying_for whenever one is discernible.
 Populate key_stages_or_info with discrete outcomes/state facts (e.g. visa_status: approved, I-140: approved) and key_dates with any dates mentioned — these become their own UI sections when present.
+
+FAMILY-UNSPECIFIED and EMPLOYMENT-UNSPECIFIED are LAST-RESORT category codes — use them ONLY when the posting is clearly family-based or employment-based (e.g. it mentions I-130, a spouse/parent/child relationship without naming which, an employer-sponsored petition, etc.) but truly gives no way to determine a specific code (IR-1, F2A-FAMILY, EB-2, ...). Never use them as a shortcut when a specific code IS determinable from the text — e.g. an explicit "my wife"/"my husband" mention with a U.S.-citizen petitioner means IR-1, not FAMILY-UNSPECIFIED.
 """
 
 
@@ -599,6 +601,45 @@ _POSTING_TYPES = {"consular_visa", "in_us_status", "experience", "general_questi
 # alone), I-130 -> "this is family-based" is a safe, unambiguous inference.
 _I130_TAGS = {"I-130", "i130-filing", "i130-approval"}
 
+# Last-resort generic categories (tags-cleaned/1.2-greencard-categories.csv)
+# for when a posting is clearly family- or employment-based (the model
+# tagged it, or the deterministic _I130_TAGS rule above did) but neither
+# the model nor _derive_visa_from_tags() could pin down a specific code —
+# e.g. a general discussion post about "filing I-130 and I-485" with no
+# stated relationship (spouse/parent/child/sibling all map to different
+# codes). Found live: docs/tagging/VISA-VOCAB-GAPS-AND-CURATION-BLOCKERS.md
+# Category C/D. Deliberately narrow — only fires when a *tag-level* signal
+# already exists; a posting with no family/employment signal at all still
+# correctly fails validate() and needs a human to supply real information,
+# not a generic label. See _apply_visa_backfill()'s ordering: this only
+# ever runs after _derive_visa_from_tags() has already had its chance, so
+# a real, specific, derivable code always wins over the generic fallback.
+_GENERIC_CATEGORY_FALLBACK = {
+    "family-based-immigration": "FAMILY-UNSPECIFIED",
+    "employment-based-immigration": "EMPLOYMENT-UNSPECIFIED",
+}
+
+
+def _apply_visa_backfill(groups: dict) -> None:
+    """Deterministically fill visa_applying_for/current_visa_or_greencard_category
+    in place when both are empty, trying the more specific signal first:
+      1. _derive_visa_from_tags() — a single unambiguous process-tag mapping
+         (e.g. h1b-petition -> H-1B, opt-application -> F-1).
+      2. _GENERIC_CATEGORY_FALLBACK — a broad family/employment signal
+         without enough detail for a specific code. Last resort only.
+    No-op if either field is already populated (by the model or a human
+    curator's edit) — never overrides a real answer that's already there."""
+    if groups["visa_applying_for"] or groups["current_visa_or_greencard_category"]:
+        return
+    derived = _derive_visa_from_tags(groups["tags"])
+    if derived:
+        groups["visa_applying_for"] = [derived]
+        return
+    for trigger_tag, fallback in _GENERIC_CATEGORY_FALLBACK.items():
+        if trigger_tag in groups["tags"]:
+            groups["current_visa_or_greencard_category"] = [fallback]
+            return
+
 
 # UI tag sections (primary_consulate is omitted from the UI — it's derived from
 # consulates[0] at submit; consulates is the single consulate section).
@@ -648,14 +689,33 @@ def _derive_visa_from_tags(tags: list[str]) -> str:
     specific visa's process without a personal status claim (tips/advice/
     discussion content that would otherwise fail validate()'s visa-required
     rule). Only backfills when the 1.6 "Associated Visa/Form" mapping is
-    unambiguous (a single code, not 'L-1 / H-1B') and that code is itself a
-    valid 1.1/1.2 vocab entry — skips form numbers ('I-129') and generic
-    values ('Any visa') automatically, since those aren't in _Vocab.visa."""
+    unambiguous and that code is itself a valid 1.1/1.2 vocab entry — skips
+    form numbers ('I-129') and generic values ('Any visa') automatically,
+    since those aren't in _Vocab.visa.
+
+    A "/"-joined mapping (e.g. 'L-1 / H-1B', 'OPT / F-1') isn't automatically
+    ambiguous — it's only a real either/or when MORE THAN ONE side is itself
+    a selectable 1.1/1.2 code. 'L-1 / H-1B' (a change-of-status pair) has two
+    valid codes on either side — genuinely ambiguous, correctly skipped.
+    'OPT / F-1' has exactly one ('OPT' is a benefit name, not a visa type,
+    so it's never in _Vocab.visa) — no real ambiguity, since OPT/CPT are
+    F-1-only benefits. Found live: a real curated post about Initial OPT
+    (opt-application -> 'OPT / F-1') failed validate() because the old
+    strict 'no "/" at all' check discarded this unambiguous case along with
+    the genuinely ambiguous ones — see
+    docs/tagging/VISA-VOCAB-GAPS-AND-CURATION-BLOCKERS.md."""
     _Vocab.load()
     for t in tags:
         mapped = _Vocab.visa_form_map.get(t, "")
-        if mapped and "/" not in mapped and mapped in _Vocab.visa:
+        if not mapped:
+            continue
+        if mapped in _Vocab.visa:
             return mapped
+        if "/" in mapped:
+            candidates = [c.strip() for c in mapped.split("/")]
+            valid = [c for c in candidates if c in _Vocab.visa]
+            if len(valid) == 1:
+                return valid[0]
     return ""
 
 
@@ -692,20 +752,24 @@ def suggest_tags(title: str, description: str) -> dict:
     # applies for phase-J experiences).
     if key_dates:
         _add_tag_once(groups, "timeline")
-    # Tips/advice/discussion content often references a specific visa's
-    # process tags (e.g. h1b-petition) without a personal status claim,
-    # which otherwise fails validate()'s visa-required rule. Backfill
-    # deterministically from the post's own tags rather than requiring a
-    # human to notice and hand-add it every time — see _derive_visa_from_tags.
-    if not groups["visa_applying_for"] and not groups["current_visa_or_greencard_category"]:
-        derived = _derive_visa_from_tags(groups["tags"])
-        if derived:
-            groups["visa_applying_for"] = [derived]
     # I-130 in any form -> family-based-immigration, deterministically (see
     # _I130_TAGS). Doesn't touch current_visa_or_greencard_category — I-130
     # alone can't tell us the specific category (spouse/parent/sibling/etc.).
+    # Runs BEFORE the visa backfill below, not after — _apply_visa_backfill's
+    # generic-fallback step keys off this exact tag, so it needs to already
+    # be present by the time that runs (matters when the model itself
+    # didn't independently emit "family-based-immigration" and only this
+    # deterministic rule adds it).
     if _I130_TAGS & set(groups["tags"]):
         _add_tag_once(groups, "family-based-immigration")
+    # Tips/advice/discussion content often references a specific visa's
+    # process tags (e.g. h1b-petition) without a personal status claim, or
+    # a family/employment-based post that never states enough detail for a
+    # specific code — both would otherwise fail validate()'s visa-required
+    # rule. Backfill deterministically from the post's own tags rather than
+    # requiring a human to notice and hand-add it every time — see
+    # _apply_visa_backfill().
+    _apply_visa_backfill(groups)
     return {
         "groups": groups,
         "relevant_sections": _relevant_sections(extracted, groups),
@@ -783,6 +847,19 @@ _NOUN = ["falcon", "harbor", "maple", "comet", "river", "cedar", "lark", "delta"
 
 def _synthetic_handle() -> str:
     return f"{secrets.choice(_ADJ)}-{secrets.choice(_NOUN)}-{secrets.randbelow(9000) + 1000}"
+
+
+# Strict shape of a generated handle. Used to tell an anonymous handle apart from
+# a legacy real-name/email-seeded username (profile.is_anonymous_handle / the
+# anonymize_usernames migration).
+HANDLE_RE = re.compile(r"^[a-z]+-[a-z]+-\d{4}$")
+
+
+def generate_handle() -> str:
+    """Public alias for the anonymous Reddit-style handle generator (adj-noun-NNNN).
+    Single source of truth for BOTH per-posting author handles AND profile
+    usernames — real names never seed either."""
+    return _synthetic_handle()
 
 
 # Valid client_platform values — a soft analytics field, not content-integrity
@@ -878,20 +955,21 @@ def build_canonical(title: str, description: str, tags: dict,
     if dates:
         _add_tag_once(groups, "timeline")
 
-    # Tips/advice/discussion content often references a specific visa's
-    # process tags (e.g. h1b-petition) without a personal status claim,
-    # which otherwise fails validate()'s visa-required rule. Backfill
-    # deterministically from the post's own tags — single point of truth
-    # for every caller, same reasoning as the timeline rule above.
-    if not groups["visa_applying_for"] and not groups["current_visa_or_greencard_category"]:
-        derived = _derive_visa_from_tags(groups["tags"])
-        if derived:
-            groups["visa_applying_for"] = [derived]
-
     # I-130 in any form -> family-based-immigration, deterministically —
-    # single point of truth for every caller, same reasoning as above.
+    # single point of truth for every caller, same reasoning as the timeline
+    # rule above. Runs BEFORE the visa backfill below — see the matching
+    # comment in suggest_tags() for why the order matters.
     if _I130_TAGS & set(groups["tags"]):
         _add_tag_once(groups, "family-based-immigration")
+
+    # Tips/advice/discussion content often references a specific visa's
+    # process tags (e.g. h1b-petition) without a personal status claim, or
+    # a family/employment-based post with no stated detail for a specific
+    # code — both otherwise fail validate()'s visa-required rule. Backfill
+    # deterministically from the post's own tags — single point of truth
+    # for every caller, same reasoning as the timeline rule above. See
+    # _apply_visa_backfill().
+    _apply_visa_backfill(groups)
 
     all_tags = (
         groups["current_visa_or_greencard_category"]

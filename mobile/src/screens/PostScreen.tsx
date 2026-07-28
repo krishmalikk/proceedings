@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -134,6 +135,60 @@ export function PostScreen() {
     getTagVocab().then(setVocab).catch(() => {});
   }, []);
 
+  // Draft persistence (audit P0): a long structured post used to be lost entirely
+  // on crash/background-kill. Autosave the editable fields (per user) and restore
+  // them on mount; cleared on successful publish or reset.
+  const draftKey = useMemo(() => `proceedings_post_draft_${getActiveUserId() ?? 'anon'}`, []);
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(draftKey);
+        if (raw) {
+          const d = JSON.parse(raw);
+          if (d.title) setTitle(d.title);
+          if (d.description) setDescription(d.description);
+          if (d.groups) setGroups(d.groups);
+          if (d.stages) setStages(d.stages);
+          if (d.dates) setDates(d.dates);
+          if (d.postingType) setPostingType(d.postingType);
+        }
+      } catch {
+        // Ignore corrupt/absent draft.
+      } finally {
+        hydrated.current = true;
+      }
+    })();
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const hasContent = !!(
+      title.trim() ||
+      description.trim() ||
+      postingType ||
+      Object.keys(stages).length ||
+      Object.keys(dates).length ||
+      Object.values(groups).some((a) => Array.isArray(a) && a.length)
+    );
+    const t = setTimeout(() => {
+      if (hasContent) {
+        AsyncStorage.setItem(
+          draftKey,
+          JSON.stringify({ title, description, groups, stages, dates, postingType })
+        ).catch(() => {});
+      } else {
+        AsyncStorage.removeItem(draftKey).catch(() => {});
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [title, description, groups, stages, dates, postingType, draftKey]);
+
+  const clearDraft = () => {
+    AsyncStorage.removeItem(draftKey).catch(() => {});
+  };
+
   const consulateByCode = useMemo(
     () => new Map(vocab?.consulate_options?.map((o) => [o.code, o.label]) || []),
     [vocab]
@@ -154,7 +209,18 @@ export function PostScreen() {
   );
 
   const canPreview = title.trim().length >= 3 && description.trim().length >= 10;
-  const hasVisa = groups.visa_applying_for.length > 0 || groups.current_visa_or_greencard_category.length > 0;
+  // FAMILY-UNSPECIFIED / EMPLOYMENT-UNSPECIFIED (backend: posting.py's
+  // _apply_visa_backfill()) are a LAST-RESORT fallback meant for manual
+  // curation, where there's no original poster left to ask for more detail.
+  // A live app user is right here and can always be asked directly instead
+  // — so unlike curated content, a generic code should never be enough to
+  // satisfy this gate on its own (website parity — see post/page.tsx).
+  const GENERIC_VISA_FALLBACKS = new Set(['FAMILY-UNSPECIFIED', 'EMPLOYMENT-UNSPECIFIED']);
+  const hasSpecificVisa = (arr: string[]) => arr.some((v) => !GENERIC_VISA_FALLBACKS.has(v));
+  const hasVisa =
+    hasSpecificVisa(groups.visa_applying_for) || hasSpecificVisa(groups.current_visa_or_greencard_category);
+  const hasOnlyGenericVisa =
+    !hasVisa && (groups.visa_applying_for.length > 0 || groups.current_visa_or_greencard_category.length > 0);
 
   // Add a validated value (already from the vocab list) to a tag section.
   const addToGroup = (field: keyof PostingGroups, value: string) => {
@@ -296,13 +362,19 @@ export function PostScreen() {
 
   const handleSubmit = async () => {
     if (!hasVisa) {
-      Alert.alert('Missing Info', 'Please add at least one visa/status.');
+      Alert.alert(
+        'Missing Info',
+        hasOnlyGenericVisa
+          ? 'We could tell this is family/employment-based, but need the exact category — please add the specific one below (e.g. IR-1, EB-2) if you know it.'
+          : 'Please add at least one visa/status.'
+      );
       return;
     }
     setSubmitting(true);
     setError('');
     try {
       const result = await createPosting(title, description, groups, stages, dates, Platform.OS);
+      clearDraft();
       setDone(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not publish posting');
@@ -312,6 +384,7 @@ export function PostScreen() {
   };
 
   const handleReset = () => {
+    clearDraft();
     setDone(null);
     setTitle('');
     setDescription('');
@@ -683,7 +756,9 @@ export function PostScreen() {
               <View style={styles.submitSection}>
                 {!hasVisa && (
                   <Text style={styles.warningText}>
-                    Add at least one visa/status under "Visa/category applying for" or "Current status".
+                    {hasOnlyGenericVisa
+                      ? 'We could tell this is family/employment-based, but need the exact category — please add the specific one below (e.g. IR-1, EB-2) if you know it.'
+                      : 'Add at least one visa/status under "Visa/category applying for" or "Current status".'}
                   </Text>
                 )}
                 <TouchableOpacity

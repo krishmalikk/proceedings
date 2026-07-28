@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp, Layout } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { PostingCard, AnimatedPressable, AnimatedListItem } from '../components';
+import { PostingCard, AnimatedPressable, AnimatedListItem, Skeleton, ErrorState } from '../components';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import {
   searchPostings,
+  browsePostings,
   facetId,
   SearchResultItem,
   SuggestedFilterGroup,
@@ -32,7 +33,11 @@ const STRICTNESS_LEVELS: { value: Strictness; label: string }[] = [
   { value: 'strict', label: 'Strict' },
 ];
 
+// Clear the floating tab bar (~70pt) so the last cards and "Load more" stay reachable.
+const TAB_BAR_CLEARANCE = 96;
+
 export function VisaExperiencesScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { isBlocked } = useAuth();
   const [query, setQuery] = useState('');
@@ -44,14 +49,41 @@ export function VisaExperiencesScreen() {
   const [selectedFacets, setSelectedFacets] = useState<Set<string>>(new Set());
   const [nextPageToken, setNextPageToken] = useState('');
   const [searched, setSearched] = useState(false);
+  // 'browse' = the default recent feed (empty query); 'search' = a typed/faceted
+  // relevance query. Drives which source "Load more" pages from.
+  const [mode, setMode] = useState<'browse' | 'search'>('browse');
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+
+  // Default view: the most-recent visa postings, auto-loaded (no empty prompt).
+  const loadFeed = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    setMode('browse');
+    setSelectedFacets(new Set());
+    setSuggested([]);
+    try {
+      const data = await browsePostings({ sort: 'recent' });
+      setResults(data.results);
+      setNextPageToken(data.next_page_token);
+      setSearched(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load experiences');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
 
   const runSearch = useCallback(
     async (q: string, facets: Set<string>, level: Strictness) => {
       setLoading(true);
       setError('');
+      setMode('search');
       try {
         const data = await searchPostings(q, {
           strictness: level,
@@ -74,11 +106,14 @@ export function VisaExperiencesScreen() {
     if (!nextPageToken || loadingMore) return;
     setLoadingMore(true);
     try {
-      const data = await searchPostings(query, {
-        strictness,
-        facets: Array.from(selectedFacets),
-        pageToken: nextPageToken,
-      });
+      const data =
+        mode === 'browse'
+          ? await browsePostings({ sort: 'recent', pageToken: nextPageToken })
+          : await searchPostings(query, {
+              strictness,
+              facets: Array.from(selectedFacets),
+              pageToken: nextPageToken,
+            });
       setResults((prev) => [...prev, ...data.results]);
       setNextPageToken(data.next_page_token);
     } catch {
@@ -99,13 +134,19 @@ export function VisaExperiencesScreen() {
 
   const changeStrictness = (level: Strictness) => {
     setStrictness(level);
-    if (searched) runSearch(query, selectedFacets, level);
+    // Precision only applies to a relevance search — don't turn the recent
+    // browse into one.
+    if (mode === 'search') runSearch(query, selectedFacets, level);
   };
 
   const submit = (q?: string) => {
     const text = (q ?? query).trim();
     if (q !== undefined) setQuery(q);
     setSelectedFacets(new Set());
+    if (!text) {
+      loadFeed(); // empty search reverts to the recent browse
+      return;
+    }
     runSearch(text, new Set(), strictness);
   };
 
@@ -121,7 +162,12 @@ export function VisaExperiencesScreen() {
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: insets.bottom + TAB_BAR_CLEARANCE }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Search box */}
         <View style={styles.searchRow}>
           <View style={styles.searchInputWrap}>
@@ -199,10 +245,16 @@ export function VisaExperiencesScreen() {
           </View>
         )}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {/* Loading skeleton — matches the results layout so the screen doesn't
+            flash blank while searching (UI_AUDIT §8). */}
+        {loading && <Skeleton.Card count={4} style={styles.results} />}
+
+        {error && !loading ? (
+          <ErrorState body={error} onRetry={() => submit(query)} style={styles.results} />
+        ) : null}
 
         {/* Empty state with example prompts */}
-        {!searched && !loading && (
+        {!searched && !loading && !error && (
           <Animated.View style={styles.emptyState} entering={FadeInUp.delay(200).duration(400)}>
             <Ionicons name="search" size={40} color={colors.onSurfaceVariant} />
             <Text style={styles.emptyTitle}>Search real visa experiences</Text>
@@ -225,7 +277,7 @@ export function VisaExperiencesScreen() {
         )}
 
         {/* Results */}
-        {searched && !loading && (() => {
+        {searched && !loading && !error && (() => {
           // Hide postings from blocked authors instantly (server also filters).
           const visible = results.filter((r) => !isBlocked(r.author_id) && !hiddenIds.has(r.case_id));
           return (
@@ -255,7 +307,6 @@ export function VisaExperiencesScreen() {
           );
         })()}
 
-        <View style={{ height: spacing.xl }} />
         </ScrollView>
       </SafeAreaView>
     </View>

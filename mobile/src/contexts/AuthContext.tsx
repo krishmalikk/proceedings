@@ -17,7 +17,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
-import { registerBackendUser, setActiveUserId, setIdToken, checkEmailVerified, getProfile, getBlockedUsers, blockUser as apiBlockUser } from '../services/apiService';
+import { registerBackendUser, setActiveUserId, setIdToken, checkEmailVerified, getProfile, getBlockedUsers, blockUser as apiBlockUser, clearProfileCache } from '../services/apiService';
 
 // Dev mode uses a consistent mock user ID so API calls work during testing
 const DEV_MODE_USER_ID = 'dev-mode-user-12345';
@@ -120,9 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(firebaseUser);
       if (firebaseUser) {
         // Register the uid with the backend (idempotent) and use it as X-User-Id.
-        const username =
-          firebaseUser.displayName?.trim() || firebaseUser.email?.split('@')[0] || '';
-        await registerBackendUser(firebaseUser.uid, username);
+        // No name is sent — the backend assigns a random anonymous handle so the
+        // user's real name never becomes their username.
+        await registerBackendUser(firebaseUser.uid);
 
         // Load the user's block list so blocked authors are hidden from feeds
         // immediately (best-effort — never blocks sign-in).
@@ -331,6 +331,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.removeItem(ONBOARDING_COMPLETE_KEY);
       await AsyncStorage.removeItem(WELCOME_SEEN_KEY);
       await AsyncStorage.removeItem(DEV_MODE_KEY);
+      // Clear the signed-in user's cached profile BEFORE dropping the uid, so the
+      // next account on this device can't read it (audit P0 cross-user leak). The
+      // per-user AI-consent decision resets automatically when the uid changes
+      // (see AIConsentContext).
+      await clearProfileCache();
       await setActiveUserId(null); // stop sending the old uid as X-User-Id
 
       // Update React state before sign-out

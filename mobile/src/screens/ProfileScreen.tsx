@@ -10,6 +10,7 @@ import {
   Linking,
   Alert,
   Switch,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,7 +18,7 @@ import { Header, Card, Badge, Button, Markdown } from '../components';
 import { colors, spacing, borderRadius, typography } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useAIConsent } from '../contexts/AIConsentContext';
-import { getProfile, getCachedProfile, clearProfileCache, getActiveUserId, deleteAccount } from '../services/apiService';
+import { getProfile, getCachedProfile, clearProfileCache, getActiveUserId, deleteAccount, updateProfile } from '../services/apiService';
 import { useExperienceFacets } from '../hooks/useExperienceFacets';
 import { ProfileActivity } from '../components/ProfileActivity';
 
@@ -59,6 +60,40 @@ export function ProfileScreen() {
   const [expandedMilestones, setExpandedMilestones] = useState<Set<number>>(new Set());
   const [signingOut, setSigningOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Username (anonymous handle) editing.
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [usernameDraft, setUsernameDraft] = useState('');
+  const [savingUsername, setSavingUsername] = useState(false);
+
+  const startEditUsername = () => {
+    setUsernameDraft(profile?.username || '');
+    setEditingUsername(true);
+  };
+
+  const saveUsername = async () => {
+    const next = usernameDraft.trim().slice(0, 40);
+    if (!next || next.includes('@')) {
+      Alert.alert('Invalid handle', 'Pick a handle with no email address (up to 40 characters).');
+      return;
+    }
+    if (next === profile?.username) {
+      setEditingUsername(false);
+      return;
+    }
+    setSavingUsername(true);
+    try {
+      // Send the full profile so the backend's full-overwrite save keeps every
+      // other field; only the username changes.
+      await updateProfile({ ...(profile || {}), username: next });
+      setProfile((p) => (p ? { ...p, username: next } : p));
+      setEditingUsername(false);
+    } catch (e) {
+      Alert.alert('Could not update', e instanceof Error ? e.message : 'Please try again.');
+    } finally {
+      setSavingUsername(false);
+    }
+  };
 
   // Generated facets for each shared/published experience (website parity).
   const expFacets = useExperienceFacets(profile?.journey);
@@ -260,9 +295,59 @@ export function ProfileScreen() {
               <Ionicons name="person-circle" size={64} color={colors.primary} />
             </View>
             <View style={styles.accountInfo}>
-              <Text style={styles.username}>
-                {profile?.username || 'Anonymous User'}
-              </Text>
+              {editingUsername ? (
+                <>
+                  <View style={styles.usernameEditRow}>
+                    <TextInput
+                      style={styles.usernameInput}
+                      value={usernameDraft}
+                      onChangeText={setUsernameDraft}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      maxLength={40}
+                      placeholder="Pick a handle"
+                      placeholderTextColor={colors.onSurfaceVariant}
+                      editable={!savingUsername}
+                    />
+                    <TouchableOpacity
+                      onPress={saveUsername}
+                      disabled={savingUsername}
+                      hitSlop={8}
+                      accessibilityLabel="Save handle"
+                    >
+                      {savingUsername ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <Ionicons name="checkmark" size={22} color={colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setEditingUsername(false)}
+                      disabled={savingUsername}
+                      hitSlop={8}
+                      accessibilityLabel="Cancel"
+                    >
+                      <Ionicons name="close" size={22} color={colors.onSurfaceVariant} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.usernameHint}>
+                    This is public — don't use your real name.
+                  </Text>
+                </>
+              ) : (
+                <View style={styles.usernameRow}>
+                  <Text style={styles.username}>
+                    {profile?.username || 'Anonymous User'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={startEditUsername}
+                    hitSlop={8}
+                    accessibilityLabel="Edit handle"
+                  >
+                    <Ionicons name="pencil" size={16} color={colors.onSurfaceVariant} />
+                  </TouchableOpacity>
+                </View>
+              )}
               {user?.email && (
                 <Text style={styles.email}>{user.email}</Text>
               )}
@@ -718,6 +803,30 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: colors.onSurface,
+  },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  usernameEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  usernameInput: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.onSurface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outline,
+    paddingVertical: 2,
+  },
+  usernameHint: {
+    fontSize: typography.caption.fontSize,
+    color: colors.onSurfaceVariant,
+    marginTop: 4,
   },
   email: {
     fontSize: typography.bodyMd.fontSize,
