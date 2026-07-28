@@ -209,7 +209,18 @@ export function PostScreen() {
   );
 
   const canPreview = title.trim().length >= 3 && description.trim().length >= 10;
-  const hasVisa = groups.visa_applying_for.length > 0 || groups.current_visa_or_greencard_category.length > 0;
+  // FAMILY-UNSPECIFIED / EMPLOYMENT-UNSPECIFIED (backend: posting.py's
+  // _apply_visa_backfill()) are a LAST-RESORT fallback meant for manual
+  // curation, where there's no original poster left to ask for more detail.
+  // A live app user is right here and can always be asked directly instead
+  // — so unlike curated content, a generic code should never be enough to
+  // satisfy this gate on its own (website parity — see post/page.tsx).
+  const GENERIC_VISA_FALLBACKS = new Set(['FAMILY-UNSPECIFIED', 'EMPLOYMENT-UNSPECIFIED']);
+  const hasSpecificVisa = (arr: string[]) => arr.some((v) => !GENERIC_VISA_FALLBACKS.has(v));
+  const hasVisa =
+    hasSpecificVisa(groups.visa_applying_for) || hasSpecificVisa(groups.current_visa_or_greencard_category);
+  const hasOnlyGenericVisa =
+    !hasVisa && (groups.visa_applying_for.length > 0 || groups.current_visa_or_greencard_category.length > 0);
 
   // Add a validated value (already from the vocab list) to a tag section.
   const addToGroup = (field: keyof PostingGroups, value: string) => {
@@ -351,7 +362,12 @@ export function PostScreen() {
 
   const handleSubmit = async () => {
     if (!hasVisa) {
-      Alert.alert('Missing Info', 'Please add at least one visa/status.');
+      Alert.alert(
+        'Missing Info',
+        hasOnlyGenericVisa
+          ? 'We could tell this is family/employment-based, but need the exact category — please add the specific one below (e.g. IR-1, EB-2) if you know it.'
+          : 'Please add at least one visa/status.'
+      );
       return;
     }
     setSubmitting(true);
@@ -740,7 +756,9 @@ export function PostScreen() {
               <View style={styles.submitSection}>
                 {!hasVisa && (
                   <Text style={styles.warningText}>
-                    Add at least one visa/status under "Visa/category applying for" or "Current status".
+                    {hasOnlyGenericVisa
+                      ? 'We could tell this is family/employment-based, but need the exact category — please add the specific one below (e.g. IR-1, EB-2) if you know it.'
+                      : 'Add at least one visa/status under "Visa/category applying for" or "Current status".'}
                   </Text>
                 )}
                 <TouchableOpacity

@@ -93,7 +93,18 @@ export default function PostPage() {
   const consulateByCode = useMemo(() => new Map(vocab.consulate_options.map((o) => [o.code, o.label])), [vocab])
 
   const canPreview = title.trim().length >= 3 && description.trim().length >= 10
-  const hasVisa = groups.visa_applying_for.length > 0 || groups.current_visa_or_greencard_category.length > 0
+  // FAMILY-UNSPECIFIED / EMPLOYMENT-UNSPECIFIED (backend: posting.py's
+  // _apply_visa_backfill()) are a LAST-RESORT fallback meant for manual
+  // curation, where there's no original poster left to ask for more detail.
+  // A live app user is right here and can always be asked directly instead
+  // — so unlike curated content, a generic code should never be enough to
+  // satisfy this gate on its own. Still shown as a chip (removable, same as
+  // any other tag) so the user sees what was inferred and can either
+  // replace it with a specific code or add one alongside it.
+  const GENERIC_VISA_FALLBACKS = new Set(['FAMILY-UNSPECIFIED', 'EMPLOYMENT-UNSPECIFIED'])
+  const hasSpecificVisa = (arr: string[]) => arr.some((v) => !GENERIC_VISA_FALLBACKS.has(v))
+  const hasVisa = hasSpecificVisa(groups.visa_applying_for) || hasSpecificVisa(groups.current_visa_or_greencard_category)
+  const hasOnlyGenericVisa = !hasVisa && (groups.visa_applying_for.length > 0 || groups.current_visa_or_greencard_category.length > 0)
   const visibleSections = SECTIONS.filter((s) => ALWAYS.includes(s.field) || relevant.includes(s.field))
 
   async function preview() {
@@ -438,7 +449,9 @@ export default function PostPage() {
               <div className="pt-2 border-t border-outline-variant">
                 {!hasVisa && (
                   <p className="text-caption text-error mb-2">
-                    Add at least one visa/status under “Visa/category applying for” or “Current status” to submit.
+                    {hasOnlyGenericVisa
+                      ? 'We could tell this is family/employment-based, but need the exact category — please add the specific one below (e.g. IR-1, EB-2) if you know it.'
+                      : 'Add at least one visa/status under "Visa/category applying for" or "Current status" to submit.'}
                   </p>
                 )}
                 <button onClick={submit} disabled={submitting || !hasVisa} className="btn-primary w-full disabled:opacity-40">

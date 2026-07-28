@@ -111,3 +111,68 @@ describe('PostPage — reconcile + update-profile-to-match (profile ↔ message)
     expect(putBody?.consulates).toEqual(['BOM'])
   })
 })
+
+// A generic FAMILY-UNSPECIFIED/EMPLOYMENT-UNSPECIFIED (backend:
+// posting.py's _apply_visa_backfill(), a last-resort fallback meant for
+// manual curation with no original poster to ask) must never be enough to
+// enable Submit for a LIVE app user, who's right here and can always be
+// asked directly for the specific category instead.
+describe('PostPage — generic visa-fallback gating (FAMILY-UNSPECIFIED / EMPLOYMENT-UNSPECIFIED)', () => {
+  function mockTagSuggest(groups: Partial<typeof EMPTY_GROUPS>) {
+    global.fetch = vi.fn(async (url: string) => {
+      const u = String(url)
+      if (u.includes('/api/tag-vocab')) return json(VOCAB)
+      if (u.includes('/api/tag-suggest')) {
+        return json({
+          groups: { ...EMPTY_GROUPS, ...groups },
+          relevant_sections: ['current_visa_or_greencard_category'], posting_type: 'general_question',
+          key_stages_or_info: {}, key_dates: {},
+        })
+      }
+      if (u.includes('/api/reconcile')) return json({}, false, 404) // no active user path exercised here
+      return json({})
+    }) as unknown as typeof fetch
+  }
+
+  async function previewWith(groups: Partial<typeof EMPTY_GROUPS>) {
+    mockTagSuggest(groups)
+    render(<PostPage />)
+    fireEvent.change(screen.getByPlaceholderText(/H-1B extension with an RFE/), { target: { value: 'General I-130/I-485 question' } })
+    fireEvent.change(screen.getByPlaceholderText(/Describe your situation/), {
+      target: { value: 'For those who filed I-130 and I-485 at the same time, how long until approval?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+    await screen.findByText('Review tags')
+  }
+
+  it('a generic-only category does NOT enable Submit, and shows the "need the exact category" message', async () => {
+    await previewWith({ current_visa_or_greencard_category: ['FAMILY-UNSPECIFIED'] })
+    expect(screen.getByRole('button', { name: /Submit posting/ })).toBeDisabled()
+    expect(screen.getByText(/need the exact category/i)).toBeInTheDocument()
+    // The generic value is still shown as a removable chip, not hidden.
+    expect(screen.getByText('FAMILY-UNSPECIFIED')).toBeInTheDocument()
+  })
+
+  it('EMPLOYMENT-UNSPECIFIED alone also does NOT enable Submit', async () => {
+    await previewWith({ current_visa_or_greencard_category: ['EMPLOYMENT-UNSPECIFIED'] })
+    expect(screen.getByRole('button', { name: /Submit posting/ })).toBeDisabled()
+  })
+
+  it('a SPECIFIC code (e.g. IR-1) alongside — or instead of — the generic one DOES enable Submit', async () => {
+    await previewWith({ current_visa_or_greencard_category: ['FAMILY-UNSPECIFIED', 'IR-1'] })
+    expect(screen.getByRole('button', { name: /Submit posting/ })).not.toBeDisabled()
+    expect(screen.queryByText(/need the exact category/i)).toBeNull()
+  })
+
+  it('no visa signal at all still shows the ORIGINAL generic-empty message, not the fallback-specific one', async () => {
+    await previewWith({})
+    expect(screen.getByRole('button', { name: /Submit posting/ })).toBeDisabled()
+    expect(screen.getByText(/Add at least one visa\/status under/i)).toBeInTheDocument()
+    expect(screen.queryByText(/need the exact category/i)).toBeNull()
+  })
+
+  it('a specific visa_applying_for code alone (unrelated to the fallback) still enables Submit as before', async () => {
+    await previewWith({ visa_applying_for: ['H-1B'] })
+    expect(screen.getByRole('button', { name: /Submit posting/ })).not.toBeDisabled()
+  })
+})
