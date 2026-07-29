@@ -8,10 +8,10 @@ import { userHeaders } from '@/lib/activeUser';
 import BrandMark from '@/components/BrandMark';
 
 const navItems = [
+  { href: '/', label: 'Home', icon: 'home' },
   { href: '/find', label: 'Groups', icon: 'diversity_3' },
   { href: '/news', label: 'News', icon: 'newspaper' },
-  // Search/browse now lives at '/' itself (the Home page). Still removed:
-  // 'Community' (/community, dead mock forum), 'Ask a Pro' (/pro).
+  // Still removed: 'Community' (/community, dead mock forum), 'Ask a Pro' (/pro).
 ];
 
 export default function TopAppBar() {

@@ -38,12 +38,17 @@ export default function UnifiedSearch() {
 
   const [input, setInput] = useState(params.get('q') || '')
   const [query, setQuery] = useState(params.get('q') || '')
-  const [started, setStarted] = useState(!!params.get('q'))
   const [strictness, setStrictness] = useStrictness()
   const [selectedFacets, setSelectedFacets] = useState<string[]>([])
   const [error, setError] = useState('')
 
   // MIDDLE — postings search
+  // 'browse' = default recent feed (no typed query, mirrors the mobile app's
+  // Home tab); 'search' = a typed/faceted relevance query. `searched` gates
+  // the brief pre-first-load empty state from the actual results list — the
+  // initial browse fetch fires on mount, so this is rarely visible.
+  const [mode, setMode] = useState<'browse' | 'search'>(params.get('q') ? 'search' : 'browse')
+  const [searched, setSearched] = useState(false)
   const [results, setResults] = useState<PostingCardData[]>([])
   const [total, setTotal] = useState(0)
   const [nextPageToken, setNextPageToken] = useState('')
@@ -78,8 +83,39 @@ export default function UnifiedSearch() {
     return p.toString()
   }, [strictness])
 
+  // Default feed (no typed query): most-recent postings, auto-loaded — same
+  // empty-query browse recipe the backend's /api/search already uses for the
+  // mobile app's Home tab. Deliberately does NOT apply searchQs()'s relevance
+  // fallback text, since an empty q is what routes to the recency-sorted
+  // browse branch server-side rather than a relevance search.
+  const loadFeedQs = useCallback((pageToken: string) => {
+    const p = new URLSearchParams()
+    p.set('sort', 'event')
+    p.set('page_size', '15')
+    if (pageToken) p.set('page_token', pageToken)
+    return p.toString()
+  }, [])
+
+  const loadFeed = useCallback(async () => {
+    setSearchLoading(true); setError(''); setMode('browse')
+    setSelectedFacets([]); setAppliedFilters({}); setRelaxed(false)
+    try {
+      const res = await fetch(`/api/search?${loadFeedQs('')}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Could not load feed')
+      setResults(data.results || [])
+      setTotal(data.total || 0)
+      setNextPageToken(data.next_page_token || '')
+      setSuggested(data.suggested_filters || [])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load feed'); setResults([])
+    } finally {
+      setSearchLoading(false); setSearched(true)
+    }
+  }, [loadFeedQs])
+
   const runSearch = useCallback(async (q: string, facets: string[]) => {
-    setSearchLoading(true); setError('')
+    setSearchLoading(true); setError(''); setMode('search')
     try {
       const res = await fetch(`/api/search?${searchQs(q, facets, '')}`)
       const data = await res.json()
@@ -93,7 +129,7 @@ export default function UnifiedSearch() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed'); setResults([])
     } finally {
-      setSearchLoading(false)
+      setSearchLoading(false); setSearched(true)
     }
   }, [searchQs])
 
@@ -101,7 +137,10 @@ export default function UnifiedSearch() {
     if (!nextPageToken || loadingMore) return
     setLoadingMore(true)
     try {
-      const res = await fetch(`/api/search?${searchQs(query, selectedFacets, nextPageToken)}`)
+      const qs = mode === 'browse'
+        ? loadFeedQs(nextPageToken)
+        : searchQs(query, selectedFacets, nextPageToken)
+      const res = await fetch(`/api/search?${qs}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Could not load more')
       setResults((prev) => [...prev, ...(data.results || [])])
@@ -111,7 +150,7 @@ export default function UnifiedSearch() {
     } finally {
       setLoadingMore(false)
     }
-  }, [nextPageToken, loadingMore, searchQs, query, selectedFacets])
+  }, [nextPageToken, loadingMore, mode, loadFeedQs, searchQs, query, selectedFacets])
 
   // RIGHT panel — independent of the search call
   const runExpert = useCallback(async (q: string) => {
@@ -157,22 +196,26 @@ export default function UnifiedSearch() {
     if (expertRef.current) expertRef.current.scrollTop = expertRef.current.scrollHeight
   }, [expertTurns])
 
-  // initial URL query
+  // initial load: a typed query in the URL runs that search; otherwise show
+  // the default recent-postings feed immediately (website parity with the
+  // mobile app's Home tab — see features/ui-changes-1).
   useEffect(() => {
     if (query) { runSearch(query, selectedFacets); if (AI_MODE_ENABLED) runExpert(query) }
+    else { loadFeed() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // precision change re-runs the postings search only (AI panel unaffected)
+  // precision change re-runs the postings search only (AI panel unaffected;
+  // precision doesn't apply to the recency-sorted default feed)
   useEffect(() => {
-    if (started && query) runSearch(query, selectedFacets)
+    if (mode === 'search' && query) runSearch(query, selectedFacets)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strictness])
 
   function submit(q: string) {
     const t = q.trim()
     if (t.length < 3) return
-    setQuery(t); setStarted(true); syncUrl(t)
+    setQuery(t); syncUrl(t)
     runSearch(t, selectedFacets)   // MIDDLE
     if (AI_MODE_ENABLED) runExpert(t)   // RIGHT (independent / async) — disabled for now
   }
@@ -181,7 +224,7 @@ export default function UnifiedSearch() {
     const id = facetId(field, code)
     const next = selectedFacets.includes(id) ? selectedFacets.filter((x) => x !== id) : [...selectedFacets, id]
     setSelectedFacets(next)
-    if (query) runSearch(query, next)   // refines MIDDLE only
+    if (mode === 'search' && query) runSearch(query, next)   // refines MIDDLE only
   }
 
   // Persistent top-right Post action (both landing & results). Gated like the
@@ -197,44 +240,10 @@ export default function UnifiedSearch() {
     </Link>
   ) : null
 
-  // ---------------- LANDING ----------------
-  if (!started) {
-    return (
-      <div className="max-w-3xl mx-auto px-4">
-        {/* Persistent top-right Post action */}
-        <div className="flex justify-end pt-4 min-h-[2.5rem]">{postButton}</div>
-
-        <div className="flex flex-col items-center justify-center min-h-[55vh] -mt-10">
-          <h1 className="text-display-lg md:text-headline-lg text-primary mb-6 text-center">
-            Search immigration experiences
-          </h1>
-          <form
-            onSubmit={(e) => { e.preventDefault(); submit(input) }}
-            className="w-full max-w-2xl relative flex items-center bg-surface-container-lowest border border-outline-variant rounded-full focus-within:border-primary transition-all shadow-sm"
-          >
-            <span className="material-symbols-outlined text-on-surface-variant ml-4">search</span>
-            <input
-              autoFocus
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Search a posting or ask a question…"
-              className="flex-1 px-4 py-4 bg-transparent border-none focus:ring-0 focus:outline-none text-body-lg text-on-surface"
-            />
-            <button type="submit" disabled={input.trim().length < 3} className="btn-primary rounded-full mr-2 my-2 disabled:opacity-40">
-              Search
-            </button>
-          </form>
-          <div className="flex flex-wrap gap-2 mt-6 justify-center">
-            {EXAMPLES.map((ex) => (
-              <button key={ex} onClick={() => { setInput(ex); submit(ex) }} className="pill">{ex}</button>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   // ---------------- RESULTS (3 panels) ----------------
+  // Always this layout now — the default (browse) feed is auto-loaded on
+  // mount, so "landing" and "results" are the same view (website parity
+  // with the mobile app's Home tab — see features/ui-changes-1).
   return (
     <div className="max-w-[90rem] mx-auto px-4 py-6">
       {/* search bar (top) + persistent top-right Post action */}
@@ -274,7 +283,9 @@ export default function UnifiedSearch() {
         <main>
           <div className="flex items-center justify-between mb-2">
             <p className="text-label-md text-on-surface font-semibold">
-              {searchLoading ? 'Searching…' : `${total} postings`}
+              {searchLoading
+                ? (mode === 'browse' ? 'Loading recent postings…' : 'Searching…')
+                : `${total} ${mode === 'browse' ? 'recent postings' : 'postings'}`}
             </p>
             {AI_MODE_ENABLED && aiCollapsed && (
               <button onClick={() => setAiCollapsed(false)} className="text-caption text-primary flex items-center gap-1 hover:underline">
@@ -283,8 +294,19 @@ export default function UnifiedSearch() {
             )}
           </div>
           <AppliedFilters filters={appliedFilters} relaxed={relaxed} />
-          {!searchLoading && results.length === 0 && (
-            <div className="card text-on-surface-variant mt-3">No postings matched — try a broader query or loosen precision.</div>
+          {!searchLoading && searched && results.length === 0 && (
+            <div className="card text-on-surface-variant mt-3">
+              <p>
+                {mode === 'browse'
+                  ? 'No postings yet — check back soon.'
+                  : 'No postings matched — try a broader query or loosen precision.'}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-4">
+                {EXAMPLES.map((ex) => (
+                  <button key={ex} onClick={() => { setInput(ex); submit(ex) }} className="pill">{ex}</button>
+                ))}
+              </div>
+            </div>
           )}
           <div className="space-y-4 mt-3">
             {results.map((r) => <PostingCard key={r.case_id} r={r} />)}

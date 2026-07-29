@@ -18,10 +18,12 @@ beforeEach(() => {
   mockUser = null
 })
 
-describe('TopAppBar nav (Community removed — features/ui-changes-1)', () => {
-  it('shows Groups and News; Community is gone (search moved to "/")', () => {
+describe('TopAppBar nav (Home added, Community removed — features/ui-changes-1)', () => {
+  it('shows Home, Groups, and News; Community is gone (search moved to "/")', () => {
     render(<TopAppBar />)
     expect(screen.queryByText('Community')).not.toBeInTheDocument()
+    // scoped to <nav> — the brand mark also links to "/" but isn't labeled "Home"
+    expect(document.querySelector('nav')).toHaveTextContent('Home')
     expect(screen.getByText('Groups')).toBeInTheDocument()
     // News re-enabled once the tab had real content behind it (gov-news
     // ingestion) — see docs/ingestion/GOV-NEWS-INGESTION-PLAN.md.
@@ -31,8 +33,10 @@ describe('TopAppBar nav (Community removed — features/ui-changes-1)', () => {
     expect(screen.queryByText('Find Peers')).not.toBeInTheDocument()
   })
 
-  it('Groups points at /find, News at /news, no nav item points at /search', () => {
+  it('Home points at /, Groups at /find, News at /news, no nav item points at /search', () => {
     render(<TopAppBar />)
+    const homeLink = Array.from(document.querySelectorAll('nav a')).find((a) => a.textContent === 'Home')
+    expect(homeLink).toHaveAttribute('href', '/')
     expect(screen.getByText('Groups').closest('a')).toHaveAttribute('href', '/find')
     expect(screen.getByText('News').closest('a')).toHaveAttribute('href', '/news')
     expect(document.querySelector('nav a[href="/search"]')).not.toBeInTheDocument()
