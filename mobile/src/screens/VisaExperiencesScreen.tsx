@@ -158,7 +158,7 @@ export function VisaExperiencesScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Visa Experiences</Text>
+        <Text style={styles.headerTitle}>USA Visits/Migration Journey</Text>
         <View style={styles.backButton} />
       </View>
 
@@ -176,7 +176,7 @@ export function VisaExperiencesScreen() {
               style={styles.searchInput}
               value={query}
               onChangeText={setQuery}
-              placeholder="Search visa experiences..."
+              placeholder="Search USA visits/migration journey..."
               placeholderTextColor={colors.onSurfaceVariant}
               returnKeyType="search"
               onSubmitEditing={() => submit()}
@@ -257,7 +257,7 @@ export function VisaExperiencesScreen() {
         {!searched && !loading && !error && (
           <Animated.View style={styles.emptyState} entering={FadeInUp.delay(200).duration(400)}>
             <Ionicons name="search" size={40} color={colors.onSurfaceVariant} />
-            <Text style={styles.emptyTitle}>Search real visa experiences</Text>
+            <Text style={styles.emptyTitle}>Search real USA visits/migration journey</Text>
             <Text style={styles.emptyText}>
               Find postings from applicants in the same situation - by visa, consulate, or what happened.
             </Text>

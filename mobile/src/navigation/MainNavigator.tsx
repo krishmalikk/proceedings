@@ -19,9 +19,9 @@ import {
   BackgroundOnboardingScreen,
   ExperiencesOnboardingScreen,
   AIChatScreen,
-  HomeScreen,
   VisaExperiencesScreen,
   WelcomeScreen,
+  NewsScreen,
 } from '../screens';
 import { colors, spacing } from '../constants/theme';
 import { FloatingChatButton, ChatModal } from '../components/chat';
@@ -58,17 +58,23 @@ const fadeTransitionOptions: NativeStackNavigationOptions = {
   animationDuration: 250,
 };
 
-// "Community" mirrors the website's Community tab (the postings search/browse,
-// i.e. /search). The old mock forum screen navigated to fake case ids → 404.
-function CommunityStack() {
+// "Home" is now the postings search/browse experience itself (formerly the
+// separate "Community" tab, which mirrored the website's /search) — the old
+// personalized HomeScreen (greeting, previews) is gone. VisaExperiences/AIChat
+// stay registered even though nothing currently navigates to them (their only
+// entry points were on the old HomeScreen) — harmless if unreached, and still
+// resolve correctly if AI_CHAT_ENABLED is ever flipped back on.
+function HomeStack() {
   return (
     <Stack.Navigator screenOptions={screenTransitionOptions}>
-      <Stack.Screen name="CommunityMain" component={SearchScreen} />
+      <Stack.Screen name="HomeMain" component={SearchScreen} />
+      <Stack.Screen name="VisaExperiences" component={VisaExperiencesScreen} />
+      <Stack.Screen name="AIChat" component={AIChatScreen} />
+      <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
-      <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Disclaimer" component={DisclaimerScreen} options={modalTransitionOptions} />
       <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
@@ -77,15 +83,12 @@ function CommunityStack() {
   );
 }
 
-function HomeStack() {
+function NewsStack() {
   return (
     <Stack.Navigator screenOptions={screenTransitionOptions}>
-      <Stack.Screen name="HomeMain" component={HomeScreen} />
-      <Stack.Screen name="VisaExperiences" component={VisaExperiencesScreen} />
-      <Stack.Screen name="AIChat" component={AIChatScreen} />
-      <Stack.Screen name="Post" component={PostScreen} />
-      <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="NewsMain" component={NewsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -180,10 +183,10 @@ function TabNavigator() {
           }}
         />
         <Tab.Screen
-          name="Community"
-          component={CommunityStack}
+          name="News"
+          component={NewsStack}
           options={{
-            tabBarLabel: 'Community',
+            tabBarLabel: 'News',
           }}
         />
         <Tab.Screen

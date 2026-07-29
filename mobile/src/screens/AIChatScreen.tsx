@@ -48,7 +48,7 @@ const SUGGESTION_CARDS = [
   {
     id: 'visa-exp',
     icon: 'document-text-outline' as const,
-    title: 'Visa experiences',
+    title: 'USA visits/migration journey',
     subtitle: 'Find similar journeys',
   },
   {

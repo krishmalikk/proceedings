@@ -62,7 +62,7 @@ export function SearchScreen({ navigation }: any) {
     setSelectedFacets(new Set());
     setSuggested([]);
     try {
-      const data = await browsePostings({ sort: 'recent' });
+      const data = await browsePostings({ sort: 'event' });
       setResults(data.results);
       setNextPageToken(data.next_page_token);
       setSearched(true);
@@ -106,7 +106,7 @@ export function SearchScreen({ navigation }: any) {
     try {
       const data =
         mode === 'browse'
-          ? await browsePostings({ sort: 'recent', pageToken: nextPageToken })
+          ? await browsePostings({ sort: 'event', pageToken: nextPageToken })
           : await searchPostings(query, {
               strictness,
               facets: Array.from(selectedFacets),
@@ -150,11 +150,8 @@ export function SearchScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <Header
-        title="Community"
-        showLogo={false}
+        showLogo
         transparent
-        showProfile
-        onProfile={() => navigation.navigate('Profile')}
         rightAction={
           <TouchableOpacity
             style={styles.postButton}
@@ -180,7 +177,7 @@ export function SearchScreen({ navigation }: any) {
               style={styles.searchInput}
               value={query}
               onChangeText={setQuery}
-              placeholder="Search visa experiences…"
+              placeholder="Search USA visits/migration journey…"
               placeholderTextColor={colors.onSurfaceVariant}
               returnKeyType="search"
               onSubmitEditing={() => submit()}
@@ -255,7 +252,7 @@ export function SearchScreen({ navigation }: any) {
         {!searched && !loading && (
           <View style={styles.emptyState}>
             <Ionicons name="search" size={40} color={colors.onSurfaceVariant} />
-            <Text style={styles.emptyTitle}>Search real visa experiences</Text>
+            <Text style={styles.emptyTitle}>Search real USA visits/migration journey</Text>
             <Text style={styles.emptyText}>
               Find postings from applicants in the same situation — by visa, consulate, or what happened.
             </Text>

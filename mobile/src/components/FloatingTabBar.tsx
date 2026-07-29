@@ -18,19 +18,19 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TAB_BAR_WIDTH = SCREEN_WIDTH - spacing.md * 2;
 const TAB_BAR_HEIGHT = 70;
 
-type TabIconName = 'home' | 'people' | 'chatbubbles' | 'person';
+type TabIconName = 'home' | 'people' | 'newspaper' | 'person';
 
 const tabIcons: Record<string, { focused: TabIconName; unfocused: `${TabIconName}-outline` }> = {
   Home: { focused: 'home', unfocused: 'home-outline' },
   Find: { focused: 'people', unfocused: 'people-outline' },
-  Community: { focused: 'chatbubbles', unfocused: 'chatbubbles-outline' },
+  News: { focused: 'newspaper', unfocused: 'newspaper-outline' },
   Profile: { focused: 'person', unfocused: 'person-outline' },
 };
 
 const tabLabels: Record<string, string> = {
   Home: 'Home',
   Find: 'Groups',
-  Community: 'Community',
+  News: 'News',
   Profile: 'Profile',
 };
 
