@@ -23,7 +23,6 @@ import { ChatMessage } from '../components/chat/ChatMessage';
 import { ChatInput } from '../components/chat/ChatInput';
 import { askQuestion } from '../services/apiService';
 import { AIConsentError } from '../services/aiConsent';
-import { useAuth } from '../contexts/AuthContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -72,14 +71,10 @@ const SUGGESTION_CARDS = [
 ];
 
 export function AIChatScreen({ navigation }: any) {
-  const { user } = useAuth();
   const [chatItems, setChatItems] = useState<ChatItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasStartedChat, setHasStartedChat] = useState(false);
   const flatListRef = useRef<FlatList>(null);
-
-  // Get first name from displayName or email
-  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || '';
 
   // Hide tab bar when this screen is active
   useLayoutEffect(() => {
@@ -236,9 +231,7 @@ export function AIChatScreen({ navigation }: any) {
 
       {/* Greeting */}
       <Animated.View entering={FadeInUp.delay(100).duration(400)} style={styles.greetingContainer}>
-        <Text style={styles.greetingMuted}>
-          Hello{firstName ? `, ${firstName}` : ''}
-        </Text>
+        <Text style={styles.greetingMuted}>Hello</Text>
         <Text style={styles.greetingBold}>How can I assist you?</Text>
       </Animated.View>
 
