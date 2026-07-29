@@ -1499,17 +1499,18 @@ def search(
     facet: list[str] = Query(default=[]),
     page_size: int = 10,
     page_token: str = "",
-    sort: str = "recent",
+    sort: str = "event",
 ):
     """Ranked posting search (result cards). Browse/search mode, not Q&A.
 
     Explicit `visa`/`consulate`/`outcome` params and selected `facet` chips
     ('field:value') apply exact filters. `strictness` (broad|balanced|strict)
     controls how the NL query's extracted facets are applied. `sort`
-    ("recent" | "event" — see search_client.py's _SORT_FIELDS): "recent"
-    (default, unchanged) orders by ingestion time; "event" orders by the
-    source's own original publish date — what the News tab uses, since
-    that content is routinely backdated relative to ingestion."""
+    ("recent" | "event" — see search_client.py's _SORT_FIELDS): "event"
+    (default) orders by the source's own original publish date — ingestion
+    can lag days behind the source, so this is what "most recent" means
+    everywhere now, not just for the News tab that introduced it; "recent"
+    orders by ingestion time instead, for any caller that wants that."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
@@ -1553,7 +1554,7 @@ def search(
         browse_filter = 'doc_kind: ANY("post", "experience")'
         data = search_postings("", _project_id, _ds_location, _engine_id,
                                page_size=page_size, page_token=page_token,
-                               filter_expr=browse_filter, sort=sort or "recent")
+                               filter_expr=browse_filter, sort=sort or "event")
         data.setdefault("applied_filters", {})
         data.setdefault("effective_strictness", "recent")
         data.setdefault("relaxed", False)

@@ -438,12 +438,11 @@ def _boost_from_facets(facets: dict):
 # Discovery Engine field each `sort` value orders by — both are registered
 # identically in the live schema (retrievable+indexable, type "datetime";
 # confirmed live via SchemaService.GetSchema), so either sorts correctly.
-# "recent" (ingestion_timestamp) is the long-standing default everywhere;
-# "event" (posting_date, the source's own original publish date) exists
-# specifically for the News tab, where content is routinely backdated
-# (ingested today, published weeks/months ago at the source) — sorting by
-# ingestion there would show unrelated old/new items interleaved, not a
-# real "most recently published" order. See website's news/page.tsx.
+# "event" (posting_date, the source's own original publish date) is now the
+# default everywhere — ingestion can lag days behind a source's actual
+# publish date, so "most recent" should mean recent-at-the-source, not
+# recent-in-our-pipeline. "recent" (ingestion_timestamp) remains available
+# for any caller that specifically wants ingestion order.
 _SORT_FIELDS = {"recent": "ingestion_timestamp", "event": "posting_date"}
 
 
@@ -456,7 +455,7 @@ def search_postings(
     page_token: str = "",
     filter_expr: str = "",
     boost=None,
-    sort: str = "recent",
+    sort: str = "event",
 ) -> dict:
     """
     Ranked posting search (Google-results style) via the Discovery Engine
@@ -508,7 +507,7 @@ def search_with_strictness(
     page_token: str = "",
     strictness: str = "balanced",
     extra_filter: str = "",
-    sort: str = "recent",
+    sort: str = "event",
 ) -> dict:
     """
     Search with a user-chosen precision level:
