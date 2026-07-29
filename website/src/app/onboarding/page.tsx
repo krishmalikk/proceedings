@@ -154,7 +154,14 @@ export default function OnboardingPage() {
     }
   }
 
-  useEffect(() => { if (activeId) loadProfile() }, [activeId, loadProfile])
+  useEffect(() => {
+    // Dev picker path (activeId) OR a real Firebase-authenticated user —
+    // previously this only fired for the dev picker, so a real production
+    // user's existing profile never loaded here at all (silently starting
+    // every visit from a blank draft, and risking overwriting their saved
+    // profile with empty data on save).
+    if (activeId || authUser) loadProfile()
+  }, [activeId, authUser, loadProfile])
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight }, [messages, loading])
 
   // Lazily fetch the generated facets (the experience JSON) for each shared/published experience.
@@ -354,10 +361,12 @@ export default function OnboardingPage() {
       <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
         <h1 className="text-headline-md text-on-surface">{savedAt ? 'Your profile' : 'Set up your profile'}</h1>
         {authUser ? (
-          /* Firebase-authenticated — the demo picker is inert (the uid wins), so show identity instead. */
+          /* Firebase-authenticated — the demo picker is inert (the uid wins), so show
+             identity instead. Never the real Firebase displayName/email — draft.username
+             is the anonymized handle (loaded above), same as everywhere else in the app. */
           <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
             <span className="material-symbols-outlined text-[20px]">account_circle</span>
-            Signed in as {authUser.displayName || authUser.email}
+            Signed in as {draft.username || 'Anonymous'}
           </span>
         ) : DEMO_PICKER_ENABLED ? (
           <label className="flex items-center gap-2 text-label-md text-on-surface-variant">
