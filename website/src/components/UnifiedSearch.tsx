@@ -61,7 +61,10 @@ export default function UnifiedSearch() {
   const expertRef = useRef<HTMLDivElement>(null)
 
   const syncUrl = useCallback((q: string) => {
-    router.replace(q ? `/search?q=${encodeURIComponent(q)}` : '/search', { scroll: false })
+    // This component now renders at "/" (the Home page) — keep the address
+    // bar in sync with "/", not the old "/search" (which is now just a
+    // redirect to here).
+    router.replace(q ? `/?q=${encodeURIComponent(q)}` : '/', { scroll: false })
   }, [router])
 
   const searchQs = useCallback((q: string, facets: string[], pageToken: string) => {
@@ -70,6 +73,7 @@ export default function UnifiedSearch() {
     facets.forEach((f) => p.append('facet', f))
     p.set('strictness', strictness)
     p.set('page_size', '15')
+    p.set('sort', 'event')
     if (pageToken) p.set('page_token', pageToken)
     return p.toString()
   }, [strictness])

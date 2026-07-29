@@ -61,7 +61,7 @@ export default function CaseDetailsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-margin-desktop py-8">
       <Link
-        href="/search"
+        href="/"
         className="inline-flex items-center gap-1 text-label-md text-on-surface-variant hover:text-primary mb-6 transition-colors"
       >
         <span className="material-symbols-outlined text-[20px]">arrow_back</span>
