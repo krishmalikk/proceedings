@@ -1,4 +1,5 @@
 import React from 'react';
+import { Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { renderScreen, fireEvent } from '../../test/render';
 import { CaseDetailsScreen } from '../CaseDetailsScreen';
@@ -75,5 +76,46 @@ describe('CaseDetailsScreen', () => {
 
     expect(await screen.findByText('AUTHORCARD:user-9')).toBeOnTheScreen();
     expect(screen.queryByText('brave-maple-3272')).toBeNull();
+  });
+
+  // Phase 2.9 fix (features/ui-changes-1): gov-news content has a fixed
+  // per-source handle (e.g. "USCIS") with no in-app profile behind it, so it
+  // must link OUT to the source URL — not into AuthorByHandle like a real
+  // app-channel handle would. Mirrors the website's case/[id]/page.tsx
+  // 3-way branch (AuthorCard / Source-link / AuthorByHandle).
+  it('gov-news posting (fixed source handle): shows "Source" heading, opens the external URL, never navigates in-app', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
+    mockPosting({
+      channel: 'gov_news', author_id: '', author_handle: 'USCIS',
+      url: 'https://www.uscis.gov/newsroom/some-update',
+    });
+    const navigation = makeNav();
+    const screen = await renderCaseDetails(navigation);
+
+    // "Source" also appears as a plain label in the top Details card
+    // (independent of channel) — the author-block heading is the SECOND
+    // occurrence, so assert both are present rather than a single match.
+    await screen.findByText('View the original announcement');
+    expect(screen.getAllByText('Source')).toHaveLength(2);
+    expect(screen.queryByText('Author')).toBeNull();
+
+    const handle = screen.getByText('USCIS');
+    await fireEvent.press(handle);
+    expect(openURL).toHaveBeenCalledWith('https://www.uscis.gov/newsroom/some-update');
+    expect(navigation.navigate).not.toHaveBeenCalledWith('AuthorByHandle', expect.anything());
+    expect(screen.queryByText(/AUTHORCARD:/)).toBeNull();
+
+    openURL.mockRestore();
+  });
+
+  it('app-channel posting (not gov-news): shows "Author" heading, not "Source"', async () => {
+    mockPosting({ channel: 'app', author_id: '', author_handle: 'brave-maple-3272' });
+    const screen = await renderCaseDetails(makeNav());
+
+    expect(await screen.findByText('Author')).toBeOnTheScreen();
+    // The Details card's plain "Source" label still renders (unrelated to
+    // channel), but the author-block heading must not be a second "Source".
+    expect(screen.getAllByText('Source')).toHaveLength(1);
+    expect(screen.getByText('See all postings by this author')).toBeOnTheScreen();
   });
 });
