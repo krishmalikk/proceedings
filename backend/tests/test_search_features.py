@@ -74,6 +74,25 @@ def group_f_extraction() -> None:
     check("F7 POE now matches via new 'abbreviation' facet (1.3-abbreviations.csv)",
           "POE" in f6.get("abbreviation", []), str(f6))
 
+    # Follow-up bug found by live user verification: "Port-of-entry Boston"
+    # and "POE Boston" did NOT extract the same facet — the abbreviation
+    # facet only indexed the code column (row[0]), never the CSV's own
+    # "Full Name"/alternate_tag columns (row[1]/row[2]), so the spelled-out
+    # phrase extracted zero facets. That silently made strict precision fall
+    # through to balanced (search_with_strictness's `if strictness ==
+    # "strict" and facets:` is False when facets == {}) without ever
+    # setting `relaxed`, so the two spellings behaved completely differently
+    # under strict — not just a slightly different result count.
+    f8 = codes("Port-of-entry Boston")
+    f9 = codes("port of entry Boston")
+    f10 = codes("POE Boston")
+    check("F8 hyphenated full name 'Port-of-entry' resolves to the POE code",
+          f8.get("abbreviation") == ["POE"], str(f8))
+    check("F9 spaced-out full name 'port of entry' resolves to the POE code",
+          f9.get("abbreviation") == ["POE"], str(f9))
+    check("F10 all three spellings extract the identical facet dict",
+          f8 == f9 == f10, f"f8={f8} f9={f9} f10={f10}")
+
 
 # ---------------------------------------------------------------------------
 # G — Filter / boost builders + heuristic intent (UNIT)
@@ -145,6 +164,23 @@ def group_h_search_endpoint() -> None:
         top_ids = [c["case_id"] for c in poe["results"][:5]]
         check("H4 relevance-sorted free-text search ranks the matching posting in the top 5",
               KNOWN_POE_BOSTON_CASE_ID in top_ids, f"top5={top_ids}")
+
+        # Live-verification follow-up: before the abbreviation Full Name fix,
+        # "Port-of-entry Boston" extracted zero facets, which made
+        # search_with_strictness silently fall through to balanced under
+        # strictness="strict" (effective_strictness would read "balanced",
+        # not "strict") — a much bigger discrepancy than a raw count
+        # difference. The two spellings must now both genuinely run strict.
+        phrase = client.get("/api/search", params={"q": "Port-of-entry Boston", "strictness": "strict"}).json()
+        abbrev = client.get("/api/search", params={"q": "POE Boston", "strictness": "strict"}).json()
+        check("H5 spelled-out phrase under strict precision actually runs strict (not silently balanced)",
+              phrase.get("effective_strictness") == "strict" and phrase.get("relaxed") is False,
+              f'effective={phrase.get("effective_strictness")} relaxed={phrase.get("relaxed")}')
+        check("H6 both POE spellings run the same strict code path, matching posting present in both",
+              abbrev.get("effective_strictness") == "strict"
+              and KNOWN_POE_BOSTON_CASE_ID in {c["case_id"] for c in phrase["results"]}
+              and KNOWN_POE_BOSTON_CASE_ID in {c["case_id"] for c in abbrev["results"]},
+              f'phrase_total={phrase.get("total")} abbrev_total={abbrev.get("total")}')
 
 
 # ---------------------------------------------------------------------------

@@ -370,7 +370,10 @@ def _csv_path(name: str) -> str:
 
 def _code_variants(code: str) -> set:
     low = code.strip().lower()
-    return {v for v in {low, low.replace("-", ""), low.replace("-", " ")} if v}
+    # Includes a space->hyphen variant (not just hyphen->space) so a spaced-out
+    # full name like "Port of Entry" also matches hyphenated query text like
+    # "port-of-entry" — see _facet_registry()'s abbreviation Full Name indexing.
+    return {v for v in {low, low.replace("-", ""), low.replace("-", " "), low.replace(" ", "-")} if v}
 
 
 def _facet_registry() -> list:
@@ -399,6 +402,19 @@ def _facet_registry() -> list:
                     elif spec["kind"] == "code":
                         for v in _code_variants(code):
                             terms[v] = code
+                        # Abbreviations (1.3-abbreviations.csv: tag,alternate_tag,
+                        # Full Name,Description) carry a human-readable Full Name
+                        # and sometimes an alternate_tag — index those too so a
+                        # query using the spelled-out phrase ("Port of Entry")
+                        # matches the same code as the abbreviation itself
+                        # ("POE"). setdefault: never let an alias shadow a
+                        # primary code's own term.
+                        if spec["key"] == "abbreviation":
+                            for extra in (row[1] if len(row) > 1 else "", row[2] if len(row) > 2 else ""):
+                                extra = extra.strip()
+                                if extra:
+                                    for v in _code_variants(extra):
+                                        terms.setdefault(v, code)
                     elif spec["kind"] == "tag":  # only multi-segment tags (avoid common-word FPs)
                         if "-" in code:
                             terms[code.lower()] = code
