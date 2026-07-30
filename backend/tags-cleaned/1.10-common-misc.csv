@@ -106,7 +106,6 @@ job-search,Job search activities while on a visa
 interview-waiver,Waiver of in-person visa interview (Dropbox/interview-waiver eligibility)
 job-title,Job title concern (matching LCA/petition)
 job-description,Job description concern (matching LCA/petition)
-port-of-entry,U.S. port of entry where admission occurs
 job-offer,Job offer required/lost for visa eligibility
 rfe-denied,RFE response was followed by denial
 discussion,"General discussion thread about a GENERIC topic (news, policy, industry update) NOT about the applicant's own case. Mutually exclusive with experience-posting; do NOT use when the poster is sharing their own experience or asking about their own case."
@@ -128,7 +127,7 @@ backlog,Visa bulletin / processing backlog
 bill,Pending or new immigration legislation
 lost-document,Lost immigration document (passport/EAD/I-94)
 timeline,Case timeline sharing/inquiry
-experience-posting,"First-hand account of ANY U.S. immigration milestone or process the applicant personally went through (visa interview, OFC biometrics, consulate stamping pickup, port-of-entry / CBP, H-1B filing/approval, RFE, biometrics, AOS interview, etc.) — regardless of where it happened or the outcome. Use whenever the post describes the applicant's own lived experience of a step, not just plans/questions."
+experience-posting,"First-hand account of ANY U.S. immigration milestone or process the applicant personally went through (visa interview, OFC biometrics, consulate stamping pickup, POE / CBP, H-1B filing/approval, RFE, biometrics, AOS interview, etc.) — regardless of where it happened or the outcome. Use whenever the post describes the applicant's own lived experience of a step, not just plans/questions."
 past-experience,"Umbrella tag for a PAST, lived experience the applicant is recounting (any milestone/step). Marks the content as a historical first-hand account rather than a current question, concern, or plan. Applied to every experience captured on the profile experiences page."
 visa-interview-experience,"First-hand account of an immigration INTERVIEW the applicant attended — at a U.S. consulate/embassy abroad OR a USCIS office in the U.S. (e.g. adjustment-of-status or naturalization interview). Use for any interview experience, consular or domestic."
 open-for-attorney,Question intended for an attorney to answer
@@ -169,7 +168,7 @@ tal-screening,Technology Alert List screening — additional review for STEM app
 misrepresentation,INA 212(a)(6)(C) misrepresentation ground of inadmissibility
 fraud,Fraud-based denial or inadmissibility concern
 f1-reinstatement,F-1 reinstatement of status (via Form I-539) after a status violation
-i94-error,Port-of-entry I-94 issuance errors (wrong class of admission or wrong admit-until date)
+i94-error,POE I-94 issuance errors (wrong class of admission or wrong admit-until date)
 concurrent-h1b,Concurrent H-1B employment with multiple petitioning employers
 travel-history-disclosure,DS-160 travel-history disclosure concerns (prior US trips and trips to third countries)
 affidavit-of-support,I-864 affidavit-of-support sponsor / sponsee / income-threshold concerns
