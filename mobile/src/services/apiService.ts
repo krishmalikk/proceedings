@@ -701,6 +701,32 @@ export async function browsePostings(
   };
 }
 
+export interface QueryTag {
+  field: string;
+  code: string;
+  label: string;
+}
+
+/**
+ * Tags derived from the search query text itself (same Gemini-based tagging
+ * principles as posting composition), in the same {field, code, label} shape
+ * suggested_filters() uses — so a toggled query-tag chip's facetId(field,
+ * code) plugs directly into the existing selectedFacets mechanism. Meant to
+ * be called once per search submit (not per keystroke) and in parallel with
+ * searchPostings — a slow/failed call here must never block results.
+ * features/ui-changes-1/changes-2-.md item 4.
+ */
+export async function fetchQueryTags(q: string): Promise<QueryTag[]> {
+  const response = await apiFetch(`${API_URL}/api/search/query-tags`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q }),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) return [];
+  return data.tags || [];
+}
+
 export interface ConsulateCountry {
   country: string;
   country_code: string;

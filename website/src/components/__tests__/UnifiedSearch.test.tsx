@@ -4,10 +4,14 @@ import UnifiedSearch from '../UnifiedSearch'
 
 // (Vitest hoists vi.mock — only `mock`-prefixed vars may be referenced inside.)
 let mockSearchParam = ''
+let mockFacetParams: string[] = []
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
-  useSearchParams: () => ({ get: (key: string) => (key === 'q' ? mockSearchParam || null : null) }),
+  useSearchParams: () => ({
+    get: (key: string) => (key === 'q' ? mockSearchParam || null : null),
+    getAll: (key: string) => (key === 'facet' ? mockFacetParams : []),
+  }),
 }))
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('@/lib/activeUser', () => ({ USER_KEY: 'demo-user-id' }))
@@ -20,6 +24,7 @@ const POSTING = {
 
 beforeEach(() => {
   mockSearchParam = ''
+  mockFacetParams = []
   vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {} })
 })
 
@@ -64,6 +69,29 @@ describe('UnifiedSearch — default feed auto-loads on mount (features/ui-change
 
     const calledUrl = fetchMock.mock.calls[0][0] as string
     expect(calledUrl).toContain('q=H-1B')
+  })
+
+  // features/ui-changes-1/changes-2-.md item 3: "Back to Search" previously
+  // lost selected facets entirely (only `q` was ever synced to the URL) — a
+  // remount from a URL that already carries `facet=` params must restore
+  // them into the initial search, not start from an empty facet set.
+  it('restores selected facets from the URL into the initial search (Back to Search)', async () => {
+    mockSearchParam = 'H-1B RFE'
+    mockFacetParams = ['key_stages_or_info.outcome_status:RFE']
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        results: [POSTING], total: 1, next_page_token: '',
+        applied_filters: {}, relaxed: false, suggested_filters: [],
+      }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<UnifiedSearch />)
+    await screen.findByText('H-1B RFE experience')
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string
+    expect(calledUrl).toContain(encodeURIComponent('key_stages_or_info.outcome_status:RFE'))
   })
 
   it('shows a loading state and then example prompts if the initial feed comes back empty', async () => {

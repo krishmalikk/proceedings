@@ -267,6 +267,14 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
         or _as_list(meta.get("tags"))
         or _as_list(meta.get("derived_topic_cluster"))
     )
+    # "news-update" must always survive into the card's tags, regardless of
+    # which source array won the fallback chain above (posting.py's
+    # _gov_news_tags() guarantees it's in the raw "tags" field for every
+    # gov-news doc, but concerns_or_questions_tags could still win the chain
+    # instead) or of the 8-item cap below silently dropping it — prepend
+    # (not append) so the cap can never cut it.
+    if "news-update" in _as_list(meta.get("tags")) and "news-update" not in tags:
+        tags = ["news-update"] + tags
     return {
         "case_id": case_id,
         "title": str(meta.get("post_title") or "").strip() or case_id,
@@ -331,8 +339,23 @@ _FACET_SPECS = [
     {"key": "category", "label": "Category",
      "fields": ["current_visa_or_greencard_category", "visa_applying_for"],
      "csv": "1.2-greencard-categories.csv", "kind": "code", "boost": 0.4, "min_len": 3},
-    {"key": "outcome", "label": "Outcome", "fields": ["key_stages_or_info.outcome_status"],
-     "csv": "1.9-outcomes.csv", "kind": "code", "boost": 0.3, "min_len": 5},
+    # min_len lowered from 5 to 3: matching is exact-code (not substring), so a
+    # 3-char token still has to equal a real 1.9 code ("RFE", etc.) — this only
+    # stops rejecting short-but-valid codes before the exact-match check runs.
+    # Also now checked against tags/concerns_or_questions_tags, not just
+    # key_stages_or_info.outcome_status — _master_tags_block() feeds 1.9 into
+    # the same tags/concerns_or_questions_tags union the model tags from, so an
+    # outcome code can land in either place.
+    {"key": "outcome", "label": "Outcome",
+     "fields": ["key_stages_or_info.outcome_status", "tags", "concerns_or_questions_tags"],
+     "csv": "1.9-outcomes.csv", "kind": "code", "boost": 0.3, "min_len": 3},
+    # New: abbreviations (POE, RFE, NVC, ...) were never registered as a facet
+    # at all, so terms like "POE" were silently dropped from every strictness
+    # level's filter/boost. Same fields as "tag" below — _master_tags_block()
+    # feeds 1.3 into the same tags/concerns_or_questions_tags union.
+    {"key": "abbreviation", "label": "Term",
+     "fields": ["tags", "concerns_or_questions_tags"],
+     "csv": "1.3-abbreviations.csv", "kind": "code", "boost": 0.3, "min_len": 3},
     {"key": "tag", "label": "Tag",
      "fields": ["tags", "concerns_or_questions_tags", "derived_topic_cluster"],
      "csv": "1.10-common-misc.csv", "kind": "tag", "boost": 0.2, "min_len": 6},
@@ -442,7 +465,11 @@ def _boost_from_facets(facets: dict):
 # default everywhere — ingestion can lag days behind a source's actual
 # publish date, so "most recent" should mean recent-at-the-source, not
 # recent-in-our-pipeline. "recent" (ingestion_timestamp) remains available
-# for any caller that specifically wants ingestion order.
+# for any caller that specifically wants ingestion order. "relevance" (no
+# order_by at all — Discovery Engine's own text-relevance ranking governs)
+# is a third option: forcing posting_date-desc on every free-text query
+# used to bury a strongly-matching-but-older posting under unrelated recent
+# ones within the same facet-filtered set — see search_with_strictness().
 _SORT_FIELDS = {"recent": "ingestion_timestamp", "event": "posting_date"}
 
 
@@ -466,20 +493,24 @@ def search_postings(
     client = _search_client(project_id, location)
     serving_config = _serving_config(project_id, location, engine_id)
 
-    order_field = _SORT_FIELDS.get(sort, _SORT_FIELDS["recent"])
-    request = de.SearchRequest(
+    request_kwargs = dict(
         serving_config=serving_config,
         query=query,
         page_size=page_size,
         page_token=page_token or "",
         filter=filter_expr or "",
-        # Most-recent-first by whichever timestamp `sort` selects (see
-        # _SORT_FIELDS) — always descending, so the freshest content leads.
-        order_by=f"{order_field} desc",
         content_search_spec=de.SearchRequest.ContentSearchSpec(
             snippet_spec=de.SearchRequest.ContentSearchSpec.SnippetSpec(return_snippet=True),
         ),
     )
+    if sort != "relevance":
+        # Most-recent-first by whichever timestamp `sort` selects (see
+        # _SORT_FIELDS) — always descending, so the freshest content leads.
+        # sort="relevance" omits this entirely, letting Discovery Engine's own
+        # text-relevance ranking govern order instead.
+        order_field = _SORT_FIELDS.get(sort, _SORT_FIELDS["recent"])
+        request_kwargs["order_by"] = f"{order_field} desc"
+    request = de.SearchRequest(**request_kwargs)
     if boost is not None:
         request.boost_spec = boost
     elif _BOOST_ENABLED:

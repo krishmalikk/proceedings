@@ -21,6 +21,10 @@ PROJECT = os.getenv("GCP_PROJECT_ID") or os.getenv("GCP_PROJECT", "")
 LOCATION = os.getenv("GCP_VERTEX_DATASTORE_LOCATION", "global")
 ENGINE = os.getenv("GCP_VERTEX_SEARCH_APP_ID", "imm-postings-search-app")
 KNOWN_CASE_ID = "reddit-2026-04-11-USVisas-1socshn"  # the Australia B1/B2 post
+# The exact posting from the changes-2-.md item 3 bug report — its title is
+# literally "POE - Boston"; used to verify the relevance-sort fix surfaces it
+# near the top of a free-text search instead of being buried by recency sort.
+KNOWN_POE_BOSTON_CASE_ID = "app-2026-07-29-890d259a"
 
 _results: list[tuple[str, bool, str]] = []
 
@@ -59,6 +63,16 @@ def group_f_extraction() -> None:
     check("F5 visa + outcome + consulate across fields",
           f5.get("visa") == ["F-1"] and f5.get("consulate") == ["HYD"]
           and f5.get("outcome") == ["denied"], str(f5))
+
+    # features/ui-changes-1/changes-2-.md item 3: "H1B RFE POE Boston" under
+    # strict precision returned many unrelated postings because RFE (outcome
+    # min_len was 5, RFE is 3 chars) and POE (abbreviations/1.3 was never
+    # registered as a facet at all) were both silently dropped.
+    f6 = codes("H1B RFE POE Boston")
+    check("F6 RFE now matches (outcome min_len 5->3, exact-code match unchanged)",
+          "RFE" in f6.get("outcome", []), str(f6))
+    check("F7 POE now matches via new 'abbreviation' facet (1.3-abbreviations.csv)",
+          "POE" in f6.get("abbreviation", []), str(f6))
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +134,17 @@ def group_h_search_endpoint() -> None:
         broad = client.get("/api/search", params={"q": "B1/B2 in Mumbai", "strictness": "broad"}).json()
         check("H3 strict total <= broad total", 1 <= strict["total"] <= broad["total"],
               f'strict={strict["total"]} broad={broad["total"]}')
+
+        # features/ui-changes-1/changes-2-.md item 3, second half: forcing
+        # posting_date-desc on every free-text query buried a
+        # strongly-matching-but-older posting under unrelated recent ones.
+        # Default sort is now relevance for free-text queries; this exact
+        # posting (title literally "POE - Boston") should rank near the top
+        # for a query naming its own content, not wherever recency put it.
+        poe = client.get("/api/search", params={"q": "H1B RFE POE Boston", "strictness": "broad"}).json()
+        top_ids = [c["case_id"] for c in poe["results"][:5]]
+        check("H4 relevance-sorted free-text search ranks the matching posting in the top 5",
+              KNOWN_POE_BOSTON_CASE_ID in top_ids, f"top5={top_ids}")
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +232,100 @@ def group_k_context_filters() -> None:
               f'cards={len(chat["results"])}')
 
 
+# ---------------------------------------------------------------------------
+# L — News-update tag survival + 7-day gov-news recency filter (changes-2-.md
+#     items 1 & 5). Mixes a deterministic UNIT check (no GCP) with live
+#     INTEGRATION checks against the real datastore.
+# ---------------------------------------------------------------------------
+
+def group_l_news_filtering() -> None:
+    print("\nL — news-update tag survival + 7-day gov-news filter")
+    import search_client as s
+
+    # L1 (unit, no GCP): "news-update" must survive into the card even when a
+    # different array wins the tags fallback chain (concerns_or_questions_tags
+    # here) and even when the raw tags array is at/over the 8-item cap.
+    meta = {
+        "post_title": "Synthetic gov-news doc",
+        "concerns_or_questions_tags": ["a-different-array-won"],
+        "tags": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "news-update"],
+    }
+    card = s._card_from_struct("synthetic-case-id", meta)
+    check("L1 news-update survives into card.tags despite a different fallback array winning",
+          "news-update" in card["tags"], str(card["tags"]))
+
+    meta_no_news = {"post_title": "x", "tags": ["a", "b"]}
+    card_no_news = s._card_from_struct("synthetic-case-id-2", meta_no_news)
+    check("L2 no false positive: news-update NOT injected when absent from raw tags",
+          "news-update" not in card_no_news["tags"], str(card_no_news["tags"]))
+
+    # L3/L4 (integration): a broad free-text query that surfaces gov_news
+    # content should only include gov_news items within the last 7 days
+    # (by posting_date, i.e. event/source date) — older gov_news should be
+    # excluded from ordinary keyword search entirely.
+    from fastapi.testclient import TestClient
+    import api
+    from datetime import datetime, timedelta, timezone
+
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+    with TestClient(api.app) as client:
+        api._db = None
+        r = client.get("/api/search", params={"q": "USCIS policy update", "strictness": "broad",
+                                               "page_size": 50}).json()
+        gov_news_results = [c for c in r["results"] if c["channel"] == "gov_news"]
+        stale = [c["case_id"] for c in gov_news_results if c["date"] and c["date"] <= cutoff]
+        check("L3 free-text search excludes gov_news older than 7 days",
+              not stale, f"stale={stale}")
+        check("L4 gov_news results (if any) that DO appear carry the news-update tag",
+              all("news-update" in c["tags"] for c in gov_news_results),
+              str([(c["case_id"], c["tags"]) for c in gov_news_results if "news-update" not in c["tags"]]))
+
+        # News tab's own path (explicit doc_kind:gov_news facet chip) must stay
+        # unaffected by the 7-day carve-out — it's a different branch (hard
+        # filter, not free-text) specifically so old news stays reachable there.
+        news_tab = client.get("/api/search", params={"q": "", "facet": "doc_kind:gov_news",
+                                                      "page_size": 50}).json()
+        news_tab_old = [c for c in news_tab["results"] if c["date"] and c["date"] <= cutoff]
+        check("L5 News tab's explicit facet path still returns old gov_news (unaffected by the carve-out)",
+              len(news_tab_old) > 0, f"{len(news_tab_old)} old items via News tab path")
+
+
+# ---------------------------------------------------------------------------
+# M — Query-derived tags (changes-2-.md item 4)
+# ---------------------------------------------------------------------------
+
+def group_m_query_tags() -> None:
+    print("\nM — query-derived tags (posting.suggest_query_tags)")
+    import posting
+
+    # The model is occasionally non-deterministic on a short 4-word fragment
+    # (unlike a real posting's full title+description); allow up to 3
+    # attempts before declaring a miss — same tolerance test_posting_tagging.py's
+    # F7 already applies to Gemini-based tagging checks.
+    tags: list = []
+    codes: set = set()
+    for _ in range(3):
+        tags = posting.suggest_query_tags("H1B RFE POE Boston")
+        codes = {t["code"] for t in tags}
+        if codes & {"RFE", "POE"}:
+            break
+    check("M1 suggest_query_tags surfaces RFE and/or POE from the query text (<=3 tries)",
+          bool(codes & {"RFE", "POE"}), str(tags))
+    check("M2 every returned tag has the {field, code, label} shape",
+          all({"field", "code", "label"} <= set(t) for t in tags), str(tags))
+
+    check("M3 empty query returns no tags (no wasted Gemini call)",
+          posting.suggest_query_tags("") == [] and posting.suggest_query_tags("   ") == [])
+
+    from fastapi.testclient import TestClient
+    import api
+    with TestClient(api.app) as client:
+        r = client.post("/api/search/query-tags", json={"q": "H1B RFE POE Boston"})
+        check("M4 /api/search/query-tags returns 200 with a tags list",
+              r.status_code == 200 and isinstance(r.json().get("tags"), list),
+              f"status={r.status_code}")
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set")
@@ -221,6 +340,8 @@ def main() -> int:
     group_i_posting_detail()
     group_j_chat_strictness()
     group_k_context_filters()
+    group_l_news_filtering()
+    group_m_query_tags()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)

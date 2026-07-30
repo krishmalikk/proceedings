@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Markdown from '@/components/Markdown'
 import VoteControl from '@/components/VoteControl'
@@ -38,11 +38,23 @@ function outcomeBadge(outcome: string) {
 
 export default function CaseDetailsPage() {
   const params = useParams<{ id: string }>()
+  const router = useRouter()
   const id = params?.id
   const [data, setData] = useState<PostingDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [postingTally, setPostingTally] = useState<Tally>(ZERO_TALLY)
+
+  // router.back() lands on the "/" history entry UnifiedSearch's syncUrl
+  // already kept in sync (query + facets, via router.replace on every
+  // search/toggle) — restores the prior search instead of resetting to a
+  // blank landing state (features/ui-changes-1/changes-2-.md item 3). Fall
+  // back to a plain navigation only when there's no real history to pop
+  // (e.g. a directly-shared/bookmarked case link opened in a fresh tab).
+  function backToSearch() {
+    if (typeof window !== 'undefined' && window.history.length > 1) router.back()
+    else router.push('/')
+  }
 
   useEffect(() => {
     if (!id) return
@@ -60,13 +72,13 @@ export default function CaseDetailsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-margin-desktop py-8">
-      <Link
-        href="/"
+      <button
+        onClick={backToSearch}
         className="inline-flex items-center gap-1 text-label-md text-on-surface-variant hover:text-primary mb-6 transition-colors"
       >
         <span className="material-symbols-outlined text-[20px]">arrow_back</span>
         Back to Search
-      </Link>
+      </button>
 
       {loading && <div className="card text-on-surface-variant">Loading posting…</div>}
       {error && <div className="card text-error">{error}</div>}

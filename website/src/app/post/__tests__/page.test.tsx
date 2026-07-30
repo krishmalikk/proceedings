@@ -112,12 +112,12 @@ describe('PostPage — reconcile + update-profile-to-match (profile ↔ message)
   })
 })
 
-// A generic FAMILY-UNSPECIFIED/EMPLOYMENT-UNSPECIFIED (backend:
+// A generic FAMILY-IMMIGRATION/EMPLOYMENT-UNSPECIFIED (backend:
 // posting.py's _apply_visa_backfill(), a last-resort fallback meant for
 // manual curation with no original poster to ask) must never be enough to
 // enable Submit for a LIVE app user, who's right here and can always be
 // asked directly for the specific category instead.
-describe('PostPage — generic visa-fallback gating (FAMILY-UNSPECIFIED / EMPLOYMENT-UNSPECIFIED)', () => {
+describe('PostPage — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPLOYMENT-UNSPECIFIED)', () => {
   function mockTagSuggest(groups: Partial<typeof EMPTY_GROUPS>) {
     global.fetch = vi.fn(async (url: string) => {
       const u = String(url)
@@ -146,11 +146,11 @@ describe('PostPage — generic visa-fallback gating (FAMILY-UNSPECIFIED / EMPLOY
   }
 
   it('a generic-only category does NOT enable Submit, and shows the "need the exact category" message', async () => {
-    await previewWith({ current_visa_or_greencard_category: ['FAMILY-UNSPECIFIED'] })
+    await previewWith({ current_visa_or_greencard_category: ['FAMILY-IMMIGRATION'] })
     expect(screen.getByRole('button', { name: /Submit posting/ })).toBeDisabled()
     expect(screen.getByText(/need the exact category/i)).toBeInTheDocument()
     // The generic value is still shown as a removable chip, not hidden.
-    expect(screen.getByText('FAMILY-UNSPECIFIED')).toBeInTheDocument()
+    expect(screen.getByText('FAMILY-IMMIGRATION')).toBeInTheDocument()
   })
 
   it('EMPLOYMENT-UNSPECIFIED alone also does NOT enable Submit', async () => {
@@ -159,7 +159,7 @@ describe('PostPage — generic visa-fallback gating (FAMILY-UNSPECIFIED / EMPLOY
   })
 
   it('a SPECIFIC code (e.g. IR-1) alongside — or instead of — the generic one DOES enable Submit', async () => {
-    await previewWith({ current_visa_or_greencard_category: ['FAMILY-UNSPECIFIED', 'IR-1'] })
+    await previewWith({ current_visa_or_greencard_category: ['FAMILY-IMMIGRATION', 'IR-1'] })
     expect(screen.getByRole('button', { name: /Submit posting/ })).not.toBeDisabled()
     expect(screen.queryByText(/need the exact category/i)).toBeNull()
   })

@@ -10,15 +10,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Header, PostingCard, Skeleton, EmptyState, ErrorState, AnimatedListItem } from '../components';
+import { Header, PostingCard, Skeleton, EmptyState, ErrorState, AnimatedListItem, FilterChip, AppText } from '../components';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import {
   searchPostings,
   browsePostings,
+  fetchQueryTags,
   facetId,
   SearchResultItem,
   SuggestedFilterGroup,
+  QueryTag,
   Strictness,
 } from '../services/apiService';
 
@@ -44,6 +46,7 @@ export function SearchScreen({ navigation }: any) {
   // Case ids the viewer just reported/blocked — hidden instantly (App Store 1.2).
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [suggested, setSuggested] = useState<SuggestedFilterGroup[]>([]);
+  const [queryTags, setQueryTags] = useState<QueryTag[]>([]);
   const [selectedFacets, setSelectedFacets] = useState<Set<string>>(new Set());
   const [nextPageToken, setNextPageToken] = useState('');
   const [searched, setSearched] = useState(false);
@@ -61,6 +64,7 @@ export function SearchScreen({ navigation }: any) {
     setMode('browse');
     setSelectedFacets(new Set());
     setSuggested([]);
+    setQueryTags([]);
     try {
       const data = await browsePostings({ sort: 'event' });
       setResults(data.results);
@@ -145,6 +149,10 @@ export function SearchScreen({ navigation }: any) {
       return;
     }
     runSearch(text, new Set(), strictness);
+    // Query-derived tag chips (parallel, non-blocking — a real Gemini call,
+    // so this fires once per submit, not per keystroke). Best-effort: a
+    // slow/failed call just leaves the chip row empty.
+    fetchQueryTags(text).then(setQueryTags).catch(() => {});
   };
 
   return (
@@ -209,6 +217,29 @@ export function SearchScreen({ navigation }: any) {
             ))}
           </View>
         </View>
+
+        {/* Tags generated from the search text itself (Gemini, same tagging
+            principles as posting composition) — a separate concept from the
+            "Refine by" facets below, which are backend result-derived.
+            Tapping one plugs into the same selectedFacets/toggleFacet
+            mechanism. features/ui-changes-1/changes-2-.md item 4. */}
+        {queryTags.length > 0 && (
+          <View style={styles.filtersBlock}>
+            <AppText variant="labelMd" color="onSurface" style={styles.queryTagsTitle}>
+              Tags from your search
+            </AppText>
+            <View style={styles.queryTagsRow}>
+              {queryTags.map((t) => (
+                <FilterChip
+                  key={facetId(t.field, t.code)}
+                  label={t.label}
+                  selected={selectedFacets.has(facetId(t.field, t.code))}
+                  onPress={() => toggleFacet(t.field, t.code)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Suggested filters from the search response (website parity) */}
         {suggested.length > 0 && (
@@ -365,6 +396,8 @@ const styles = StyleSheet.create({
   filtersBlock: { marginTop: spacing.md },
   filtersHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
   filtersTitle: { fontSize: 13, fontWeight: '600', color: colors.onSurface },
+  queryTagsTitle: { marginBottom: spacing.base },
+  queryTagsRow: { flexDirection: 'row', flexWrap: 'wrap' },
   filterGroup: { marginBottom: spacing.base },
   filterGroupLabel: {
     fontSize: 11,

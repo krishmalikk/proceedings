@@ -514,7 +514,7 @@ Return ONLY the sections that truly apply (omit the rest). Example: a consular B
 Always capture the applicant's visa/status in current_visa_or_greencard_category and/or visa_applying_for whenever one is discernible.
 Populate key_stages_or_info with discrete outcomes/state facts (e.g. visa_status: approved, I-140: approved) and key_dates with any dates mentioned — these become their own UI sections when present.
 
-FAMILY-UNSPECIFIED and EMPLOYMENT-UNSPECIFIED are LAST-RESORT category codes — use them ONLY when the posting is clearly family-based or employment-based (e.g. it mentions I-130, a spouse/parent/child relationship without naming which, an employer-sponsored petition, etc.) but truly gives no way to determine a specific code (IR-1, F2A-FAMILY, EB-2, ...). Never use them as a shortcut when a specific code IS determinable from the text — e.g. an explicit "my wife"/"my husband" mention with a U.S.-citizen petitioner means IR-1, not FAMILY-UNSPECIFIED.
+FAMILY-IMMIGRATION and EMPLOYMENT-UNSPECIFIED are LAST-RESORT category codes — use them ONLY when the posting is clearly family-based or employment-based (e.g. it mentions I-130, a spouse/parent/child relationship without naming which, an employer-sponsored petition, etc.) but truly gives no way to determine a specific code (IR-1, F2A-FAMILY, EB-2, ...). Never use them as a shortcut when a specific code IS determinable from the text — e.g. an explicit "my wife"/"my husband" mention with a U.S.-citizen petitioner means IR-1, not FAMILY-IMMIGRATION.
 """
 
 
@@ -615,7 +615,7 @@ _I130_TAGS = {"I-130", "i130-filing", "i130-approval"}
 # ever runs after _derive_visa_from_tags() has already had its chance, so
 # a real, specific, derivable code always wins over the generic fallback.
 _GENERIC_CATEGORY_FALLBACK = {
-    "family-based-immigration": "FAMILY-UNSPECIFIED",
+    "family-based-immigration": "FAMILY-IMMIGRATION",
     "employment-based-immigration": "EMPLOYMENT-UNSPECIFIED",
 }
 
@@ -777,6 +777,42 @@ def suggest_tags(title: str, description: str) -> dict:
         "key_stages_or_info": _clean_stages(extracted.get("key_stages_or_info")),
         "key_dates": key_dates,
     }
+
+
+# Fields returned by suggest_query_tags(), in the same names search_client's
+# suggested_filters()/_facets_filter() already use for facet field ids — so a
+# toggled query-tag chip's "field:code" id plugs directly into the frontend's
+# existing selectedFacets mechanism with no translation layer.
+_QUERY_TAG_FIELDS = ["visa_applying_for", "current_visa_or_greencard_category", "consulates", "tags"]
+
+
+def suggest_query_tags(query: str) -> list[dict]:
+    """Run the same Gemini-based extraction used for postings, scoped to a
+    search query string, and return matches as [{field, code, label}, ...] —
+    the same shape suggested_filters() already uses for facet chips, so a
+    toggled query-tag chip plugs directly into the frontend's existing
+    facet-filter state (field:code ids), no new mechanism needed on either
+    client (features/ui-changes-1/changes-2-.md item 4).
+
+    Deliberately NOT a thin wrapper around suggest_tags(): that function
+    requires separate title/description (Pydantic-gated to min_length 3/10
+    on its own endpoint, /api/tag-suggest) and returns a much larger shape
+    (relevant_sections, posting_type, key_stages_or_info, key_dates) that's
+    meaningless for a bare search string. Here the query stands in for the
+    "title" with an empty description; the only guard is non-empty input.
+    This is a real Gemini call, not free — callers should trigger it on
+    search submit, not per keystroke."""
+    q = (query or "").strip()
+    if not q:
+        return []
+    extracted = _extract(q, "")
+    groups = {f: _clean_group(f, extracted.get(f)) for f in GROUP_FIELDS}
+    groups = _normalize_groups(groups)
+    out: list[dict] = []
+    for field in _QUERY_TAG_FIELDS:
+        for code in groups.get(field) or []:
+            out.append({"field": field, "code": code, "label": code})
+    return out
 
 
 # ---------------------------------------------------------------------------

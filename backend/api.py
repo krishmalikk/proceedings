@@ -179,6 +179,21 @@ class TagSuggestResponse(BaseModel):
     key_dates: dict[str, str] = {}
 
 
+# --- Search query tag chips (features/ui-changes-1/changes-2-.md item 4) ---
+class QueryTagsRequest(BaseModel):
+    q: str = Field(..., min_length=1, max_length=300)
+
+
+class QueryTag(BaseModel):
+    field: str
+    code: str
+    label: str
+
+
+class QueryTagsResponse(BaseModel):
+    tags: list[QueryTag] = []
+
+
 class PostingCreateRequest(BaseModel):
     title: str = Field(..., min_length=3, max_length=300)
     description: str = Field(..., min_length=10, max_length=8000)
@@ -837,6 +852,23 @@ def tag_suggest(body: TagSuggestRequest, request: Request):
         key_stages_or_info=out.get("key_stages_or_info", {}),
         key_dates=out.get("key_dates", {}),
     )
+
+
+@app.post("/api/search/query-tags", response_model=QueryTagsResponse)
+def search_query_tags(body: QueryTagsRequest, request: Request):
+    """Auto-derive controlled-vocabulary tags from a search query string, using
+    the same Gemini-based tagging principles as posting composition (see
+    posting.suggest_query_tags). Meant to be called once per search submit
+    (not per keystroke) in parallel with /api/search — a slow/failed call here
+    must never block or delay showing search results."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+
+    import posting
+
+    out = _guard(lambda: posting.suggest_query_tags(body.q))
+    return QueryTagsResponse(tags=[QueryTag(**t) for t in out])
 
 
 @app.get("/api/tag-vocab")
@@ -1560,9 +1592,29 @@ def search(
         data.setdefault("relaxed", False)
     else:
         # Free-text/relevance search, where Discovery Engine genuinely needs
-        # some query text to rank against.
+        # some query text to rank against. Default to relevance ordering
+        # (search_client._SORT_FIELDS comment) rather than forcing
+        # posting_date-desc — a strongly-matching-but-older posting used to
+        # get buried under unrelated recent ones within the same
+        # facet-filtered set (features/ui-changes-1/changes-2-.md item 3).
+        # A caller that explicitly wants ingestion-recency (sort="recent")
+        # is still honored; "event" (the general default elsewhere) and any
+        # other value both mean "let relevance govern" here.
+        effective_sort = "recent" if sort == "recent" else "relevance"
+        # gov-news items shouldn't pollute ordinary keyword search — the
+        # empty-query browse path already excludes them (browse_filter
+        # above) and the News tab reaches them via its own explicit
+        # doc_kind:gov_news facet chip (the hard-filter branch above, left
+        # untouched). This is the one remaining path with no doc_kind
+        # handling at all. Carve out anything still within the last 7 days
+        # (by source event date, not ingestion) so breaking news can still
+        # surface in a relevant keyword search while it's still news.
+        news_cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+        news_recency_filter = f'((NOT doc_kind: ANY("gov_news")) OR posting_date > "{news_cutoff}")'
         data = search_with_strictness(q, _project_id, _ds_location, _engine_id,
-                                      page_size=page_size, page_token=page_token, strictness=strictness, sort=sort)
+                                      page_size=page_size, page_token=page_token,
+                                      strictness=strictness, sort=effective_sort,
+                                      extra_filter=news_recency_filter)
 
     # Hide moderation-taken-down postings and any authored by users the viewer
     # has blocked; also stamps each card's author_id for client-side blocking.

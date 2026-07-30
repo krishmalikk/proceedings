@@ -287,7 +287,7 @@ def group_e_build() -> None:
     # publish at all. _apply_visa_backfill() now takes the next, more
     # conservative step: since I-130 already guarantees the
     # family-based-immigration TAG is present, fall back to the generic
-    # FAMILY-UNSPECIFIED CODE rather than leaving both visa fields empty.
+    # FAMILY-IMMIGRATION CODE rather than leaving both visa fields empty.
     gc_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
                "primary_consulate": "", "consulates": [],
                "tags": ["I-130", "I-485", "aos-filing", "aos-approval"],
@@ -296,7 +296,7 @@ def group_e_build() -> None:
     check("E13 I-130 -> family-based-immigration tag added",
           "family-based-immigration" in c13["tags"], c13["tags"])
     check("E14 category backfilled to the generic fallback (I-130 doesn't imply a SPECIFIC code, but now guarantees a generic one)",
-          c13["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], c13["current_visa_or_greencard_category"])
+          c13["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], c13["current_visa_or_greencard_category"])
     check("E15 validate() now passes — the generic fallback satisfies the visa-required rule",
           p.validate(c13) == [], str(p.validate(c13)))
 
@@ -305,7 +305,7 @@ def group_e_build() -> None:
           c16["tags"].count("family-based-immigration") == 1, c16["tags"])
 
     # E16a-E16m: _apply_visa_backfill() — the generic last-resort fallback
-    # (FAMILY-UNSPECIFIED / EMPLOYMENT-UNSPECIFIED), gated behind a real
+    # (FAMILY-IMMIGRATION / EMPLOYMENT-UNSPECIFIED), gated behind a real
     # family/employment-based-immigration TAG signal, and only ever as a
     # last resort behind _derive_visa_from_tags()'s more specific answer.
     def _backfilled(tags: list[str]) -> dict:
@@ -316,8 +316,8 @@ def group_e_build() -> None:
         return groups
 
     g_fam = _backfilled(["family-based-immigration"])
-    check("E16a family-based-immigration tag alone -> FAMILY-UNSPECIFIED",
-          g_fam["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], g_fam)
+    check("E16a family-based-immigration tag alone -> FAMILY-IMMIGRATION",
+          g_fam["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g_fam)
 
     g_emp = _backfilled(["employment-based-immigration"])
     check("E16b employment-based-immigration tag alone -> EMPLOYMENT-UNSPECIFIED",
@@ -364,8 +364,8 @@ def group_e_build() -> None:
     # paths do, not just when the tags dict is hand-constructed already
     # containing the tag.
     c_i130_only = p.build_canonical("t", "d", {"tags": ["I-130"]})
-    check("E16i build_canonical(): bare I-130 tag alone (deterministic add) still resolves to FAMILY-UNSPECIFIED end-to-end",
-          c_i130_only["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], c_i130_only)
+    check("E16i build_canonical(): bare I-130 tag alone (deterministic add) still resolves to FAMILY-IMMIGRATION end-to-end",
+          c_i130_only["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], c_i130_only)
     check("E16j build_canonical(): bare I-130 case passes validate()",
           p.validate(c_i130_only) == [], str(p.validate(c_i130_only)))
 
@@ -379,15 +379,15 @@ def group_e_build() -> None:
     if p._I130_TAGS & set(g_order["tags"]):
         p._add_tag_once(g_order, "family-based-immigration")
     p._apply_visa_backfill(g_order)
-    check("E16k I-130-tag-add-then-backfill ordering resolves to FAMILY-UNSPECIFIED (mirrors suggest_tags()'s call order)",
-          g_order["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], g_order)
+    check("E16k I-130-tag-add-then-backfill ordering resolves to FAMILY-IMMIGRATION (mirrors suggest_tags()'s call order)",
+          g_order["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g_order)
 
     g_vocab = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
                "primary_consulate": "", "consulates": [], "tags": ["family-based-immigration"],
                "concerns_or_questions_tags": []}
     p._apply_visa_backfill(g_vocab)
     c_vocab = p.build_canonical("t", "d", g_vocab)
-    check("E16l FAMILY-UNSPECIFIED is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
+    check("E16l FAMILY-IMMIGRATION is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
           not any("not in visa vocab" in e for e in p.validate(c_vocab)), str(p.validate(c_vocab)))
 
     g_vocab2 = {"visa_applying_for": [], "current_visa_or_greencard_category": [],

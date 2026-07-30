@@ -10,6 +10,15 @@ import Markdown from '@/components/Markdown'
 import StrictnessSlider, { useStrictness, AppliedFilters } from '@/components/StrictnessSlider'
 import SuggestedFilters, { facetId, type SuggestedFilterGroup } from '@/components/SuggestedFilters'
 
+type QueryTag = { field: string; code: string; label: string }
+
+// Facets encoded into the URL as repeated `facet=field:code` params — parses
+// selectedFacets back out on mount so "Back to Search" (router.back()) can
+// fully restore a prior search, not just its query text.
+function parseFacetsFromUrl(sp: { getAll: (key: string) => string[] }): string[] {
+  return sp.getAll('facet').filter(Boolean)
+}
+
 type Turn = { id: string; role: 'user' | 'ai'; content: string }
 
 // TODO (phase-H): Re-enable the AI-mode right panel. Disabled for now per
@@ -39,8 +48,9 @@ export default function UnifiedSearch() {
   const [input, setInput] = useState(params.get('q') || '')
   const [query, setQuery] = useState(params.get('q') || '')
   const [strictness, setStrictness] = useStrictness()
-  const [selectedFacets, setSelectedFacets] = useState<string[]>([])
+  const [selectedFacets, setSelectedFacets] = useState<string[]>(() => parseFacetsFromUrl(params))
   const [error, setError] = useState('')
+  const [queryTags, setQueryTags] = useState<QueryTag[]>([])
 
   // MIDDLE — postings search
   // 'browse' = default recent feed (no typed query, mirrors the mobile app's
@@ -65,11 +75,18 @@ export default function UnifiedSearch() {
   const [aiCollapsed, setAiCollapsed] = useState(false)
   const expertRef = useRef<HTMLDivElement>(null)
 
-  const syncUrl = useCallback((q: string) => {
+  const syncUrl = useCallback((q: string, facets: string[]) => {
     // This component now renders at "/" (the Home page) — keep the address
     // bar in sync with "/", not the old "/search" (which is now just a
-    // redirect to here).
-    router.replace(q ? `/?q=${encodeURIComponent(q)}` : '/', { scroll: false })
+    // redirect to here). Facets are included (not just q) so "Back to
+    // Search" (case/[id]/page.tsx's router.back()) restores the full prior
+    // search, not just its query text — see features/ui-changes-1/
+    // changes-2-.md item 3.
+    const p = new URLSearchParams()
+    if (q) p.set('q', q)
+    facets.forEach((f) => p.append('facet', f))
+    const qs = p.toString()
+    router.replace(qs ? `/?${qs}` : '/', { scroll: false })
   }, [router])
 
   const searchQs = useCallback((q: string, facets: string[], pageToken: string) => {
@@ -96,9 +113,27 @@ export default function UnifiedSearch() {
     return p.toString()
   }, [])
 
+  // Query-derived tag chips (features/ui-changes-1/changes-2-.md item 4) — a
+  // real Gemini call, so this fires once per search submit (not per
+  // keystroke) and in parallel with runSearch, never blocking/delaying
+  // results. Best-effort: a slow/failed call just leaves the chip row empty.
+  const fetchQueryTags = useCallback(async (q: string) => {
+    try {
+      const res = await fetch('/api/search/query-tags', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setQueryTags(data.tags || [])
+    } catch {
+      // best-effort — never surfaces an error for this
+    }
+  }, [])
+
   const loadFeed = useCallback(async () => {
     setSearchLoading(true); setError(''); setMode('browse')
-    setSelectedFacets([]); setAppliedFilters({}); setRelaxed(false)
+    setSelectedFacets([]); setAppliedFilters({}); setRelaxed(false); setQueryTags([])
     try {
       const res = await fetch(`/api/search?${loadFeedQs('')}`)
       const data = await res.json()
@@ -215,8 +250,9 @@ export default function UnifiedSearch() {
   function submit(q: string) {
     const t = q.trim()
     if (t.length < 3) return
-    setQuery(t); syncUrl(t)
+    setQuery(t); syncUrl(t, selectedFacets)
     runSearch(t, selectedFacets)   // MIDDLE
+    fetchQueryTags(t)              // query-derived tag chips (parallel, non-blocking)
     if (AI_MODE_ENABLED) runExpert(t)   // RIGHT (independent / async) — disabled for now
   }
 
@@ -224,7 +260,7 @@ export default function UnifiedSearch() {
     const id = facetId(field, code)
     const next = selectedFacets.includes(id) ? selectedFacets.filter((x) => x !== id) : [...selectedFacets, id]
     setSelectedFacets(next)
-    if (mode === 'search' && query) runSearch(query, next)   // refines MIDDLE only
+    if (mode === 'search' && query) { runSearch(query, next); syncUrl(query, next) }   // refines MIDDLE only
   }
 
   // Persistent top-right Post action (both landing & results). Gated like the
@@ -272,6 +308,31 @@ export default function UnifiedSearch() {
           <div className="bg-surface-container-low rounded-xl p-4">
             <StrictnessSlider value={strictness} onChange={setStrictness} />
           </div>
+          {/* Tags generated from the search text itself (Gemini, same tagging
+              principles as posting composition) — a separate concept from
+              the "Refine by" facets below, which are backend result-derived.
+              Toggling one plugs into the same selectedFacets mechanism.
+              features/ui-changes-1/changes-2-.md item 4. */}
+          {queryTags.length > 0 && (
+            <div className="bg-surface-container-low rounded-xl p-4 space-y-2">
+              <p className="text-label-md text-on-surface font-medium">Tags from your search</p>
+              <div className="flex flex-wrap gap-2">
+                {queryTags.map((t) => {
+                  const id = facetId(t.field, t.code)
+                  const on = selectedFacets.includes(id)
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => toggleFacet(t.field, t.code)}
+                      className={on ? 'pill-active' : 'pill'}
+                    >
+                      {t.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {suggested.length > 0 && (
             <div className="bg-surface-container-low rounded-xl p-4">
               <SuggestedFilters groups={suggested} selected={new Set(selectedFacets)} onToggle={toggleFacet} />
