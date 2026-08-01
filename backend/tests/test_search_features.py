@@ -317,6 +317,69 @@ def group_l_news_filtering() -> None:
     check("L2b blog survives into card.tags despite a different fallback array winning",
           "blog" in card_blog["tags"], str(card_blog["tags"]))
 
+    # L1c: all three guaranteed tags at once — news-update, discussion, and
+    # blog aren't mutually exclusive (a link-share reacting to news can also
+    # invite discussion; see Phase B), so a doc could legitimately carry all
+    # three in its raw "tags" while a DIFFERENT array still wins the
+    # fallback chain. Each must survive independently — the loop shouldn't
+    # clobber an earlier guaranteed tag while re-injecting a later one.
+    meta_triple = {
+        "post_title": "Synthetic triple-tag doc",
+        "concerns_or_questions_tags": ["a-different-array-won"],
+        "tags": ["news-update", "discussion", "blog", "t1"],
+    }
+    card_triple = s._card_from_struct("synthetic-case-id-5", meta_triple)
+    check("L1c news-update, discussion, AND blog all survive together, none clobbering the others",
+          {"news-update", "discussion", "blog"} <= set(card_triple["tags"]), str(card_triple["tags"]))
+
+    # L1d: no duplicate re-injection when the guaranteed tag is already
+    # present in whichever array won the fallback chain (as opposed to
+    # L1/L1b/L2b, where a DIFFERENT array won and didn't have it at all).
+    meta_already_won = {
+        "post_title": "Synthetic already-present doc",
+        "concerns_or_questions_tags": ["discussion", "other"],
+        "tags": ["discussion", "random"],
+    }
+    card_already_won = s._card_from_struct("synthetic-case-id-6", meta_already_won)
+    check("L1d discussion not duplicated when the winning array already contains it",
+          card_already_won["tags"].count("discussion") == 1, str(card_already_won["tags"]))
+
+    # L1e: the guaranteed tags survive the 8-item cap even when the winning
+    # array is already AT the cap on its own (8 unrelated items) — the
+    # prepend-not-append ordering (search_client.py) means the cap always
+    # trims from the END, never dropping a just-injected guaranteed tag.
+    meta_at_cap = {
+        "post_title": "Synthetic at-cap doc",
+        "concerns_or_questions_tags": [f"c{i}" for i in range(8)],
+        "tags": ["discussion", "blog"] + [f"c{i}" for i in range(8)],
+    }
+    card_at_cap = s._card_from_struct("synthetic-case-id-7", meta_at_cap)
+    check("L1e discussion AND blog both survive the 8-item cap even when the winning array was already full",
+          "discussion" in card_at_cap["tags"] and "blog" in card_at_cap["tags"]
+          and len(card_at_cap["tags"]) == 8,
+          str(card_at_cap["tags"]))
+
+    # L1f: the exact live bug this coverage pass found (case_id
+    # app-2026-08-01-38046506) — concerns_or_questions_tags is EMPTY, so the
+    # raw "tags" array itself wins the fallback chain unmodified (no
+    # "different array won"), but it has 20+ items and "discussion"/
+    # "news-update" sit past index 8. The ORIGINAL guarantee check
+    # (`guaranteed not in tags`) saw them as "already present" and did
+    # nothing, so the cap silently cut both — a real Discussions-tab match
+    # whose card carried neither pill. Must check survival past the cap
+    # (`not in tags[:8]`), not mere membership.
+    meta_buried = {
+        "post_title": "Synthetic buried-past-cap doc",
+        "concerns_or_questions_tags": [],
+        "tags": ["a", "b", "c", "d", "e", "f", "g", "h", "discussion", "news-update", "i", "j"],
+    }
+    card_buried = s._card_from_struct("synthetic-case-id-8", meta_buried)
+    check("L1f discussion AND news-update both survive even when they're buried past index 8 in the SAME "
+          "array that won the fallback chain (not a different, losing array)",
+          "discussion" in card_buried["tags"] and "news-update" in card_buried["tags"]
+          and len(card_buried["tags"]) == 8,
+          str(card_buried["tags"]))
+
     # L3/L4 (integration): a broad free-text query that surfaces gov_news
     # content should only include gov_news items within the last 7 days
     # (by posting_date, i.e. event/source date) — older gov_news should be

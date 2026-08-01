@@ -58,4 +58,26 @@ describe('PostingCard tag/news badges', () => {
     expect(screen.getByText('Blog')).toBeInTheDocument()
     expect(screen.getByText('h1b-lottery')).toBeInTheDocument()
   })
+
+  // discussion/blog/news-update aren't mutually exclusive (Phase B: a
+  // link-share reacting to news gets both news-update and discussion) — all
+  // applicable pills must render together, and the fallback tag badge must
+  // skip all three, not just whichever one happens to be present.
+  it('shows News, Discussion, and Blog pills together when a card carries all three tags', () => {
+    render(<PostingCard r={posting({ visa: [], tags: ['news-update', 'discussion', 'blog', 'OPT'] })} />)
+    expect(screen.getByText('News')).toBeInTheDocument()
+    expect(screen.getByText('Discussion')).toBeInTheDocument()
+    expect(screen.getByText('Blog')).toBeInTheDocument()
+    expect(screen.getByText('OPT')).toBeInTheDocument()
+  })
+
+  it('the fallback tag badge skips news-update, discussion, AND blog, not just one of them', () => {
+    render(<PostingCard r={posting({ visa: [], tags: ['news-update', 'discussion', 'blog'] })} />)
+    // No fourth "general tag" badge exists to fall back to here — all three
+    // present tags are exemption tags, each with its own dedicated pill;
+    // none of them should also render as the generic fallback badge text.
+    expect(screen.getAllByText('News')).toHaveLength(1)
+    expect(screen.getAllByText('Discussion')).toHaveLength(1)
+    expect(screen.getAllByText('Blog')).toHaveLength(1)
+  })
 })

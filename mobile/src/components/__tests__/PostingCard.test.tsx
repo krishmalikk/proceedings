@@ -54,4 +54,27 @@ describe('PostingCard tag/news badges', () => {
     expect(s.getByText('Blog')).toBeOnTheScreen();
     expect(s.getByText('h1b-lottery')).toBeOnTheScreen();
   });
+
+  // discussion/blog/news-update aren't mutually exclusive (Phase B: a
+  // link-share reacting to news gets both news-update and discussion) — all
+  // applicable pills must render together, and the fallback tag badge must
+  // skip all three, not just whichever one happens to be present.
+  it('shows News, Discussion, and Blog pills together when a card carries all three tags', async () => {
+    const s = await renderScreen(
+      <PostingCard posting={posting({ visa: [], tags: ['news-update', 'discussion', 'blog', 'OPT'] })} />
+    );
+    expect(s.getByText('News')).toBeOnTheScreen();
+    expect(s.getByText('Discussion')).toBeOnTheScreen();
+    expect(s.getByText('Blog')).toBeOnTheScreen();
+    expect(s.getByText('OPT')).toBeOnTheScreen();
+  });
+
+  it('the fallback tag badge skips news-update, discussion, AND blog, not just one of them', async () => {
+    const s = await renderScreen(
+      <PostingCard posting={posting({ visa: [], tags: ['news-update', 'discussion', 'blog'] })} />
+    );
+    expect(s.getAllByText('News')).toHaveLength(1);
+    expect(s.getAllByText('Discussion')).toHaveLength(1);
+    expect(s.getAllByText('Blog')).toHaveLength(1);
+  });
 });

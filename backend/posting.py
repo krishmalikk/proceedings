@@ -608,6 +608,14 @@ _POSTING_TYPES = {"consular_visa", "in_us_status", "experience", "general_questi
 # alone), I-130 -> "this is family-based" is a safe, unambiguous inference.
 _I130_TAGS = {"I-130", "i130-filing", "i130-approval"}
 
+# Symmetric to _I130_TAGS above, for the employment side: Form I-140
+# ("Immigrant Petition for Alien Worker") has exactly one use — employment-
+# based immigrant petitions — no family/diversity/investor/asylum path ever
+# touches it, so I-140 -> "this is employment-based" is equally safe and
+# unambiguous, even though it can't pin down which specific EB category
+# (EB-1/EB-1A/EB-1B/EB-1C/EB-2/EB-3 all file I-140).
+_I140_TAGS = {"I-140", "i140-filing", "i140-approval", "i140-portability"}
+
 # Last-resort generic categories (tags-cleaned/1.2-greencard-categories.csv)
 # for when a posting is clearly family- or employment-based (the model
 # tagged it, or the deterministic _I130_TAGS rule above did) but neither
@@ -848,16 +856,20 @@ def suggest_tags(title: str, description: str) -> dict:
     # applies for phase-J experiences).
     if key_dates:
         _add_tag_once(groups, "timeline")
-    # I-130 in any form -> family-based-immigration, deterministically (see
-    # _I130_TAGS). Doesn't touch current_visa_or_greencard_category — I-130
-    # alone can't tell us the specific category (spouse/parent/sibling/etc.).
-    # Runs BEFORE the visa backfill below, not after — _apply_visa_backfill's
-    # generic-fallback step keys off this exact tag, so it needs to already
-    # be present by the time that runs (matters when the model itself
-    # didn't independently emit "family-based-immigration" and only this
-    # deterministic rule adds it).
+    # I-130 in any form -> family-based-immigration, I-140 -> employment-
+    # based-immigration, deterministically (see _I130_TAGS/_I140_TAGS).
+    # Doesn't touch current_visa_or_greencard_category — neither form alone
+    # can tell us the specific category (I-130: spouse/parent/sibling/etc.;
+    # I-140: EB-1/EB-1A/EB-1B/EB-1C/EB-2/EB-3). Runs BEFORE the visa
+    # backfill below, not after — _apply_visa_backfill's generic-fallback
+    # step keys off these exact tags, so they need to already be present by
+    # the time that runs (matters when the model itself didn't
+    # independently emit the topic tag and only this deterministic rule
+    # adds it).
     if _I130_TAGS & set(groups["tags"]):
         _add_tag_once(groups, "family-based-immigration")
+    if _I140_TAGS & set(groups["tags"]):
+        _add_tag_once(groups, "employment-based-immigration")
     # Tips/advice/discussion content often references a specific visa's
     # process tags (e.g. h1b-petition) without a personal status claim, or
     # a family/employment-based post that never states enough detail for a
@@ -1103,12 +1115,15 @@ def build_canonical(title: str, description: str, tags: dict,
     if dates:
         _add_tag_once(groups, "timeline")
 
-    # I-130 in any form -> family-based-immigration, deterministically —
-    # single point of truth for every caller, same reasoning as the timeline
-    # rule above. Runs BEFORE the visa backfill below — see the matching
-    # comment in suggest_tags() for why the order matters.
+    # I-130 -> family-based-immigration, I-140 -> employment-based-
+    # immigration, deterministically — single point of truth for every
+    # caller, same reasoning as the timeline rule above. Runs BEFORE the
+    # visa backfill below — see the matching comment in suggest_tags() for
+    # why the order matters.
     if _I130_TAGS & set(groups["tags"]):
         _add_tag_once(groups, "family-based-immigration")
+    if _I140_TAGS & set(groups["tags"]):
+        _add_tag_once(groups, "employment-based-immigration")
 
     # Tips/advice/discussion content often references a specific visa's
     # process tags (e.g. h1b-petition) without a personal status claim, or

@@ -268,18 +268,24 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
         or _as_list(meta.get("derived_topic_cluster"))
     )
     # "news-update"/"discussion"/"blog" must always survive into the card's
-    # tags, regardless of which source array won the fallback chain above
-    # (posting.py deterministically guarantees "discussion" — and the model
-    # may pick "blog" — in the raw "tags" field, but concerns_or_questions_tags
-    # could still win the chain instead) or of the 8-item cap below silently
-    # dropping them — prepend (not append) so the cap can never cut them.
-    # Found live: the Discussions tab (Phase D) filters on `tags: ANY(...)`
-    # so a match is guaranteed to have one of these in the raw "tags" array,
-    # but without this re-union the card's displayed tags — and therefore
-    # PostingCard's "Discussion"/"Blog" pill — could still silently omit it.
+    # (capped) tags, regardless of which source array won the fallback chain
+    # above (posting.py deterministically guarantees "discussion" — and the
+    # model may pick "blog" — in the raw "tags" field, but
+    # concerns_or_questions_tags could still win the chain instead) or of
+    # the 8-item cap below silently dropping them.
+    #
+    # Checking mere membership (`guaranteed not in tags`) isn't enough —
+    # found live: a real posting with 20 raw tags, no concerns_or_questions_tags
+    # (so raw "tags" itself wins the chain unmodified), had "discussion"/
+    # "news-update" sitting at positions 10/11 — well past the 8-item cap
+    # applied below. `guaranteed not in tags` was True->False (already
+    # "present"), so nothing moved them forward, and the cap silently cut
+    # both. Must check `not in tags[:8]` (will it survive the cap as-is?),
+    # not just `not in tags` (does it exist anywhere?) — and remove any
+    # existing occurrence before prepending so it isn't duplicated.
     for guaranteed in ("news-update", "discussion", "blog"):
-        if guaranteed in _as_list(meta.get("tags")) and guaranteed not in tags:
-            tags = [guaranteed] + tags
+        if guaranteed in _as_list(meta.get("tags")) and guaranteed not in tags[:8]:
+            tags = [guaranteed] + [t for t in tags if t != guaranteed]
     return {
         "case_id": case_id,
         "title": str(meta.get("post_title") or "").strip() or case_id,
