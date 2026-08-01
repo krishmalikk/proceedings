@@ -20,7 +20,9 @@ export type PostingCardData = {
 
 // Human-readable source label: r/subreddit for Reddit content, the source's
 // own handle (e.g. "USCIS") when present, else a generic per-channel label
-// rather than the raw internal channel token.
+// rather than the raw internal channel token. First-party app postings
+// deliberately get no label at all (just the timestamp) — showing the
+// product's own brand name on every single card read as noisy/redundant.
 //
 // `author_handle` is reliably present on the case detail page (a direct
 // document fetch) but — verified live — is absent from list-view search
@@ -35,7 +37,7 @@ export type PostingCardData = {
 function sourceLabel(r: PostingCardData): string {
   if (r.subreddit) return `r/${r.subreddit}`
   if (r.author_handle) return r.author_handle
-  if (r.channel === 'app') return 'Meridian'
+  if (r.channel === 'app') return ''
   if (r.channel === 'gov_news') return 'Government News'
   return r.channel
 }
@@ -101,7 +103,8 @@ export default function PostingCard({ r }: { r: PostingCardData }) {
               backend-ingested content (gov-news, Reddit) which is routinely
               backdated relative to ingestion; falls back to `timestamp`/
               `date` only for older cards that predate event_timestamp. */}
-          {sourceLabel(r)} · {timeAgo(r.event_timestamp || r.timestamp || r.date) || r.date}
+          {sourceLabel(r) && `${sourceLabel(r)} · `}
+          {timeAgo(r.event_timestamp || r.timestamp || r.date) || r.date}
         </span>
         <span className="flex items-center gap-1 text-primary">
           View Details

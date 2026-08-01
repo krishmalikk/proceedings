@@ -105,3 +105,19 @@ describe('CaseDetailsPage — "Back to Search"', () => {
     expect(mockBack).not.toHaveBeenCalled()
   })
 })
+
+// Reported live: an "Original Content" section heading above the posting's
+// own body read as redundant clutter — the body is shown directly now, no
+// label needed (the AI summary sidebar box already has its own distinct
+// label, so there's no ambiguity to disambiguate against).
+describe('CaseDetailsPage — no "Original Content" heading', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  it('renders the posting body without an "Original Content" section heading', async () => {
+    mockPosting({ body: 'The full text of the posting.' })
+    render(<CaseDetailsPage />)
+
+    await screen.findByText('The full text of the posting.')
+    expect(screen.queryByText('Original Content')).not.toBeInTheDocument()
+  })
+})

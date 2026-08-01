@@ -81,3 +81,33 @@ describe('PostingCard tag/news badges', () => {
     expect(screen.getAllByText('Blog')).toHaveLength(1)
   })
 })
+
+// A first-party app posting's card footer should read just the relative
+// time ("19h ago"), never the product's own brand name repeated on every
+// card in a results list — noisy/redundant, reported live.
+describe('PostingCard source label (no "Meridian" on first-party postings)', () => {
+  it('does not render "Meridian" for a channel=app posting', () => {
+    render(<PostingCard r={posting({ channel: 'app', subreddit: '', author_handle: undefined })} />)
+    expect(screen.queryByText(/Meridian/)).not.toBeInTheDocument()
+  })
+
+  it('does not leave a dangling "· " separator when there is no source label', () => {
+    render(<PostingCard r={posting({ channel: 'app', subreddit: '', author_handle: undefined, date: '2026-07-28' })} />)
+    // The date span carries `title={r.date}` regardless of how timeAgo()
+    // formats its visible text (relative vs. absolute, which depends on
+    // "now" at test-run time) — a stable selector for the footer's
+    // left-hand span. Its text should never start with a stray "· ".
+    const dateSpan = screen.getByTitle('2026-07-28')
+    expect(dateSpan.textContent?.trimStart().startsWith('·')).toBe(false)
+  })
+
+  it('still shows r/subreddit for Reddit-sourced content (unaffected by the app-channel change)', () => {
+    render(<PostingCard r={posting({ channel: 'app', subreddit: 'h1b' })} />)
+    expect(screen.getByText(/r\/h1b/)).toBeInTheDocument()
+  })
+
+  it('still shows "Government News" for gov_news content (unaffected by the app-channel change)', () => {
+    render(<PostingCard r={posting({ channel: 'gov_news', subreddit: '', author_handle: undefined })} />)
+    expect(screen.getByText(/Government News/)).toBeInTheDocument()
+  })
+})

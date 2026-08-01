@@ -107,12 +107,10 @@ export default function CaseDetailsPage() {
 
             {/* Original content, verbatim — the AI-generated summary lives
                 in its own labeled box in the sidebar (below), never mixed
-                in here, so it's always clear which is which. */}
+                in here, so it's always clear which is which. No section
+                heading here — the posting's own title above already
+                introduces it. */}
             <div className="card">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="material-symbols-outlined text-secondary">forum</span>
-                <h2 className="text-headline-md text-on-surface">Original Content</h2>
-              </div>
               <div className="text-body-md text-on-surface leading-relaxed">
                 {data.body ? <Markdown>{data.body}</Markdown> : 'No content available.'}
               </div>
