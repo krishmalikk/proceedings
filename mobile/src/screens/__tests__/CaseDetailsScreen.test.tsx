@@ -58,6 +58,18 @@ describe('CaseDetailsScreen', () => {
     expect(screen.getByText('rfe')).toBeOnTheScreen();
   });
 
+  // Website parity: reported live that a redundant "Original Content"/"Full
+  // Experience" section heading above the posting body read as clutter — the
+  // posting's own title already introduces it, and the AI summary (website)
+  // has its own distinct label, so there's no ambiguity to disambiguate.
+  it('renders the posting body without a "Full Experience" section heading', async () => {
+    mockPosting({ body: 'The full text of the posting.' });
+    const screen = await renderCaseDetails(makeNav());
+
+    expect(await screen.findByText('The full text of the posting.')).toBeOnTheScreen();
+    expect(screen.queryByText('Full Experience')).toBeNull();
+  });
+
   it('first-party posting (handle, no uid): shows a tappable author → AuthorByHandle', async () => {
     mockPosting({ author_id: '', author_handle: 'brave-maple-3272' });
     const navigation = makeNav();

@@ -132,12 +132,9 @@ export function CaseDetailsScreen({ navigation, route }: any) {
             </View>
           </View>
 
-          {/* Full posting body */}
+          {/* Full posting body — no section heading (website parity): the
+              posting's own title above already introduces it. */}
           <Card style={styles.bodyCard}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="chatbubbles-outline" size={18} color={colors.secondary} />
-              <Text style={styles.cardTitle}>Full Experience</Text>
-            </View>
             {data.body ? (
               <Markdown>{data.body}</Markdown>
             ) : (
