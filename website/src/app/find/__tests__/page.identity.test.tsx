@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import FindPage from '../page'
 
@@ -31,5 +31,24 @@ describe('FindPage identity (never leaks real name/email — features/ui-changes
     expect(await screen.findByText(/Signed in as wise-harbor-2203/)).toBeInTheDocument()
     expect(screen.queryByText(/Real Name/)).not.toBeInTheDocument()
     expect(screen.queryByText(/real@example\.com/)).not.toBeInTheDocument()
+  })
+})
+
+// Reported live: a real (non-demo-picker) user created a group, navigated
+// back to the Groups tab (the default landing tab), and it looked like the
+// group had vanished. Root cause: the groups-list effect gated on `activeId`
+// — a state variable only ever set by the DEV demo-picker (off in prod) —
+// so for a real Firebase-authenticated user the list was simply never
+// fetched at all, not empty.
+describe('FindPage — groups list loads for a real (non-demo) user', () => {
+  it('fetches /api/groups/all on the default "Groups" tab without any demo-picker interaction', async () => {
+    render(<FindPage />)
+    await screen.findByText(/Signed in as wise-harbor-2203/)
+
+    await waitFor(() => {
+      const calledGroupsAll = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+        .some(([url]) => String(url).includes('/api/groups/all'))
+      expect(calledGroupsAll).toBe(true)
+    })
   })
 })

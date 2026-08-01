@@ -306,7 +306,16 @@ export default function FindPage() {
     finally { setBrowseLoading(false) }
   }, [])
 
-  useEffect(() => { if (tab === 'browse' && activeId) loadAllGroups() }, [tab, activeId, loadAllGroups])
+  // `activeId` is a DEV-ONLY signal (only ever set by the demo-user picker,
+  // gated off in production — see DEMO_PICKER_ENABLED). Gating on it alone
+  // meant a real signed-in production user (identified via `authUser`, never
+  // `activeId`) landed on the Groups tab and this effect never fired at
+  // all — the list was never fetched, not empty, so a just-created group
+  // looked like it had vanished. Fire once EITHER a real session or a demo
+  // user is resolved.
+  useEffect(() => {
+    if (tab === 'browse' && (authUser || activeId)) loadAllGroups()
+  }, [tab, activeId, authUser, loadAllGroups])
 
   async function joinGroup(id: string) {
     try {
