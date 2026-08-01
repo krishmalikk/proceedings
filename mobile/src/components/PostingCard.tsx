@@ -73,6 +73,16 @@ export function PostingCard({ posting, onPress, authorId, authorHandle, onAction
               <AppText variant="overline" color="onAccentContainer">News</AppText>
             </View>
           )}
+          {posting.tags.includes('discussion') && (
+            <View style={[styles.badge, styles.accentBadge]}>
+              <AppText variant="overline" color="onAccentContainer">Discussion</AppText>
+            </View>
+          )}
+          {posting.tags.includes('blog') && (
+            <View style={[styles.badge, styles.accentBadge]}>
+              <AppText variant="overline" color="onAccentContainer">Blog</AppText>
+            </View>
+          )}
           {posting.outcome && (
             <View style={[styles.badge, { backgroundColor: outcomeStyle?.backgroundColor }]}>
               <Text style={[styles.badgeText, { color: outcomeStyle?.color }]}>
@@ -88,10 +98,10 @@ export function PostingCard({ posting, onPress, authorId, authorHandle, onAction
           {/* Fallback: if there's no visa/status to show, surface the first
               general tag instead — every card should carry at least one
               relevant tag badge (features/ui-changes-1/changes-2-.md item 2). */}
-          {posting.visa.length === 0 && posting.tags.filter((t) => t !== 'news-update')[0] && (
+          {posting.visa.length === 0 && posting.tags.filter((t) => !['news-update', 'discussion', 'blog'].includes(t))[0] && (
             <View style={[styles.badge, styles.primaryBadge]}>
               <AppText variant="overline" color="onPrimaryContainer">
-                {posting.tags.filter((t) => t !== 'news-update')[0]}
+                {posting.tags.filter((t) => !['news-update', 'discussion', 'blog'].includes(t))[0]}
               </AppText>
             </View>
           )}

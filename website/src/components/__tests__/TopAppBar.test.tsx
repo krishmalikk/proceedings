@@ -19,7 +19,7 @@ beforeEach(() => {
 })
 
 describe('TopAppBar nav (Home added, Community removed — features/ui-changes-1)', () => {
-  it('shows Home, Groups, and News; Community is gone (search moved to "/")', () => {
+  it('shows Home, Groups, News, and Discussions; Community is gone (search moved to "/")', () => {
     render(<TopAppBar />)
     expect(screen.queryByText('Community')).not.toBeInTheDocument()
     // scoped to <nav> — the brand mark also links to "/" but isn't labeled "Home"
@@ -28,17 +28,22 @@ describe('TopAppBar nav (Home added, Community removed — features/ui-changes-1
     // News re-enabled once the tab had real content behind it (gov-news
     // ingestion) — see docs/ingestion/GOV-NEWS-INGESTION-PLAN.md.
     expect(screen.getByText('News')).toBeInTheDocument()
+    // Discussions: non-personal content (discussion/blog tags) — Phase D.
+    // Deliberately not called "Community" — that label was removed above
+    // because it was a dead mock forum; this is a different, real feature.
+    expect(screen.getByText('Discussions')).toBeInTheDocument()
     // old labels renamed even earlier
     expect(screen.queryByText('Case Search')).not.toBeInTheDocument()
     expect(screen.queryByText('Find Peers')).not.toBeInTheDocument()
   })
 
-  it('Home points at /, Groups at /find, News at /news, no nav item points at /search', () => {
+  it('Home points at /, Groups at /find, News at /news, Discussions at /discussions, no nav item points at /search', () => {
     render(<TopAppBar />)
     const homeLink = Array.from(document.querySelectorAll('nav a')).find((a) => a.textContent === 'Home')
     expect(homeLink).toHaveAttribute('href', '/')
     expect(screen.getByText('Groups').closest('a')).toHaveAttribute('href', '/find')
     expect(screen.getByText('News').closest('a')).toHaveAttribute('href', '/news')
+    expect(screen.getByText('Discussions').closest('a')).toHaveAttribute('href', '/discussions')
     expect(document.querySelector('nav a[href="/search"]')).not.toBeInTheDocument()
   })
 })

@@ -22,6 +22,7 @@ import {
   VisaExperiencesScreen,
   WelcomeScreen,
   NewsScreen,
+  DiscussionsScreen,
 } from '../screens';
 import { colors, spacing } from '../constants/theme';
 import { FloatingChatButton, ChatModal } from '../components/chat';
@@ -87,6 +88,22 @@ function NewsStack() {
   return (
     <Stack.Navigator screenOptions={screenTransitionOptions}>
       <Stack.Screen name="NewsMain" component={NewsScreen} />
+      <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
+      <Stack.Screen name="Author" component={AuthorScreen} />
+      <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Disclaimer" component={DisclaimerScreen} options={modalTransitionOptions} />
+      <Stack.Screen name="BackgroundOnboarding" component={BackgroundOnboardingScreen} />
+      <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function DiscussionsStack() {
+  return (
+    <Stack.Navigator screenOptions={screenTransitionOptions}>
+      <Stack.Screen name="DiscussionsMain" component={DiscussionsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
@@ -187,6 +204,13 @@ function TabNavigator() {
           component={NewsStack}
           options={{
             tabBarLabel: 'News',
+          }}
+        />
+        <Tab.Screen
+          name="Discussions"
+          component={DiscussionsStack}
+          options={{
+            tabBarLabel: 'Discussions',
           }}
         />
         <Tab.Screen

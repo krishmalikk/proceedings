@@ -267,14 +267,19 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
         or _as_list(meta.get("tags"))
         or _as_list(meta.get("derived_topic_cluster"))
     )
-    # "news-update" must always survive into the card's tags, regardless of
-    # which source array won the fallback chain above (posting.py's
-    # _gov_news_tags() guarantees it's in the raw "tags" field for every
-    # gov-news doc, but concerns_or_questions_tags could still win the chain
-    # instead) or of the 8-item cap below silently dropping it — prepend
-    # (not append) so the cap can never cut it.
-    if "news-update" in _as_list(meta.get("tags")) and "news-update" not in tags:
-        tags = ["news-update"] + tags
+    # "news-update"/"discussion"/"blog" must always survive into the card's
+    # tags, regardless of which source array won the fallback chain above
+    # (posting.py deterministically guarantees "discussion" — and the model
+    # may pick "blog" — in the raw "tags" field, but concerns_or_questions_tags
+    # could still win the chain instead) or of the 8-item cap below silently
+    # dropping them — prepend (not append) so the cap can never cut them.
+    # Found live: the Discussions tab (Phase D) filters on `tags: ANY(...)`
+    # so a match is guaranteed to have one of these in the raw "tags" array,
+    # but without this re-union the card's displayed tags — and therefore
+    # PostingCard's "Discussion"/"Blog" pill — could still silently omit it.
+    for guaranteed in ("news-update", "discussion", "blog"):
+        if guaranteed in _as_list(meta.get("tags")) and guaranteed not in tags:
+            tags = [guaranteed] + tags
     return {
         "case_id": case_id,
         "title": str(meta.get("post_title") or "").strip() or case_id,

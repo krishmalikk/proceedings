@@ -295,6 +295,28 @@ def group_l_news_filtering() -> None:
     check("L2 no false positive: news-update NOT injected when absent from raw tags",
           "news-update" not in card_no_news["tags"], str(card_no_news["tags"]))
 
+    # L1b/L2b: Phase D's Discussions tab filters on `tags: ANY("discussion")`/
+    # `tags: ANY("blog")` (the raw structData field) — so the same
+    # fallback-array-wins gap that could've silently hidden news-update
+    # would silently hide the Discussion/Blog pill on a matched card too.
+    meta_disc = {
+        "post_title": "Synthetic discussion doc",
+        "concerns_or_questions_tags": ["a-different-array-won"],
+        "tags": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "discussion"],
+    }
+    card_disc = s._card_from_struct("synthetic-case-id-3", meta_disc)
+    check("L1b discussion survives into card.tags despite a different fallback array winning",
+          "discussion" in card_disc["tags"], str(card_disc["tags"]))
+
+    meta_blog = {
+        "post_title": "Synthetic blog doc",
+        "concerns_or_questions_tags": ["a-different-array-won"],
+        "tags": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "blog"],
+    }
+    card_blog = s._card_from_struct("synthetic-case-id-4", meta_blog)
+    check("L2b blog survives into card.tags despite a different fallback array winning",
+          "blog" in card_blog["tags"], str(card_blog["tags"]))
+
     # L3/L4 (integration): a broad free-text query that surfaces gov_news
     # content should only include gov_news items within the last 7 days
     # (by posting_date, i.e. event/source date) — older gov_news should be
@@ -324,6 +346,21 @@ def group_l_news_filtering() -> None:
         news_tab_old = [c for c in news_tab["results"] if c["date"] and c["date"] <= cutoff]
         check("L5 News tab's explicit facet path still returns old gov_news (unaffected by the carve-out)",
               len(news_tab_old) > 0, f"{len(news_tab_old)} old items via News tab path")
+
+        # L6/L7 (integration): Phase D's Discussions tab — two facet chips on
+        # the SAME field ("tags") OR together server-side (_facets_filter),
+        # exactly like doc_kind:gov_news powers the News tab above, just on a
+        # different field. Every result must carry discussion and/or blog in
+        # its displayed tags — the L1b/L2b fix guarantees this survives
+        # whichever fallback array wins.
+        discussions_tab = client.get("/api/search", params={"q": "", "page_size": 50,
+                                                             "facet": ["tags:discussion", "tags:blog"]}).json()
+        check("L6 Discussions tab (tags:discussion OR tags:blog) returns results",
+              len(discussions_tab["results"]) > 0, f"{len(discussions_tab['results'])} results")
+        check("L7 every Discussions tab result carries discussion and/or blog in its tags",
+              all("discussion" in c["tags"] or "blog" in c["tags"] for c in discussions_tab["results"]),
+              str([(c["case_id"], c["tags"]) for c in discussions_tab["results"]
+                   if "discussion" not in c["tags"] and "blog" not in c["tags"]]))
 
 
 # ---------------------------------------------------------------------------

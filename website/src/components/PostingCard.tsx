@@ -67,6 +67,8 @@ export default function PostingCard({ r }: { r: PostingCardData }) {
       <div className="flex items-start justify-between mb-2 gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           {r.tags.includes('news-update') && <span className="badge-accent">News</span>}
+          {r.tags.includes('discussion') && <span className="badge-accent">Discussion</span>}
+          {r.tags.includes('blog') && <span className="badge-accent">Blog</span>}
           {r.outcome && <span className={outcomeBadge(r.outcome)}>{r.outcome}</span>}
           {r.visa.slice(0, 2).map((v) => (
             <span key={v} className="badge-primary">{v}</span>
@@ -74,8 +76,8 @@ export default function PostingCard({ r }: { r: PostingCardData }) {
           {/* Fallback: if there's no visa/status to show, surface the first
               general tag instead — every card should carry at least one
               relevant tag badge (features/ui-changes-1/changes-2-.md item 2). */}
-          {r.visa.length === 0 && r.tags.filter((t) => t !== 'news-update')[0] && (
-            <span className="badge-primary">{r.tags.filter((t) => t !== 'news-update')[0]}</span>
+          {r.visa.length === 0 && r.tags.filter((t) => !['news-update', 'discussion', 'blog'].includes(t))[0] && (
+            <span className="badge-primary">{r.tags.filter((t) => !['news-update', 'discussion', 'blog'].includes(t))[0]}</span>
           )}
           {r.consulates.slice(0, 2).map((c) => (
             <span key={c} className="badge-secondary flex items-center gap-1">

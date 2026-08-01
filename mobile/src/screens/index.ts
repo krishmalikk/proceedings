@@ -5,6 +5,7 @@ export { AuthorScreen } from './AuthorScreen';
 export { AuthorByHandleScreen } from './AuthorByHandleScreen';
 export { AskProScreen } from './AskProScreen';
 export { NewsScreen } from './NewsScreen';
+export { DiscussionsScreen } from './DiscussionsScreen';
 export { FindScreen } from './FindScreen';
 export { PostScreen } from './PostScreen';
 export { GroupChatScreen } from './GroupChatScreen';

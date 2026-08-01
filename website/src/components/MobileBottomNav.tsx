@@ -7,6 +7,7 @@ const navItems = [
   { href: '/', label: 'Home', icon: 'home' },
   { href: '/find', label: 'Groups', icon: 'diversity_3' },
   { href: '/news', label: 'News', icon: 'newspaper' },
+  { href: '/discussions', label: 'Discussions', icon: 'forum' },
   { href: '/post', label: 'Post', icon: 'edit_square' },
 ];
 

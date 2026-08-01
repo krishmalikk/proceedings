@@ -38,4 +38,20 @@ describe('PostingCard tag/news badges', () => {
     const s = await renderScreen(<PostingCard posting={posting({ tags: ['timeline'] })} />);
     expect(s.queryByText('News')).toBeNull();
   });
+
+  // Phase D: Discussions tab — same badge pattern as News, for the two tags
+  // (discussion/blog) that scope the new tab's content.
+  it('shows a distinct "Discussion" pill when tags include discussion', async () => {
+    const s = await renderScreen(
+      <PostingCard posting={posting({ visa: [], tags: ['discussion', 'family-based-immigration'] })} />
+    );
+    expect(s.getByText('Discussion')).toBeOnTheScreen();
+    expect(s.getByText('family-based-immigration')).toBeOnTheScreen();
+  });
+
+  it('shows a distinct "Blog" pill when tags include blog', async () => {
+    const s = await renderScreen(<PostingCard posting={posting({ visa: [], tags: ['blog', 'h1b-lottery'] })} />);
+    expect(s.getByText('Blog')).toBeOnTheScreen();
+    expect(s.getByText('h1b-lottery')).toBeOnTheScreen();
+  });
 });

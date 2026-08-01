@@ -43,4 +43,19 @@ describe('PostingCard tag/news badges', () => {
     render(<PostingCard r={posting({ tags: ['timeline'] })} />)
     expect(screen.queryByText('News')).not.toBeInTheDocument()
   })
+
+  // Phase D: Discussions tab — same badge pattern as News, for the two
+  // tags (discussion/blog) that scope the new tab's content.
+  it('shows a distinct "Discussion" pill when tags include discussion', () => {
+    render(<PostingCard r={posting({ visa: [], tags: ['discussion', 'family-based-immigration'] })} />)
+    expect(screen.getByText('Discussion')).toBeInTheDocument()
+    // discussion itself is never used as the fallback tag badge.
+    expect(screen.getByText('family-based-immigration')).toBeInTheDocument()
+  })
+
+  it('shows a distinct "Blog" pill when tags include blog', () => {
+    render(<PostingCard r={posting({ visa: [], tags: ['blog', 'h1b-lottery'] })} />)
+    expect(screen.getByText('Blog')).toBeInTheDocument()
+    expect(screen.getByText('h1b-lottery')).toBeInTheDocument()
+  })
 })

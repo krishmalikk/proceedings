@@ -18,12 +18,13 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TAB_BAR_WIDTH = SCREEN_WIDTH - spacing.md * 2;
 const TAB_BAR_HEIGHT = 70;
 
-type TabIconName = 'home' | 'people' | 'newspaper' | 'person';
+type TabIconName = 'home' | 'people' | 'newspaper' | 'chatbubbles' | 'person';
 
 const tabIcons: Record<string, { focused: TabIconName; unfocused: `${TabIconName}-outline` }> = {
   Home: { focused: 'home', unfocused: 'home-outline' },
   Find: { focused: 'people', unfocused: 'people-outline' },
   News: { focused: 'newspaper', unfocused: 'newspaper-outline' },
+  Discussions: { focused: 'chatbubbles', unfocused: 'chatbubbles-outline' },
   Profile: { focused: 'person', unfocused: 'person-outline' },
 };
 
@@ -31,6 +32,7 @@ const tabLabels: Record<string, string> = {
   Home: 'Home',
   Find: 'Groups',
   News: 'News',
+  Discussions: 'Discussions',
   Profile: 'Profile',
 };
 
@@ -92,7 +94,7 @@ function TabItem({ route, index, state, descriptors, navigation }: TabItemProps)
       <Animated.View style={[styles.tabContent, animatedStyle]}>
         {isFocused && <View style={styles.activeIndicator} />}
         <Ionicons name={iconName} size={22} color={iconColor} />
-        <Animated.Text style={[styles.tabLabel, { color: iconColor }]}>
+        <Animated.Text style={[styles.tabLabel, { color: iconColor }]} numberOfLines={1}>
           {label}
         </Animated.Text>
       </Animated.View>

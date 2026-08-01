@@ -11,6 +11,7 @@ const navItems = [
   { href: '/', label: 'Home', icon: 'home' },
   { href: '/find', label: 'Groups', icon: 'diversity_3' },
   { href: '/news', label: 'News', icon: 'newspaper' },
+  { href: '/discussions', label: 'Discussions', icon: 'forum' },
   // Still removed: 'Community' (/community, dead mock forum), 'Ask a Pro' (/pro).
 ];
 
