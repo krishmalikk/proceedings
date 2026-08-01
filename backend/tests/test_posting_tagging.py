@@ -602,6 +602,106 @@ def group_e_build() -> None:
     check("E52c control: no discussion/news-update anywhere, no visa -> validate() still correctly rejects",
           any("visa" in e.lower() or "status" in e.lower() for e in p.validate(c52c)), str(p.validate(c52c)))
 
+    # E53-E59: ADJUSTMENT-OF-STATUS — I-485 (the form) and "AOS"/"adjustment
+    # of status" (the process) are used interchangeably by posters for the
+    # same real-world action, but neither is itself a visa/GC category (AOS
+    # can be filed on a family, employment, diversity, or asylum basis) —
+    # the third, even-broader sibling of FAMILY-IMMIGRATION/
+    # EMPLOYMENT-IMMIGRATION in _apply_visa_backfill()'s ordering.
+    def _aos_backfilled(tags: list[str]) -> dict:
+        groups = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                  "primary_consulate": "", "consulates": [], "tags": tags,
+                  "concerns_or_questions_tags": []}
+        p._apply_visa_backfill(groups)
+        return groups
+
+    g53 = _aos_backfilled(["I-485", "aos-filing"])
+    check("E53 I-485 + aos-filing, no other basis -> ADJUSTMENT-OF-STATUS",
+          g53["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], g53)
+
+    g54 = _aos_backfilled(["adjustment-of-status-AOS"])
+    check("E54 the alternate_tag alone also triggers the fallback",
+          g54["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], g54)
+
+    g55 = _aos_backfilled(["i485-filing", "family-based-immigration"])
+    check("E55 a family/employment signal present alongside AOS wins over the more generic ADJUSTMENT-OF-STATUS",
+          g55["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g55)
+
+    g56 = _aos_backfilled(["aos-filing", "h1b-petition"])
+    check("E56 a specific derivable code (h1b-petition -> H-1B) wins over ADJUSTMENT-OF-STATUS too",
+          g56["visa_applying_for"] == ["H-1B"]
+          and g56["current_visa_or_greencard_category"] == [], g56)
+
+    g57 = {"visa_applying_for": [], "current_visa_or_greencard_category": ["ADJUSTMENT-OF-STATUS"],
+           "primary_consulate": "", "consulates": [], "tags": ["aos-filing", "family-based-immigration"],
+           "concerns_or_questions_tags": []}
+    p._apply_visa_backfill(g57)
+    check("E57 re-derivation: a last-resort code the MODEL already chose gets re-evaluated, not trusted blindly "
+          "(found live: the model sometimes picks ADJUSTMENT-OF-STATUS even when a family/employment signal "
+          "is also present, bypassing the ordering below since that only runs when both fields start empty)",
+          g57["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g57)
+
+    g58 = {"visa_applying_for": [], "current_visa_or_greencard_category": ["IR-1"],
+           "primary_consulate": "", "consulates": [], "tags": ["aos-filing"],
+           "concerns_or_questions_tags": []}
+    p._apply_visa_backfill(g58)
+    check("E58 never re-derives over a REAL (non-last-resort) code already present, even with an AOS tag alongside",
+          g58["current_visa_or_greencard_category"] == ["IR-1"], g58)
+
+    c59 = p.build_canonical("t", "d", {"tags": ["I-485", "aos-filing"]})
+    check("E59a build_canonical(): bare I-485/aos-filing tags alone resolve to ADJUSTMENT-OF-STATUS end-to-end",
+          c59["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], c59)
+    check("E59b ADJUSTMENT-OF-STATUS is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
+          not any("not in visa vocab" in e for e in p.validate(c59)), str(p.validate(c59)))
+    check("E59c validate() passes overall for the bare-AOS case",
+          p.validate(c59) == [], str(p.validate(c59)))
+
+    # E60-E62: _apply_visa_backfill()'s is_personal_case gate. Found live: a
+    # link-share post with no personal status claim ("For those who think
+    # this is the law: a USC's spouse's overstay is forgiven...") still got
+    # backfilled to FAMILY-IMMIGRATION, because the model tagged
+    # "family-based-immigration" as the ARTICLE's topic, not the poster's
+    # own case — which then suppressed "discussion" entirely, since
+    # _apply_discussion_backfill() only fires when both visa fields are
+    # still empty. Gating the whole backfill on is_personal_case fixes both
+    # symptoms at once (same root cause).
+    def _visa_backfilled(tags: list[str], is_personal_case) -> dict:
+        groups = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                  "primary_consulate": "", "consulates": [], "tags": tags,
+                  "concerns_or_questions_tags": []}
+        p._apply_visa_backfill(groups, is_personal_case)
+        return groups
+
+    g60 = _visa_backfilled(["family-based-immigration", "news-update"], False)
+    check("E60 is_personal_case=False: family-based-immigration tag does NOT get promoted to a personal category",
+          g60["current_visa_or_greencard_category"] == [] and g60["visa_applying_for"] == [], g60)
+
+    g61 = _visa_backfilled(["family-based-immigration"], True)
+    check("E61 is_personal_case=True (or omitted): the existing fallback behavior is unchanged",
+          g61["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g61)
+
+    g62 = _visa_backfilled(["h1b-petition"], None)
+    check("E62 is_personal_case missing/None: fails open toward the existing (personal) behavior, not toward skipping",
+          g62["visa_applying_for"] == ["H-1B"], g62)
+
+    # E63-E65: "blog" — a standalone informational/educational write-up, not
+    # the poster's own case and not primarily reactive (that's
+    # "discussion"). Same validate() exemption mechanism as news-update/
+    # discussion — checked directly here since suggest_tags() only
+    # deterministically guarantees "discussion" (the safety net), not
+    # "blog" itself (that's model-selected; see F14 for live coverage).
+    c63 = p.build_canonical("t", "d", {"tags": ["h1b-lottery", "tips", "blog"]})
+    check("E63 validate() accepts a blog-tagged, visa-less posting (same exemption as news-update/discussion)",
+          p.validate(c63) == [], str(p.validate(c63)))
+
+    c64 = p.build_canonical("t", "d", {"tags": ["h1b-lottery"], "concerns_or_questions_tags": ["blog"]})
+    check("E64 blog exemption also checks concerns_or_questions_tags, not just tags",
+          p.validate(c64) == [], str(p.validate(c64)))
+
+    c65 = p.build_canonical("t", "d", {"tags": ["tips"]})
+    check("E65 control: no blog/discussion/news-update anywhere, no visa -> validate() still correctly rejects",
+          any("visa" in e.lower() or "status" in e.lower() for e in p.validate(c65)), str(p.validate(c65)))
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)
@@ -694,6 +794,93 @@ def group_f_llm() -> None:
                     and "discussion" not in o9["groups"]["concerns_or_questions_tags"])
     check("F9 vague-but-personal content: still correctly requires a visa/status, NOT waved through as discussion",
           still_blocked and not_exempted, o9["groups"])
+
+    # F10-F12: ADJUSTMENT-OF-STATUS live end-to-end, mirroring F7's retry
+    # tolerance for the same LLM-non-determinism reasons.
+    def _has_category(groups: dict, code: str) -> bool:
+        return code in groups["current_visa_or_greencard_category"] or code in groups["visa_applying_for"]
+
+    aos_ok, o10 = False, {}
+    for _ in range(3):
+        o10 = p.suggest_tags(
+            "Filed my I-485 last week",
+            "Just filed my I-485 to adjust status. Fingers crossed for a quick approval. Anyone else "
+            "currently going through AOS?")
+        if _has_category(o10["groups"], "ADJUSTMENT-OF-STATUS"):
+            aos_ok = True
+            break
+    check("F10 I-485/AOS mentioned with no other basis -> ADJUSTMENT-OF-STATUS captured (<=3 tries)",
+          aos_ok, o10.get("groups"))
+
+    specific_ok, o11 = False, {}
+    for _ in range(3):
+        o11 = p.suggest_tags(
+            "EB-2 to EB-3 downgrade timing",
+            "Filed my I-485 based on my approved I-140 in EB-2. Considering an EB-3 downgrade for faster "
+            "priority date. How long did others wait?")
+        cats = set(o11["groups"]["visa_applying_for"]) | set(o11["groups"]["current_visa_or_greencard_category"])
+        if cats & {"EB-2", "EB-3"} and "ADJUSTMENT-OF-STATUS" not in cats:
+            specific_ok = True
+            break
+    check("F11 AOS + a specific EB basis: the specific code wins, generic ADJUSTMENT-OF-STATUS not used (<=3 tries)",
+          specific_ok, o11.get("groups"))
+
+    family_ok, o12 = False, {}
+    for _ in range(3):
+        o12 = p.suggest_tags(
+            "AOS interview experience",
+            "Had my AOS interview yesterday based on my approved I-130 (spouse petition). Went smoothly!")
+        cats = set(o12["groups"]["visa_applying_for"]) | set(o12["groups"]["current_visa_or_greencard_category"])
+        if (cats & {"IR-1", "FAMILY-IMMIGRATION"}) and "ADJUSTMENT-OF-STATUS" not in cats:
+            family_ok = True
+            break
+    check("F12 AOS + I-130 spouse: family signal wins over generic ADJUSTMENT-OF-STATUS, "
+          "even when the model picks the generic code on its own first (<=3 tries)",
+          family_ok, o12.get("groups"))
+
+    # F13: the real example that surfaced the is_personal_case-gating bug —
+    # a link-share post with a one-line reaction, no personal status claim.
+    # Must consistently get BOTH news-update and discussion, with no visa
+    # category incorrectly backfilled from the article's topic tags.
+    link_share_title = "For those who think this is the law"
+    link_share_desc = (
+        "For those who think this is the law: a USC's spouse's overstay and unauthorized work is "
+        "forgiven by law. This is getting more and more insane.\n\n"
+        "https://www.nytimes.com/2026/07/28/us/ice-arrests-airports-visa-overstay.html")
+    link_share_ok, o13 = False, {}
+    for _ in range(3):
+        o13 = p.suggest_tags(link_share_title, link_share_desc)
+        g = o13["groups"]
+        no_visa = not g["visa_applying_for"] and not g["current_visa_or_greencard_category"]
+        both = "news-update" in g["tags"] and "discussion" in g["tags"]
+        if no_visa and both:
+            link_share_ok = True
+            break
+    check("F13 link-share post: both news-update and discussion applied, no visa incorrectly backfilled (<=3 tries)",
+          link_share_ok, o13.get("groups"))
+
+    # F14: the real example that surfaced the "model puts a topic's visa
+    # term directly into visa_applying_for despite is_personal_case=False"
+    # bug — a general H-1B lottery guide, not the poster's own application.
+    guide_title = "A Complete Guide to the H-1B Lottery Timeline"
+    guide_desc = (
+        "Here is a full breakdown of the H-1B lottery process for anyone new to it: registration "
+        "typically opens in March, selection results come a few weeks later, and if selected you then "
+        "have roughly 90 days to file the full petition. Employers should prepare LCA filings early "
+        "since USCIS wont accept petitions without one. Hope this helps people planning ahead for "
+        "next years cycle.")
+    guide_ok, o14 = False, {}
+    for _ in range(3):
+        o14 = p.suggest_tags(guide_title, guide_desc)
+        g = o14["groups"]
+        no_visa = not g["visa_applying_for"] and not g["current_visa_or_greencard_category"]
+        exempted = "discussion" in g["tags"] or "blog" in g["tags"]
+        if no_visa and exempted:
+            guide_ok = True
+            break
+    check("F14 general how-to guide: no personal visa claim despite H-1B being discernible in the text, "
+          "exempted via discussion and/or blog (<=3 tries)",
+          guide_ok, o14.get("groups"))
 
 
 # ---------------------------------------------------------------------------
