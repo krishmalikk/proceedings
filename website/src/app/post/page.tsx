@@ -93,7 +93,7 @@ export default function PostPage() {
   const consulateByCode = useMemo(() => new Map(vocab.consulate_options.map((o) => [o.code, o.label])), [vocab])
 
   const canPreview = title.trim().length >= 3 && description.trim().length >= 10
-  // FAMILY-IMMIGRATION / EMPLOYMENT-UNSPECIFIED (backend: posting.py's
+  // FAMILY-IMMIGRATION / EMPLOYMENT-IMMIGRATION (backend: posting.py's
   // _apply_visa_backfill()) are a LAST-RESORT fallback meant for manual
   // curation, where there's no original poster left to ask for more detail.
   // A live app user is right here and can always be asked directly instead
@@ -101,7 +101,7 @@ export default function PostPage() {
   // satisfy this gate on its own. Still shown as a chip (removable, same as
   // any other tag) so the user sees what was inferred and can either
   // replace it with a specific code or add one alongside it.
-  const GENERIC_VISA_FALLBACKS = new Set(['FAMILY-IMMIGRATION', 'EMPLOYMENT-UNSPECIFIED'])
+  const GENERIC_VISA_FALLBACKS = new Set(['FAMILY-IMMIGRATION', 'EMPLOYMENT-IMMIGRATION'])
   const hasSpecificVisa = (arr: string[]) => arr.some((v) => !GENERIC_VISA_FALLBACKS.has(v))
   const hasVisa = hasSpecificVisa(groups.visa_applying_for) || hasSpecificVisa(groups.current_visa_or_greencard_category)
   const hasOnlyGenericVisa = !hasVisa && (groups.visa_applying_for.length > 0 || groups.current_visa_or_greencard_category.length > 0)

@@ -91,7 +91,7 @@ ONLY tags from `tags-cleaned/1.1-non-immigration-visas.csv` and
   EB-1, EB-1A, EB-1B, EB-1C, EB-2, EB-3, EB-4, EB-5, IR-1, IR-2, IR-5,
   F1-FAMILY, F2A-FAMILY, F2B-FAMILY, F3-FAMILY, F4-FAMILY, DV, SIV, SB-1
 
-`FAMILY-IMMIGRATION` / `EMPLOYMENT-UNSPECIFIED` (1.2) are LAST-RESORT
+`FAMILY-IMMIGRATION` / `EMPLOYMENT-IMMIGRATION` (1.2) are LAST-RESORT
 codes for a posting that's clearly family- or employment-based (mentions
 I-130, an unnamed relative, an employer petition, ...) but gives no way to
 determine a specific code. Prefer a specific code whenever the text

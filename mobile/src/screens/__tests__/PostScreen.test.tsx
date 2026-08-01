@@ -70,12 +70,12 @@ async function previewWith(screen: Awaited<ReturnType<typeof renderScreen>>, gro
   await screen.findByText('Review Tags');
 }
 
-// FAMILY-IMMIGRATION/EMPLOYMENT-UNSPECIFIED (backend: posting.py's
+// FAMILY-IMMIGRATION/EMPLOYMENT-IMMIGRATION (backend: posting.py's
 // _apply_visa_backfill(), a last-resort fallback meant for manual curation
 // with no original poster to ask) must never be enough to enable Submit for
 // a LIVE app user, who's right here and can always be asked directly for
 // the specific category instead. Mirrors website/src/app/post/__tests__/page.test.tsx.
-describe('PostScreen — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPLOYMENT-UNSPECIFIED)', () => {
+describe('PostScreen — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPLOYMENT-IMMIGRATION)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('a generic-only category does NOT enable Submit, and shows the "need the exact category" message', async () => {
@@ -90,9 +90,9 @@ describe('PostScreen — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPL
     expect(createPosting).not.toHaveBeenCalled();
   });
 
-  it('EMPLOYMENT-UNSPECIFIED alone also does NOT enable Submit', async () => {
+  it('EMPLOYMENT-IMMIGRATION alone also does NOT enable Submit', async () => {
     const screen = await renderPostScreen();
-    await previewWith(screen, { current_visa_or_greencard_category: ['EMPLOYMENT-UNSPECIFIED'] });
+    await previewWith(screen, { current_visa_or_greencard_category: ['EMPLOYMENT-IMMIGRATION'] });
 
     await fireEvent.press(screen.getByText('Submit Posting'));
     expect(createPosting).not.toHaveBeenCalled();

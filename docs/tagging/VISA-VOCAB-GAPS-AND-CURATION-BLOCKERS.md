@@ -41,7 +41,7 @@ Prompted by Category C containing files like `dont-know-what-to-think.txt` (I-48
 
 **Vocab (`backend/tags-cleaned/1.2-greencard-categories.csv`):**
 - `FAMILY-IMMIGRATION` — "Family-Based - Unspecified Category"
-- `EMPLOYMENT-UNSPECIFIED` — "Employment-Based - Unspecified Category"
+- `EMPLOYMENT-IMMIGRATION` — "Employment-Based - Unspecified Category"
 
 Both are documented in-CSV as last-resort-only — a specific code (`IR-1`, `EB-2`, etc.) should always be preferred when the text supports one.
 
@@ -96,7 +96,7 @@ No vocab gap — a real code exists for each of these — but the source text it
 
 **Proposed next step:** for each, either (a) you supply the missing detail from context you have (the original source thread, if any) and I patch + publish, or (b) they stay unpublished — there's no safe deterministic way to fill these in.
 
-**Update:** 2 of these 9 now auto-resolve via the generic-category fallback below, since they already carry a bare `family-based-immigration`/`employment-based-immigration` tag with no specific code: `dont-know-what-to-think.txt` → `EMPLOYMENT-UNSPECIFIED`, `i130-approval.txt` → `FAMILY-IMMIGRATION`. Both now pass `validate()` instead of blocking outright. The other 7 (`changed-my-mind.txt`, `different-name-ssn-gc.txt`, `duplicate-status-updates.txt`, `i539-approved.txt`, `traffic-ticket.txt`, `uscis-reps.txt`, `usps-ead-delivery.txt`) have no derivable family/employment signal at all and remain blocked pending human input.
+**Update:** 2 of these 9 now auto-resolve via the generic-category fallback below, since they already carry a bare `family-based-immigration`/`employment-based-immigration` tag with no specific code: `dont-know-what-to-think.txt` → `EMPLOYMENT-IMMIGRATION`, `i130-approval.txt` → `FAMILY-IMMIGRATION`. Both now pass `validate()` instead of blocking outright. The other 7 (`changed-my-mind.txt`, `different-name-ssn-gc.txt`, `duplicate-status-updates.txt`, `i539-approved.txt`, `traffic-ticket.txt`, `uscis-reps.txt`, `usps-ead-delivery.txt`) have no derivable family/employment signal at all and remain blocked pending human input.
 
 ---
 

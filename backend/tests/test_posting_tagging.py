@@ -305,7 +305,7 @@ def group_e_build() -> None:
           c16["tags"].count("family-based-immigration") == 1, c16["tags"])
 
     # E16a-E16m: _apply_visa_backfill() — the generic last-resort fallback
-    # (FAMILY-IMMIGRATION / EMPLOYMENT-UNSPECIFIED), gated behind a real
+    # (FAMILY-IMMIGRATION / EMPLOYMENT-IMMIGRATION), gated behind a real
     # family/employment-based-immigration TAG signal, and only ever as a
     # last resort behind _derive_visa_from_tags()'s more specific answer.
     def _backfilled(tags: list[str]) -> dict:
@@ -320,16 +320,16 @@ def group_e_build() -> None:
           g_fam["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g_fam)
 
     g_emp = _backfilled(["employment-based-immigration"])
-    check("E16b employment-based-immigration tag alone -> EMPLOYMENT-UNSPECIFIED",
-          g_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-UNSPECIFIED"], g_emp)
+    check("E16b employment-based-immigration tag alone -> EMPLOYMENT-IMMIGRATION",
+          g_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-IMMIGRATION"], g_emp)
 
     # dont-know-what-to-think.txt's real shape (I-485 pending, employment-based
     # tag present, no EB level stated) — this exact file failed validate()
     # in the 072826 batch; confirms it now resolves.
     g_real_emp = _backfilled(["I-485", "biometrics", "RFE", "pending",
                               "employment-based-immigration", "adjustment-of-status-AOS"])
-    check("E16c real dont-know-what-to-think.txt shape resolves to EMPLOYMENT-UNSPECIFIED",
-          g_real_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-UNSPECIFIED"], g_real_emp)
+    check("E16c real dont-know-what-to-think.txt shape resolves to EMPLOYMENT-IMMIGRATION",
+          g_real_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-IMMIGRATION"], g_real_emp)
 
     g_specific_wins = _backfilled(["employment-based-immigration", "h1b-petition"])
     check("E16d a specific derivable code (h1b-petition -> H-1B) wins over the generic employment fallback",
@@ -395,7 +395,7 @@ def group_e_build() -> None:
                 "concerns_or_questions_tags": []}
     p._apply_visa_backfill(g_vocab2)
     c_vocab2 = p.build_canonical("t", "d", g_vocab2)
-    check("E16m EMPLOYMENT-UNSPECIFIED is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
+    check("E16m EMPLOYMENT-IMMIGRATION is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
           not any("not in visa vocab" in e for e in p.validate(c_vocab2)), str(p.validate(c_vocab2)))
 
     # E17-E18: cross-bucket duplicate regression (1862-notice.txt case) — a
@@ -545,6 +545,63 @@ def group_e_build() -> None:
           "news-update" not in p._gov_news_tags(["news-update"], "something-unexpected"),
           p._gov_news_tags(["news-update"], "something-unexpected"))
 
+    # E47-E52: _apply_discussion_backfill() — a genuinely non-personal
+    # policy/process discussion has no visa to capture and shouldn't be
+    # rejected by publish for lacking one (evaluated live: real generic
+    # content — "USCIS processing times ballooned this year, anyone else
+    # seeing this?" — has both visa fields correctly empty but the model
+    # doesn't reliably self-select the "discussion" tag over more specific
+    # competing 1.10 tags like "processing-delay"; validate() then rejected
+    # legitimate general-discussion content). Gated on is_personal_case
+    # (model-classified) rather than trusting the model to also remember to
+    # tag "discussion" itself — same "single boolean judgment beats a
+    # specific-tag expectation" reasoning as the timeline/family-based rules
+    # above.
+    def _discussion_backfilled(is_personal_case) -> dict:
+        groups = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                  "primary_consulate": "", "consulates": [], "tags": ["USCIS", "backlog"],
+                  "concerns_or_questions_tags": []}
+        p._apply_discussion_backfill(groups, is_personal_case)
+        return groups
+
+    g47 = _discussion_backfilled(False)
+    check("E47 is_personal_case=False, no visa signal -> discussion tag added",
+          "discussion" in g47["tags"], g47["tags"])
+
+    g48 = _discussion_backfilled(True)
+    check("E48 is_personal_case=True -> discussion NOT added (still needs a human to add a status)",
+          "discussion" not in g48["tags"], g48["tags"])
+
+    g49 = _discussion_backfilled(None)
+    check("E49 is_personal_case missing/None -> fail-closed default, discussion NOT added",
+          "discussion" not in g49["tags"], g49["tags"])
+
+    g50 = {"visa_applying_for": ["H-1B"], "current_visa_or_greencard_category": [],
+           "primary_consulate": "", "consulates": [], "tags": ["USCIS"],
+           "concerns_or_questions_tags": []}
+    p._apply_discussion_backfill(g50, False)
+    check("E50 never fires when a visa field is already populated, even if is_personal_case is False",
+          "discussion" not in g50["tags"], g50["tags"])
+
+    g51 = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+           "primary_consulate": "", "consulates": [], "tags": ["USCIS"],
+           "concerns_or_questions_tags": ["discussion"]}
+    p._apply_discussion_backfill(g51, False)
+    check("E51 no cross-bucket duplicate: discussion already in concerns_or_questions_tags -> not re-added to tags",
+          g51["tags"] == ["USCIS"], g51["tags"])
+
+    c52 = p.build_canonical("t", "d", {"tags": ["USCIS", "discussion"]})
+    check("E52 validate() accepts a discussion-tagged, visa-less posting (same exemption as news-update)",
+          p.validate(c52) == [], str(p.validate(c52)))
+
+    c52b = p.build_canonical("t", "d", {"tags": ["USCIS"], "concerns_or_questions_tags": ["discussion"]})
+    check("E52b validate()'s discussion exemption also checks concerns_or_questions_tags, not just tags",
+          p.validate(c52b) == [], str(p.validate(c52b)))
+
+    c52c = p.build_canonical("t", "d", {"tags": ["USCIS"]})
+    check("E52c control: no discussion/news-update anywhere, no visa -> validate() still correctly rejects",
+          any("visa" in e.lower() or "status" in e.lower() for e in p.validate(c52c)), str(p.validate(c52c)))
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)
@@ -605,6 +662,38 @@ def group_f_llm() -> None:
             break
     check("F7 green-card category captured (EB-2/EB-3, <=3 tries)",
           any(x in visas for x in ("EB-2", "EB-3")), str(sorted(visas)))
+
+    # F8-F9: live end-to-end through suggest_tags() (real Gemini call, not
+    # the pure _apply_discussion_backfill() helper tested in E47-E52) —
+    # confirms is_personal_case classification + the deterministic backfill
+    # actually work together on real content, not just the helper in
+    # isolation. <=3 tries for the same LLM-non-determinism tolerance F7
+    # already uses.
+    discussion_ok = False
+    o8 = {}
+    for _ in range(3):
+        o8 = p.suggest_tags(
+            "USCIS processing times keep getting worse",
+            "Anyone else notice USCIS processing times have ballooned this year across the board? "
+            "Feels like every category is backed up. Curious if others are seeing the same trend or "
+            "if it varies by service center.")
+        both_empty = not o8["groups"]["visa_applying_for"] and not o8["groups"]["current_visa_or_greencard_category"]
+        exempt = "discussion" in o8["groups"]["tags"] or "discussion" in o8["groups"]["concerns_or_questions_tags"]
+        if both_empty and exempt:
+            discussion_ok = True
+            break
+    check("F8 genuinely generic policy/process content: no visa, discussion exemption applies, publish would succeed (<=3 tries)",
+          discussion_ok, o8.get("groups"))
+
+    o9 = p.suggest_tags(
+        "Is it too late for my priority date",
+        "Is it too late for my priority date to still lock in this year? I have been waiting a while "
+        "and got nervous seeing the new visa bulletin.")
+    still_blocked = not o9["groups"]["visa_applying_for"] and not o9["groups"]["current_visa_or_greencard_category"]
+    not_exempted = ("discussion" not in o9["groups"]["tags"]
+                    and "discussion" not in o9["groups"]["concerns_or_questions_tags"])
+    check("F9 vague-but-personal content: still correctly requires a visa/status, NOT waved through as discussion",
+          still_blocked and not_exempted, o9["groups"])
 
 
 # ---------------------------------------------------------------------------

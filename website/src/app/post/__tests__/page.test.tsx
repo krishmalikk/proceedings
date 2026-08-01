@@ -112,12 +112,12 @@ describe('PostPage — reconcile + update-profile-to-match (profile ↔ message)
   })
 })
 
-// A generic FAMILY-IMMIGRATION/EMPLOYMENT-UNSPECIFIED (backend:
+// A generic FAMILY-IMMIGRATION/EMPLOYMENT-IMMIGRATION (backend:
 // posting.py's _apply_visa_backfill(), a last-resort fallback meant for
 // manual curation with no original poster to ask) must never be enough to
 // enable Submit for a LIVE app user, who's right here and can always be
 // asked directly for the specific category instead.
-describe('PostPage — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPLOYMENT-UNSPECIFIED)', () => {
+describe('PostPage — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPLOYMENT-IMMIGRATION)', () => {
   function mockTagSuggest(groups: Partial<typeof EMPTY_GROUPS>) {
     global.fetch = vi.fn(async (url: string) => {
       const u = String(url)
@@ -153,8 +153,8 @@ describe('PostPage — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPLOY
     expect(screen.getByText('FAMILY-IMMIGRATION')).toBeInTheDocument()
   })
 
-  it('EMPLOYMENT-UNSPECIFIED alone also does NOT enable Submit', async () => {
-    await previewWith({ current_visa_or_greencard_category: ['EMPLOYMENT-UNSPECIFIED'] })
+  it('EMPLOYMENT-IMMIGRATION alone also does NOT enable Submit', async () => {
+    await previewWith({ current_visa_or_greencard_category: ['EMPLOYMENT-IMMIGRATION'] })
     expect(screen.getByRole('button', { name: /Submit posting/ })).toBeDisabled()
   })
 
