@@ -654,14 +654,32 @@ export const facetId = (field: string, code: string) => `${field}:${code}`;
 
 export async function searchPostings(
   q: string,
-  opts: { strictness?: Strictness; facets?: string[]; pageToken?: string; pageSize?: number } = {}
+  opts: {
+    strictness?: Strictness;
+    facets?: string[];
+    pageToken?: string;
+    pageSize?: number;
+    // Advanced Search's explicit News/Cutoff controls — omitted by every
+    // other caller, which keeps the backend's own legacy default behavior
+    // unchanged (see backend/api.py's _recency_news_clause).
+    includeNews?: boolean;
+    maxAgeDays?: number;
+  } = {}
 ): Promise<SearchResponse> {
   const p = new URLSearchParams();
-  p.set('q', q || 'immigration visa experience');
+  // No filler text when q is empty (a facet-only refine): Discovery Engine
+  // relevance-ranks against `q` IN ADDITION TO applying the facet filter,
+  // so a non-empty filler string here silently drops facet-matching
+  // documents that don't also relevance-match the filler text — confirmed
+  // live: `tags:asylum` alone returns the correct 24 postings; with a
+  // filler `q` it drops to 3.
+  if (q) p.set('q', q);
   (opts.facets || []).forEach((f) => p.append('facet', f));
   p.set('strictness', opts.strictness || 'balanced');
   p.set('page_size', String(opts.pageSize ?? 15));
   if (opts.pageToken) p.set('page_token', opts.pageToken);
+  if (opts.includeNews !== undefined) p.set('include_news', String(opts.includeNews));
+  if (opts.maxAgeDays) p.set('max_age_days', String(opts.maxAgeDays));
   const response = await apiFetch(`${API_URL}/api/search?${p.toString()}`);
   const data = await safeJson(response);
   if (!response.ok) {
@@ -699,6 +717,32 @@ export async function browsePostings(
     next_page_token: data.next_page_token || '',
     suggested_filters: data.suggested_filters || [],
   };
+}
+
+export interface QueryTag {
+  field: string;
+  code: string;
+  label: string;
+}
+
+/**
+ * Tags derived from the search query text itself (same Gemini-based tagging
+ * principles as posting composition), in the same {field, code, label} shape
+ * suggested_filters() uses — so a toggled query-tag chip's facetId(field,
+ * code) plugs directly into the existing selectedFacets mechanism. Meant to
+ * be called once per search submit (not per keystroke) and in parallel with
+ * searchPostings — a slow/failed call here must never block results.
+ * features/ui-changes-1/changes-2-.md item 4.
+ */
+export async function fetchQueryTags(q: string): Promise<QueryTag[]> {
+  const response = await apiFetch(`${API_URL}/api/search/query-tags`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q }),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) return [];
+  return data.tags || [];
 }
 
 export interface ConsulateCountry {
@@ -814,9 +858,14 @@ export interface GroupMember {
 export interface GroupInfo {
   group_id: string;
   name: string;
+  description: string;
   criteria_text: string;
   members: GroupMember[];
+  created_by: string;
+  is_admin: boolean;
   is_member: boolean;
+  created_at: string;
+  last_activity_at: string;
 }
 
 export interface GroupResult {
@@ -884,6 +933,46 @@ export async function leaveGroup(groupId: string): Promise<void> {
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.detail || 'Could not leave group');
+  }
+}
+
+export async function inviteToGroup(groupId: string, handle: string): Promise<GroupInfo> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/invite`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ handle }),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not invite that handle');
+  }
+  return data;
+}
+
+export async function renameGroup(
+  groupId: string,
+  updates: { name?: string; description?: string }
+): Promise<GroupInfo> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
+    method: 'PUT',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(updates),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not rename group');
+  }
+  return data;
+}
+
+export async function deleteGroup(groupId: string): Promise<void> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
+    method: 'DELETE',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || 'Could not delete group');
   }
 }
 

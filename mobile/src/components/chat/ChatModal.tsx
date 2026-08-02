@@ -212,7 +212,7 @@ export function ChatModal({ visible, onClose }: ChatModalProps) {
               <ChatInput
                 onSend={handleSend}
                 disabled={isLoading}
-                placeholder="Ask about visa experiences..."
+                placeholder="Ask about USA visits/migration journey..."
               />
             </KeyboardAvoidingView>
           </SafeAreaView>

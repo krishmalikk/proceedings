@@ -179,6 +179,21 @@ class TagSuggestResponse(BaseModel):
     key_dates: dict[str, str] = {}
 
 
+# --- Search query tag chips (features/ui-changes-1/changes-2-.md item 4) ---
+class QueryTagsRequest(BaseModel):
+    q: str = Field(..., min_length=1, max_length=300)
+
+
+class QueryTag(BaseModel):
+    field: str
+    code: str
+    label: str
+
+
+class QueryTagsResponse(BaseModel):
+    tags: list[QueryTag] = []
+
+
 class PostingCreateRequest(BaseModel):
     title: str = Field(..., min_length=3, max_length=300)
     description: str = Field(..., min_length=10, max_length=8000)
@@ -522,16 +537,29 @@ class GroupCreate(BaseModel):
 class GroupCard(BaseModel):
     group_id: str
     name: str = ""
+    description: str = ""
     criteria_text: str = ""
     members: list[GroupMember] = []
+    created_by: str = ""
+    is_admin: bool = False  # true for the viewer who created this group
     status: str = "formed"
     created_at: str = ""
+    last_activity_at: str = ""
     is_member: bool = False
     joined: bool = False  # true when an existing group was joined (vs. created)
 
 
 class GroupsResponse(BaseModel):
     groups: list[GroupCard]
+
+
+class GroupUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
+class GroupInvite(BaseModel):
+    handle: str = Field(..., min_length=1, max_length=64)
 
 
 # --- Group chat messages (phase-N) ---
@@ -837,6 +865,23 @@ def tag_suggest(body: TagSuggestRequest, request: Request):
         key_stages_or_info=out.get("key_stages_or_info", {}),
         key_dates=out.get("key_dates", {}),
     )
+
+
+@app.post("/api/search/query-tags", response_model=QueryTagsResponse)
+def search_query_tags(body: QueryTagsRequest, request: Request):
+    """Auto-derive controlled-vocabulary tags from a search query string, using
+    the same Gemini-based tagging principles as posting composition (see
+    posting.suggest_query_tags). Meant to be called once per search submit
+    (not per keystroke) in parallel with /api/search — a slow/failed call here
+    must never block or delay showing search results."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
+
+    import posting
+
+    out = _guard(lambda: posting.suggest_query_tags(body.q))
+    return QueryTagsResponse(tags=[QueryTag(**t) for t in out])
 
 
 @app.get("/api/tag-vocab")
@@ -1488,6 +1533,23 @@ def _facets_filter(facets: list[str]) -> str:
     return " AND ".join(clauses)
 
 
+def _recency_news_clause(include_news: bool | None, max_age_days: int) -> str:
+    """Optional extra filter clause from Advanced Search's "Include news" /
+    "Cutoff period" controls. `None`/0 (the defaults) mean the caller hasn't
+    specified either — each /api/search branch keeps its own pre-existing
+    default behavior in that case (see call sites); this only returns a
+    clause once a caller has explicitly opted into one of these controls.
+    `max_age_days` restricts every doc_kind, not just news — a general
+    recency window, not a news-only one."""
+    clauses = []
+    if include_news is False:
+        clauses.append('(NOT doc_kind: ANY("gov_news"))')
+    if max_age_days > 0:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).strftime("%Y-%m-%d")
+        clauses.append(f'posting_date > "{cutoff}"')
+    return " AND ".join(clauses)
+
+
 @app.get("/api/search", response_model=SearchResponse)
 def search(
     request: Request,
@@ -1499,17 +1561,23 @@ def search(
     facet: list[str] = Query(default=[]),
     page_size: int = 10,
     page_token: str = "",
-    sort: str = "recent",
+    sort: str = "event",
+    include_news: bool | None = None,
+    max_age_days: int = 0,
 ):
     """Ranked posting search (result cards). Browse/search mode, not Q&A.
 
     Explicit `visa`/`consulate`/`outcome` params and selected `facet` chips
     ('field:value') apply exact filters. `strictness` (broad|balanced|strict)
     controls how the NL query's extracted facets are applied. `sort`
-    ("recent" | "event" — see search_client.py's _SORT_FIELDS): "recent"
-    (default, unchanged) orders by ingestion time; "event" orders by the
-    source's own original publish date — what the News tab uses, since
-    that content is routinely backdated relative to ingestion."""
+    ("recent" | "event" — see search_client.py's _SORT_FIELDS): "event"
+    (default) orders by the source's own original publish date — ingestion
+    can lag days behind the source, so this is what "most recent" means
+    everywhere now, not just for the News tab that introduced it; "recent"
+    orders by ingestion time instead, for any caller that wants that.
+    `include_news`/`max_age_days` are Advanced Search's explicit News/Cutoff
+    controls (see _recency_news_clause) — omitted entirely by every other
+    caller, which keeps each branch's own legacy default unchanged."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
@@ -1520,7 +1588,8 @@ def search(
     selected = _facets_filter(facet)
 
     explicit = _build_filter(visa, consulate, outcome)
-    hard = " AND ".join(e for e in (explicit, selected) if e)
+    recency_news = _recency_news_clause(include_news, max_age_days)
+    hard = " AND ".join(e for e in (explicit, selected, recency_news) if e)
     if hard:
         # A hard filter (facet chips / visa / consulate / outcome) already
         # scopes results correctly on its own — don't ALSO force a fallback
@@ -1550,18 +1619,54 @@ def search(
         # the recency order entirely. The doc_kind filter scopes the feed to
         # user postings/experiences (gov_news has its own surface) AND keeps us
         # on the hard-filter path where `order_by ... desc` actually governs.
-        browse_filter = 'doc_kind: ANY("post", "experience")'
+        # (Only reachable with include_news is not False and max_age_days==0
+        # — anything else already routed through the hard-filter branch above
+        # via _recency_news_clause — so include_news here can only be
+        # None/True; True means Advanced Search explicitly asked for gov-news
+        # in an otherwise-empty search.)
+        browse_kinds = ["post", "experience"] + (["gov_news"] if include_news else [])
+        browse_filter = "doc_kind: ANY(" + ", ".join(f'"{k}"' for k in browse_kinds) + ")"
         data = search_postings("", _project_id, _ds_location, _engine_id,
                                page_size=page_size, page_token=page_token,
-                               filter_expr=browse_filter, sort=sort or "recent")
+                               filter_expr=browse_filter, sort=sort or "event")
         data.setdefault("applied_filters", {})
         data.setdefault("effective_strictness", "recent")
         data.setdefault("relaxed", False)
     else:
         # Free-text/relevance search, where Discovery Engine genuinely needs
-        # some query text to rank against.
+        # some query text to rank against. Default to relevance ordering
+        # (search_client._SORT_FIELDS comment) rather than forcing
+        # posting_date-desc — a strongly-matching-but-older posting used to
+        # get buried under unrelated recent ones within the same
+        # facet-filtered set (features/ui-changes-1/changes-2-.md item 3).
+        # A caller that explicitly wants ingestion-recency (sort="recent")
+        # is still honored; "event" (the general default elsewhere) and any
+        # other value both mean "let relevance govern" here.
+        effective_sort = "recent" if sort == "recent" else "relevance"
+        if include_news is not None or max_age_days > 0:
+            # Advanced Search explicitly set News/Cutoff — that replaces the
+            # legacy 7-day carve-out below entirely, including "no
+            # restriction at all" when include_news=True and no cutoff is
+            # set (an explicit ask to see everything, unfiltered).
+            news_recency_filter = _recency_news_clause(include_news, max_age_days)
+        else:
+            # gov-news items shouldn't pollute ordinary keyword search — the
+            # empty-query browse path already excludes them (browse_filter
+            # above) and the News tab reaches them via its own explicit
+            # doc_kind:gov_news facet chip (the hard-filter branch above, left
+            # untouched). This is the one remaining path with no doc_kind
+            # handling at all. Carve out anything still within the last 7 days
+            # (by source event date, not ingestion) so breaking news can still
+            # surface in a relevant keyword search while it's still news.
+            # Only applies when the caller hasn't opted into the explicit
+            # News/Cutoff controls above (i.e. every caller but Advanced
+            # Search) — see _recency_news_clause.
+            news_cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+            news_recency_filter = f'((NOT doc_kind: ANY("gov_news")) OR posting_date > "{news_cutoff}")'
         data = search_with_strictness(q, _project_id, _ds_location, _engine_id,
-                                      page_size=page_size, page_token=page_token, strictness=strictness, sort=sort)
+                                      page_size=page_size, page_token=page_token,
+                                      strictness=strictness, sort=effective_sort,
+                                      extra_filter=news_recency_filter)
 
     # Hide moderation-taken-down postings and any authored by users the viewer
     # has blocked; also stamps each card's author_id for client-side blocking.
@@ -1970,6 +2075,64 @@ def join_group_route(group_id: str, request: Request):
     except KeyError:
         raise HTTPException(status_code=404, detail="Group not found")
     return GroupCard(**g)
+
+
+@app.post("/api/groups/{group_id}/leave", response_model=GroupCard)
+def leave_group_route(group_id: str, request: Request):
+    """Leave a group. Reassigns admin to the next member if the creator leaves."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.leave_group(_db, group_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return GroupCard(**g)
+
+
+@app.put("/api/groups/{group_id}", response_model=GroupCard)
+def rename_group_route(group_id: str, body: GroupUpdate, request: Request):
+    """Rename and/or re-describe a group. Creator-only."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.rename_group(_db, group_id, uid, body.name, body.description))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return GroupCard(**g)
+
+
+@app.post("/api/groups/{group_id}/invite", response_model=GroupCard)
+def invite_member_route(group_id: str, body: GroupInvite, request: Request):
+    """A current member adds someone they know by handle."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.invite_member(_db, group_id, uid, body.handle))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return GroupCard(**g)
+
+
+@app.delete("/api/groups/{group_id}")
+def delete_group_route(group_id: str, request: Request):
+    """Permanently delete a group and its messages. Creator-only."""
+    import matching
+    uid = _active_user(request)
+    try:
+        _guard(lambda: matching.delete_group(_db, group_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

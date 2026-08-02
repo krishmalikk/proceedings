@@ -20,8 +20,9 @@ they double as the reconcile `message`), minus the journey/PII bits:
   consulates, key_stages_or_info, key_dates, background_text.
 
 New Firestore collection:
-  groups/{auto_id} = {owner_id, owner_username, criteria_text, criteria_tags,
-                      members:[{user_id, username, score}], status, created_at}
+  groups/{auto_id} = {name, signature, criteria_text, criteria_tags,
+                      members:[{user_id, username}], created_by, description,
+                      status, created_at, updated_at, last_activity_at}
 """
 from __future__ import annotations
 
@@ -308,18 +309,18 @@ def _group_name(criteria: dict) -> str:
     return name
 
 
-def _member(user_id: str, username: str = "") -> dict:
-    return {"user_id": str(user_id), "username": username or profile.username_for(user_id)}
+def _member(db, user_id: str, username: str = "") -> dict:
+    return {"user_id": str(user_id), "username": username or profile.handle_for(db, user_id)}
 
 
-def _dedupe_members(members: list[dict]) -> list[dict]:
+def _dedupe_members(db, members: list[dict]) -> list[dict]:
     seen: set[str] = set()
     out: list[dict] = []
     for m in members:
         uid = str(m.get("user_id") or "")
         if uid and uid not in seen:
             seen.add(uid)
-            out.append({"user_id": uid, "username": str(m.get("username") or profile.username_for(uid))})
+            out.append({"user_id": uid, "username": str(m.get("username") or profile.handle_for(db, uid))})
     return out
 
 
@@ -331,14 +332,19 @@ def _find_by_signature(db, sig: str):
 
 def _group_view(doc_id: str, data: dict, viewer_id: str, joined: bool = False) -> dict:
     members = data.get("members") or []
+    created_by = data.get("created_by") or ""
     return {
         "group_id": doc_id,
         "name": data.get("name") or "",
+        "description": data.get("description") or "",
         "criteria_text": data.get("criteria_text") or "",
         "criteria_tags": data.get("criteria_tags") or {},
         "members": members,
+        "created_by": created_by,
+        "is_admin": bool(viewer_id) and viewer_id == created_by,
         "status": data.get("status") or "formed",
         "created_at": data.get("created_at") or "",
+        "last_activity_at": data.get("last_activity_at") or data.get("created_at") or "",
         "is_member": any(m.get("user_id") == viewer_id for m in members),
         "joined": joined,
     }
@@ -354,25 +360,29 @@ def find_or_create_group(db, user_id: str, criteria_text: str, criteria: dict,
     sig = _signature(criteria)
     if not _is_distinctive(sig):
         raise ValueError("Add at least a visa or consulate to form a group.")
-    to_add = _dedupe_members([_member(user_id), *(members or [])])
+    to_add = _dedupe_members(db, [_member(db, user_id), *(members or [])])
 
     existing = _find_by_signature(db, sig)
     if existing is not None:
         data = existing.to_dict() or {}
-        merged = _dedupe_members([*(data.get("members") or []), *to_add])
-        existing.reference.update({"members": merged, "updated_at": _now_iso()})
-        return _group_view(existing.id, {**data, "members": merged}, user_id, joined=True)
+        merged = _dedupe_members(db, [*(data.get("members") or []), *to_add])
+        now = _now_iso()
+        existing.reference.update({"members": merged, "updated_at": now, "last_activity_at": now})
+        return _group_view(existing.id, {**data, "members": merged, "last_activity_at": now}, user_id, joined=True)
 
+    now = _now_iso()
     doc = {
         "name": _group_name(criteria),
+        "description": "",
         "signature": sig,
         "criteria_text": str(criteria_text or "")[:2000],
         "criteria_tags": _clean_criteria(criteria),
         "members": to_add,
         "created_by": user_id,
         "status": "formed",
-        "created_at": _now_iso(),
-        "updated_at": _now_iso(),
+        "created_at": now,
+        "updated_at": now,
+        "last_activity_at": now,
     }
     ref = db.collection("groups").document()
     ref.set(doc)
@@ -388,9 +398,116 @@ def join_group(db, group_id: str, user_id: str) -> dict:
     if not snap.exists:
         raise KeyError("Group not found.")
     data = snap.to_dict() or {}
-    members = _dedupe_members([*(data.get("members") or []), _member(user_id)])
-    ref.update({"members": members, "updated_at": _now_iso()})
-    return _group_view(group_id, {**data, "members": members}, user_id, joined=True)
+    members = _dedupe_members(db, [*(data.get("members") or []), _member(db, user_id)])
+    now = _now_iso()
+    ref.update({"members": members, "updated_at": now, "last_activity_at": now})
+    return _group_view(group_id, {**data, "members": members, "last_activity_at": now}, user_id, joined=True)
+
+
+_MAX_NAME_LEN = 100
+_MAX_DESCRIPTION_LEN = 500
+
+
+def rename_group(db, group_id: str, user_id: str, name: str | None = None,
+                 description: str | None = None) -> dict:
+    """Update a group's name and/or description. Creator-only — raises
+    PermissionError otherwise (→ 403 at the route), KeyError if the group
+    doesn't exist (→ 404). Only the field(s) actually provided are changed."""
+    if db is None:
+        raise RuntimeError("Firestore unavailable")
+    ref = db.collection("groups").document(group_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise KeyError("Group not found.")
+    data = snap.to_dict() or {}
+    if user_id != (data.get("created_by") or ""):
+        raise PermissionError("Only the group's creator can rename it.")
+    updates: dict = {"updated_at": _now_iso()}
+    if name is not None:
+        clean_name = name.strip()[:_MAX_NAME_LEN]
+        if not clean_name:
+            raise ValueError("Name cannot be empty.")
+        updates["name"] = clean_name
+    if description is not None:
+        updates["description"] = description.strip()[:_MAX_DESCRIPTION_LEN]
+    ref.update(updates)
+    return _group_view(group_id, {**data, **updates}, user_id)
+
+
+def invite_member(db, group_id: str, user_id: str, handle: str) -> dict:
+    """A current member adds someone they know by handle — direct add, no
+    accept/decline step (matches how join_group already works). Raises
+    PermissionError if the requester isn't a member, KeyError if the group
+    or handle doesn't exist (→ 404 either way at the route)."""
+    if db is None:
+        raise RuntimeError("Firestore unavailable")
+    ref = db.collection("groups").document(group_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise KeyError("Group not found.")
+    data = snap.to_dict() or {}
+    if user_id not in {m.get("user_id") for m in (data.get("members") or [])}:
+        raise PermissionError("Only group members can invite others.")
+    from google.cloud.firestore_v1.base_query import FieldFilter
+    clean_handle = (handle or "").strip()
+    matches = list(db.collection("users").where(filter=FieldFilter("username", "==", clean_handle)).limit(1).stream())
+    if not matches:
+        raise ValueError(f'No user with the handle "{clean_handle}".')
+    invited_uid = matches[0].id
+    members = _dedupe_members(db, [*(data.get("members") or []), _member(db, invited_uid, clean_handle)])
+    now = _now_iso()
+    ref.update({"members": members, "updated_at": now, "last_activity_at": now})
+    return _group_view(group_id, {**data, "members": members, "last_activity_at": now}, user_id)
+
+
+def _delete_group_and_messages(db, group_id: str, ref=None) -> None:
+    """Delete a group doc and its groups/{id}/messages subcollection (Firestore
+    doesn't cascade-delete subcollections on its own)."""
+    ref = ref or db.collection("groups").document(group_id)
+    for doc in ref.collection("messages").stream():
+        doc.reference.delete()
+    ref.delete()
+
+
+def leave_group(db, group_id: str, user_id: str) -> dict:
+    """Remove the user from a group's members. If they were the creator/admin,
+    reassign admin to the next remaining member so the group is never left
+    without one. If the last member leaves, the group (and its messages) is
+    deleted outright rather than left behind as an orphaned, empty, admin-less
+    doc. KeyError if the group doesn't exist (→ 404)."""
+    if db is None:
+        raise RuntimeError("Firestore unavailable")
+    ref = db.collection("groups").document(group_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise KeyError("Group not found.")
+    data = snap.to_dict() or {}
+    members = [m for m in (data.get("members") or []) if m.get("user_id") != user_id]
+    if not members:
+        _delete_group_and_messages(db, group_id, ref)
+        return _group_view(group_id, {**data, "members": []}, user_id)
+    updates: dict = {"members": members, "updated_at": _now_iso()}
+    if data.get("created_by") == user_id:
+        updates["created_by"] = members[0].get("user_id", "")
+    ref.update(updates)
+    return _group_view(group_id, {**data, **updates}, user_id)
+
+
+def delete_group(db, group_id: str, user_id: str) -> None:
+    """Permanently delete a group and its messages. Creator-only — raises
+    PermissionError otherwise (→ 403 at the route), KeyError if the group
+    doesn't exist (→ 404). Unlike leaving, this works regardless of how many
+    other members remain — the admin can end the group for everyone."""
+    if db is None:
+        raise RuntimeError("Firestore unavailable")
+    ref = db.collection("groups").document(group_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise KeyError("Group not found.")
+    data = snap.to_dict() or {}
+    if user_id != (data.get("created_by") or ""):
+        raise PermissionError("Only the group's creator can delete it.")
+    _delete_group_and_messages(db, group_id, ref)
 
 
 def list_all_groups(db, viewer_id: str = "") -> list[dict]:

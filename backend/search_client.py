@@ -267,6 +267,25 @@ def _card_from_struct(case_id: str, meta: dict) -> dict:
         or _as_list(meta.get("tags"))
         or _as_list(meta.get("derived_topic_cluster"))
     )
+    # "news-update"/"discussion"/"blog" must always survive into the card's
+    # (capped) tags, regardless of which source array won the fallback chain
+    # above (posting.py deterministically guarantees "discussion" — and the
+    # model may pick "blog" — in the raw "tags" field, but
+    # concerns_or_questions_tags could still win the chain instead) or of
+    # the 8-item cap below silently dropping them.
+    #
+    # Checking mere membership (`guaranteed not in tags`) isn't enough —
+    # found live: a real posting with 20 raw tags, no concerns_or_questions_tags
+    # (so raw "tags" itself wins the chain unmodified), had "discussion"/
+    # "news-update" sitting at positions 10/11 — well past the 8-item cap
+    # applied below. `guaranteed not in tags` was True->False (already
+    # "present"), so nothing moved them forward, and the cap silently cut
+    # both. Must check `not in tags[:8]` (will it survive the cap as-is?),
+    # not just `not in tags` (does it exist anywhere?) — and remove any
+    # existing occurrence before prepending so it isn't duplicated.
+    for guaranteed in ("news-update", "discussion", "blog"):
+        if guaranteed in _as_list(meta.get("tags")) and guaranteed not in tags[:8]:
+            tags = [guaranteed] + [t for t in tags if t != guaranteed]
     return {
         "case_id": case_id,
         "title": str(meta.get("post_title") or "").strip() or case_id,
@@ -331,8 +350,23 @@ _FACET_SPECS = [
     {"key": "category", "label": "Category",
      "fields": ["current_visa_or_greencard_category", "visa_applying_for"],
      "csv": "1.2-greencard-categories.csv", "kind": "code", "boost": 0.4, "min_len": 3},
-    {"key": "outcome", "label": "Outcome", "fields": ["key_stages_or_info.outcome_status"],
-     "csv": "1.9-outcomes.csv", "kind": "code", "boost": 0.3, "min_len": 5},
+    # min_len lowered from 5 to 3: matching is exact-code (not substring), so a
+    # 3-char token still has to equal a real 1.9 code ("RFE", etc.) — this only
+    # stops rejecting short-but-valid codes before the exact-match check runs.
+    # Also now checked against tags/concerns_or_questions_tags, not just
+    # key_stages_or_info.outcome_status — _master_tags_block() feeds 1.9 into
+    # the same tags/concerns_or_questions_tags union the model tags from, so an
+    # outcome code can land in either place.
+    {"key": "outcome", "label": "Outcome",
+     "fields": ["key_stages_or_info.outcome_status", "tags", "concerns_or_questions_tags"],
+     "csv": "1.9-outcomes.csv", "kind": "code", "boost": 0.3, "min_len": 3},
+    # New: abbreviations (POE, RFE, NVC, ...) were never registered as a facet
+    # at all, so terms like "POE" were silently dropped from every strictness
+    # level's filter/boost. Same fields as "tag" below — _master_tags_block()
+    # feeds 1.3 into the same tags/concerns_or_questions_tags union.
+    {"key": "abbreviation", "label": "Term",
+     "fields": ["tags", "concerns_or_questions_tags"],
+     "csv": "1.3-abbreviations.csv", "kind": "code", "boost": 0.3, "min_len": 3},
     {"key": "tag", "label": "Tag",
      "fields": ["tags", "concerns_or_questions_tags", "derived_topic_cluster"],
      "csv": "1.10-common-misc.csv", "kind": "tag", "boost": 0.2, "min_len": 6},
@@ -347,7 +381,10 @@ def _csv_path(name: str) -> str:
 
 def _code_variants(code: str) -> set:
     low = code.strip().lower()
-    return {v for v in {low, low.replace("-", ""), low.replace("-", " ")} if v}
+    # Includes a space->hyphen variant (not just hyphen->space) so a spaced-out
+    # full name like "Port of Entry" also matches hyphenated query text like
+    # "port-of-entry" — see _facet_registry()'s abbreviation Full Name indexing.
+    return {v for v in {low, low.replace("-", ""), low.replace("-", " "), low.replace(" ", "-")} if v}
 
 
 def _facet_registry() -> list:
@@ -376,6 +413,19 @@ def _facet_registry() -> list:
                     elif spec["kind"] == "code":
                         for v in _code_variants(code):
                             terms[v] = code
+                        # Abbreviations (1.3-abbreviations.csv: tag,alternate_tag,
+                        # Full Name,Description) carry a human-readable Full Name
+                        # and sometimes an alternate_tag — index those too so a
+                        # query using the spelled-out phrase ("Port of Entry")
+                        # matches the same code as the abbreviation itself
+                        # ("POE"). setdefault: never let an alias shadow a
+                        # primary code's own term.
+                        if spec["key"] == "abbreviation":
+                            for extra in (row[1] if len(row) > 1 else "", row[2] if len(row) > 2 else ""):
+                                extra = extra.strip()
+                                if extra:
+                                    for v in _code_variants(extra):
+                                        terms.setdefault(v, code)
                     elif spec["kind"] == "tag":  # only multi-segment tags (avoid common-word FPs)
                         if "-" in code:
                             terms[code.lower()] = code
@@ -438,12 +488,15 @@ def _boost_from_facets(facets: dict):
 # Discovery Engine field each `sort` value orders by — both are registered
 # identically in the live schema (retrievable+indexable, type "datetime";
 # confirmed live via SchemaService.GetSchema), so either sorts correctly.
-# "recent" (ingestion_timestamp) is the long-standing default everywhere;
-# "event" (posting_date, the source's own original publish date) exists
-# specifically for the News tab, where content is routinely backdated
-# (ingested today, published weeks/months ago at the source) — sorting by
-# ingestion there would show unrelated old/new items interleaved, not a
-# real "most recently published" order. See website's news/page.tsx.
+# "event" (posting_date, the source's own original publish date) is now the
+# default everywhere — ingestion can lag days behind a source's actual
+# publish date, so "most recent" should mean recent-at-the-source, not
+# recent-in-our-pipeline. "recent" (ingestion_timestamp) remains available
+# for any caller that specifically wants ingestion order. "relevance" (no
+# order_by at all — Discovery Engine's own text-relevance ranking governs)
+# is a third option: forcing posting_date-desc on every free-text query
+# used to bury a strongly-matching-but-older posting under unrelated recent
+# ones within the same facet-filtered set — see search_with_strictness().
 _SORT_FIELDS = {"recent": "ingestion_timestamp", "event": "posting_date"}
 
 
@@ -456,7 +509,7 @@ def search_postings(
     page_token: str = "",
     filter_expr: str = "",
     boost=None,
-    sort: str = "recent",
+    sort: str = "event",
 ) -> dict:
     """
     Ranked posting search (Google-results style) via the Discovery Engine
@@ -467,20 +520,24 @@ def search_postings(
     client = _search_client(project_id, location)
     serving_config = _serving_config(project_id, location, engine_id)
 
-    order_field = _SORT_FIELDS.get(sort, _SORT_FIELDS["recent"])
-    request = de.SearchRequest(
+    request_kwargs = dict(
         serving_config=serving_config,
         query=query,
         page_size=page_size,
         page_token=page_token or "",
         filter=filter_expr or "",
-        # Most-recent-first by whichever timestamp `sort` selects (see
-        # _SORT_FIELDS) — always descending, so the freshest content leads.
-        order_by=f"{order_field} desc",
         content_search_spec=de.SearchRequest.ContentSearchSpec(
             snippet_spec=de.SearchRequest.ContentSearchSpec.SnippetSpec(return_snippet=True),
         ),
     )
+    if sort != "relevance":
+        # Most-recent-first by whichever timestamp `sort` selects (see
+        # _SORT_FIELDS) — always descending, so the freshest content leads.
+        # sort="relevance" omits this entirely, letting Discovery Engine's own
+        # text-relevance ranking govern order instead.
+        order_field = _SORT_FIELDS.get(sort, _SORT_FIELDS["recent"])
+        request_kwargs["order_by"] = f"{order_field} desc"
+    request = de.SearchRequest(**request_kwargs)
     if boost is not None:
         request.boost_spec = boost
     elif _BOOST_ENABLED:
@@ -508,7 +565,7 @@ def search_with_strictness(
     page_token: str = "",
     strictness: str = "balanced",
     extra_filter: str = "",
-    sort: str = "recent",
+    sort: str = "event",
 ) -> dict:
     """
     Search with a user-chosen precision level:

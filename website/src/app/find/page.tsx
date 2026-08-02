@@ -96,6 +96,17 @@ export default function FindPage() {
 
   const threadRef = useRef<HTMLDivElement>(null)
 
+  // Anonymized handle for the "Signed in as" identity line — never the real
+  // Firebase displayName/email (same pattern as TopAppBar.tsx).
+  const [handle, setHandle] = useState('')
+  useEffect(() => {
+    if (!authUser) { setHandle(''); return }
+    fetch('/api/profile', { headers: userHeaders() })
+      .then((r) => r.json())
+      .then((p: { username?: string }) => setHandle(p.username || ''))
+      .catch(() => setHandle(''))
+  }, [authUser])
+
   useEffect(() => {
     // Dev-only demo-user picker (off in prod — see DEMO_PICKER_ENABLED).
     if (DEMO_PICKER_ENABLED) {
@@ -295,7 +306,16 @@ export default function FindPage() {
     finally { setBrowseLoading(false) }
   }, [])
 
-  useEffect(() => { if (tab === 'browse' && activeId) loadAllGroups() }, [tab, activeId, loadAllGroups])
+  // `activeId` is a DEV-ONLY signal (only ever set by the demo-user picker,
+  // gated off in production — see DEMO_PICKER_ENABLED). Gating on it alone
+  // meant a real signed-in production user (identified via `authUser`, never
+  // `activeId`) landed on the Groups tab and this effect never fired at
+  // all — the list was never fetched, not empty, so a just-created group
+  // looked like it had vanished. Fire once EITHER a real session or a demo
+  // user is resolved.
+  useEffect(() => {
+    if (tab === 'browse' && (authUser || activeId)) loadAllGroups()
+  }, [tab, activeId, authUser, loadAllGroups])
 
   async function joinGroup(id: string) {
     try {
@@ -312,10 +332,12 @@ export default function FindPage() {
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <h1 className="text-headline-md text-on-surface">Find users in the same boat</h1>
         {authUser ? (
-          /* Firebase-authenticated — the demo picker is inert (the uid wins), so show identity instead. */
+          /* Firebase-authenticated — the demo picker is inert (the uid wins), so show
+             identity instead. Never the real Firebase displayName/email — `handle` is
+             the anonymized handle (same pattern as TopAppBar.tsx). */
           <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
             <span className="material-symbols-outlined text-[20px]">account_circle</span>
-            Signed in as {authUser.displayName || authUser.email}
+            Signed in as {handle || 'Anonymous'}
           </span>
         ) : DEMO_PICKER_ENABLED ? (
           <label className="flex items-center gap-2 text-label-md text-on-surface-variant">

@@ -209,13 +209,13 @@ export function PostScreen() {
   );
 
   const canPreview = title.trim().length >= 3 && description.trim().length >= 10;
-  // FAMILY-UNSPECIFIED / EMPLOYMENT-UNSPECIFIED (backend: posting.py's
+  // FAMILY-IMMIGRATION / EMPLOYMENT-IMMIGRATION (backend: posting.py's
   // _apply_visa_backfill()) are a LAST-RESORT fallback meant for manual
   // curation, where there's no original poster left to ask for more detail.
   // A live app user is right here and can always be asked directly instead
   // — so unlike curated content, a generic code should never be enough to
   // satisfy this gate on its own (website parity — see post/page.tsx).
-  const GENERIC_VISA_FALLBACKS = new Set(['FAMILY-UNSPECIFIED', 'EMPLOYMENT-UNSPECIFIED']);
+  const GENERIC_VISA_FALLBACKS = new Set(['FAMILY-IMMIGRATION', 'EMPLOYMENT-IMMIGRATION']);
   const hasSpecificVisa = (arr: string[]) => arr.some((v) => !GENERIC_VISA_FALLBACKS.has(v));
   const hasVisa =
     hasSpecificVisa(groups.visa_applying_for) || hasSpecificVisa(groups.current_visa_or_greencard_category);

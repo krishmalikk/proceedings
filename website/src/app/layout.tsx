@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: '%s | Meridian',
   },
   description: 'Navigate your immigration journey with confidence. AI-powered guidance, community support, and real experiences from people like you.',
-  keywords: ['immigration', 'visa', 'green card', 'H-1B', 'immigration guide', 'USCIS', 'immigration assistant', 'visa experiences'],
+  keywords: ['immigration', 'visa', 'green card', 'H-1B', 'immigration guide', 'USCIS', 'immigration assistant', 'USA visits/migration journey'],
   authors: [{ name: 'Meridian' }],
   openGraph: {
     type: 'website',
@@ -91,11 +91,8 @@ export default function RootLayout({
                 <div className="col-span-1">
                   <div className="text-label-md font-semibold text-on-surface mb-3">Product</div>
                   <div className="space-y-2">
-                    <a href="/search" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
+                    <a href="/" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
                       AI Assistant
-                    </a>
-                    <a href="/community" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
-                      Community
                     </a>
                     <a href="/find" className="block text-body-md text-on-surface-variant hover:text-primary transition-colors">
                       Find Experiences

@@ -74,7 +74,7 @@ export const TAGS = [
   'PERM',
   'cap-gap',
   'cap-subject',
-  'port-of-entry',
+  'POE',
   'travel-ban',
 ];
 

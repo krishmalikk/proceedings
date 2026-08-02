@@ -485,7 +485,8 @@ Return ONLY a single JSON object — no prose, no Markdown fences.
   "language": string,                           // ISO-639-1, default "en"
   "tagging_confidence": number,                 // 0.0..1.0
   "posting_type": string,                       // consular_visa|in_us_status|experience|general_question
-  "relevant_sections": string[]                 // which tag sections genuinely apply (see below)
+  "relevant_sections": string[],                // which tag sections genuinely apply (see below)
+  "is_personal_case": boolean                   // true if this describes/asks about the POSTER'S OWN situation, even vaguely or without a specific visa code; false ONLY for a general policy/process/industry discussion not tied to their own case (see "discussion" below)
 }
 
 # RULES
@@ -514,7 +515,13 @@ Return ONLY the sections that truly apply (omit the rest). Example: a consular B
 Always capture the applicant's visa/status in current_visa_or_greencard_category and/or visa_applying_for whenever one is discernible.
 Populate key_stages_or_info with discrete outcomes/state facts (e.g. visa_status: approved, I-140: approved) and key_dates with any dates mentioned — these become their own UI sections when present.
 
-FAMILY-UNSPECIFIED and EMPLOYMENT-UNSPECIFIED are LAST-RESORT category codes — use them ONLY when the posting is clearly family-based or employment-based (e.g. it mentions I-130, a spouse/parent/child relationship without naming which, an employer-sponsored petition, etc.) but truly gives no way to determine a specific code (IR-1, F2A-FAMILY, EB-2, ...). Never use them as a shortcut when a specific code IS determinable from the text — e.g. an explicit "my wife"/"my husband" mention with a U.S.-citizen petitioner means IR-1, not FAMILY-UNSPECIFIED.
+FAMILY-IMMIGRATION, EMPLOYMENT-IMMIGRATION, and ADJUSTMENT-OF-STATUS are LAST-RESORT category codes — use them ONLY when the posting is clearly family-based, employment-based, or (for ADJUSTMENT-OF-STATUS) an I-485/AOS filing of unstated basis, but truly gives no way to determine a specific code (IR-1, F2A-FAMILY, EB-2, ...). I-485 and "AOS"/"adjustment of status" are used interchangeably by posters for the same real-world action (filing to become a permanent resident) — treat a mention of either the same way. Never use these as a shortcut when a specific code IS determinable from the text — e.g. an explicit "my wife"/"my husband" mention with a U.S.-citizen petitioner means IR-1, not FAMILY-IMMIGRATION; "filed my I-485 based on my approved I-140 in EB-2" means EB-2, not ADJUSTMENT-OF-STATUS.
+
+Set "is_personal_case" to false ONLY for a general question or discussion about immigration policy, process, or industry-wide news that is NOT tied to the poster's own situation — e.g. "what does everyone think about the new $100k H-1B fee", "why does every category feel backed up this year". Set it to true for EVERYTHING else, including a vague personal question with no specific visa code named — e.g. "is it too late for my priority date to still lock in this year" is personal (uses "my", asks about their own timeline) even though no visa is named. When genuinely unsure, default to true — a posting incorrectly treated as personal just asks the poster to clarify their status; a personal posting incorrectly treated as general discussion loses its personal-status signal entirely. (The system deterministically tags "discussion" when is_personal_case is false and no visa/status was captured — do not tag "discussion" yourself.)
+
+A posting that is mainly a LINK/reference to a news article, with a short reaction or invitation to discuss (not the poster's own case) — e.g. a one-line comment plus a URL — should be tagged with BOTH "news-update" AND "discussion": "news-update" because it's reporting/sharing real news, "discussion" because it's inviting conversation about it, not stating the poster's own status. These two are not mutually exclusive.
+
+"blog" (1.10) is for a standalone informational or educational write-up about U.S. immigration (tips, how-to guides, explainers) that is NOT the poster's own case and NOT primarily a reaction to one specific news item — that distinction is what separates it from "discussion" (which is conversational/reactive) and from "experience-posting" (which is the poster's own lived account). A shared link to someone else's blog/explainer article also gets "blog". Like "discussion", a "blog"-tagged posting with no personal visa/status claim does not need one — do not force a visa/status field to satisfy validation.
 """
 
 
@@ -601,6 +608,14 @@ _POSTING_TYPES = {"consular_visa", "in_us_status", "experience", "general_questi
 # alone), I-130 -> "this is family-based" is a safe, unambiguous inference.
 _I130_TAGS = {"I-130", "i130-filing", "i130-approval"}
 
+# Symmetric to _I130_TAGS above, for the employment side: Form I-140
+# ("Immigrant Petition for Alien Worker") has exactly one use — employment-
+# based immigrant petitions — no family/diversity/investor/asylum path ever
+# touches it, so I-140 -> "this is employment-based" is equally safe and
+# unambiguous, even though it can't pin down which specific EB category
+# (EB-1/EB-1A/EB-1B/EB-1C/EB-2/EB-3 all file I-140).
+_I140_TAGS = {"I-140", "i140-filing", "i140-approval", "i140-portability"}
+
 # Last-resort generic categories (tags-cleaned/1.2-greencard-categories.csv)
 # for when a posting is clearly family- or employment-based (the model
 # tagged it, or the deterministic _I130_TAGS rule above did) but neither
@@ -615,22 +630,73 @@ _I130_TAGS = {"I-130", "i130-filing", "i130-approval"}
 # ever runs after _derive_visa_from_tags() has already had its chance, so
 # a real, specific, derivable code always wins over the generic fallback.
 _GENERIC_CATEGORY_FALLBACK = {
-    "family-based-immigration": "FAMILY-UNSPECIFIED",
-    "employment-based-immigration": "EMPLOYMENT-UNSPECIFIED",
+    "family-based-immigration": "FAMILY-IMMIGRATION",
+    "employment-based-immigration": "EMPLOYMENT-IMMIGRATION",
 }
 
+# I-485 (the form) and AOS (the process it's filed for) aren't duplicates —
+# they're two names for the same real-world action, used interchangeably by
+# posters — but neither is itself a visa/GC CATEGORY: AOS can be filed on a
+# family, employment, diversity, or asylum basis, so mentioning it alone
+# doesn't tell us which. Every tag below (both the i485-* and aos-* action
+# families in 1.6, plus the bare form/abbreviation) represents the same
+# "filed for a green card, basis unstated" signal. ADJUSTMENT-OF-STATUS is
+# the even-more-generic sibling of FAMILY-IMMIGRATION/EMPLOYMENT-IMMIGRATION
+# below it in _apply_visa_backfill()'s ordering — it only fires when even
+# THOSE couldn't narrow things down (e.g. no I-130/I-140 signal either).
+_AOS_TAGS = {"I-485", "i485-filing", "i485-approval", "i485-rfe",
+             "aos-filing", "aos-interview", "aos-approval", "adjustment-of-status-AOS"}
 
-def _apply_visa_backfill(groups: dict) -> None:
+# All three last-resort codes are now valid entries in the model's own visa
+# vocab list (they're 1.2 CSV rows like any other), so the model CAN pick one
+# directly instead of leaving both fields empty for this function to fill in
+# — found live: given "based on my approved I-130 (spouse petition)" (a
+# clearly family-based signal), the model still sometimes picks the more
+# generic ADJUSTMENT-OF-STATUS on its own, bypassing the specificity
+# ordering below entirely (that ordering is only ever consulted when BOTH
+# fields start empty). The prompt's "never use these as a shortcut" guidance
+# alone isn't reliable enough — same lesson as _apply_discussion_backfill().
+_LAST_RESORT_CODES = {"FAMILY-IMMIGRATION", "EMPLOYMENT-IMMIGRATION", "ADJUSTMENT-OF-STATUS"}
+
+
+def _apply_visa_backfill(groups: dict, is_personal_case=True) -> None:
     """Deterministically fill visa_applying_for/current_visa_or_greencard_category
-    in place when both are empty, trying the more specific signal first:
+    in place, trying the more specific signal first:
       1. _derive_visa_from_tags() — a single unambiguous process-tag mapping
          (e.g. h1b-petition -> H-1B, opt-application -> F-1).
       2. _GENERIC_CATEGORY_FALLBACK — a broad family/employment signal
-         without enough detail for a specific code. Last resort only.
-    No-op if either field is already populated (by the model or a human
-    curator's edit) — never overrides a real answer that's already there."""
-    if groups["visa_applying_for"] or groups["current_visa_or_greencard_category"]:
+         without enough detail for a specific code.
+      3. _AOS_TAGS -> ADJUSTMENT-OF-STATUS — an even broader "filing for a
+         green card, basis unknown" signal. Last resort of the last resorts:
+         only reached when neither of the above found anything more
+         specific, so a real family/employment signal (e.g. an I-130 tag
+         alongside the AOS filing) always wins first.
+    No-op if either field already holds a REAL (non-last-resort) answer —
+    never overrides one, by the model or a human curator's edit. But if the
+    ONLY thing present is itself a last-resort code (the model's own,
+    possibly premature, choice), that's cleared and re-derived — see
+    _LAST_RESORT_CODES above for why this re-derivation is necessary.
+
+    No-op entirely when is_personal_case is False — a background/topic tag
+    like "family-based-immigration" or a process tag like "h1b-petition" can
+    legitimately appear on content that's just discussing that topic (e.g. a
+    news link about H-1B policy, or commentary on family-based overstay
+    forgiveness), not the poster's own case. Found live: a link-share post
+    with no personal status claim at all still got backfilled to
+    FAMILY-IMMIGRATION because the model tagged "family-based-immigration"
+    as the ARTICLE's topic — which then suppressed the "discussion" tag
+    entirely, since _apply_discussion_backfill() only fires when both visa
+    fields are still empty. is_personal_case defaults to True so
+    build_canonical()'s call site (no fresh extraction available, operates
+    on already client-submitted groups) keeps its existing behavior
+    unchanged — only suggest_tags() passes the real classification through."""
+    if is_personal_case is False:
         return
+    current, applying = groups["current_visa_or_greencard_category"], groups["visa_applying_for"]
+    if (current and current[0] not in _LAST_RESORT_CODES) or (applying and applying[0] not in _LAST_RESORT_CODES):
+        return
+    groups["current_visa_or_greencard_category"] = []
+    groups["visa_applying_for"] = []
     derived = _derive_visa_from_tags(groups["tags"])
     if derived:
         groups["visa_applying_for"] = [derived]
@@ -639,6 +705,30 @@ def _apply_visa_backfill(groups: dict) -> None:
         if trigger_tag in groups["tags"]:
             groups["current_visa_or_greencard_category"] = [fallback]
             return
+    if _AOS_TAGS & set(groups["tags"]):
+        groups["current_visa_or_greencard_category"] = ["ADJUSTMENT-OF-STATUS"]
+        return
+
+
+def _apply_discussion_backfill(groups: dict, is_personal_case) -> None:
+    """Deterministically add the "discussion" tag when a posting has no visa
+    signal at all (after _apply_visa_backfill() has already had its chance)
+    AND the model classified it as NOT the poster's own case
+    (is_personal_case is False). validate() treats "discussion" as an
+    exemption from the visa-required rule, same as "news-update" —
+    a genuine policy/process/industry discussion has no personal status to
+    capture, and shouldn't be rejected for lacking one.
+
+    `is_personal_case` defaults to True (personal) for anything other than
+    the literal boolean False — fail closed: a missing/malformed field from
+    the model, or an old cached extraction from before this field existed,
+    must never accidentally wave a personal posting through unflagged.
+    No-op if either visa field is already populated, mirroring
+    _apply_visa_backfill()'s own guard."""
+    if groups["visa_applying_for"] or groups["current_visa_or_greencard_category"]:
+        return
+    if is_personal_case is False:
+        _add_tag_once(groups, "discussion")
 
 
 # UI tag sections (primary_consulate is omitted from the UI — it's derived from
@@ -742,6 +832,20 @@ def suggest_tags(title: str, description: str) -> dict:
     extracted = _extract(title, description)
     groups: dict = {f: _clean_group(f, extracted.get(f)) for f in GROUP_FIELDS}
     groups = _normalize_groups(groups)
+    is_personal_case = extracted.get("is_personal_case")
+    # A posting the model itself classified as NOT the poster's own case
+    # must never carry a personal visa/status claim, even if a visa term is
+    # literally discernible in the text. Found live: a general H-1B lottery
+    # guide correctly got is_personal_case=False and the "blog" tag, but the
+    # model still put "H-1B" into visa_applying_for — the RULES section's
+    # "always capture... whenever discernible" doesn't reliably distinguish
+    # "this is the applicant's own status" from "this term appears in a
+    # general-topic post." Force-clear rather than trust the model to also
+    # correctly apply that distinction — same "enforce in code, not just in
+    # the prompt" reasoning as _apply_visa_backfill()'s is_personal_case gate.
+    if is_personal_case is False:
+        groups["current_visa_or_greencard_category"] = []
+        groups["visa_applying_for"] = []
     ptype = extracted.get("posting_type")
     if ptype not in _POSTING_TYPES:
         ptype = ""
@@ -752,24 +856,34 @@ def suggest_tags(title: str, description: str) -> dict:
     # applies for phase-J experiences).
     if key_dates:
         _add_tag_once(groups, "timeline")
-    # I-130 in any form -> family-based-immigration, deterministically (see
-    # _I130_TAGS). Doesn't touch current_visa_or_greencard_category — I-130
-    # alone can't tell us the specific category (spouse/parent/sibling/etc.).
-    # Runs BEFORE the visa backfill below, not after — _apply_visa_backfill's
-    # generic-fallback step keys off this exact tag, so it needs to already
-    # be present by the time that runs (matters when the model itself
-    # didn't independently emit "family-based-immigration" and only this
-    # deterministic rule adds it).
+    # I-130 in any form -> family-based-immigration, I-140 -> employment-
+    # based-immigration, deterministically (see _I130_TAGS/_I140_TAGS).
+    # Doesn't touch current_visa_or_greencard_category — neither form alone
+    # can tell us the specific category (I-130: spouse/parent/sibling/etc.;
+    # I-140: EB-1/EB-1A/EB-1B/EB-1C/EB-2/EB-3). Runs BEFORE the visa
+    # backfill below, not after — _apply_visa_backfill's generic-fallback
+    # step keys off these exact tags, so they need to already be present by
+    # the time that runs (matters when the model itself didn't
+    # independently emit the topic tag and only this deterministic rule
+    # adds it).
     if _I130_TAGS & set(groups["tags"]):
         _add_tag_once(groups, "family-based-immigration")
+    if _I140_TAGS & set(groups["tags"]):
+        _add_tag_once(groups, "employment-based-immigration")
     # Tips/advice/discussion content often references a specific visa's
     # process tags (e.g. h1b-petition) without a personal status claim, or
     # a family/employment-based post that never states enough detail for a
     # specific code — both would otherwise fail validate()'s visa-required
     # rule. Backfill deterministically from the post's own tags rather than
     # requiring a human to notice and hand-add it every time — see
-    # _apply_visa_backfill().
-    _apply_visa_backfill(groups)
+    # _apply_visa_backfill(). Gated on is_personal_case: a background/topic
+    # tag can legitimately describe what a NON-personal post is ABOUT (e.g.
+    # a news link commenting on family-based overstay policy), not the
+    # poster's own status.
+    _apply_visa_backfill(groups, is_personal_case)
+    # Last resort, after every visa-derivation attempt above has come up
+    # empty: see _apply_discussion_backfill().
+    _apply_discussion_backfill(groups, is_personal_case)
     return {
         "groups": groups,
         "relevant_sections": _relevant_sections(extracted, groups),
@@ -777,6 +891,42 @@ def suggest_tags(title: str, description: str) -> dict:
         "key_stages_or_info": _clean_stages(extracted.get("key_stages_or_info")),
         "key_dates": key_dates,
     }
+
+
+# Fields returned by suggest_query_tags(), in the same names search_client's
+# suggested_filters()/_facets_filter() already use for facet field ids — so a
+# toggled query-tag chip's "field:code" id plugs directly into the frontend's
+# existing selectedFacets mechanism with no translation layer.
+_QUERY_TAG_FIELDS = ["visa_applying_for", "current_visa_or_greencard_category", "consulates", "tags"]
+
+
+def suggest_query_tags(query: str) -> list[dict]:
+    """Run the same Gemini-based extraction used for postings, scoped to a
+    search query string, and return matches as [{field, code, label}, ...] —
+    the same shape suggested_filters() already uses for facet chips, so a
+    toggled query-tag chip plugs directly into the frontend's existing
+    facet-filter state (field:code ids), no new mechanism needed on either
+    client (features/ui-changes-1/changes-2-.md item 4).
+
+    Deliberately NOT a thin wrapper around suggest_tags(): that function
+    requires separate title/description (Pydantic-gated to min_length 3/10
+    on its own endpoint, /api/tag-suggest) and returns a much larger shape
+    (relevant_sections, posting_type, key_stages_or_info, key_dates) that's
+    meaningless for a bare search string. Here the query stands in for the
+    "title" with an empty description; the only guard is non-empty input.
+    This is a real Gemini call, not free — callers should trigger it on
+    search submit, not per keystroke."""
+    q = (query or "").strip()
+    if not q:
+        return []
+    extracted = _extract(q, "")
+    groups = {f: _clean_group(f, extracted.get(f)) for f in GROUP_FIELDS}
+    groups = _normalize_groups(groups)
+    out: list[dict] = []
+    for field in _QUERY_TAG_FIELDS:
+        for code in groups.get(field) or []:
+            out.append({"field": field, "code": code, "label": code})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -794,14 +944,24 @@ def validate(c: dict) -> list[str]:
     _Vocab.load()
     errs: list[str] = []
     # A visa/status MUST be captured in at least one of the two visa fields —
-    # except general policy/news content tagged `news-update` (deterministic,
-    # see build_canonical() callers like publish_gov_news_item()), which by
-    # nature doesn't represent anyone's personal status claim. A gov-news
-    # item that DOES tie to a specific visa still gets tagged with it
-    # normally alongside news-update, so no signal is lost either way — see
-    # docs/ingestion/GOV-NEWS-INGESTION-PLAN.md §3.4.
+    # except for content with nothing personal to require a status for:
+    # (1) `news-update` — general policy/news content (deterministic, see
+    # build_canonical() callers like publish_gov_news_item()) — see
+    # docs/ingestion/GOV-NEWS-INGESTION-PLAN.md §3.4; (2) `discussion` — a
+    # genuine general discussion/question about policy, process, or industry
+    # news, not the poster's own case (deterministically tagged by
+    # suggest_tags() when is_personal_case is false); (3) `blog` — a
+    # standalone informational/educational write-up, same reasoning as
+    # discussion but for non-reactive content (see _SYSTEM_PROMPT). A
+    # posting that DOES also tie to a specific visa still gets tagged with
+    # it normally under any of these, so no signal is lost either way.
+    # Checked in both buckets — _add_tag_once() is itself bucket-agnostic
+    # (won't double-add if the tag already landed in
+    # concerns_or_questions_tags some other way), so validate() must be too.
+    exempt_tags = set(c.get("tags", [])) | set(c.get("concerns_or_questions_tags", []))
+    _NO_PERSONAL_STATUS_TAGS = {"news-update", "discussion", "blog"}
     if (not c.get("current_visa_or_greencard_category") and not c.get("visa_applying_for")
-            and "news-update" not in c.get("tags", [])):
+            and not (_NO_PERSONAL_STATUS_TAGS & exempt_tags)):
         errs.append("Capture a visa/status in 'Current status' or 'Visa applying for' before submitting")
     for f in ("current_visa_or_greencard_category", "visa_applying_for"):
         for t in c.get(f, []):
@@ -955,12 +1115,15 @@ def build_canonical(title: str, description: str, tags: dict,
     if dates:
         _add_tag_once(groups, "timeline")
 
-    # I-130 in any form -> family-based-immigration, deterministically —
-    # single point of truth for every caller, same reasoning as the timeline
-    # rule above. Runs BEFORE the visa backfill below — see the matching
-    # comment in suggest_tags() for why the order matters.
+    # I-130 -> family-based-immigration, I-140 -> employment-based-
+    # immigration, deterministically — single point of truth for every
+    # caller, same reasoning as the timeline rule above. Runs BEFORE the
+    # visa backfill below — see the matching comment in suggest_tags() for
+    # why the order matters.
     if _I130_TAGS & set(groups["tags"]):
         _add_tag_once(groups, "family-based-immigration")
+    if _I140_TAGS & set(groups["tags"]):
+        _add_tag_once(groups, "employment-based-immigration")
 
     # Tips/advice/discussion content often references a specific visa's
     # process tags (e.g. h1b-petition) without a personal status claim, or

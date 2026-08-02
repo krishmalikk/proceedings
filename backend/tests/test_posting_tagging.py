@@ -287,7 +287,7 @@ def group_e_build() -> None:
     # publish at all. _apply_visa_backfill() now takes the next, more
     # conservative step: since I-130 already guarantees the
     # family-based-immigration TAG is present, fall back to the generic
-    # FAMILY-UNSPECIFIED CODE rather than leaving both visa fields empty.
+    # FAMILY-IMMIGRATION CODE rather than leaving both visa fields empty.
     gc_tags = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
                "primary_consulate": "", "consulates": [],
                "tags": ["I-130", "I-485", "aos-filing", "aos-approval"],
@@ -296,7 +296,7 @@ def group_e_build() -> None:
     check("E13 I-130 -> family-based-immigration tag added",
           "family-based-immigration" in c13["tags"], c13["tags"])
     check("E14 category backfilled to the generic fallback (I-130 doesn't imply a SPECIFIC code, but now guarantees a generic one)",
-          c13["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], c13["current_visa_or_greencard_category"])
+          c13["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], c13["current_visa_or_greencard_category"])
     check("E15 validate() now passes — the generic fallback satisfies the visa-required rule",
           p.validate(c13) == [], str(p.validate(c13)))
 
@@ -305,7 +305,7 @@ def group_e_build() -> None:
           c16["tags"].count("family-based-immigration") == 1, c16["tags"])
 
     # E16a-E16m: _apply_visa_backfill() — the generic last-resort fallback
-    # (FAMILY-UNSPECIFIED / EMPLOYMENT-UNSPECIFIED), gated behind a real
+    # (FAMILY-IMMIGRATION / EMPLOYMENT-IMMIGRATION), gated behind a real
     # family/employment-based-immigration TAG signal, and only ever as a
     # last resort behind _derive_visa_from_tags()'s more specific answer.
     def _backfilled(tags: list[str]) -> dict:
@@ -316,20 +316,20 @@ def group_e_build() -> None:
         return groups
 
     g_fam = _backfilled(["family-based-immigration"])
-    check("E16a family-based-immigration tag alone -> FAMILY-UNSPECIFIED",
-          g_fam["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], g_fam)
+    check("E16a family-based-immigration tag alone -> FAMILY-IMMIGRATION",
+          g_fam["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g_fam)
 
     g_emp = _backfilled(["employment-based-immigration"])
-    check("E16b employment-based-immigration tag alone -> EMPLOYMENT-UNSPECIFIED",
-          g_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-UNSPECIFIED"], g_emp)
+    check("E16b employment-based-immigration tag alone -> EMPLOYMENT-IMMIGRATION",
+          g_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-IMMIGRATION"], g_emp)
 
     # dont-know-what-to-think.txt's real shape (I-485 pending, employment-based
     # tag present, no EB level stated) — this exact file failed validate()
     # in the 072826 batch; confirms it now resolves.
     g_real_emp = _backfilled(["I-485", "biometrics", "RFE", "pending",
                               "employment-based-immigration", "adjustment-of-status-AOS"])
-    check("E16c real dont-know-what-to-think.txt shape resolves to EMPLOYMENT-UNSPECIFIED",
-          g_real_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-UNSPECIFIED"], g_real_emp)
+    check("E16c real dont-know-what-to-think.txt shape resolves to EMPLOYMENT-IMMIGRATION",
+          g_real_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-IMMIGRATION"], g_real_emp)
 
     g_specific_wins = _backfilled(["employment-based-immigration", "h1b-petition"])
     check("E16d a specific derivable code (h1b-petition -> H-1B) wins over the generic employment fallback",
@@ -364,8 +364,8 @@ def group_e_build() -> None:
     # paths do, not just when the tags dict is hand-constructed already
     # containing the tag.
     c_i130_only = p.build_canonical("t", "d", {"tags": ["I-130"]})
-    check("E16i build_canonical(): bare I-130 tag alone (deterministic add) still resolves to FAMILY-UNSPECIFIED end-to-end",
-          c_i130_only["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], c_i130_only)
+    check("E16i build_canonical(): bare I-130 tag alone (deterministic add) still resolves to FAMILY-IMMIGRATION end-to-end",
+          c_i130_only["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], c_i130_only)
     check("E16j build_canonical(): bare I-130 case passes validate()",
           p.validate(c_i130_only) == [], str(p.validate(c_i130_only)))
 
@@ -379,15 +379,15 @@ def group_e_build() -> None:
     if p._I130_TAGS & set(g_order["tags"]):
         p._add_tag_once(g_order, "family-based-immigration")
     p._apply_visa_backfill(g_order)
-    check("E16k I-130-tag-add-then-backfill ordering resolves to FAMILY-UNSPECIFIED (mirrors suggest_tags()'s call order)",
-          g_order["current_visa_or_greencard_category"] == ["FAMILY-UNSPECIFIED"], g_order)
+    check("E16k I-130-tag-add-then-backfill ordering resolves to FAMILY-IMMIGRATION (mirrors suggest_tags()'s call order)",
+          g_order["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g_order)
 
     g_vocab = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
                "primary_consulate": "", "consulates": [], "tags": ["family-based-immigration"],
                "concerns_or_questions_tags": []}
     p._apply_visa_backfill(g_vocab)
     c_vocab = p.build_canonical("t", "d", g_vocab)
-    check("E16l FAMILY-UNSPECIFIED is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
+    check("E16l FAMILY-IMMIGRATION is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
           not any("not in visa vocab" in e for e in p.validate(c_vocab)), str(p.validate(c_vocab)))
 
     g_vocab2 = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
@@ -395,7 +395,7 @@ def group_e_build() -> None:
                 "concerns_or_questions_tags": []}
     p._apply_visa_backfill(g_vocab2)
     c_vocab2 = p.build_canonical("t", "d", g_vocab2)
-    check("E16m EMPLOYMENT-UNSPECIFIED is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
+    check("E16m EMPLOYMENT-IMMIGRATION is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
           not any("not in visa vocab" in e for e in p.validate(c_vocab2)), str(p.validate(c_vocab2)))
 
     # E17-E18: cross-bucket duplicate regression (1862-notice.txt case) — a
@@ -545,6 +545,247 @@ def group_e_build() -> None:
           "news-update" not in p._gov_news_tags(["news-update"], "something-unexpected"),
           p._gov_news_tags(["news-update"], "something-unexpected"))
 
+    # E47-E52: _apply_discussion_backfill() — a genuinely non-personal
+    # policy/process discussion has no visa to capture and shouldn't be
+    # rejected by publish for lacking one (evaluated live: real generic
+    # content — "USCIS processing times ballooned this year, anyone else
+    # seeing this?" — has both visa fields correctly empty but the model
+    # doesn't reliably self-select the "discussion" tag over more specific
+    # competing 1.10 tags like "processing-delay"; validate() then rejected
+    # legitimate general-discussion content). Gated on is_personal_case
+    # (model-classified) rather than trusting the model to also remember to
+    # tag "discussion" itself — same "single boolean judgment beats a
+    # specific-tag expectation" reasoning as the timeline/family-based rules
+    # above.
+    def _discussion_backfilled(is_personal_case) -> dict:
+        groups = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                  "primary_consulate": "", "consulates": [], "tags": ["USCIS", "backlog"],
+                  "concerns_or_questions_tags": []}
+        p._apply_discussion_backfill(groups, is_personal_case)
+        return groups
+
+    g47 = _discussion_backfilled(False)
+    check("E47 is_personal_case=False, no visa signal -> discussion tag added",
+          "discussion" in g47["tags"], g47["tags"])
+
+    g48 = _discussion_backfilled(True)
+    check("E48 is_personal_case=True -> discussion NOT added (still needs a human to add a status)",
+          "discussion" not in g48["tags"], g48["tags"])
+
+    g49 = _discussion_backfilled(None)
+    check("E49 is_personal_case missing/None -> fail-closed default, discussion NOT added",
+          "discussion" not in g49["tags"], g49["tags"])
+
+    g50 = {"visa_applying_for": ["H-1B"], "current_visa_or_greencard_category": [],
+           "primary_consulate": "", "consulates": [], "tags": ["USCIS"],
+           "concerns_or_questions_tags": []}
+    p._apply_discussion_backfill(g50, False)
+    check("E50 never fires when a visa field is already populated, even if is_personal_case is False",
+          "discussion" not in g50["tags"], g50["tags"])
+
+    g51 = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+           "primary_consulate": "", "consulates": [], "tags": ["USCIS"],
+           "concerns_or_questions_tags": ["discussion"]}
+    p._apply_discussion_backfill(g51, False)
+    check("E51 no cross-bucket duplicate: discussion already in concerns_or_questions_tags -> not re-added to tags",
+          g51["tags"] == ["USCIS"], g51["tags"])
+
+    c52 = p.build_canonical("t", "d", {"tags": ["USCIS", "discussion"]})
+    check("E52 validate() accepts a discussion-tagged, visa-less posting (same exemption as news-update)",
+          p.validate(c52) == [], str(p.validate(c52)))
+
+    c52b = p.build_canonical("t", "d", {"tags": ["USCIS"], "concerns_or_questions_tags": ["discussion"]})
+    check("E52b validate()'s discussion exemption also checks concerns_or_questions_tags, not just tags",
+          p.validate(c52b) == [], str(p.validate(c52b)))
+
+    c52c = p.build_canonical("t", "d", {"tags": ["USCIS"]})
+    check("E52c control: no discussion/news-update anywhere, no visa -> validate() still correctly rejects",
+          any("visa" in e.lower() or "status" in e.lower() for e in p.validate(c52c)), str(p.validate(c52c)))
+
+    # E53-E59: ADJUSTMENT-OF-STATUS — I-485 (the form) and "AOS"/"adjustment
+    # of status" (the process) are used interchangeably by posters for the
+    # same real-world action, but neither is itself a visa/GC category (AOS
+    # can be filed on a family, employment, diversity, or asylum basis) —
+    # the third, even-broader sibling of FAMILY-IMMIGRATION/
+    # EMPLOYMENT-IMMIGRATION in _apply_visa_backfill()'s ordering.
+    def _aos_backfilled(tags: list[str]) -> dict:
+        groups = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                  "primary_consulate": "", "consulates": [], "tags": tags,
+                  "concerns_or_questions_tags": []}
+        p._apply_visa_backfill(groups)
+        return groups
+
+    g53 = _aos_backfilled(["I-485", "aos-filing"])
+    check("E53 I-485 + aos-filing, no other basis -> ADJUSTMENT-OF-STATUS",
+          g53["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], g53)
+
+    g54 = _aos_backfilled(["adjustment-of-status-AOS"])
+    check("E54 the alternate_tag alone also triggers the fallback",
+          g54["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], g54)
+
+    g55 = _aos_backfilled(["i485-filing", "family-based-immigration"])
+    check("E55 a family/employment signal present alongside AOS wins over the more generic ADJUSTMENT-OF-STATUS",
+          g55["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g55)
+
+    g56 = _aos_backfilled(["aos-filing", "h1b-petition"])
+    check("E56 a specific derivable code (h1b-petition -> H-1B) wins over ADJUSTMENT-OF-STATUS too",
+          g56["visa_applying_for"] == ["H-1B"]
+          and g56["current_visa_or_greencard_category"] == [], g56)
+
+    g57 = {"visa_applying_for": [], "current_visa_or_greencard_category": ["ADJUSTMENT-OF-STATUS"],
+           "primary_consulate": "", "consulates": [], "tags": ["aos-filing", "family-based-immigration"],
+           "concerns_or_questions_tags": []}
+    p._apply_visa_backfill(g57)
+    check("E57 re-derivation: a last-resort code the MODEL already chose gets re-evaluated, not trusted blindly "
+          "(found live: the model sometimes picks ADJUSTMENT-OF-STATUS even when a family/employment signal "
+          "is also present, bypassing the ordering below since that only runs when both fields start empty)",
+          g57["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g57)
+
+    g58 = {"visa_applying_for": [], "current_visa_or_greencard_category": ["IR-1"],
+           "primary_consulate": "", "consulates": [], "tags": ["aos-filing"],
+           "concerns_or_questions_tags": []}
+    p._apply_visa_backfill(g58)
+    check("E58 never re-derives over a REAL (non-last-resort) code already present, even with an AOS tag alongside",
+          g58["current_visa_or_greencard_category"] == ["IR-1"], g58)
+
+    c59 = p.build_canonical("t", "d", {"tags": ["I-485", "aos-filing"]})
+    check("E59a build_canonical(): bare I-485/aos-filing tags alone resolve to ADJUSTMENT-OF-STATUS end-to-end",
+          c59["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], c59)
+    check("E59b ADJUSTMENT-OF-STATUS is itself a valid 1.2 vocab entry (validate() doesn't reject it as OOV)",
+          not any("not in visa vocab" in e for e in p.validate(c59)), str(p.validate(c59)))
+    check("E59c validate() passes overall for the bare-AOS case",
+          p.validate(c59) == [], str(p.validate(c59)))
+
+    # E60-E62: _apply_visa_backfill()'s is_personal_case gate. Found live: a
+    # link-share post with no personal status claim ("For those who think
+    # this is the law: a USC's spouse's overstay is forgiven...") still got
+    # backfilled to FAMILY-IMMIGRATION, because the model tagged
+    # "family-based-immigration" as the ARTICLE's topic, not the poster's
+    # own case — which then suppressed "discussion" entirely, since
+    # _apply_discussion_backfill() only fires when both visa fields are
+    # still empty. Gating the whole backfill on is_personal_case fixes both
+    # symptoms at once (same root cause).
+    def _visa_backfilled(tags: list[str], is_personal_case) -> dict:
+        groups = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                  "primary_consulate": "", "consulates": [], "tags": tags,
+                  "concerns_or_questions_tags": []}
+        p._apply_visa_backfill(groups, is_personal_case)
+        return groups
+
+    g60 = _visa_backfilled(["family-based-immigration", "news-update"], False)
+    check("E60 is_personal_case=False: family-based-immigration tag does NOT get promoted to a personal category",
+          g60["current_visa_or_greencard_category"] == [] and g60["visa_applying_for"] == [], g60)
+
+    g61 = _visa_backfilled(["family-based-immigration"], True)
+    check("E61 is_personal_case=True (or omitted): the existing fallback behavior is unchanged",
+          g61["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"], g61)
+
+    g62 = _visa_backfilled(["h1b-petition"], None)
+    check("E62 is_personal_case missing/None: fails open toward the existing (personal) behavior, not toward skipping",
+          g62["visa_applying_for"] == ["H-1B"], g62)
+
+    # E63-E65: "blog" — a standalone informational/educational write-up, not
+    # the poster's own case and not primarily reactive (that's
+    # "discussion"). Same validate() exemption mechanism as news-update/
+    # discussion — checked directly here since suggest_tags() only
+    # deterministically guarantees "discussion" (the safety net), not
+    # "blog" itself (that's model-selected; see F14 for live coverage).
+    c63 = p.build_canonical("t", "d", {"tags": ["h1b-lottery", "tips", "blog"]})
+    check("E63 validate() accepts a blog-tagged, visa-less posting (same exemption as news-update/discussion)",
+          p.validate(c63) == [], str(p.validate(c63)))
+
+    c64 = p.build_canonical("t", "d", {"tags": ["h1b-lottery"], "concerns_or_questions_tags": ["blog"]})
+    check("E64 blog exemption also checks concerns_or_questions_tags, not just tags",
+          p.validate(c64) == [], str(p.validate(c64)))
+
+    c65 = p.build_canonical("t", "d", {"tags": ["tips"]})
+    check("E65 control: no blog/discussion/news-update anywhere, no visa -> validate() still correctly rejects",
+          any("visa" in e.lower() or "status" in e.lower() for e in p.validate(c65)), str(p.validate(c65)))
+
+    # E66-E70: I-140 -> employment-based-immigration, the employment-side
+    # mirror of I-130 -> family-based-immigration (E13-E16k above). Found
+    # while adding this coverage: no such promotion existed for I-140 at
+    # all (only the family side was wired up), even though the AOS-ordering
+    # comment on _AOS_TAGS already claimed "no I-130/I-140 signal either" as
+    # if both were handled symmetrically — a real gap, now fixed by adding
+    # _I140_TAGS and mirroring the _I130_TAGS promotion in both
+    # suggest_tags() and build_canonical().
+    c66 = p.build_canonical("t", "d", {"tags": ["I-140", "I-485", "aos-filing"]})
+    check("E66 I-140 -> employment-based-immigration tag added",
+          "employment-based-immigration" in c66["tags"], c66["tags"])
+    check("E67 category backfilled to the generic fallback (I-140 doesn't imply a SPECIFIC EB code, but now "
+          "guarantees a generic one)",
+          c66["current_visa_or_greencard_category"] == ["EMPLOYMENT-IMMIGRATION"], c66)
+
+    c68 = p.build_canonical("t", "d", {"tags": ["i140-approval", "employment-based-immigration"]})
+    check("E68 no duplicate when employment-based-immigration already present",
+          c68["tags"].count("employment-based-immigration") == 1, c68["tags"])
+
+    c69 = p.build_canonical("t", "d", {"tags": ["i140-portability", "aos-filing"]})
+    check("E69 i140-portability (the AC21 portability tag, not just filing/approval) also triggers the promotion, "
+          "and wins over the more generic ADJUSTMENT-OF-STATUS (mirrors E55's family-side case)",
+          c69["current_visa_or_greencard_category"] == ["EMPLOYMENT-IMMIGRATION"], c69)
+
+    # E70: suggest_tags() applies the same tag-add-then-backfill ordering as
+    # build_canonical() above (mirrors E16k for the family side) — the
+    # promoted tag needs to exist before _apply_visa_backfill runs, not after.
+    g_order_emp = {"visa_applying_for": [], "current_visa_or_greencard_category": [],
+                   "primary_consulate": "", "consulates": [], "tags": ["I-140"],
+                   "concerns_or_questions_tags": []}
+    if p._I140_TAGS & set(g_order_emp["tags"]):
+        p._add_tag_once(g_order_emp, "employment-based-immigration")
+    p._apply_visa_backfill(g_order_emp)
+    check("E70 I-140-tag-add-then-backfill ordering resolves to EMPLOYMENT-IMMIGRATION (mirrors suggest_tags()'s "
+          "call order)",
+          g_order_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-IMMIGRATION"], g_order_emp)
+
+    # E71-E73: _apply_visa_backfill()'s "trust whichever field already holds
+    # a REAL answer" guard, exercised with BOTH fields populated at once —
+    # current_visa_or_greencard_category and visa_applying_for are
+    # independent concepts (current status vs. what's being applied for),
+    # so a real posting can legitimately have one real and one last-resort/
+    # premature value, or two last-resort values, simultaneously. Not
+    # covered by E57/E58 above, which only ever populate ONE field at a time.
+    def _dual_field_backfilled(current: list[str], applying: list[str], tags: list[str]) -> dict:
+        groups = {"visa_applying_for": applying, "current_visa_or_greencard_category": current,
+                  "primary_consulate": "", "consulates": [], "tags": tags,
+                  "concerns_or_questions_tags": []}
+        p._apply_visa_backfill(groups)
+        return groups
+
+    g71 = _dual_field_backfilled(["ADJUSTMENT-OF-STATUS"], ["H-1B"], ["aos-filing"])
+    check("E71 current=last-resort + applying=REAL: the whole function no-ops (a real value in EITHER field is "
+          "trusted) — the stale ADJUSTMENT-OF-STATUS is left untouched rather than re-derived, since only ONE "
+          "field is ever cleared/re-derived at a time today",
+          g71["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"] and g71["visa_applying_for"] == ["H-1B"],
+          g71)
+
+    g72 = _dual_field_backfilled(["IR-1"], ["EMPLOYMENT-IMMIGRATION"], ["employment-based-immigration"])
+    check("E72 symmetric case: current=REAL + applying=last-resort also no-ops, both fields preserved as-is",
+          g72["current_visa_or_greencard_category"] == ["IR-1"] and g72["visa_applying_for"] == ["EMPLOYMENT-IMMIGRATION"],
+          g72)
+
+    g73 = _dual_field_backfilled(["FAMILY-IMMIGRATION"], ["ADJUSTMENT-OF-STATUS"],
+                                 ["i130-approval", "family-based-immigration", "aos-filing"])
+    check("E73 BOTH fields last-resort (neither is real) -> the guard does NOT short-circuit; both are cleared "
+          "and re-derived together from tags, landing on the more specific FAMILY-IMMIGRATION signal "
+          "(not left as two different stale last-resort codes)",
+          g73["current_visa_or_greencard_category"] == ["FAMILY-IMMIGRATION"] and g73["visa_applying_for"] == [],
+          g73)
+
+    # E74-E75: blog and discussion together on the same posting — the two
+    # aren't mutually exclusive (a shared how-to article can also invite
+    # discussion), so validate()'s exemption must accept the combination in
+    # either tag bucket, not just each alone (E52/E63 above only test one
+    # exemption tag at a time).
+    c74 = p.build_canonical("t", "d", {"tags": ["h1b-lottery", "blog", "discussion"]})
+    check("E74 blog + discussion together (same bucket) -> validate() still accepts, no visa needed",
+          p.validate(c74) == [], str(p.validate(c74)))
+
+    c75 = p.build_canonical("t", "d", {"tags": ["h1b-lottery", "blog"], "concerns_or_questions_tags": ["discussion"]})
+    check("E75 blog + discussion split across tags/concerns_or_questions_tags -> validate() still accepts",
+          p.validate(c75) == [], str(p.validate(c75)))
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)
@@ -605,6 +846,177 @@ def group_f_llm() -> None:
             break
     check("F7 green-card category captured (EB-2/EB-3, <=3 tries)",
           any(x in visas for x in ("EB-2", "EB-3")), str(sorted(visas)))
+
+    # F8-F9: live end-to-end through suggest_tags() (real Gemini call, not
+    # the pure _apply_discussion_backfill() helper tested in E47-E52) —
+    # confirms is_personal_case classification + the deterministic backfill
+    # actually work together on real content, not just the helper in
+    # isolation. <=3 tries for the same LLM-non-determinism tolerance F7
+    # already uses.
+    discussion_ok = False
+    o8 = {}
+    for _ in range(3):
+        o8 = p.suggest_tags(
+            "USCIS processing times keep getting worse",
+            "Anyone else notice USCIS processing times have ballooned this year across the board? "
+            "Feels like every category is backed up. Curious if others are seeing the same trend or "
+            "if it varies by service center.")
+        both_empty = not o8["groups"]["visa_applying_for"] and not o8["groups"]["current_visa_or_greencard_category"]
+        exempt = "discussion" in o8["groups"]["tags"] or "discussion" in o8["groups"]["concerns_or_questions_tags"]
+        if both_empty and exempt:
+            discussion_ok = True
+            break
+    check("F8 genuinely generic policy/process content: no visa, discussion exemption applies, publish would succeed (<=3 tries)",
+          discussion_ok, o8.get("groups"))
+
+    o9 = p.suggest_tags(
+        "Is it too late for my priority date",
+        "Is it too late for my priority date to still lock in this year? I have been waiting a while "
+        "and got nervous seeing the new visa bulletin.")
+    still_blocked = not o9["groups"]["visa_applying_for"] and not o9["groups"]["current_visa_or_greencard_category"]
+    not_exempted = ("discussion" not in o9["groups"]["tags"]
+                    and "discussion" not in o9["groups"]["concerns_or_questions_tags"])
+    check("F9 vague-but-personal content: still correctly requires a visa/status, NOT waved through as discussion",
+          still_blocked and not_exempted, o9["groups"])
+
+    # F10-F12: ADJUSTMENT-OF-STATUS live end-to-end, mirroring F7's retry
+    # tolerance for the same LLM-non-determinism reasons.
+    def _has_category(groups: dict, code: str) -> bool:
+        return code in groups["current_visa_or_greencard_category"] or code in groups["visa_applying_for"]
+
+    aos_ok, o10 = False, {}
+    for _ in range(3):
+        o10 = p.suggest_tags(
+            "Filed my I-485 last week",
+            "Just filed my I-485 to adjust status. Fingers crossed for a quick approval. Anyone else "
+            "currently going through AOS?")
+        if _has_category(o10["groups"], "ADJUSTMENT-OF-STATUS"):
+            aos_ok = True
+            break
+    check("F10 I-485/AOS mentioned with no other basis -> ADJUSTMENT-OF-STATUS captured (<=3 tries)",
+          aos_ok, o10.get("groups"))
+
+    specific_ok, o11 = False, {}
+    for _ in range(3):
+        o11 = p.suggest_tags(
+            "EB-2 to EB-3 downgrade timing",
+            "Filed my I-485 based on my approved I-140 in EB-2. Considering an EB-3 downgrade for faster "
+            "priority date. How long did others wait?")
+        cats = set(o11["groups"]["visa_applying_for"]) | set(o11["groups"]["current_visa_or_greencard_category"])
+        if cats & {"EB-2", "EB-3"} and "ADJUSTMENT-OF-STATUS" not in cats:
+            specific_ok = True
+            break
+    check("F11 AOS + a specific EB basis: the specific code wins, generic ADJUSTMENT-OF-STATUS not used (<=3 tries)",
+          specific_ok, o11.get("groups"))
+
+    family_ok, o12 = False, {}
+    for _ in range(3):
+        o12 = p.suggest_tags(
+            "AOS interview experience",
+            "Had my AOS interview yesterday based on my approved I-130 (spouse petition). Went smoothly!")
+        cats = set(o12["groups"]["visa_applying_for"]) | set(o12["groups"]["current_visa_or_greencard_category"])
+        if (cats & {"IR-1", "FAMILY-IMMIGRATION"}) and "ADJUSTMENT-OF-STATUS" not in cats:
+            family_ok = True
+            break
+    check("F12 AOS + I-130 spouse: family signal wins over generic ADJUSTMENT-OF-STATUS, "
+          "even when the model picks the generic code on its own first (<=3 tries)",
+          family_ok, o12.get("groups"))
+
+    # F13: the real example that surfaced the is_personal_case-gating bug —
+    # a link-share post with a one-line reaction, no personal status claim.
+    # Must consistently get BOTH news-update and discussion, with no visa
+    # category incorrectly backfilled from the article's topic tags.
+    link_share_title = "For those who think this is the law"
+    link_share_desc = (
+        "For those who think this is the law: a USC's spouse's overstay and unauthorized work is "
+        "forgiven by law. This is getting more and more insane.\n\n"
+        "https://www.nytimes.com/2026/07/28/us/ice-arrests-airports-visa-overstay.html")
+    link_share_ok, o13 = False, {}
+    for _ in range(3):
+        o13 = p.suggest_tags(link_share_title, link_share_desc)
+        g = o13["groups"]
+        no_visa = not g["visa_applying_for"] and not g["current_visa_or_greencard_category"]
+        both = "news-update" in g["tags"] and "discussion" in g["tags"]
+        if no_visa and both:
+            link_share_ok = True
+            break
+    check("F13 link-share post: both news-update and discussion applied, no visa incorrectly backfilled (<=3 tries)",
+          link_share_ok, o13.get("groups"))
+
+    # F14: the real example that surfaced the "model puts a topic's visa
+    # term directly into visa_applying_for despite is_personal_case=False"
+    # bug — a general H-1B lottery guide, not the poster's own application.
+    guide_title = "A Complete Guide to the H-1B Lottery Timeline"
+    guide_desc = (
+        "Here is a full breakdown of the H-1B lottery process for anyone new to it: registration "
+        "typically opens in March, selection results come a few weeks later, and if selected you then "
+        "have roughly 90 days to file the full petition. Employers should prepare LCA filings early "
+        "since USCIS wont accept petitions without one. Hope this helps people planning ahead for "
+        "next years cycle.")
+    guide_ok, o14 = False, {}
+    for _ in range(3):
+        o14 = p.suggest_tags(guide_title, guide_desc)
+        g = o14["groups"]
+        no_visa = not g["visa_applying_for"] and not g["current_visa_or_greencard_category"]
+        exempted = "discussion" in g["tags"] or "blog" in g["tags"]
+        if no_visa and exempted:
+            guide_ok = True
+            break
+    check("F14 general how-to guide: no personal visa claim despite H-1B being discernible in the text, "
+          "exempted via discussion and/or blog (<=3 tries)",
+          guide_ok, o14.get("groups"))
+
+    # F15: I-140/AOS end-to-end live, the employment-side mirror of F12 —
+    # confirms the new I-140 -> employment-based-immigration promotion
+    # (E66-E70) actually kicks in through the full suggest_tags() pipeline,
+    # not just the isolated helper functions.
+    emp_ok, o15 = False, {}
+    for _ in range(3):
+        o15 = p.suggest_tags(
+            "AOS pending after I-140 approval",
+            "My I-140 was approved last month and my I-485 to adjust status is now pending. Employer-"
+            "sponsored the whole way. No idea on the specific EB category since HR handled that part.")
+        cats = set(o15["groups"]["visa_applying_for"]) | set(o15["groups"]["current_visa_or_greencard_category"])
+        if ("EMPLOYMENT-IMMIGRATION" in cats or cats & {"EB-1", "EB-1A", "EB-1B", "EB-1C", "EB-2", "EB-3"}) \
+                and "ADJUSTMENT-OF-STATUS" not in cats:
+            emp_ok = True
+            break
+    check("F15 I-140 approved + AOS pending, no specific EB stated: an employment signal (specific EB code or "
+          "the EMPLOYMENT-IMMIGRATION fallback) wins over the generic ADJUSTMENT-OF-STATUS (<=3 tries)",
+          emp_ok, o15.get("groups"))
+
+    # F16-F17: visa-bulletin (backend/tags-cleaned/1.10-common-misc.csv) —
+    # a plain misc tag, no special exemption/deterministic logic like
+    # news-update/discussion/blog, so this is a live model-selection check
+    # (same <=3-try tolerance as F7/F10-F15) rather than a helper-isolation
+    # test. Confirms the tag is actually reachable end-to-end, not just
+    # present in the CSV.
+    bulletin_ok, o16 = False, {}
+    for _ in range(3):
+        o16 = p.suggest_tags(
+            "EB-2 India priority date finally current!",
+            "Checked the September Visa Bulletin and my EB-2 India priority date of Jan 2013 is finally "
+            "current under the Final Action Date chart. Filing I-485 next week.")
+        if "visa-bulletin" in allt(o16):
+            bulletin_ok = True
+            break
+    check("F16 explicit visa-bulletin content -> 'visa-bulletin' tag applied (<=3 tries)",
+          bulletin_ok, o16.get("groups"))
+
+    # F17: same concept without the literal phrase "visa bulletin" — a
+    # generic priority-date question — to confirm the tag isn't only
+    # reachable when the user names the document explicitly.
+    bulletin_implicit_ok, o17 = False, {}
+    for _ in range(3):
+        o17 = p.suggest_tags(
+            "When will my priority date be current",
+            "My priority date is Dec 2020 for EB-2, wondering how many more months until it becomes "
+            "current based on recent bulletin trends.")
+        if "visa-bulletin" in allt(o17) or "priority-date-current" in allt(o17):
+            bulletin_implicit_ok = True
+            break
+    check("F17 implicit priority-date-movement question -> visa-bulletin or priority-date-current applied "
+          "(<=3 tries)", bulletin_implicit_ok, o17.get("groups"))
 
 
 # ---------------------------------------------------------------------------
