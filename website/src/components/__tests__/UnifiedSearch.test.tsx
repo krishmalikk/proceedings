@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import UnifiedSearch from '../UnifiedSearch'
 
@@ -104,6 +104,77 @@ describe('UnifiedSearch — default feed auto-loads on mount (features/ui-change
 
     expect(await screen.findByText('No postings yet — check back soon.')).toBeInTheDocument()
     expect(screen.getByText('H-1B extension with an RFE')).toBeInTheDocument()
+  })
+})
+
+// Regression: toggleFacet used to only re-run the search when a query had
+// already been submitted (mode === 'search'), so clicking a "Refine by"
+// filter from the default browse view highlighted the chip but never
+// refetched — results stayed exactly as the unfiltered recent feed.
+describe('UnifiedSearch — refining from the initial browse view (regression)', () => {
+  const SUGGESTED = [{ key: 'tag', label: 'Topic', field: 'tags', values: [{ code: 'approved', label: 'Approved', count: 65 }] }]
+
+  it('clicking a suggested filter from the default browse view actually refines the results', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('facet=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            results: [{ ...POSTING, title: 'Filtered result' }], total: 1, next_page_token: '',
+            applied_filters: {}, relaxed: false, suggested_filters: SUGGESTED,
+          }),
+        }
+      }
+      return {
+        ok: true,
+        json: async () => ({ results: [POSTING], total: 1, next_page_token: '', suggested_filters: SUGGESTED }),
+      }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<UnifiedSearch />)
+    expect(await screen.findByText('H-1B RFE experience')).toBeInTheDocument()
+    expect(screen.getByText('1 recent postings')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText(/Approved/))
+
+    expect(await screen.findByText('Filtered result')).toBeInTheDocument()
+    expect(screen.getByText('1 postings')).toBeInTheDocument()
+    const facetCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('facet='))
+    expect(facetCall).toBeTruthy()
+    expect(String(facetCall![0])).toContain(encodeURIComponent('tags:approved'))
+  })
+
+  it('removing the last active filter with no typed query reverts to the recency browse feed', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('facet=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            results: [{ ...POSTING, title: 'Filtered result' }], total: 1, next_page_token: '',
+            applied_filters: {}, relaxed: false, suggested_filters: SUGGESTED,
+          }),
+        }
+      }
+      return {
+        ok: true,
+        json: async () => ({ results: [POSTING], total: 1, next_page_token: '', suggested_filters: SUGGESTED }),
+      }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<UnifiedSearch />)
+    await screen.findByText('H-1B RFE experience')
+    fireEvent.click(screen.getByText(/Approved/))
+    await screen.findByText('Filtered result')
+
+    fireEvent.click(screen.getByText(/Approved/))
+
+    expect(await screen.findByText('H-1B RFE experience')).toBeInTheDocument()
+    expect(screen.getByText('1 recent postings')).toBeInTheDocument()
+    const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+    expect(String(lastCall[0])).not.toContain('facet=')
+    expect(String(lastCall[0])).not.toContain('q=')
   })
 })
 

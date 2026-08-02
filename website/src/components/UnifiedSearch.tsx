@@ -251,11 +251,20 @@ export default function UnifiedSearch() {
     if (AI_MODE_ENABLED) runExpert(t)   // RIGHT (independent / async) — disabled for now
   }
 
+  // Refines MIDDLE — must work from the default browse view too (no typed
+  // query yet), not just once a search has been submitted: toggling a
+  // facet always re-runs, falling back to loadFeed()'s pure recency feed
+  // only once every facet is cleared and there's no text query either.
   function toggleFacet(field: string, code: string) {
     const id = facetId(field, code)
     const next = selectedFacets.includes(id) ? selectedFacets.filter((x) => x !== id) : [...selectedFacets, id]
     setSelectedFacets(next)
-    if (mode === 'search' && query) { runSearch(query, next); syncUrl(query, next) }   // refines MIDDLE only
+    if (next.length === 0 && !query) {
+      loadFeed()
+    } else {
+      runSearch(query, next)
+      syncUrl(query, next)
+    }
   }
 
   // Persistent top-right Post action (both landing & results). Gated like the
