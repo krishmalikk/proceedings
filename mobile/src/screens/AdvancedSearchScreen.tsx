@@ -91,8 +91,11 @@ export function AdvancedSearchScreen({ navigation }: any) {
     setTags((prev) => prev.filter((t) => !(t.field === field && t.code === code)));
   }
 
-  // "Send" — generate tags from free text (additive: never drops what's
-  // already on screen, including manually-added tags or a prior Send).
+  // "Send" — generate tags from free text. A reset, not a merge: each call
+  // replaces the whole tags/headers panel with the latest generation, so
+  // repeat or overlapping results are always visibly reflected on screen
+  // (an additive merge previously left the panel unchanged whenever the new
+  // tags overlapped the old ones, which looked like the request had failed).
   async function send() {
     const t = freeText.trim();
     if (!t || generating) return;
@@ -100,21 +103,8 @@ export function AdvancedSearchScreen({ navigation }: any) {
     setError('');
     try {
       const generated = await fetchQueryTags(t);
-      setRevealedFields((prev) => {
-        const next = new Set(prev);
-        for (const g of generated) next.add(g.field as TagField);
-        return next;
-      });
-      setTags((prev) => {
-        const next = [...prev];
-        for (const g of generated) {
-          const field = g.field as TagField;
-          if (!next.some((t2) => t2.field === field && t2.code === g.code)) {
-            next.push({ field, code: g.code, label: g.label });
-          }
-        }
-        return next;
-      });
+      setRevealedFields(new Set(generated.map((g) => g.field as TagField)));
+      setTags(generated.map((g) => ({ field: g.field as TagField, code: g.code, label: g.label })));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not generate tags');
     } finally {

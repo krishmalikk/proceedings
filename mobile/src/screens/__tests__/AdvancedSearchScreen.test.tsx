@@ -82,6 +82,24 @@ describe('AdvancedSearchScreen — Send', () => {
     await waitFor(() => expect(fetchQueryTags).toHaveBeenCalledWith('my rfe story'));
     expect(await s.findByText('rfe-experience')).toBeOnTheScreen();
   });
+
+  it('a second Send resets the panel — replaces the previous tags/headers rather than merging', async () => {
+    (fetchQueryTags as jest.Mock).mockResolvedValueOnce([
+      { field: 'tags', code: 'rfe-experience', label: 'rfe-experience' },
+    ]);
+    const s = await renderAdvancedSearch();
+    await fireEvent.changeText(s.getByPlaceholderText(/H-1B RFE experiences/), 'first text');
+    await fireEvent.press(s.getByText('Send'));
+    expect(await s.findByText('rfe-experience')).toBeOnTheScreen();
+
+    (fetchQueryTags as jest.Mock).mockResolvedValueOnce([{ field: 'consulates', code: 'BOM', label: 'BOM' }]);
+    await fireEvent.changeText(s.getByPlaceholderText(/H-1B RFE experiences/), 'second text');
+    await fireEvent.press(s.getByText('Send'));
+
+    expect(await s.findByText('Mumbai, India (BOM)')).toBeOnTheScreen();
+    expect(s.queryByText('rfe-experience')).toBeNull();
+    expect(s.queryByText('TAGS')).toBeNull();
+  });
 });
 
 describe('AdvancedSearchScreen — Send error handling / disabled state', () => {

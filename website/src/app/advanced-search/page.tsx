@@ -76,8 +76,11 @@ export default function AdvancedSearchPage() {
     setTags((prev) => prev.filter((t) => !(t.field === field && t.code === code)))
   }
 
-  // "Send" — generate tags from free text (additive: never drops what's
-  // already on screen, including manually-added tags or a prior Send).
+  // "Send" — generate tags from free text. A reset, not a merge: each call
+  // replaces the whole tags/headers panel with the latest generation, so
+  // repeat or overlapping results are always visibly reflected on screen
+  // (an additive merge previously left the panel unchanged whenever the new
+  // tags overlapped the old ones, which looked like the request had failed).
   async function send() {
     const t = freeText.trim()
     if (t.length < 1 || generating) return
@@ -90,18 +93,8 @@ export default function AdvancedSearchPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Could not generate tags')
       const generated: Tag[] = data.tags || []
-      setRevealedFields((prev) => {
-        const next = new Set(prev)
-        generated.forEach((g) => next.add(g.field))
-        return next
-      })
-      setTags((prev) => {
-        const next = [...prev]
-        for (const g of generated) {
-          if (!next.some((t2) => t2.field === g.field && t2.code === g.code)) next.push(g)
-        }
-        return next
-      })
+      setRevealedFields(new Set(generated.map((g) => g.field)))
+      setTags(generated)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not generate tags')
     } finally {

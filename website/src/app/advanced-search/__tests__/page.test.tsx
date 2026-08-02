@@ -99,7 +99,7 @@ describe('AdvancedSearchPage — Send (tag generation)', () => {
     expect(await screen.findByText('rfe-experience')).toBeInTheDocument()
   })
 
-  it('a second Send is additive — does not drop a previously generated tag', async () => {
+  it('a second Send resets the panel — replaces the previous tags/headers rather than merging', async () => {
     let call = 0
     const fetchMock = vi.fn(async (url: string, opts?: { method?: string }) => {
       const method = opts?.method || 'GET'
@@ -126,7 +126,29 @@ describe('AdvancedSearchPage — Send (tag generation)', () => {
     fireEvent.change(input, { target: { value: 'second text' } })
     fireEvent.click(screen.getByText('Send'))
     expect(await screen.findByText('Mumbai, India (BOM)')).toBeInTheDocument()
-    expect(screen.getByText('rfe-experience')).toBeInTheDocument()
+    expect(screen.queryByText('rfe-experience')).toBeNull()
+    expect(screen.queryByText('Tags')).toBeNull()
+  })
+
+  it('a repeat Send with an unchanged/overlapping result is still visibly reflected (no silent no-op)', async () => {
+    const fetchMock = mockFetch({ queryTags: [{ field: 'tags', code: 'rfe-experience', label: 'rfe-experience' }] })
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
+    const input = screen.getByPlaceholderText(/H-1B RFE experiences/)
+
+    fireEvent.change(input, { target: { value: 'same text' } })
+    fireEvent.click(screen.getByText('Send'))
+    expect(await screen.findByText('rfe-experience')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Remove rfe-experience'))
+    await waitFor(() => expect(screen.queryByText('rfe-experience')).toBeNull())
+
+    fireEvent.click(screen.getByText('Send'))
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls.filter((c) => String(c[0]).includes('/api/search/query-tags'))
+      expect(calls.length).toBe(2)
+    })
+    expect(await screen.findByText('rfe-experience')).toBeInTheDocument()
   })
 })
 
