@@ -150,6 +150,26 @@ describe('AdvancedSearchPage — Send (tag generation)', () => {
     })
     expect(await screen.findByText('rfe-experience')).toBeInTheDocument()
   })
+
+  it('Send resets manually-added tags too, not just AI-generated ones (full reset)', async () => {
+    const fetchMock = mockFetch({ queryTags: [{ field: 'consulates', code: 'BOM', label: 'BOM' }] })
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('+ Add Current status')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText('+ Add Current status'))
+    const statusInput = await screen.findByPlaceholderText('Search current status…')
+    fireEvent.change(statusInput, { target: { value: 'H-1B' } })
+    fireEvent.click(await screen.findByText('H-1B'))
+    expect(screen.getByLabelText('Remove H-1B')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByPlaceholderText(/H-1B RFE experiences/), { target: { value: 'some text' } })
+    fireEvent.click(screen.getByText('Send'))
+
+    expect(await screen.findByText('Mumbai, India (BOM)')).toBeInTheDocument()
+    expect(screen.queryByText('H-1B')).toBeNull()
+    expect(screen.queryByText('Current status')).toBeNull()
+    expect(fetchMock.mock.calls.filter((c) => String(c[0]).includes('/api/search/query-tags')).length).toBe(1)
+  })
 })
 
 describe('AdvancedSearchPage — Send error handling', () => {
@@ -172,6 +192,37 @@ describe('AdvancedSearchPage — Send error handling', () => {
     expect(await screen.findByText('The assistant is temporarily unavailable.')).toBeInTheDocument()
     expect(screen.getByText('Send')).toBeInTheDocument()
     expect(screen.getByText('Send').closest('button')).not.toBeDisabled()
+  })
+
+  it('a failed second Send preserves the tags from the previous successful Send', async () => {
+    let call = 0
+    const fetchMock = vi.fn(async (url: string, opts?: { method?: string }) => {
+      const method = opts?.method || 'GET'
+      if (String(url).includes('/api/tag-vocab')) return { ok: true, status: 200, json: async () => VOCAB } as Response
+      if (String(url).includes('/api/search/query-tags') && method === 'POST') {
+        call += 1
+        if (call === 1) {
+          return { ok: true, status: 200, json: async () => ({ tags: [{ field: 'tags', code: 'rfe-experience', label: 'rfe-experience' }] }) } as Response
+        }
+        return { ok: false, status: 503, json: async () => ({ detail: 'The assistant is temporarily unavailable.' }) } as Response
+      }
+      return { ok: true, status: 200, json: async () => ({}) } as Response
+    }) as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
+    const input = screen.getByPlaceholderText(/H-1B RFE experiences/)
+
+    fireEvent.change(input, { target: { value: 'first text' } })
+    fireEvent.click(screen.getByText('Send'))
+    expect(await screen.findByText('rfe-experience')).toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: 'second text' } })
+    fireEvent.click(screen.getByText('Send'))
+
+    expect(await screen.findByText('The assistant is temporarily unavailable.')).toBeInTheDocument()
+    expect(screen.getByText('rfe-experience')).toBeInTheDocument()
   })
 
   it('disables Send while text is empty or whitespace-only', async () => {
@@ -336,6 +387,14 @@ describe('AdvancedSearchPage — Match precision', () => {
     })
     const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))!
     expect(String(call[0])).toContain('strictness=strict')
+  })
+
+  it('picks up a previously saved precision level from localStorage', async () => {
+    vi.stubGlobal('localStorage', { getItem: (k: string) => (k === 'search-strictness' ? 'strict' : null), setItem: () => {} })
+    mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Match precision')).toBeInTheDocument())
+    expect(await screen.findByText('Strict')).toHaveClass('text-primary')
   })
 })
 

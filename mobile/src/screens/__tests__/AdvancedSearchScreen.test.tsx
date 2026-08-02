@@ -100,6 +100,23 @@ describe('AdvancedSearchScreen — Send', () => {
     expect(s.queryByText('rfe-experience')).toBeNull();
     expect(s.queryByText('TAGS')).toBeNull();
   });
+
+  it('Send resets manually-added tags too, not just AI-generated ones (full reset)', async () => {
+    const s = await renderAdvancedSearch();
+    await fireEvent.press(s.getByText('+ Add Current status'));
+    const statusInput = await s.findByPlaceholderText('Add current status…');
+    await fireEvent.changeText(statusInput, 'H-1B');
+    await fireEvent.press(await s.findByText('H-1B'));
+    expect(s.getByText('H-1B')).toBeOnTheScreen();
+
+    (fetchQueryTags as jest.Mock).mockResolvedValueOnce([{ field: 'consulates', code: 'BOM', label: 'BOM' }]);
+    await fireEvent.changeText(s.getByPlaceholderText(/H-1B RFE experiences/), 'some text');
+    await fireEvent.press(s.getByText('Send'));
+
+    expect(await s.findByText('Mumbai, India (BOM)')).toBeOnTheScreen();
+    expect(s.queryByText('H-1B')).toBeNull();
+    expect(s.queryByText('CURRENT STATUS')).toBeNull();
+  });
 });
 
 describe('AdvancedSearchScreen — Send error handling / disabled state', () => {
@@ -110,6 +127,23 @@ describe('AdvancedSearchScreen — Send error handling / disabled state', () => 
     await fireEvent.press(s.getByText('Send'));
 
     expect(await s.findByText('The assistant is temporarily unavailable.')).toBeOnTheScreen();
+  });
+
+  it('a failed second Send preserves the tags from the previous successful Send', async () => {
+    (fetchQueryTags as jest.Mock).mockResolvedValueOnce([
+      { field: 'tags', code: 'rfe-experience', label: 'rfe-experience' },
+    ]);
+    const s = await renderAdvancedSearch();
+    await fireEvent.changeText(s.getByPlaceholderText(/H-1B RFE experiences/), 'first text');
+    await fireEvent.press(s.getByText('Send'));
+    expect(await s.findByText('rfe-experience')).toBeOnTheScreen();
+
+    (fetchQueryTags as jest.Mock).mockRejectedValueOnce(new Error('The assistant is temporarily unavailable.'));
+    await fireEvent.changeText(s.getByPlaceholderText(/H-1B RFE experiences/), 'second text');
+    await fireEvent.press(s.getByText('Send'));
+
+    expect(await s.findByText('The assistant is temporarily unavailable.')).toBeOnTheScreen();
+    expect(s.getByText('rfe-experience')).toBeOnTheScreen();
   });
 
   it('pressing Send with empty/whitespace-only text does not call fetchQueryTags', async () => {
