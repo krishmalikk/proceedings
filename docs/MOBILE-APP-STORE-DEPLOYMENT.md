@@ -1,0 +1,456 @@
+# Mobile deployment runbook — iOS App Store (`mobile/`)
+
+Step-by-step for building, submitting, and releasing the **Meridian** iOS app
+via **EAS (Expo Application Services)**, plus what's automated today and what
+still needs a human. Companion to [`docs/DEPLOYMENT.md`](DEPLOYMENT.md) (backend
++ website) and [`docs/WEBSITE-DEPLOYMENT.md`](WEBSITE-DEPLOYMENT.md) — this is
+the mobile equivalent.
+
+> **Correcting the record:** [`docs/PROD-READINESS.md`](PROD-READINESS.md) §6 and
+> [`docs/DEPLOYMENT.md`](DEPLOYMENT.md) §9 describe mobile as "never built" /
+> "not deployed" / `eas.json (absent)`. That's stale. `mobile/eas.json` has existed
+> since commit `e23cab7` and the app has already been through **two real App
+> Store Review submissions** — see
+> [`docs/business/app-review-1.2-ugc-response.md`](business/app-review-1.2-ugc-response.md)
+> for the actual build 11 rejection (Guidelines 5.1.1(i)/5.1.2(i), 2.3.6, 1.2)
+> and the build 12 fix. What's actually missing is **documentation and
+> automation** of the release process itself — that's what this doc and the
+> scripts/workflow below provide.
+
+| Fact | Value |
+|---|---|
+| App name / slug | Meridian / `meridian` |
+| iOS bundle ID | `com.krishmalik.meridian` |
+| Expo/EAS project | `krishmalik/meridian`, `projectId` `32aefb08-a393-4fae-966e-865bfee02758` (`mobile/app.config.js:63-66`) |
+| Current version | `1.1.0` (`mobile/app.config.js:6` and `mobile/package.json:3` — kept in sync, see [`docs/RELEASE-TAGGING.md`](RELEASE-TAGGING.md)) |
+| Build number | managed **remotely by EAS** (`eas.json`'s `appVersionSource: "remote"` + `production.autoIncrement: true`) — don't hand-edit `ios.buildNumber` |
+| Workflow type | **Managed / CNG** (Continuous Native Generation) — `mobile/ios/` is a disposable, gitignored `expo prebuild` artifact, never hand-edited, never committed |
+| Config file | `mobile/app.config.js` (dynamic JS config, not `app.json`) |
+| Source dir | `mobile/` |
+
+---
+
+## 0. How the pieces fit together
+
+```
+  mobile/app.config.js  ──expo prebuild (CNG)──▶  mobile/ios/ (gitignored, generated)
+         │
+         ▼
+  mobile/eas.json  ──eas build──▶  EAS cloud build servers ──▶  signed .ipa
+         │                                                          │
+         │                                                     eas submit
+         ▼                                                          ▼
+  Expo/EAS account (projectId)                          App Store Connect → TestFlight
+                                                                      │
+                                                        (human) attach build to a
+                                                        version, fill "What's New",
+                                                        Submit for Review
+                                                                      │
+                                                                      ▼
+                                                              Apple App Review
+                                                                      │
+                                                                      ▼
+                                                              Public App Store release
+```
+
+Two things never touch git: the generated `mobile/ios/` native project, and
+any signing secret (distribution cert, provisioning profile, App Store
+Connect API key). EAS is the system of record for signing credentials —
+that's what "managed workflow" buys you here.
+
+---
+
+## 1. One-time setup (do this once per Apple/EAS account, not per release)
+
+### 1.1 Accounts
+
+- [x] **Apple Developer Program** ($99/yr) — already active; an app record
+  already exists in App Store Connect (proven by the build 11/12 submissions).
+- [x] **Expo/EAS account** (`krishmalik`) — already linked (`projectId` in
+  `app.config.js`).
+- [ ] **Local EAS CLI login**, once per machine that will run releases by hand:
+  ```bash
+  cd mobile
+  npx eas-cli login          # or: npm run login  (added below)
+  npx eas-cli whoami         # confirms you're authenticated
+  ```
+
+### 1.2 iOS signing credentials (distribution cert + provisioning profile)
+
+This project uses **EAS-managed ("remote") credentials** — the default when
+no `credentialsSource` is set. EAS generates and stores the distribution
+certificate and provisioning profile on its servers and reuses them for every
+build. You only interact with this once:
+
+```bash
+cd mobile
+npx eas-cli credentials --platform ios
+```
+
+- First run: choose the `production` build profile → **"Let EAS handle the
+  process"** → sign in with the Apple ID that owns the Developer Program
+  membership (Apple 2FA required, interactive — this step **cannot** be
+  scripted/run in CI, it's a one-time human action).
+- EAS then creates/reuses the distribution certificate (account-level, one
+  per Apple account) and an app-specific provisioning profile, and stores
+  both remotely. Every subsequent `eas build` (local or CI) reuses them
+  automatically — **no further interaction needed** until the provisioning
+  profile expires (~12 months) or the bundle ID changes, at which point
+  `eas build` prompts to regenerate it (still no manual Xcode/Apple Developer
+  portal work required).
+- Verify what's stored: `npx eas-cli credentials --platform ios` → **View**.
+
+### 1.3 App Store Connect API Key (for non-interactive `eas submit`)
+
+`eas submit` needs a way to authenticate to App Store Connect without a human
+typing an Apple ID + 2FA code each time. The supported non-interactive path
+is an **App Store Connect API Key**:
+
+1. App Store Connect → **Users and Access** → **Integrations** → **App Store
+   Connect API** → **Generate API Key** (role: **App Manager** is sufficient;
+   avoid **Admin** unless you need it for other reasons).
+2. Download the `.p8` key file **once** — Apple only lets you download it
+   once, so store it safely immediately (password manager / secrets vault).
+   Note the **Key ID** and **Issuer ID** shown next to it.
+3. Two ways to make EAS use it — pick one:
+   - **Interactive, cached remotely (simplest for solo/local use):**
+     ```bash
+     npx eas-cli credentials --platform ios
+     ```
+     → select **App Store Connect: Manage your API Key** → **Set up your
+     project to use an API Key for EAS Submit** → point it at the downloaded
+     `.p8`. EAS stores it on its servers against this project; every future
+     `eas submit` (local or CI, as long as you're authenticated as this EAS
+     account/token) uses it with no further prompts.
+   - **Explicit in `eas.json`** (needed if you want the path checked into
+     `submit.production.ios`, or you're not using the EAS-remote-storage
+     option): add
+     ```json
+     "submit": {
+       "production": {
+         "ios": {
+           "appleId": "your-apple-id@example.com",
+           "ascAppId": "<App Store Connect app's numeric Apple ID>",
+           "appleTeamId": "<10-char Apple Developer Team ID>",
+           "ascApiKeyPath": "./secrets/AuthKey_XXXXXXXXXX.p8",
+           "ascApiKeyId": "XXXXXXXXXX",
+           "ascApiKeyIssuerId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+         }
+       }
+     }
+     ```
+     **Never commit the actual `.p8` file** — `mobile/.gitignore:14-18`
+     already blocks `*.p8`/`*.p12`/`*.mobileprovision`/`*.key`, so a path
+     under `mobile/secrets/` is safe from accidental commits, but the file
+     itself only ever lives on your machine / as a CI secret (§2.2).
+   - `mobile/eas.json`'s `submit.production` is currently `{}` (empty) — pick
+     one of the two options above and fill it in before you rely on
+     non-interactive submit. Until then, `eas submit` falls back to
+     interactive prompts (fine for a one-off manual submit, not for CI).
+
+Find `ascAppId` and `appleTeamId`: App Store Connect → your app → **App
+Information** → **Apple ID** (that number is `ascAppId`); Apple Developer
+account → **Membership** → **Team ID** (that's `appleTeamId`).
+
+### 1.4 App-specific config that's already handled (don't redo it)
+
+These are already correctly wired in `mobile/app.config.js` — documented here
+so nobody "fixes" them by accident:
+
+- **Sign in with Apple**: `ios.usesAppleSignIn: true` (`app.config.js:23`)
+  auto-injects the `com.apple.developer.applesignin` entitlement on every
+  `expo prebuild`. **Never hand-edit `mobile/ios/*/*.entitlements`** — it's
+  regenerated from this config on every build (comment at `app.config.js:20-22`).
+- **Google Sign-In**: `googleServicesFile` points at the tracked
+  `mobile/config/GoogleService-Info.plist`, plus a matching URL scheme in
+  `infoPlist.CFBundleURLTypes` and the `iosUrlScheme` plugin option
+  (`app.config.js:24-32,55-59`). If Google ever regenerates that plist (e.g.
+  a new Firebase iOS app), replace the file in place — the config already
+  points at it.
+- **Modular-headers build fix**: `mobile/plugins/withModularHeaders.js` is a
+  local config plugin patching the generated `Podfile` so Google Sign-In's
+  transitive pods (`GoogleUtilities`, `RecaptchaInterop`, `AppCheckCore`)
+  build with `:modular_headers => true`, avoiding a Swift "ambiguous implicit
+  access level for import of 'Expo'" error. It runs automatically on every
+  `prebuild`/`eas build` — no action needed unless the build starts failing
+  with that exact Swift error again (see §7 Troubleshooting).
+- **No push notifications today** — `expo-notifications` isn't integrated
+  (confirmed: no references anywhere in `mobile/src` or config), so **no
+  APNs key/cert setup is needed** for this app in its current form. If push
+  is added later, generate an APNs key the same way as the ASC API key
+  (Apple Developer → Certificates, Identifiers & Profiles → Keys) and add it
+  via `eas credentials`.
+
+---
+
+## 2. CI setup (for the automated GitHub Actions path — do this once)
+
+If you want releases triggerable from GitHub Actions (recommended — see §4),
+set these up once:
+
+### 2.1 `EXPO_TOKEN` — required
+
+1. https://expo.dev/accounts/krishmalik/settings/access-tokens → **Create
+   token**. Prefer a **robot/bot user token** scoped to this project if your
+   Expo plan supports it; a personal access token works too.
+2. GitHub repo → **Settings → Secrets and variables → Actions** → **New
+   repository secret** → name `EXPO_TOKEN`, paste the token.
+
+With `EXPO_TOKEN` set, `eas build`/`eas submit --non-interactive` run without
+any interactive login — CI authenticates as that token.
+
+### 2.2 Apple submit credentials for CI — required only if you want `submit: true` runs
+
+CI reuses whatever's already configured per §1.3 — if you did the
+**"interactive, cached remotely"** option, CI needs nothing extra (the
+`EXPO_TOKEN`-authenticated `eas submit` call fetches the stored API key from
+EAS's servers automatically). If you instead want the `eas.json`-explicit
+path, additionally store the `.p8` **contents** (base64-encoded) as a repo
+secret and have the workflow write it to a temp file — see the commented
+example in [`.github/workflows/mobile-deploy.yml`](../.github/workflows/mobile-deploy.yml).
+
+### 2.3 Reviewer/approval gate — reuses existing setup
+
+`mobile-deploy.yml` (§4) runs under the same `environment: production` gate
+already configured for [`deploy.yml`](../.github/workflows/deploy.yml) (see
+[`docs/CI-CD.md`](CI-CD.md#one-time-github-setup-needs-repo-admin)) — if that
+required-reviewer rule is already set up for backend/website deploys, mobile
+releases are gated the same way with **no extra GitHub setup**.
+
+---
+
+## 3. Everyday release flow (once §1 is done)
+
+This is the sequence for shipping a normal update. Steps marked **🤖** are
+scripted (§4); everything else needs a human decision or Apple's own review.
+
+1. **Bump the version** — 🤖 partially. Edit `version` in `mobile/app.config.js`
+   **and** `mobile/package.json` together (keep them in sync); leave
+   `ios.buildNumber` alone (EAS bumps it remotely). Full mechanics already
+   documented — see [`docs/RELEASE-TAGGING.md` §"Mobile is a variant of the
+   same flow"](RELEASE-TAGGING.md#mobile-is-a-variant-of-the-same-flow). Do
+   this as part of the normal PR for the release.
+2. **Merge the PR to `main`** — CI (`ci.yml`) already runs `npm test` on
+   every push (Jest); this doesn't build/submit anything for mobile yet.
+3. **Preflight** — 🤖 (`npm run test`, git-clean check — see §4.2/§4.3).
+4. **Build** — 🤖 `eas build --platform ios --profile production`
+   (§4.1/§4.2). Produces a signed `.ipa`, uploaded to EAS's servers. Takes
+   ~15–25 min on Apple's/EAS's build queue; you get a build-details URL
+   immediately and can walk away (`--no-wait`) or block until it finishes.
+5. **Submit to App Store Connect** — 🤖 `eas submit --platform ios --profile
+   production` (or `eas build --auto-submit`, one shot). This delivers the
+   binary into **TestFlight processing** — it does **not** by itself put the
+   app in front of Apple's App Review team.
+6. **TestFlight internal testing** (human) — once the build finishes
+   processing (~10–30 min, Apple-side), it's available to your internal
+   TestFlight testers automatically. Install via the TestFlight app, smoke
+   the release manually. This is the point to catch anything before burning
+   an App Review cycle.
+7. **Attach the build to an App Store version + submit for review** (human,
+   App Store Connect UI) — App Store Connect → your app → **+ Version** (or
+   the existing pending version) → select the new build → fill **What's New
+   in This Version** → **Submit for Review**. *(This step has an official
+   automation path too — the App Store Connect API / `eas metadata` — but
+   it's not wired up here; see §4.4 and §6 for why it's left manual.)*
+8. **Fill/confirm App Review reviewer info** (human, one-time-ish) — App
+   Review Information → Notes + Sign-In Information. Reuse the exact,
+   already-battle-tested reviewer notes template and demo-account setup in
+   [`docs/business/app-review-1.2-ugc-response.md`](business/app-review-1.2-ugc-response.md)
+   §1–§2 rather than writing new ones — that content already got a prior
+   submission past Guideline 1.2 (UGC).
+9. **Record the required screen-recording** (human, physical device) — Apple
+   requires a real device, not the simulator, for UGC-flow proof. Script is
+   already written: `app-review-1.2-ugc-response.md` §3.
+10. **Apple App Review** (Apple, 1–3 days typically) — out of your control.
+    If rejected, see §7 for the exact fixes already applied to two prior
+    real rejections.
+11. **Release** — once approved, either auto-releases or needs one more
+    manual "Release this version" click in App Store Connect, depending on
+    the release-type setting chosen in step 7.
+12. **Tag the release** — once Apple accepts the build, tag the merged
+    commit per [`docs/RELEASE-TAGGING.md`](RELEASE-TAGGING.md#mobile-is-a-variant-of-the-same-flow)
+    (`mobile-vX.Y.Z`). Not automated — tagging is always an explicit human
+    decision project-wide (same rule as backend/website).
+
+---
+
+## 4. Automation — what's scripted and how to run it
+
+**Answering "can this be scripted?" directly: yes, for everything up through
+delivering a binary into TestFlight.** EAS Build + EAS Submit are
+purpose-built for exactly this, and both are fully non-interactive-capable
+once §1–§2 are done. What's **not** scriptable (and why) is in §4.4/§6.
+
+### 4.1 npm scripts (`mobile/package.json`)
+
+```bash
+cd mobile
+npm run build:ios:preview       # eas build --platform ios --profile preview (simulator build, fast, for smoke-testing a build pipeline change)
+npm run build:ios:production    # eas build --platform ios --profile production
+npm run submit:ios              # eas submit --platform ios --profile production --latest
+npm run release:ios             # full local pipeline: preflight + build (+ optional --submit) — see §4.3
+npm run metadata:push           # eas metadata:push (store.config.json → App Store Connect) — see §4.4
+npm run metadata:pull           # eas metadata:pull (App Store Connect → store.config.json)
+```
+
+### 4.2 GitHub Actions — [`mobile-deploy.yml`](../.github/workflows/mobile-deploy.yml)
+
+The primary, recommended automation path. Actions tab → **Mobile — EAS Build
+& Submit (manual approval)** → **Run workflow**:
+
+| Input | What it does |
+|---|---|
+| `profile` | `preview` (simulator build, quick sanity check) or `production` |
+| `submit` | `false` (default) — kick off the build and return immediately (`--no-wait`), doesn't burn CI minutes waiting on Apple's queue. `true` — waits for the build, then `--auto-submit`s it to App Store Connect/TestFlight. |
+| `ref` | branch/tag/SHA to build (defaults to `main`) |
+
+Same two-layer human control as [`deploy.yml`](../.github/workflows/deploy.yml):
+the run only starts on manual dispatch, and the job pauses for
+required-reviewer approval (`environment: production`) before it touches EAS.
+Requires `EXPO_TOKEN` (§2.1); needs §1.2/§1.3 already done once, interactively,
+by a human (EAS reuses those stored credentials — the workflow itself never
+does interactive Apple login).
+
+### 4.3 Local script — [`mobile/scripts/release-ios.sh`](../mobile/scripts/release-ios.sh)
+
+For releasing from a laptop instead of CI (e.g. before CI secrets are set
+up, or for a `preview` build you want to iterate on quickly):
+
+```bash
+cd mobile
+./scripts/release-ios.sh production            # build only
+./scripts/release-ios.sh production --submit    # build, then auto-submit
+./scripts/release-ios.sh preview                # simulator build, for pipeline smoke-testing
+```
+
+What it automates: confirms `eas-cli` is authenticated, refuses to run on a
+dirty git tree, runs the Jest suite, prints the current
+`version`/`buildNumber` for a final human sanity-check before kicking off a
+real build, then shells out to `eas build` (optionally `--auto-submit`).
+
+### 4.4 Store listing / metadata — `mobile/store.config.json` + `eas metadata`
+
+`eas metadata:push`/`eas metadata:pull` manage most App Store Connect listing
+fields (title, subtitle, description, keywords, support/marketing/privacy
+URLs, category, age-rating advisory, and — usefully — the **App Review**
+`notes`/demo-account fields) from a version-controlled JSON file instead of
+clicking through the App Store Connect UI. `mobile/store.config.json` is
+pre-populated with everything that's already known/decided (privacy URL,
+support contact, category, and the **exact reviewer-notes text** from
+`app-review-1.2-ugc-response.md` §1) — fields that still need real
+marketing copy decided are left as `TODO(...)` placeholders; **don't push
+until those are filled in**.
+
+**Known limitations of this tool** (per Expo's docs, not a gap in this
+setup): `eas metadata` does **not** support screenshot uploads, and does
+**not** support Google Play at all — screenshots stay a manual App Store
+Connect upload regardless.
+
+```bash
+cd mobile
+npm run metadata:pull    # sync store.config.json with whatever's live today, before your first push
+# ...edit store.config.json, fill in TODOs...
+npm run metadata:push    # validates + uploads
+```
+
+---
+
+## 5. What's still manual, and why
+
+| Step | Why it can't be (fully) automated |
+|---|---|
+| First-ever `eas credentials` setup (§1.2/§1.3) | Requires interactive Apple ID + 2FA login — a security control on Apple's side, not something to script around. One-time only, though. |
+| Attaching a TestFlight build to an App Store **version** and clicking Submit for Review | `eas submit` delivers to TestFlight processing but stops short of the App Review queue by design — Apple wants a human confirming "What's New" text and the specific build per version. *(The App Store Connect API can do this too, but wiring it up is a larger lift than this pass covers — see §6.)* |
+| The App Review screen recording (`app-review-1.2-ugc-response.md` §3) | Apple explicitly requires **physical-device** capture, and reviewing the recording for correctness before submission is a judgment call. |
+| Reading/responding to actual App Review feedback | Apple's decisions aren't scriptable by definition. §7 captures the fixes for the categories of rejection already seen so a repeat is fast, not automatic. |
+| Store screenshots | `eas metadata` explicitly doesn't support screenshot upload (§4.4) — stays a manual App Store Connect upload. |
+| Deciding *when* to ship / tagging the release | Same project-wide rule as backend/website — [`docs/RELEASE-TAGGING.md`](RELEASE-TAGGING.md) is explicit that tagging/releasing is always a deliberate human call, never automatic on a successful build. |
+
+---
+
+## 6. Optional next steps (not implemented in this pass)
+
+- **App Store Connect API automation of the "attach build → submit for
+  review" step** (§5) — possible via direct App Store Connect API calls
+  (create a version, associate the build, trigger review) using the same
+  ASC API key from §1.3. Bigger lift than `eas metadata`/`eas submit`; worth
+  doing only once release cadence is frequent enough to justify it.
+- **EAS Update** (OTA JS-only updates) — would let small JS/asset-only fixes
+  ship to users without a new binary/App Review cycle at all. Not currently
+  wired in (`expo-updates` isn't a dependency). Apple still requires OTA
+  content to follow the same guidelines as a binary submission — it's a
+  latency optimization, not a way to bypass review. Worth a separate,
+  deliberate pass if release velocity becomes a pain point.
+- **Android / Play Store** — this doc is iOS-only per the current ask.
+  `eas.json`'s profiles already cover both platforms (`eas build --platform
+  android` works unchanged), but Play Store submission (`eas submit
+  --platform android`) and its own listing/review flow aren't documented
+  here.
+
+---
+
+## 7. Troubleshooting — known issues (from real prior submissions)
+
+### Build fails: "ambiguous implicit access level for import of 'Expo'" (Swift)
+Caused by Google Sign-In's transitive CocoaPods needing modular headers.
+Already fixed by `mobile/plugins/withModularHeaders.js` (§1.4) — if it
+recurs, check that plugin is still listed in `app.config.js`'s `plugins`
+array and hasn't been accidentally removed.
+
+### App Review rejection — Guideline 5.1.1(i) / 5.1.2(i) (third-party AI data sharing)
+**Already fixed** (build 12) — the app now shows a one-time AI-consent screen
+before any text is sent to Gemini, enforced globally (`assertAIConsent`), with
+a Profile toggle to disable AI anytime. Full detail + the exact reviewer note
+to paste: `app-review-1.2-ugc-response.md` lines 9–31. If this resurfaces (e.g.
+a new AI-touching feature bypasses the consent gate), the fix pattern is:
+route it through the same `assertAIConsent` check before any Gemini call.
+
+### App Review rejection — Guideline 2.3.6 (Age Rating / Age Assurance)
+**Config-only fix, no rebuild needed:** App Store Connect → app → **App
+Information** → **Age Rating** → **Edit** → set Age Assurance / In-App
+Controls to **None** → Save. Detail: `app-review-1.2-ugc-response.md`
+lines 33–36.
+
+### App Review rejection — Guideline 1.2 (User-Generated Content)
+Full reviewer-notes template, demo-account setup steps, and a screen-recording
+script are ready to reuse verbatim: `app-review-1.2-ugc-response.md` §1–§3.
+The safeguards it documents (EULA gate, content filtering, report/block,
+24h moderator response) are already implemented — a 1.2 rejection on an
+unrelated build most likely means the reviewer notes/demo account weren't
+filled in for that submission, not a missing feature.
+
+### `eas build` hangs waiting for credentials interactively in CI
+Means §1.2/§1.3 weren't completed yet (or EAS's stored credentials expired).
+CI can't do the interactive Apple login — go run `eas credentials --platform
+ios` from a developer machine once, then retry CI.
+
+### Entitlements/Podfile changes disappear after a rebuild
+Expected — `mobile/ios/` is regenerated from `app.config.js` +
+`mobile/plugins/` on every `prebuild`/`eas build` (§0). Any native change
+must go through `app.config.js` (config properties) or a config plugin
+(`mobile/plugins/`), never a hand-edit under `mobile/ios/`.
+
+---
+
+## 8. Quick reference
+
+```bash
+# One-time (per machine, interactive)
+cd mobile && npx eas-cli login
+npx eas-cli credentials --platform ios
+
+# Every release
+npm run build:ios:production            # or: ./scripts/release-ios.sh production
+npm run submit:ios                      # or: ./scripts/release-ios.sh production --submit
+# ...then in App Store Connect: attach build to a version, fill What's New, Submit for Review
+
+# CI (after §2 setup)
+gh workflow run mobile-deploy.yml -f profile=production -f submit=true -f ref=main
+
+# Metadata (optional, after filling TODOs in store.config.json)
+npm run metadata:push
+
+# Check build/submit status
+npx eas-cli build:list --platform ios --limit 5
+npx eas-cli submit:list --platform ios --limit 5
+```

@@ -16,7 +16,7 @@ How the Proceedings app ships. Two independent deploy targets today, plus mobile
 |---|---|---|---|---|
 | **Backend (BFF)** | `backend/` | **GCP Cloud Run** (`immiguide-api`, `us-central1`) | **Manual** `gcloud run deploy` (no CI) | Live |
 | **Frontend** | `website/` | **GCP Cloud Run** (`immiguide-web`, `us-central1`) | **Manual** `gcloud run deploy --source website` (no CI) | Live |
-| **Mobile** | `mobile/` | Expo / EAS → App Store / Play | Not set up | Not deployed |
+| **Mobile (iOS)** | `mobile/` | Expo / EAS → App Store | **Manual** `eas build`/`eas submit`, or `workflow_dispatch` via `mobile-deploy.yml` (gated) | Submitted to App Store Review (2 rounds); see [`docs/MOBILE-APP-STORE-DEPLOYMENT.md`](MOBILE-APP-STORE-DEPLOYMENT.md) |
 
 > **Frontend host change:** the site was previously on **Vercel** (git-driven). We moved it to **Cloud Run** (`immiguide-web`) after losing admin access to the Vercel project — see §3. The old `proceedings.vercel.app` is orphaned.
 
@@ -228,8 +228,21 @@ cd website && PYTHON_API_URL=http://localhost:8000 npm run dev               # h
 
 ---
 
-## 9. Mobile (Expo / React Native, `mobile/`) — not deployed yet
-Future path: **EAS Build** (`eas build`) for iOS/Android binaries → TestFlight / Play internal → store release; it will point at the same Cloud Run `PYTHON_API_URL` and (per the realtime roadmap) add Firebase Auth + FCM. See [docs/app/realtime-communication-options.md](app/realtime-communication-options.md) §11.
+## 9. Mobile (Expo / React Native, `mobile/`)
+
+**Full step-by-step runbook: [`docs/MOBILE-APP-STORE-DEPLOYMENT.md`](MOBILE-APP-STORE-DEPLOYMENT.md).**
+The app already ships via **EAS Build** (`eas build`) → **EAS Submit** → App
+Store Connect / TestFlight → Apple App Review, and has been through App
+Review twice already (see
+[`docs/business/app-review-1.2-ugc-response.md`](business/app-review-1.2-ugc-response.md)).
+It points at the same Cloud Run `PYTHON_API_URL` as the website. A gated
+`workflow_dispatch` GitHub Actions pipeline
+([`mobile-deploy.yml`](../.github/workflows/mobile-deploy.yml)) automates the
+build/submit steps, mirroring `deploy.yml`'s manual-approval pattern.
+Android/Play Store is not yet documented — see the "Optional next steps" in
+the runbook above. (Firebase Auth is already wired for iOS; FCM/push is not
+yet integrated — see the realtime roadmap:
+[docs/app/realtime-communication-options.md](app/realtime-communication-options.md) §11.)
 
 ---
 
