@@ -142,6 +142,76 @@ low-risk to route around. Treat Apple Developer Program / App Store Connect
 access as the one to protect and investigate carefully; a from-scratch Apple
 enrollment is the only genuinely costly outcome described in this doc.
 
+### Once you've been invited — confirm exactly what you can and can't do
+
+A worked example from actually doing this: getting invited to App Store
+Connect is not one uniform level of access — it's worth confirming precisely
+what you got before assuming it unblocks everything.
+
+**Where to check:** App Store Connect → **Users and Access** → **People**
+tab, while inside the correct team context (§1's team-switching note
+applies here too). The list shows every person with access to that team, an
+**Apple Account** (their sign-in email), a **Name**, a **Role**, and which
+**Apps** they can see. In a real check of this project's team, the table
+showed exactly two rows: the invited developer's own account (role:
+**Admin**, all apps), and the original developer's account (role:
+**Account Holder, Admin**, all apps) — i.e. `Account Holder` is not a role
+you'd ever expect to see on your own row; only the person who originally
+enrolled has it, appearing *alongside* Admin on their own row, never on
+anyone else's.
+
+**What "Admin" (or App Manager) as an invited user *does* unblock,
+immediately:** per Apple's own permissions table, both roles can generate
+App Store Connect API keys, upload builds, submit apps for review, and
+manage TestFlight — the entire App Store Connect side of the release
+pipeline. **Do this the moment you confirm either role** — it's independent
+of anything else in this doc and doesn't need to wait on a resolved build
+path:
+1. **Users and Access** → **Integrations** tab → **App Store Connect API**
+   → **Generate API Key** (role **App Manager** is enough for the key
+   itself, regardless of your own role).
+2. Download the `.p8` immediately (one-time download) and note the **Key
+   ID** and **Issuer ID**.
+3. Store all three in a shared password manager/secrets vault — never
+   plaintext chat/email, never git. This is exactly what §2.3 and
+   `mobile-deploy.yml` need for non-interactive submits, and it keeps
+   working independent of anyone's login session (sidesteps the kind of
+   team-context error described earlier in this section).
+
+**What "Admin" as an invited user does *not* unblock, no matter how high the
+role:** the Apple Developer **Portal** (Certificates, Identifiers &
+Profiles) — confirmed directly from Apple's own docs, worth restating
+plainly because it's easy to assume otherwise: *"If you're enrolled as an
+individual and add users in App Store Connect, users receive access only to
+your content in App Store Connect and are not considered part of your team
+in the Apple Developer Program."* This holds **regardless of role** — an
+invited Admin is not exempted. Only the `Account Holder` row ever has it.
+
+**The corollary that matters most for building:** this is why a brand-new
+Expo/EAS account (the "low stakes" option in the table above) does **not**
+actually unblock producing a new build by itself, even once you have full
+App Store Connect Admin access. The very first `eas credentials --platform
+ios` run under any Expo account needs Developer Portal sign-in to create a
+distribution certificate and provisioning profile — and that page stays
+Account-Holder-only on an Individual account, full stop. A new Expo account
+only "just works" if it's paired with **already-cached** iOS credentials
+(i.e. you recovered the *original* Expo/EAS account, which likely has them
+from prior submissions) — not with ASC access of any kind, however senior.
+
+**A smaller ask than full account recovery, if reachable only briefly:**
+instead of asking the Account Holder to log into a new Expo account (still
+needs their 2FA, plus trusting a new relationship), ask them to **export
+the existing iOS distribution certificate (`.p12`, with its password) and
+provisioning profile (`.mobileprovision`) directly from the Developer
+Portal / their Mac's Keychain**, and hand over just those two files. A new
+Expo project can then build using **local credentials**
+(`eas.json`'s `credentialsSource: "local"`, pointing at those files)
+instead of EAS-managed ones — no interactive Expo login from them at all.
+Caveat: this only works if the private key material was actually exported/
+saved somewhere at creation time — if not, the cert can't be extracted
+after the fact, only revoked and recreated, which needs Developer Portal
+access again regardless.
+
 ### Doing this the right way — avoid a repeat single point of failure
 
 This whole section exists because exactly one person had App Store Connect
@@ -257,6 +327,15 @@ Manager/Admin access in App Store Connect can go to the app's version page
 and click **"Release This Version."** Once it shows as released/live, it
 becomes transfer-eligible. Worth doing regardless of whether Organization
 migration happens — an approved build sitting unreleased helps no one.
+
+**"Ready for Distribution" is ambiguous by itself — verify with an
+unambiguous check.** The label alone doesn't tell you whether a manual
+release is still pending or already happened (App Store Connect's History
+tab for that version shows the full timeline of status changes, which
+disambiguates it precisely). The one check that's unambiguous regardless of
+what the label says: does `https://apps.apple.com/app/id<numeric-app-id>`
+(the app's numeric ID is visible in its App Store Connect URL) actually
+resolve to a public listing? If yes, that version is genuinely live.
 
 #### Step 3 — pre-transfer cleanup (a real project, not a formality)
 
