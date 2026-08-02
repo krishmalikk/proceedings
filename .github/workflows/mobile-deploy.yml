@@ -18,14 +18,18 @@ name: Mobile — EAS Build & Submit (manual approval)
 #   App Store Connect / TestFlight processing (eas build --auto-submit).
 #   This still only delivers to TestFlight — a human must separately attach
 #   the build to an App Store version and click "Submit for Review" in App
-#   Store Connect (see docs/MOBILE-APP-STORE-DEPLOYMENT.md §3 step 7).
+#   Store Connect (see docs/MOBILE-APP-STORE-DEPLOYMENT.md §4 step 7).
 #
-# One-time prerequisites (see docs/MOBILE-APP-STORE-DEPLOYMENT.md §1-§2):
+# Not sure you have access to the Apple/Expo accounts this needs? See
+# docs/MOBILE-APP-STORE-DEPLOYMENT.md §1 first — the two are unrelated login
+# systems with very different recovery paths.
+#
+# One-time prerequisites (see docs/MOBILE-APP-STORE-DEPLOYMENT.md §2-§3):
 #   - iOS signing credentials + (for submit=true) an App Store Connect API
 #     Key already provisioned via `eas credentials` from a developer
 #     machine (interactive, Apple 2FA — cannot run in CI). EAS stores and
 #     reuses them for every subsequent build/submit, including this workflow.
-#   - repo secret EXPO_TOKEN (Expo access token — see docs §2.1).
+#   - repo secret EXPO_TOKEN (Expo access token — see docs §3.1).
 
 on:
   workflow_dispatch:
@@ -75,7 +79,7 @@ jobs:
 
       # ── Optional: write an App Store Connect API key from a repo secret ──
       # Only needed if you configured eas.json's submit.production.ios with
-      # an explicit `ascApiKeyPath` (docs §1.3, "explicit in eas.json"
+      # an explicit `ascApiKeyPath` (docs §2.3, "explicit in eas.json"
       # option) instead of the EAS-remote-storage option. If you used the
       # remote-storage option (the simpler default), skip this — delete or
       # leave this step; it no-ops when the secret isn't set.

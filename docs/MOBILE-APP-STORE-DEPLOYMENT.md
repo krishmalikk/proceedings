@@ -60,14 +60,99 @@ that's what "managed workflow" buys you here.
 
 ---
 
-## 1. One-time setup (do this once per Apple/EAS account, not per release)
+## 1. Accounts — who owns which login, per site, and what to do without access
 
-### 1.1 Accounts
+**Read this before §2 if you're not sure you have access to every account
+below.** Four separate identities are involved, and it's easy to conflate
+them — the single most important fact in this section is that **recovering
+one does not recover the others.**
 
-- [x] **Apple Developer Program** ($99/yr) — already active; an app record
-  already exists in App Store Connect (proven by the build 11/12 submissions).
-- [x] **Expo/EAS account** (`krishmalik`) — already linked (`projectId` in
-  `app.config.js`).
+| # | System | What it is | What it's used for | Site |
+|---|---|---|---|---|
+| A | **Apple ID** | Apple's personal account system (2FA login) | Signs into App Store Connect and the Apple Developer portal, and any interactive `eas credentials`/`eas submit` Apple-login step | https://appleid.apple.com |
+| B | **Apple Developer Program membership** | $99/yr paid enrollment tied to (A), or to an Organization Team | Grants App Store Connect access; lets you create/rotate certs, provisioning profiles, and API keys | https://developer.apple.com/account |
+| C | **App Store Connect app record** | The actual "Meridian" listing, `com.krishmalik.meridian` | TestFlight builds, App Review submissions, store metadata | https://appstoreconnect.apple.com |
+| D | **Expo/EAS account** | `krishmalik` on expo.dev — **entirely separate from Apple** | `eas build`/`eas submit` auth; caches Apple signing credentials so you don't re-enter them each time; owns the project's `projectId` | https://expo.dev — check with `npx eas-cli whoami` |
+
+(A)/(B) are the same login; (C) is reached *through* (B)'s Team; (D) shares
+nothing with any of them — no SSO, no linked recovery, nothing.
+
+### Is it safe to try logging in / creating a new account?
+
+Yes. **Attempting** any login or recovery flow below — checking whether an
+account exists, submitting a password-reset form, contacting support — is
+non-destructive. It doesn't change, delete, or lock anything on the existing
+project. The only place risk enters is *after* a failed recovery, if you
+decide to stand up a brand-new account instead — see the impact table below
+before doing that.
+
+### "Forgot password" won't help if the registered email isn't yours
+
+Standard password reset assumes you control the account's recovery email. If
+that email belongs to the previous developer, retrying "Forgot password"
+just resends a link to an inbox you can't open. Plan around it instead:
+
+**For (D) Expo/EAS — low-stakes to work around:**
+1. Check whether your own email, or a Google/GitHub/Apple login you control,
+   was ever added as a **second** sign-in method on the `krishmalik` account
+   (Account Settings → Connections — only visible once logged in some other
+   way). If so, use that login directly instead of a password.
+2. If not: Expo has a manual account-recovery process for exactly this
+   "the person who set this up left" situation. Contact Expo support
+   (https://expo.dev, or help.expo.dev) and be ready to demonstrate you're a
+   legitimate stakeholder — point them at this GitHub repo, the `projectId`
+   in `mobile/app.config.js`, and commit history showing you maintain the app.
+3. If that doesn't resolve in a reasonable time: **it's fine to create a new
+   Expo account and move on.** This is genuinely low-risk — see the impact
+   table below for exactly what that costs (not much).
+
+**For (A)/(B)/(C) Apple — check carefully before assuming the worst:**
+1. Apple's account recovery (iforgot.apple.com) is built for **the account
+   owner** recovering **their own** forgotten password. It is *not* a
+   mechanism for a third party to take over someone else's Apple ID — it
+   will not help here if (A) is genuinely the previous developer's personal
+   Apple ID and they can't be reached.
+2. **Check first whether the Apple Developer Program membership (B) is an
+   Organization enrollment, not an Individual one** — this is the detail
+   that determines everything else. If anyone else (a cofounder, another
+   company officer) already holds an **Account Holder** or **Admin** role on
+   that Organization Team, they can invite *your own, separate* Apple ID as
+   a new member directly — no password recovery of anyone's account
+   required. Check this before assuming you're stuck.
+3. If it's an **Individual** enrollment under the previous developer's own
+   personal Apple ID, and there is truly no way to reach them: this is a
+   **hard blocker with no reliable self-service fix.** Apple's formal
+   recourse (business-entity Account Holder transfer) exists for
+   Organization accounts, not Individual ones. Don't jump to "start over"
+   until you've exhausted (1)–(2) above and confirmed — via App Store
+   Connect → Users and Access, if you can see it at all, or by asking anyone
+   who might already have a role — that genuinely no one else has access.
+
+### Impact if you create a new account instead of recovering the old one
+
+The two systems have **very different stakes.** Weigh this before deciding:
+
+| If you create a new... | Impact |
+|---|---|
+| **Expo/EAS account (D) only** — Apple access (A/B/C) is fine, or separately resolved | **Low stakes.** Run `eas init` under the new account to create a new EAS project; update `owner` in `mobile/app.config.js` and `projectId` in `mobile/eas.json` to point at it. You lose old EAS build *history* (cosmetic) and redo `eas credentials` once (§2.3) — but because it re-attaches to the **same, existing** Apple Developer Team/bundle ID, the App Store Connect app record, any TestFlight testers, and the App Review history (build 11/12) are all preserved untouched. Clean, low-risk, fully reversible in spirit — the Expo account is just a build-orchestration login, not where anything of lasting value lives. |
+| **Apple Developer Program enrollment (B)**, because (A)/(C) are confirmed truly unreachable | **High stakes — real loss of continuity.** A new enrollment cannot claim the existing `com.krishmalik.meridian` bundle ID (bundle IDs are globally unique across Apple, permanently bound to the Team that registered them) or the existing App Store Connect app record. You'd need: a **new bundle identifier**, a **new app record**, and a **fresh App Review submission from zero** (the "already survived App Review twice" history doesn't carry over, though the reviewer-notes content in `app-review-1.2-ugc-response.md` still helps you pass faster). You'd also need to **regenerate Firebase/Google Sign-In config** for the new bundle ID — `mobile/config/GoogleService-Info.plist` and the `iosUrlScheme`/URL-scheme entries in `app.config.js` are keyed to the current bundle ID and won't work unchanged. Any existing TestFlight testers or App Store presence under the old app record is orphaned. **Exhaust every option in the previous subsection first.** |
+
+**Bottom line:** don't let Expo/EAS login trouble hold up progress — it's
+low-risk to route around. Treat Apple Developer Program / App Store Connect
+access as the one to protect and investigate carefully; a from-scratch Apple
+enrollment is the only genuinely costly outcome described in this doc.
+
+---
+
+## 2. One-time setup (do this once per Apple/EAS account, not per release)
+
+### 2.1 Confirm access
+
+- [ ] **Apple Developer Program** ($99/yr) + App Store Connect app record —
+  should already exist (proven by the build 11/12 submissions). If you can't
+  reach it, see §1.
+- [ ] **Expo/EAS account** (`krishmalik`, or your own new one per §1) —
+  confirm with `npx eas-cli whoami`.
 - [ ] **Local EAS CLI login**, once per machine that will run releases by hand:
   ```bash
   cd mobile
@@ -75,7 +160,7 @@ that's what "managed workflow" buys you here.
   npx eas-cli whoami         # confirms you're authenticated
   ```
 
-### 1.2 iOS signing credentials (distribution cert + provisioning profile)
+### 2.2 iOS signing credentials (distribution cert + provisioning profile)
 
 This project uses **EAS-managed ("remote") credentials** — the default when
 no `credentialsSource` is set. EAS generates and stores the distribution
@@ -100,7 +185,7 @@ npx eas-cli credentials --platform ios
   portal work required).
 - Verify what's stored: `npx eas-cli credentials --platform ios` → **View**.
 
-### 1.3 App Store Connect API Key (for non-interactive `eas submit`)
+### 2.3 App Store Connect API Key (for non-interactive `eas submit`)
 
 `eas submit` needs a way to authenticate to App Store Connect without a human
 typing an Apple ID + 2FA code each time. The supported non-interactive path
@@ -142,7 +227,7 @@ is an **App Store Connect API Key**:
      **Never commit the actual `.p8` file** — `mobile/.gitignore:14-18`
      already blocks `*.p8`/`*.p12`/`*.mobileprovision`/`*.key`, so a path
      under `mobile/secrets/` is safe from accidental commits, but the file
-     itself only ever lives on your machine / as a CI secret (§2.2).
+     itself only ever lives on your machine / as a CI secret (§3.2).
    - `mobile/eas.json`'s `submit.production` is currently `{}` (empty) — pick
      one of the two options above and fill it in before you rely on
      non-interactive submit. Until then, `eas submit` falls back to
@@ -152,7 +237,7 @@ Find `ascAppId` and `appleTeamId`: App Store Connect → your app → **App
 Information** → **Apple ID** (that number is `ascAppId`); Apple Developer
 account → **Membership** → **Team ID** (that's `appleTeamId`).
 
-### 1.4 App-specific config that's already handled (don't redo it)
+### 2.4 App-specific config that's already handled (don't redo it)
 
 These are already correctly wired in `mobile/app.config.js` — documented here
 so nobody "fixes" them by accident:
@@ -173,7 +258,7 @@ so nobody "fixes" them by accident:
   build with `:modular_headers => true`, avoiding a Swift "ambiguous implicit
   access level for import of 'Expo'" error. It runs automatically on every
   `prebuild`/`eas build` — no action needed unless the build starts failing
-  with that exact Swift error again (see §7 Troubleshooting).
+  with that exact Swift error again (see §8 Troubleshooting).
 - **No push notifications today** — `expo-notifications` isn't integrated
   (confirmed: no references anywhere in `mobile/src` or config), so **no
   APNs key/cert setup is needed** for this app in its current form. If push
@@ -183,12 +268,12 @@ so nobody "fixes" them by accident:
 
 ---
 
-## 2. CI setup (for the automated GitHub Actions path — do this once)
+## 3. CI setup (for the automated GitHub Actions path — do this once)
 
-If you want releases triggerable from GitHub Actions (recommended — see §4),
+If you want releases triggerable from GitHub Actions (recommended — see §5),
 set these up once:
 
-### 2.1 `EXPO_TOKEN` — required
+### 3.1 `EXPO_TOKEN` — required
 
 1. https://expo.dev/accounts/krishmalik/settings/access-tokens → **Create
    token**. Prefer a **robot/bot user token** scoped to this project if your
@@ -199,9 +284,9 @@ set these up once:
 With `EXPO_TOKEN` set, `eas build`/`eas submit --non-interactive` run without
 any interactive login — CI authenticates as that token.
 
-### 2.2 Apple submit credentials for CI — required only if you want `submit: true` runs
+### 3.2 Apple submit credentials for CI — required only if you want `submit: true` runs
 
-CI reuses whatever's already configured per §1.3 — if you did the
+CI reuses whatever's already configured per §2.3 — if you did the
 **"interactive, cached remotely"** option, CI needs nothing extra (the
 `EXPO_TOKEN`-authenticated `eas submit` call fetches the stored API key from
 EAS's servers automatically). If you instead want the `eas.json`-explicit
@@ -209,9 +294,9 @@ path, additionally store the `.p8` **contents** (base64-encoded) as a repo
 secret and have the workflow write it to a temp file — see the commented
 example in [`.github/workflows/mobile-deploy.yml`](../.github/workflows/mobile-deploy.yml).
 
-### 2.3 Reviewer/approval gate — reuses existing setup
+### 3.3 Reviewer/approval gate — reuses existing setup
 
-`mobile-deploy.yml` (§4) runs under the same `environment: production` gate
+`mobile-deploy.yml` (§5) runs under the same `environment: production` gate
 already configured for [`deploy.yml`](../.github/workflows/deploy.yml) (see
 [`docs/CI-CD.md`](CI-CD.md#one-time-github-setup-needs-repo-admin)) — if that
 required-reviewer rule is already set up for backend/website deploys, mobile
@@ -219,10 +304,10 @@ releases are gated the same way with **no extra GitHub setup**.
 
 ---
 
-## 3. Everyday release flow (once §1 is done)
+## 4. Everyday release flow (once §1–§2 are done)
 
 This is the sequence for shipping a normal update. Steps marked **🤖** are
-scripted (§4); everything else needs a human decision or Apple's own review.
+scripted (§5); everything else needs a human decision or Apple's own review.
 
 1. **Bump the version** — 🤖 partially. Edit `version` in `mobile/app.config.js`
    **and** `mobile/package.json` together (keep them in sync); leave
@@ -232,9 +317,9 @@ scripted (§4); everything else needs a human decision or Apple's own review.
    this as part of the normal PR for the release.
 2. **Merge the PR to `main`** — CI (`ci.yml`) already runs `npm test` on
    every push (Jest); this doesn't build/submit anything for mobile yet.
-3. **Preflight** — 🤖 (`npm run test`, git-clean check — see §4.2/§4.3).
+3. **Preflight** — 🤖 (`npm run test`, git-clean check — see §5.2/§5.3).
 4. **Build** — 🤖 `eas build --platform ios --profile production`
-   (§4.1/§4.2). Produces a signed `.ipa`, uploaded to EAS's servers. Takes
+   (§5.1/§5.2). Produces a signed `.ipa`, uploaded to EAS's servers. Takes
    ~15–25 min on Apple's/EAS's build queue; you get a build-details URL
    immediately and can walk away (`--no-wait`) or block until it finishes.
 5. **Submit to App Store Connect** — 🤖 `eas submit --platform ios --profile
@@ -251,7 +336,7 @@ scripted (§4); everything else needs a human decision or Apple's own review.
    the existing pending version) → select the new build → fill **What's New
    in This Version** → **Submit for Review**. *(This step has an official
    automation path too — the App Store Connect API / `eas metadata` — but
-   it's not wired up here; see §4.4 and §6 for why it's left manual.)*
+   it's not wired up here; see §5.4 and §7 for why it's left manual.)*
 8. **Fill/confirm App Review reviewer info** (human, one-time-ish) — App
    Review Information → Notes + Sign-In Information. Reuse the exact,
    already-battle-tested reviewer notes template and demo-account setup in
@@ -262,7 +347,7 @@ scripted (§4); everything else needs a human decision or Apple's own review.
    requires a real device, not the simulator, for UGC-flow proof. Script is
    already written: `app-review-1.2-ugc-response.md` §3.
 10. **Apple App Review** (Apple, 1–3 days typically) — out of your control.
-    If rejected, see §7 for the exact fixes already applied to two prior
+    If rejected, see §8 for the exact fixes already applied to two prior
     real rejections.
 11. **Release** — once approved, either auto-releases or needs one more
     manual "Release this version" click in App Store Connect, depending on
@@ -274,26 +359,26 @@ scripted (§4); everything else needs a human decision or Apple's own review.
 
 ---
 
-## 4. Automation — what's scripted and how to run it
+## 5. Automation — what's scripted and how to run it
 
 **Answering "can this be scripted?" directly: yes, for everything up through
 delivering a binary into TestFlight.** EAS Build + EAS Submit are
 purpose-built for exactly this, and both are fully non-interactive-capable
-once §1–§2 are done. What's **not** scriptable (and why) is in §4.4/§6.
+once §2–§3 are done. What's **not** scriptable (and why) is in §5.4/§7.
 
-### 4.1 npm scripts (`mobile/package.json`)
+### 5.1 npm scripts (`mobile/package.json`)
 
 ```bash
 cd mobile
 npm run build:ios:preview       # eas build --platform ios --profile preview (simulator build, fast, for smoke-testing a build pipeline change)
 npm run build:ios:production    # eas build --platform ios --profile production
 npm run submit:ios              # eas submit --platform ios --profile production --latest
-npm run release:ios             # full local pipeline: preflight + build (+ optional --submit) — see §4.3
-npm run metadata:push           # eas metadata:push (store.config.json → App Store Connect) — see §4.4
+npm run release:ios             # full local pipeline: preflight + build (+ optional --submit) — see §5.3
+npm run metadata:push           # eas metadata:push (store.config.json → App Store Connect) — see §5.4
 npm run metadata:pull           # eas metadata:pull (App Store Connect → store.config.json)
 ```
 
-### 4.2 GitHub Actions — [`mobile-deploy.yml`](../.github/workflows/mobile-deploy.yml)
+### 5.2 GitHub Actions — [`mobile-deploy.yml`](../.github/workflows/mobile-deploy.yml)
 
 The primary, recommended automation path. Actions tab → **Mobile — EAS Build
 & Submit (manual approval)** → **Run workflow**:
@@ -307,11 +392,11 @@ The primary, recommended automation path. Actions tab → **Mobile — EAS Build
 Same two-layer human control as [`deploy.yml`](../.github/workflows/deploy.yml):
 the run only starts on manual dispatch, and the job pauses for
 required-reviewer approval (`environment: production`) before it touches EAS.
-Requires `EXPO_TOKEN` (§2.1); needs §1.2/§1.3 already done once, interactively,
+Requires `EXPO_TOKEN` (§3.1); needs §2.2/§2.3 already done once, interactively,
 by a human (EAS reuses those stored credentials — the workflow itself never
 does interactive Apple login).
 
-### 4.3 Local script — [`mobile/scripts/release-ios.sh`](../mobile/scripts/release-ios.sh)
+### 5.3 Local script — [`mobile/scripts/release-ios.sh`](../mobile/scripts/release-ios.sh)
 
 For releasing from a laptop instead of CI (e.g. before CI secrets are set
 up, or for a `preview` build you want to iterate on quickly):
@@ -328,7 +413,7 @@ dirty git tree, runs the Jest suite, prints the current
 `version`/`buildNumber` for a final human sanity-check before kicking off a
 real build, then shells out to `eas build` (optionally `--auto-submit`).
 
-### 4.4 Store listing / metadata — `mobile/store.config.json` + `eas metadata`
+### 5.4 Store listing / metadata — `mobile/store.config.json` + `eas metadata`
 
 `eas metadata:push`/`eas metadata:pull` manage most App Store Connect listing
 fields (title, subtitle, description, keywords, support/marketing/privacy
@@ -355,25 +440,26 @@ npm run metadata:push    # validates + uploads
 
 ---
 
-## 5. What's still manual, and why
+## 6. What's still manual, and why
 
 | Step | Why it can't be (fully) automated |
 |---|---|
-| First-ever `eas credentials` setup (§1.2/§1.3) | Requires interactive Apple ID + 2FA login — a security control on Apple's side, not something to script around. One-time only, though. |
-| Attaching a TestFlight build to an App Store **version** and clicking Submit for Review | `eas submit` delivers to TestFlight processing but stops short of the App Review queue by design — Apple wants a human confirming "What's New" text and the specific build per version. *(The App Store Connect API can do this too, but wiring it up is a larger lift than this pass covers — see §6.)* |
+| First-ever `eas credentials` setup (§2.2/§2.3) | Requires interactive Apple ID + 2FA login — a security control on Apple's side, not something to script around. One-time only, though. |
+| Attaching a TestFlight build to an App Store **version** and clicking Submit for Review | `eas submit` delivers to TestFlight processing but stops short of the App Review queue by design — Apple wants a human confirming "What's New" text and the specific build per version. *(The App Store Connect API can do this too, but wiring it up is a larger lift than this pass covers — see §7.)* |
 | The App Review screen recording (`app-review-1.2-ugc-response.md` §3) | Apple explicitly requires **physical-device** capture, and reviewing the recording for correctness before submission is a judgment call. |
-| Reading/responding to actual App Review feedback | Apple's decisions aren't scriptable by definition. §7 captures the fixes for the categories of rejection already seen so a repeat is fast, not automatic. |
-| Store screenshots | `eas metadata` explicitly doesn't support screenshot upload (§4.4) — stays a manual App Store Connect upload. |
+| Reading/responding to actual App Review feedback | Apple's decisions aren't scriptable by definition. §8 captures the fixes for the categories of rejection already seen so a repeat is fast, not automatic. |
+| Store screenshots | `eas metadata` explicitly doesn't support screenshot upload (§5.4) — stays a manual App Store Connect upload. |
 | Deciding *when* to ship / tagging the release | Same project-wide rule as backend/website — [`docs/RELEASE-TAGGING.md`](RELEASE-TAGGING.md) is explicit that tagging/releasing is always a deliberate human call, never automatic on a successful build. |
+| Account recovery / access to a login someone else set up | See §1 — a security control by design (Apple's especially), not a gap in this pipeline. |
 
 ---
 
-## 6. Optional next steps (not implemented in this pass)
+## 7. Optional next steps (not implemented in this pass)
 
 - **App Store Connect API automation of the "attach build → submit for
-  review" step** (§5) — possible via direct App Store Connect API calls
+  review" step** (§6) — possible via direct App Store Connect API calls
   (create a version, associate the build, trigger review) using the same
-  ASC API key from §1.3. Bigger lift than `eas metadata`/`eas submit`; worth
+  ASC API key from §2.3. Bigger lift than `eas metadata`/`eas submit`; worth
   doing only once release cadence is frequent enough to justify it.
 - **EAS Update** (OTA JS-only updates) — would let small JS/asset-only fixes
   ship to users without a new binary/App Review cycle at all. Not currently
@@ -389,11 +475,11 @@ npm run metadata:push    # validates + uploads
 
 ---
 
-## 7. Troubleshooting — known issues (from real prior submissions)
+## 8. Troubleshooting — known issues (from real prior submissions)
 
 ### Build fails: "ambiguous implicit access level for import of 'Expo'" (Swift)
 Caused by Google Sign-In's transitive CocoaPods needing modular headers.
-Already fixed by `mobile/plugins/withModularHeaders.js` (§1.4) — if it
+Already fixed by `mobile/plugins/withModularHeaders.js` (§2.4) — if it
 recurs, check that plugin is still listed in `app.config.js`'s `plugins`
 array and hasn't been accidentally removed.
 
@@ -420,7 +506,7 @@ unrelated build most likely means the reviewer notes/demo account weren't
 filled in for that submission, not a missing feature.
 
 ### `eas build` hangs waiting for credentials interactively in CI
-Means §1.2/§1.3 weren't completed yet (or EAS's stored credentials expired).
+Means §2.2/§2.3 weren't completed yet (or EAS's stored credentials expired).
 CI can't do the interactive Apple login — go run `eas credentials --platform
 ios` from a developer machine once, then retry CI.
 
@@ -430,9 +516,13 @@ Expected — `mobile/ios/` is regenerated from `app.config.js` +
 must go through `app.config.js` (config properties) or a config plugin
 (`mobile/plugins/`), never a hand-edit under `mobile/ios/`.
 
+### Locked out of the Expo/EAS account, or the Apple Developer account
+See §1 — the two are unrelated login systems with very different recovery
+paths and very different stakes if you end up creating a new one.
+
 ---
 
-## 8. Quick reference
+## 9. Quick reference
 
 ```bash
 # One-time (per machine, interactive)
@@ -444,7 +534,7 @@ npm run build:ios:production            # or: ./scripts/release-ios.sh productio
 npm run submit:ios                      # or: ./scripts/release-ios.sh production --submit
 # ...then in App Store Connect: attach build to a version, fill What's New, Submit for Review
 
-# CI (after §2 setup)
+# CI (after §3 setup)
 gh workflow run mobile-deploy.yml -f profile=production -f submit=true -f ref=main
 
 # Metadata (optional, after filling TODOs in store.config.json)

@@ -75,7 +75,7 @@ if the smoke passes (instant rollback otherwise).
    environment — no separate gate to configure.
 3. **`EXPO_TOKEN` secret** (mobile only) — Settings ▸ Secrets and variables ▸
    Actions ▸ New repository secret. See
-   [`docs/MOBILE-APP-STORE-DEPLOYMENT.md` §2.1](MOBILE-APP-STORE-DEPLOYMENT.md#21-expo_token--required).
+   [`docs/MOBILE-APP-STORE-DEPLOYMENT.md` §3.1](MOBILE-APP-STORE-DEPLOYMENT.md#31-expo_token--required).
 
 ## Running the gate locally
 
