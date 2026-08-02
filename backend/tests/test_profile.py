@@ -54,6 +54,25 @@ def group_a() -> None:
     check("A6 handle_for(None, ...) falls back to the raw id, same as username_for",
           pr.handle_for(None, "nope") == "nope")
 
+    # A7: a Firestore lookup failure (not just "no db") must not blow up the
+    # caller — handle_for() catches and falls back to username_for(), same
+    # as the no-db path above. Stub out just enough of the client chain
+    # (.collection().document().get()) to raise.
+    class _RaisingDoc:
+        def get(self):
+            raise RuntimeError("simulated Firestore outage")
+
+    class _RaisingCollection:
+        def document(self, _uid):
+            return _RaisingDoc()
+
+    class _RaisingDb:
+        def collection(self, _name):
+            return _RaisingCollection()
+
+    check("A7 handle_for falls back to username_for when the Firestore lookup raises",
+          pr.handle_for(_RaisingDb(), first) == users[0]["username"])
+
 
 # ---------------------------------------------------------------------------
 # B — profile shape / cleaning / PII / validate / merge (UNIT)

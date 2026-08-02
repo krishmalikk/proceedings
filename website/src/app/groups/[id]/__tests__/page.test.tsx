@@ -117,4 +117,68 @@ describe('GroupPage — invite by handle (any member)', () => {
     fireEvent.click(screen.getByText('Invite'))
     expect(await screen.findByText(/No user with the handle/)).toBeInTheDocument()
   })
+
+  it('clears the invite input after a successful invite', async () => {
+    mockGroup()
+    render(<GroupPage />)
+    await screen.findByText('Mumbai H-1B crew')
+
+    const input = screen.getByPlaceholderText('their handle…') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'omar-b1b2' } })
+    fireEvent.click(screen.getByText('Invite'))
+
+    await waitFor(() => expect(input.value).toBe(''))
+  })
+})
+
+describe('GroupPage — rename cancel + validation', () => {
+  it('Cancel restores the original name/description and does not call PUT', async () => {
+    mockGroup({ is_admin: true })
+    render(<GroupPage />)
+    await screen.findByText('Mumbai H-1B crew')
+
+    fireEvent.click(screen.getByText('Rename'))
+    const nameInput = screen.getByDisplayValue('Mumbai H-1B crew')
+    fireEvent.change(nameInput, { target: { value: 'Something Else' } })
+    fireEvent.click(screen.getByText('Cancel'))
+
+    expect(screen.getByText('Mumbai H-1B crew')).toBeInTheDocument()
+    expect(screen.queryByText('Something Else')).toBeNull()
+    expect((global.fetch as unknown as Mock).mock.calls.some((c) => c[1]?.method === 'PUT')).toBe(false)
+  })
+
+  it('disables Save when the name draft is empty/whitespace-only', async () => {
+    mockGroup({ is_admin: true })
+    render(<GroupPage />)
+    await screen.findByText('Mumbai H-1B crew')
+
+    fireEvent.click(screen.getByText('Rename'))
+    const nameInput = screen.getByDisplayValue('Mumbai H-1B crew')
+    fireEvent.change(nameInput, { target: { value: '   ' } })
+
+    expect(screen.getByText('Save')).toBeDisabled()
+  })
+})
+
+describe('GroupPage — empty description, loading, and error states', () => {
+  it('renders no description paragraph when the group has none', async () => {
+    mockGroup({ description: '' })
+    render(<GroupPage />)
+    await screen.findByText('Mumbai H-1B crew')
+    expect(screen.queryByText('H-1B folks near BOM')).toBeNull()
+  })
+
+  it('shows a loading state before the fetch resolves', () => {
+    global.fetch = vi.fn(() => new Promise(() => {})) as unknown as typeof fetch
+    render(<GroupPage />)
+    expect(screen.getByText('Loading group…')).toBeInTheDocument()
+  })
+
+  it('surfaces an error when the group fails to load', async () => {
+    global.fetch = vi.fn(async () =>
+      ({ ok: false, status: 404, json: async () => ({ detail: 'Group not found' }) }) as Response
+    ) as unknown as typeof fetch
+    render(<GroupPage />)
+    expect(await screen.findByText('Group not found')).toBeInTheDocument()
+  })
 })

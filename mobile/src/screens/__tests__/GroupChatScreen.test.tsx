@@ -84,6 +84,21 @@ describe('GroupChatScreen — rename (admin-only)', () => {
     // Both the header AND the modal's title now reflect the new name.
     await waitFor(() => expect(screen.getAllByText('BOM H-1B group').length).toBeGreaterThanOrEqual(1));
   });
+
+  it('Cancel restores the original name/description without calling renameGroup', async () => {
+    (getGroup as jest.Mock).mockResolvedValue({ ...GROUP, is_admin: true });
+    const screen = await renderScreen(<GroupChatScreen />);
+    await openMembersModal(screen);
+
+    await fireEvent.press(screen.getByText('Rename'));
+    const nameInput = await screen.findByDisplayValue('Mumbai H-1B crew');
+    await fireEvent.changeText(nameInput, 'Something Else');
+    await fireEvent.press(screen.getByText('Cancel'));
+
+    await waitFor(() => expect(screen.getAllByText('Mumbai H-1B crew').length).toBeGreaterThanOrEqual(1));
+    expect(screen.queryByText('Something Else')).toBeNull();
+    expect(renameGroup).not.toHaveBeenCalled();
+  });
 });
 
 describe('GroupChatScreen — invite by handle (any member)', () => {
@@ -113,6 +128,30 @@ describe('GroupChatScreen — invite by handle (any member)', () => {
 
     expect(await screen.findByText(/No user with the handle/)).toBeOnTheScreen();
   });
+
+  it('clears the invite input after a successful invite', async () => {
+    (inviteToGroup as jest.Mock).mockResolvedValue({
+      ...GROUP,
+      members: [...GROUP.members, { user_id: 'demo-omar', username: 'omar-b1b2' }],
+    });
+    const screen = await renderScreen(<GroupChatScreen />);
+    await openMembersModal(screen);
+
+    await fireEvent.changeText(screen.getByPlaceholderText('their handle…'), 'omar-b1b2');
+    await fireEvent.press(screen.getByText('Invite'));
+
+    await waitFor(() => expect(inviteToGroup).toHaveBeenCalledWith('g1', 'omar-b1b2'));
+    await waitFor(() => expect(screen.getByPlaceholderText('their handle…').props.value).toBe(''));
+  });
+});
+
+describe('GroupChatScreen — empty description', () => {
+  it('does not render a description when the group has none', async () => {
+    (getGroup as jest.Mock).mockResolvedValue({ ...GROUP, description: '' });
+    const screen = await renderScreen(<GroupChatScreen />);
+    await openMembersModal(screen);
+    expect(screen.queryByText('H-1B folks near BOM')).toBeNull();
+  });
 });
 
 describe('GroupChatScreen — leave group (previously 404\'d, backend route now exists)', () => {
@@ -128,6 +167,35 @@ describe('GroupChatScreen — leave group (previously 404\'d, backend route now 
     await fireEvent.press(screen.getByLabelText('Leave Group'));
     await waitFor(() => expect(leaveGroup).toHaveBeenCalledWith('g1'));
     expect(mockGoBack).toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it('does nothing when the Leave confirmation is dismissed/cancelled', async () => {
+    // The real 'Cancel' button has no onPress at all — dismissing the alert
+    // without invoking any button faithfully reproduces that path.
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const screen = await renderScreen(<GroupChatScreen />);
+    await screen.findByText('Mumbai H-1B crew');
+
+    await fireEvent.press(screen.getByLabelText('Leave Group'));
+    expect(leaveGroup).not.toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it('shows an error Alert and does not navigate back when leaveGroup fails', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
+      const leaveButton = buttons?.find((b) => b.text === 'Leave');
+      leaveButton?.onPress?.();
+    });
+    (leaveGroup as jest.Mock).mockRejectedValue(new Error('network down'));
+    const screen = await renderScreen(<GroupChatScreen />);
+    await screen.findByText('Mumbai H-1B crew');
+
+    await fireEvent.press(screen.getByLabelText('Leave Group'));
+    await waitFor(() => expect(leaveGroup).toHaveBeenCalledWith('g1'));
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Error', 'network down'));
+    expect(mockGoBack).not.toHaveBeenCalled();
     alertSpy.mockRestore();
   });
 });

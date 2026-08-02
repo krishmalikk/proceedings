@@ -197,6 +197,93 @@ def group_b_firestore() -> None:
               "demo-arjun" not in {m["user_id"] for m in creator_left["members"]}
               and creator_left["created_by"] in {m["user_id"] for m in creator_left["members"]},
               str((creator_left["created_by"], {m["user_id"] for m in creator_left["members"]})))
+        new_admin = creator_left["created_by"]
+
+        # B22-B24: all three new mutators 404 (KeyError) on a group that
+        # doesn't exist — mirrors join_group's existing "Group not found" gate.
+        try:
+            M.rename_group(db, "no-such-group-xyz", new_admin, name="x")
+            check("B22 rename_group on a missing group raises", False, "no raise")
+        except KeyError:
+            check("B22 rename_group on a missing group raises (KeyError)", True)
+        try:
+            M.invite_member(db, "no-such-group-xyz", new_admin, "alpha")
+            check("B23 invite_member on a missing group raises", False, "no raise")
+        except KeyError:
+            check("B23 invite_member on a missing group raises (KeyError)", True)
+        try:
+            M.leave_group(db, "no-such-group-xyz", new_admin)
+            check("B24 leave_group on a missing group raises", False, "no raise")
+        except KeyError:
+            check("B24 leave_group on a missing group raises (KeyError)", True)
+
+        # B25: inviting a handle that's ALREADY a member is a no-op dedup —
+        # not an error, and the member list doesn't grow (relies on the real
+        # Firestore users/{ids["a"]} doc seeded above with username "alpha").
+        current = next(g for g in M.list_all_groups(db, new_admin) if g["group_id"] == gid)
+        before_members = {m["user_id"] for m in current["members"]}
+        re_invited = M.invite_member(db, gid, new_admin, "alpha")
+        check("B25 inviting an already-member handle does not duplicate them",
+              {m["user_id"] for m in re_invited["members"]} == before_members,
+              str({m["user_id"] for m in re_invited["members"]}))
+
+        # B26: a non-member "leaving" is a harmless no-op (no exception,
+        # membership list unaffected) — leave_group filters by user_id and
+        # simply finds nothing to remove.
+        left_by_stranger = M.leave_group(db, gid, "some-stranger-never-joined")
+        check("B26 leave_group by a non-member is a no-op, membership unchanged",
+              {m["user_id"] for m in left_by_stranger["members"]} == before_members,
+              str({m["user_id"] for m in left_by_stranger["members"]}))
+
+        # B27-B28: rename_group only touches the field(s) actually provided.
+        desc_before_27 = current["description"]
+        r27 = M.rename_group(db, gid, new_admin, name="Only Name Changed")
+        check("B27 rename with only `name` leaves `description` untouched",
+              r27["name"] == "Only Name Changed" and r27["description"] == desc_before_27,
+              str((r27["name"], r27["description"])))
+        r28 = M.rename_group(db, gid, new_admin, description="Only description changed")
+        check("B28 rename with only `description` leaves `name` untouched",
+              r28["description"] == "Only description changed" and r28["name"] == "Only Name Changed",
+              str((r28["name"], r28["description"])))
+
+        # B29-B30: name/description are capped, not rejected, when over length.
+        r29 = M.rename_group(db, gid, new_admin, name="n" * 150)
+        check("B29 name is truncated to 100 chars, not rejected",
+              len(r29["name"]) == 100, len(r29["name"]))
+        r30 = M.rename_group(db, gid, new_admin, description="d" * 600)
+        check("B30 description is truncated to 500 chars, not rejected",
+              len(r30["description"]) == 500, len(r30["description"]))
+
+        # B31: an empty/whitespace-only name is rejected outright (unlike the
+        # cap above — there's no reasonable truncation of nothing).
+        try:
+            M.rename_group(db, gid, new_admin, name="   ")
+            check("B31 empty/whitespace name rejected", False, "no raise")
+        except ValueError:
+            check("B31 empty/whitespace name rejected (ValueError)", True)
+
+        # B32: the LAST member leaving empties the group rather than raising —
+        # created_by is left pointing at the departed (former) creator since
+        # there's nobody left to reassign to (a standalone scratch group, so
+        # it doesn't disturb gid's membership assumptions above). "DV" is a
+        # rare, distinctive, valid visa code confirmed unclaimed by any real
+        # group earlier in this session — guard on `joined` anyway so a
+        # collision fails loudly instead of silently mutating a real group.
+        solo = M.find_or_create_group(db, ids["a"], "solo scratch group for leave-empties-group check",
+                                      {"current_visa_or_greencard_category": ["DV"]}, [])
+        solo_gid = solo["group_id"]
+        try:
+            if solo["joined"]:
+                check("B32 last member leaving empties members, created_by left unchanged",
+                      False, "signature collided with a real existing group — skipped")
+            else:
+                emptied = M.leave_group(db, solo_gid, ids["a"])
+                check("B32 last member leaving empties members, created_by left unchanged",
+                      emptied["members"] == [] and emptied["created_by"] == ids["a"],
+                      str((emptied["members"], emptied["created_by"])))
+        finally:
+            if not solo["joined"]:
+                db.collection("groups").document(solo_gid).delete()
     finally:
         for uid in ids.values():
             db.collection("users").document(uid).delete()
@@ -311,6 +398,49 @@ def group_c_api() -> None:
                   f"status={lv.status_code} body={lv.json()}")
             check("C18 leave unknown group → 404",
                   c.post("/api/groups/no-such-group/leave", headers=A).status_code == 404)
+
+            new_admin_c = lv.json().get("created_by")
+            NA = {"X-User-Id": new_admin_c}
+            members_after_17 = {m["user_id"] for m in lv.json().get("members", [])}
+
+            # C19-C20: rename/invite 404 on a missing group (mirrors join/leave above).
+            check("C19 PUT rename on a missing group → 404",
+                  c.put("/api/groups/no-such-group", json={"name": "x"}, headers=NA).status_code == 404)
+            check("C20 POST invite on a missing group → 404",
+                  c.post("/api/groups/no-such-group/invite", json={"handle": "apitest"},
+                         headers=NA).status_code == 404)
+
+            # C21: Pydantic's min_length=1 on GroupInvite.handle rejects an empty
+            # handle before the route body ever calls invite_member.
+            check("C21 POST invite with an empty handle → 422 (request validation)",
+                  c.post(f"/api/groups/{gid}/invite", json={"handle": ""}, headers=NA).status_code == 422)
+
+            # C22: inviting a handle that's already a member is a no-op dedup,
+            # not an error — membership doesn't grow.
+            re_inv = c.post(f"/api/groups/{gid}/invite", json={"handle": "apitest"}, headers=NA)
+            check("C22 POST invite of an already-member handle → 200, no duplicate",
+                  re_inv.status_code == 200
+                  and {m["user_id"] for m in re_inv.json().get("members", [])} == members_after_17,
+                  f"status={re_inv.status_code}")
+
+            # C23: leaving a group you already left (non-member) is a harmless
+            # 200 no-op, not a 403/404 — leave_group only ever filters, never checks.
+            relv = c.post(f"/api/groups/{gid}/leave", headers=A)
+            check("C23 leave by a non-member (already left) → 200, membership unchanged",
+                  relv.status_code == 200
+                  and {m["user_id"] for m in relv.json().get("members", [])} == members_after_17,
+                  f"status={relv.status_code}")
+
+            # C24: an empty PUT body updates neither field (only `updated_at`).
+            noop = c.put(f"/api/groups/{gid}", json={}, headers=NA)
+            check("C24 PUT rename with an empty body → 200, name/description unchanged",
+                  noop.status_code == 200 and noop.json().get("name") == ren.json().get("name")
+                  and noop.json().get("description") == ren.json().get("description"),
+                  f"status={noop.status_code}")
+
+            # C25: a whitespace-only name is a 422 (ValueError from rename_group).
+            check("C25 PUT rename with a whitespace-only name → 422",
+                  c.put(f"/api/groups/{gid}", json={"name": "   "}, headers=NA).status_code == 422)
     finally:
         db.collection("users").document(test_uid).delete()
         for gid in created_groups:
