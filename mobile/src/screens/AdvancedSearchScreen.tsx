@@ -21,6 +21,7 @@ import {
   facetId,
   SearchResultItem,
   TagVocab,
+  Strictness,
 } from '../services/apiService';
 
 type TagField = 'current_visa_or_greencard_category' | 'visa_applying_for' | 'consulates' | 'tags';
@@ -33,12 +34,19 @@ const CATEGORY_FIELDS: { field: TagField; label: string; kind: 'visa' | 'consula
   { field: 'tags', label: 'Tags', kind: 'tag' },
 ];
 
+const STRICTNESS_LEVELS: { value: Strictness; label: string }[] = [
+  { value: 'broad', label: 'Broad' },
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'strict', label: 'Strict' },
+];
+
 const TAB_BAR_CLEARANCE = 96;
 
 export function AdvancedSearchScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [freeText, setFreeText] = useState('');
   const [tags, setTags] = useState<Tag[]>([]);
+  const [strictness, setStrictness] = useState<Strictness>('balanced');
   const [revealedFields, setRevealedFields] = useState<Set<TagField>>(new Set());
   const [vocab, setVocab] = useState<TagVocab | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -122,7 +130,7 @@ export function AdvancedSearchScreen({ navigation }: any) {
     setError('');
     try {
       const facets = tags.map((t) => facetId(t.field, t.code));
-      const data = await searchPostings(freeText, { facets, pageToken });
+      const data = await searchPostings(freeText, { facets, pageToken, strictness });
       setResults((prev) => (pageToken ? [...prev, ...data.results] : data.results));
       setNextPageToken(data.next_page_token);
     } catch (e) {
@@ -217,6 +225,23 @@ export function AdvancedSearchScreen({ navigation }: any) {
           </View>
         )}
 
+        <View style={styles.strictnessRow}>
+          <AppText variant="labelMd" color="onSurfaceVariant">Precision</AppText>
+          <View style={styles.segmented}>
+            {STRICTNESS_LEVELS.map((l) => (
+              <TouchableOpacity
+                key={l.value}
+                style={[styles.segment, strictness === l.value && styles.segmentActive]}
+                onPress={() => setStrictness(l.value)}
+              >
+                <AppText variant="caption" color={strictness === l.value ? 'onPrimary' : 'onSurfaceVariant'}>
+                  {l.label}
+                </AppText>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         <TouchableOpacity style={styles.searchButton} onPress={() => runSearch('')} disabled={searchLoading}>
           <AppText variant="labelMd" color="onPrimary">{searchLoading ? 'Searching…' : 'Search'}</AppText>
         </TouchableOpacity>
@@ -284,6 +309,23 @@ const styles = StyleSheet.create({
   category: { marginBottom: spacing.md },
   categoryLabel: { marginBottom: spacing.xs },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  strictnessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant,
+  },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.full,
+    padding: 3,
+  },
+  segment: { paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: borderRadius.full },
+  segmentActive: { backgroundColor: colors.primary },
   searchButton: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.full,

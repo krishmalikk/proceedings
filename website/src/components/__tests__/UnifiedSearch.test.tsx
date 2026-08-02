@@ -131,3 +131,36 @@ describe('UnifiedSearch — Advanced Search entry point', () => {
     expect(screen.getByText('Advanced Search').closest('a')).toHaveAttribute('href', '/advanced-search')
   })
 })
+
+// Match precision (Broad/Balanced/Strict) moved to Advanced Search — main
+// search has no picker of its own and always runs at "balanced".
+describe('UnifiedSearch — Match precision', () => {
+  it('shows no Match precision control', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ results: [], total: 0, next_page_token: '', suggested_filters: [] }),
+    })))
+
+    render(<UnifiedSearch />)
+    await waitFor(() => expect(screen.getByPlaceholderText('Search a posting or ask a question…')).toBeInTheDocument())
+    expect(screen.queryByText('Match precision')).not.toBeInTheDocument()
+  })
+
+  it('always searches at balanced precision', async () => {
+    mockSearchParam = 'H-1B RFE'
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        results: [POSTING], total: 1, next_page_token: '',
+        applied_filters: {}, relaxed: false, suggested_filters: [],
+      }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<UnifiedSearch />)
+    await screen.findByText('H-1B RFE experience')
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string
+    expect(calledUrl).toContain('strictness=balanced')
+  })
+})

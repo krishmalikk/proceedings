@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { USER_KEY } from '@/lib/activeUser'
 import PostingCard, { type PostingCardData } from '@/components/PostingCard'
 import Markdown from '@/components/Markdown'
-import StrictnessSlider, { useStrictness, AppliedFilters } from '@/components/StrictnessSlider'
+import { AppliedFilters } from '@/components/StrictnessSlider'
 import SuggestedFilters, { facetId, type SuggestedFilterGroup } from '@/components/SuggestedFilters'
 
 type QueryTag = { field: string; code: string; label: string }
@@ -47,7 +47,6 @@ export default function UnifiedSearch() {
 
   const [input, setInput] = useState(params.get('q') || '')
   const [query, setQuery] = useState(params.get('q') || '')
-  const [strictness, setStrictness] = useStrictness()
   const [selectedFacets, setSelectedFacets] = useState<string[]>(() => parseFacetsFromUrl(params))
   const [error, setError] = useState('')
   const [queryTags, setQueryTags] = useState<QueryTag[]>([])
@@ -89,16 +88,19 @@ export default function UnifiedSearch() {
     router.replace(qs ? `/?${qs}` : '/', { scroll: false })
   }, [router])
 
+  // Main search always runs at "balanced" precision — the Broad/Strict ends
+  // of the slider are advanced-user tools, moved to /advanced-search so this
+  // page's search stays a single one-box action.
   const searchQs = useCallback((q: string, facets: string[], pageToken: string) => {
     const p = new URLSearchParams()
     p.set('q', q || 'immigration visa experience')
     facets.forEach((f) => p.append('facet', f))
-    p.set('strictness', strictness)
+    p.set('strictness', 'balanced')
     p.set('page_size', '15')
     p.set('sort', 'event')
     if (pageToken) p.set('page_token', pageToken)
     return p.toString()
-  }, [strictness])
+  }, [])
 
   // Default feed (no typed query): most-recent postings, auto-loaded — same
   // empty-query browse recipe the backend's /api/search already uses for the
@@ -240,13 +242,6 @@ export default function UnifiedSearch() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // precision change re-runs the postings search only (AI panel unaffected;
-  // precision doesn't apply to the recency-sorted default feed)
-  useEffect(() => {
-    if (mode === 'search' && query) runSearch(query, selectedFacets)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strictness])
-
   function submit(q: string) {
     const t = q.trim()
     if (t.length < 3) return
@@ -309,9 +304,6 @@ export default function UnifiedSearch() {
       <div className={`grid gap-6 ${(!AI_MODE_ENABLED || aiCollapsed) ? 'lg:grid-cols-[15rem_1fr]' : 'lg:grid-cols-[15rem_1fr_24rem]'}`}>
         {/* ===== LEFT — refine ===== */}
         <aside className="space-y-4">
-          <div className="bg-surface-container-low rounded-xl p-4">
-            <StrictnessSlider value={strictness} onChange={setStrictness} />
-          </div>
           {/* Tags generated from the search text itself (Gemini, same tagging
               principles as posting composition) — a separate concept from
               the "Refine by" facets below, which are backend result-derived.
@@ -364,7 +356,7 @@ export default function UnifiedSearch() {
               <p>
                 {mode === 'browse'
                   ? 'No postings yet — check back soon.'
-                  : 'No postings matched — try a broader query or loosen precision.'}
+                  : 'No postings matched — try a broader query, or use Advanced Search to adjust match precision.'}
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
                 {EXAMPLES.map((ex) => (

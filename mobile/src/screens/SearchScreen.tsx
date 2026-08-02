@@ -21,17 +21,10 @@ import {
   SearchResultItem,
   SuggestedFilterGroup,
   QueryTag,
-  Strictness,
 } from '../services/apiService';
 
 // Same example prompts as the website's empty search state.
 const EXAMPLES = ['B1/B2 Mumbai', 'H-1B RFE', 'F-1 to H-1B'];
-
-const STRICTNESS_LEVELS: { value: Strictness; label: string }[] = [
-  { value: 'broad', label: 'Broad' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'strict', label: 'Strict' },
-];
 
 // Clear the absolutely-positioned floating tab bar (~70pt) so the last cards
 // and the "Load more" button stay reachable.
@@ -41,7 +34,6 @@ export function SearchScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { isBlocked } = useAuth();
   const [query, setQuery] = useState('');
-  const [strictness, setStrictness] = useState<Strictness>('balanced');
   const [results, setResults] = useState<SearchResultItem[]>([]);
   // Case ids the viewer just reported/blocked — hidden instantly (App Store 1.2).
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
@@ -82,13 +74,12 @@ export function SearchScreen({ navigation }: any) {
   }, [loadFeed]);
 
   const runSearch = useCallback(
-    async (q: string, facets: Set<string>, level: Strictness) => {
+    async (q: string, facets: Set<string>) => {
       setLoading(true);
       setError('');
       setMode('search');
       try {
         const data = await searchPostings(q, {
-          strictness: level,
           facets: Array.from(facets),
         });
         setResults(data.results);
@@ -112,7 +103,6 @@ export function SearchScreen({ navigation }: any) {
         mode === 'browse'
           ? await browsePostings({ sort: 'event', pageToken: nextPageToken })
           : await searchPostings(query, {
-              strictness,
               facets: Array.from(selectedFacets),
               pageToken: nextPageToken,
             });
@@ -131,13 +121,7 @@ export function SearchScreen({ navigation }: any) {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setSelectedFacets(next);
-    runSearch(query, next, strictness);
-  };
-
-  const changeStrictness = (level: Strictness) => {
-    setStrictness(level);
-    // Precision only applies to a relevance search — leave the recent browse be.
-    if (mode === 'search') runSearch(query, selectedFacets, level);
+    runSearch(query, next);
   };
 
   const submit = (q?: string) => {
@@ -148,7 +132,7 @@ export function SearchScreen({ navigation }: any) {
       loadFeed(); // empty search reverts to the recent feed
       return;
     }
-    runSearch(text, new Set(), strictness);
+    runSearch(text, new Set());
     // Query-derived tag chips (parallel, non-blocking — a real Gemini call,
     // so this fires once per submit, not per keystroke). Best-effort: a
     // slow/failed call just leaves the chip row empty.
@@ -207,24 +191,6 @@ export function SearchScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Strictness — parity with the website's precision slider */}
-        <View style={styles.strictnessRow}>
-          <Text style={styles.strictnessLabel}>Precision</Text>
-          <View style={styles.segmented}>
-            {STRICTNESS_LEVELS.map((l) => (
-              <TouchableOpacity
-                key={l.value}
-                style={[styles.segment, strictness === l.value && styles.segmentActive]}
-                onPress={() => changeStrictness(l.value)}
-              >
-                <Text style={[styles.segmentText, strictness === l.value && styles.segmentTextActive]}>
-                  {l.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Tags generated from the search text itself (Gemini, same tagging
             principles as posting composition) — a separate concept from the
             "Refine by" facets below, which are backend result-derived.
@@ -280,7 +246,7 @@ export function SearchScreen({ navigation }: any) {
         )}
 
         {error ? (
-          <ErrorState body={error} onRetry={() => runSearch(query, selectedFacets, strictness)} />
+          <ErrorState body={error} onRetry={() => runSearch(query, selectedFacets)} />
         ) : null}
 
         {/* Loading — skeleton feed instead of a bare spinner */}
@@ -393,23 +359,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 4,
   },
-  strictnessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-  },
-  strictnessLabel: { fontSize: 13, color: colors.onSurfaceVariant, fontWeight: '500' },
-  segmented: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: borderRadius.full,
-    padding: 3,
-  },
-  segment: { paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: borderRadius.full },
-  segmentActive: { backgroundColor: colors.primary },
-  segmentText: { fontSize: 13, color: colors.onSurfaceVariant },
-  segmentTextActive: { color: colors.onPrimary, fontWeight: '600' },
   filtersBlock: { marginTop: spacing.md },
   filtersHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
   filtersTitle: { fontSize: 13, fontWeight: '600', color: colors.onSurface },

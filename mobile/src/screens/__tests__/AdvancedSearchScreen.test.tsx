@@ -168,6 +168,29 @@ describe('AdvancedSearchScreen — manual add via TagPicker', () => {
   });
 });
 
+describe('AdvancedSearchScreen — Precision', () => {
+  it('defaults to Balanced and calls searchPostings with the selected level', async () => {
+    const s = await renderAdvancedSearch();
+
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenCalledWith('', expect.objectContaining({ strictness: 'balanced' }))
+    );
+  });
+
+  it('tapping Strict switches the level used on the next search', async () => {
+    const s = await renderAdvancedSearch();
+
+    await fireEvent.press(s.getByText('Strict'));
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenCalledWith('', expect.objectContaining({ strictness: 'strict' }))
+    );
+  });
+});
+
 describe('AdvancedSearchScreen — Search', () => {
   it('calls searchPostings with the text and the selected facets, renders inline', async () => {
     (fetchQueryTags as jest.Mock).mockResolvedValue([{ field: 'visa_applying_for', code: 'H-1B', label: 'H-1B' }]);

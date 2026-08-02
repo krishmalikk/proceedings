@@ -42,7 +42,10 @@ function mockFetch(overrides: {
   return fetchMock
 }
 
-beforeEach(() => vi.restoreAllMocks())
+beforeEach(() => {
+  vi.restoreAllMocks()
+  vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {} })
+})
 
 describe('AdvancedSearchPage — header visibility', () => {
   it('shows no category sections initially, only "+ Add" pills', async () => {
@@ -286,6 +289,31 @@ describe('AdvancedSearchPage — manual tag add/remove (search-to-select)', () =
     fireEvent.click(screen.getByText('+ Add Tags'))
 
     await waitFor(() => expect(screen.queryByText(/^\+ Add/)).toBeNull())
+  })
+})
+
+describe('AdvancedSearchPage — Match precision', () => {
+  it('shows the Match precision control, defaulting to Balanced', async () => {
+    mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Match precision')).toBeInTheDocument())
+    expect(screen.getByText('Balanced')).toHaveClass('text-primary')
+  })
+
+  it('sends the selected precision level on Search', async () => {
+    const fetchMock = mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Match precision')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Match precision'), { target: { value: '2' } })
+    fireEvent.click(screen.getByText('Search'))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))
+      expect(call).toBeTruthy()
+    })
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))!
+    expect(String(call[0])).toContain('strictness=strict')
   })
 })
 

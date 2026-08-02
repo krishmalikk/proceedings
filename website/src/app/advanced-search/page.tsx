@@ -5,6 +5,7 @@ import Link from 'next/link'
 import PostingCard, { type PostingCardData } from '@/components/PostingCard'
 import { facetId } from '@/components/SuggestedFilters'
 import TagAutocomplete from '@/components/TagAutocomplete'
+import StrictnessSlider, { useStrictness } from '@/components/StrictnessSlider'
 
 type TagField = 'current_visa_or_greencard_category' | 'visa_applying_for' | 'consulates' | 'tags'
 type Tag = { field: TagField; code: string; label: string }
@@ -27,6 +28,7 @@ const CATEGORY_FIELDS: { field: TagField; label: string; kind: 'visa' | 'consula
 export default function AdvancedSearchPage() {
   const [freeText, setFreeText] = useState('')
   const [tags, setTags] = useState<Tag[]>([])
+  const [strictness, setStrictness] = useStrictness()
   const [revealedFields, setRevealedFields] = useState<Set<TagField>>(new Set())
   const [vocab, setVocab] = useState<Vocab>(EMPTY_VOCAB)
   const [generating, setGenerating] = useState(false)
@@ -116,6 +118,7 @@ export default function AdvancedSearchPage() {
       const p = new URLSearchParams()
       p.set('q', q || 'immigration visa experience')
       tagList.forEach((t) => p.append('facet', facetId(t.field, t.code)))
+      p.set('strictness', strictness)
       p.set('page_size', '15')
       p.set('sort', 'event')
       if (pageToken) p.set('page_token', pageToken)
@@ -130,7 +133,7 @@ export default function AdvancedSearchPage() {
     } finally {
       setSearchLoading(false); setLoadingMore(false); setSearched(true)
     }
-  }, [])
+  }, [strictness])
 
   function loadMore() {
     if (!nextPageToken || loadingMore) return
@@ -203,6 +206,10 @@ export default function AdvancedSearchPage() {
               ))}
             </div>
           )}
+
+          <div className="pt-2 border-t border-outline-variant">
+            <StrictnessSlider value={strictness} onChange={setStrictness} />
+          </div>
 
           <button onClick={() => runSearch(freeText, tags, '')} disabled={searchLoading} className="btn-primary w-full mt-2 disabled:opacity-50">
             {searchLoading ? 'Searching…' : 'Search'}

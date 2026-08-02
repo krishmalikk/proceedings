@@ -98,3 +98,26 @@ describe('SearchScreen — Advanced Search entry point', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('AdvancedSearch');
   });
 });
+
+// Precision (Broad/Balanced/Strict) moved to Advanced Search — main search
+// always runs at "balanced" and has no picker of its own.
+describe('SearchScreen — Match precision', () => {
+  it('shows no Precision control', async () => {
+    const s = await renderSearch();
+
+    expect(s.queryByText('Precision')).toBeNull();
+    expect(s.queryByText('Broad')).toBeNull();
+    expect(s.queryByText('Strict')).toBeNull();
+  });
+
+  it('search calls searchPostings without a strictness override (backend default is balanced)', async () => {
+    const s = await renderSearch();
+    await fireEvent.changeText(s.getByPlaceholderText('Search USA visits/migration journey…'), 'H1B RFE');
+
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() => expect(searchPostings).toHaveBeenCalled());
+    const [, opts] = (searchPostings as jest.Mock).mock.calls[0];
+    expect(opts.strictness).toBeUndefined();
+  });
+});
