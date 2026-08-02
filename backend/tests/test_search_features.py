@@ -462,6 +462,89 @@ def group_m_query_tags() -> None:
               f"status={r.status_code}")
 
 
+# ---------------------------------------------------------------------------
+# N — Advanced Search's News/Cutoff controls (include_news, max_age_days)
+# ---------------------------------------------------------------------------
+
+def group_n_advanced_search_recency_news() -> None:
+    print("\nN — Advanced Search's News/Cutoff controls (include_news, max_age_days)")
+    import api as api_module
+    from datetime import datetime, timedelta, timezone
+
+    # N1 (unit, no GCP): the composition helper itself — the source of
+    # truth for exactly what clause each control combination produces.
+    check("N1a defaults (None, 0) produce no clause",
+          api_module._recency_news_clause(None, 0) == "")
+    check("N1b include_news=False alone excludes gov_news",
+          api_module._recency_news_clause(False, 0) == '(NOT doc_kind: ANY("gov_news"))')
+    check("N1c include_news=True alone still produces no clause (nothing to restrict)",
+          api_module._recency_news_clause(True, 0) == "")
+    cutoff90 = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
+    check("N1d max_age_days alone adds a posting_date clause",
+          api_module._recency_news_clause(None, 90) == f'posting_date > "{cutoff90}"')
+    check("N1e both together AND them",
+          api_module._recency_news_clause(False, 90) ==
+          f'(NOT doc_kind: ANY("gov_news")) AND posting_date > "{cutoff90}"')
+
+    from fastapi.testclient import TestClient
+    with TestClient(api_module.app) as client:
+        api_module._db = None
+
+        # N2/N3 (integration, hard-filter branch — Advanced Search's tag
+        # search): "asylum" is carried by both app postings and gov_news
+        # articles, so it's a good real-world case for the exclude toggle.
+        tagged = client.get("/api/search", params={"facet": "tags:asylum", "page_size": 50}).json()
+        check("N2 baseline: tags:asylum returns both app and gov_news channels",
+              {"app", "gov_news"} <= {c["channel"] for c in tagged["results"]},
+              str({c["channel"] for c in tagged["results"]}))
+
+        excl = client.get("/api/search", params={"facet": "tags:asylum", "include_news": "false",
+                                                  "page_size": 50}).json()
+        check("N3 include_news=false drops every gov_news result from the same tag filter",
+              excl["total"] < tagged["total"] and all(c["channel"] != "gov_news" for c in excl["results"]),
+              f"total {tagged['total']} -> {excl['total']}")
+
+        # N4: max_age_days restricts to the window, on the same tag filter —
+        # a general recency window, not a news-only one.
+        cutoff30 = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+        aged = client.get("/api/search", params={"facet": "tags:asylum", "max_age_days": 30,
+                                                  "page_size": 50}).json()
+        check("N4 max_age_days=30 restricts every result to within the last 30 days",
+              aged["total"] > 0 and all(c["date"] >= cutoff30 for c in aged["results"] if c["date"]),
+              str([(c["case_id"], c["date"]) for c in aged["results"] if c["date"] and c["date"] < cutoff30]))
+
+        # N5/N6 (integration, free-text branch): the explicit include_news
+        # control REPLACES the legacy 7-day-old-news carve-out entirely —
+        # but ONLY for a caller that opts in; Home never sends these params
+        # at all, so its behavior must stay byte-for-byte unchanged.
+        legacy = client.get("/api/search", params={"q": "USCIS policy update",
+                                                    "strictness": "broad", "page_size": 50}).json()
+        opened = client.get("/api/search", params={"q": "USCIS policy update", "strictness": "broad",
+                                                    "include_news": "true", "page_size": 50}).json()
+        legacy_gov_news = sum(1 for c in legacy["results"] if c["channel"] == "gov_news")
+        opened_gov_news = sum(1 for c in opened["results"] if c["channel"] == "gov_news")
+        check("N5 include_news=true on a free-text search surfaces at least as much gov_news as the "
+              "legacy 7-day default (it removes a restriction, never adds one)",
+              opened_gov_news >= legacy_gov_news,
+              f"legacy gov_news={legacy_gov_news}, opened gov_news={opened_gov_news}")
+
+        cutoff7 = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+        stale = [c["case_id"] for c in legacy["results"]
+                 if c["channel"] == "gov_news" and c["date"] and c["date"] <= cutoff7]
+        check("N6 omitting include_news/max_age_days entirely still excludes gov_news older than 7 days "
+              "— Home's search is unaffected by this feature",
+              not stale, f"stale={stale}")
+
+        # N7 (integration, browse branch): an otherwise-empty Advanced
+        # Search click with include_news=true should surface gov_news in
+        # the plain browse feed too, not just tag/text searches.
+        browse_default = client.get("/api/search", params={"page_size": 5}).json()
+        browse_opened = client.get("/api/search", params={"include_news": "true", "page_size": 5}).json()
+        check("N7 include_news=true on an otherwise-empty search widens the browse feed's total",
+              browse_opened["total"] > browse_default["total"],
+              f"{browse_default['total']} -> {browse_opened['total']}")
+
+
 def main() -> int:
     if not PROJECT:
         print("GCP_PROJECT_ID must be set")
@@ -478,6 +561,7 @@ def main() -> int:
     group_k_context_filters()
     group_l_news_filtering()
     group_m_query_tags()
+    group_n_advanced_search_recency_news()
 
     print("\n" + "=" * 60)
     passed = sum(1 for _, ok, _ in _results if ok)

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -40,6 +40,18 @@ const STRICTNESS_LEVELS: { value: Strictness; label: string }[] = [
   { value: 'strict', label: 'Strict' },
 ];
 
+// "Cutoff period" segmented control — days-back cutoffs sent to the backend
+// as max_age_days (0 = All time = no restriction, matching /api/search's
+// own default so leaving it untouched changes nothing).
+const CUTOFF_STEPS: { days: number; label: string }[] = [
+  { days: 0, label: 'All' },
+  { days: 7, label: '7d' },
+  { days: 30, label: '30d' },
+  { days: 90, label: '90d' },
+  { days: 182, label: '6mo' },
+  { days: 365, label: '1yr' },
+];
+
 const TAB_BAR_CLEARANCE = 96;
 
 export function AdvancedSearchScreen({ navigation }: any) {
@@ -47,6 +59,13 @@ export function AdvancedSearchScreen({ navigation }: any) {
   const [freeText, setFreeText] = useState('');
   const [tags, setTags] = useState<Tag[]>([]);
   const [strictness, setStrictness] = useState<Strictness>('balanced');
+  // Advanced Search's own News/Cutoff controls — always sent explicitly to
+  // /api/search (unlike Home, which never sends them and keeps its
+  // existing default behavior untouched; see backend/api.py's
+  // _recency_news_clause). Defaults (news included, all time) match what
+  // Advanced Search's tag search already did before these controls existed.
+  const [includeNews, setIncludeNews] = useState(true);
+  const [cutoffIdx, setCutoffIdx] = useState(0);
   const [revealedFields, setRevealedFields] = useState<Set<TagField>>(new Set());
   const [vocab, setVocab] = useState<TagVocab | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -120,7 +139,10 @@ export function AdvancedSearchScreen({ navigation }: any) {
     setError('');
     try {
       const facets = tags.map((t) => facetId(t.field, t.code));
-      const data = await searchPostings(freeText, { facets, pageToken, strictness });
+      const data = await searchPostings(freeText, {
+        facets, pageToken, strictness,
+        includeNews, maxAgeDays: CUTOFF_STEPS[cutoffIdx].days,
+      });
       setResults((prev) => (pageToken ? [...prev, ...data.results] : data.results));
       setNextPageToken(data.next_page_token);
     } catch (e) {
@@ -232,6 +254,33 @@ export function AdvancedSearchScreen({ navigation }: any) {
           </View>
         </View>
 
+        <View style={styles.newsRow}>
+          <AppText variant="labelMd" color="onSurfaceVariant">Include news articles</AppText>
+          <Switch
+            testID="include-news-switch"
+            value={includeNews}
+            onValueChange={setIncludeNews}
+            trackColor={{ false: colors.outlineVariant, true: colors.primary }}
+          />
+        </View>
+
+        <View style={styles.cutoffRow}>
+          <AppText variant="labelMd" color="onSurfaceVariant">Cutoff period</AppText>
+          <View style={styles.segmented}>
+            {CUTOFF_STEPS.map((s, i) => (
+              <TouchableOpacity
+                key={s.days}
+                style={[styles.cutoffSegment, i === cutoffIdx && styles.segmentActive]}
+                onPress={() => setCutoffIdx(i)}
+              >
+                <AppText variant="caption" color={i === cutoffIdx ? 'onPrimary' : 'onSurfaceVariant'}>
+                  {s.label}
+                </AppText>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         <TouchableOpacity style={styles.searchButton} onPress={() => runSearch('')} disabled={searchLoading}>
           <AppText variant="labelMd" color="onPrimary">{searchLoading ? 'Searching…' : 'Search'}</AppText>
         </TouchableOpacity>
@@ -316,6 +365,24 @@ const styles = StyleSheet.create({
   },
   segment: { paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: borderRadius.full },
   segmentActive: { backgroundColor: colors.primary },
+  newsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant,
+  },
+  cutoffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+  },
+  // Narrower than the 3-option precision `segment` — six cutoff steps need
+  // to fit the same row width.
+  cutoffSegment: { paddingVertical: 6, paddingHorizontal: spacing.sm, borderRadius: borderRadius.full },
   searchButton: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.full,

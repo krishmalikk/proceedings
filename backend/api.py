@@ -1533,6 +1533,23 @@ def _facets_filter(facets: list[str]) -> str:
     return " AND ".join(clauses)
 
 
+def _recency_news_clause(include_news: bool | None, max_age_days: int) -> str:
+    """Optional extra filter clause from Advanced Search's "Include news" /
+    "Cutoff period" controls. `None`/0 (the defaults) mean the caller hasn't
+    specified either — each /api/search branch keeps its own pre-existing
+    default behavior in that case (see call sites); this only returns a
+    clause once a caller has explicitly opted into one of these controls.
+    `max_age_days` restricts every doc_kind, not just news — a general
+    recency window, not a news-only one."""
+    clauses = []
+    if include_news is False:
+        clauses.append('(NOT doc_kind: ANY("gov_news"))')
+    if max_age_days > 0:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).strftime("%Y-%m-%d")
+        clauses.append(f'posting_date > "{cutoff}"')
+    return " AND ".join(clauses)
+
+
 @app.get("/api/search", response_model=SearchResponse)
 def search(
     request: Request,
@@ -1545,6 +1562,8 @@ def search(
     page_size: int = 10,
     page_token: str = "",
     sort: str = "event",
+    include_news: bool | None = None,
+    max_age_days: int = 0,
 ):
     """Ranked posting search (result cards). Browse/search mode, not Q&A.
 
@@ -1555,7 +1574,10 @@ def search(
     (default) orders by the source's own original publish date — ingestion
     can lag days behind the source, so this is what "most recent" means
     everywhere now, not just for the News tab that introduced it; "recent"
-    orders by ingestion time instead, for any caller that wants that."""
+    orders by ingestion time instead, for any caller that wants that.
+    `include_news`/`max_age_days` are Advanced Search's explicit News/Cutoff
+    controls (see _recency_news_clause) — omitted entirely by every other
+    caller, which keeps each branch's own legacy default unchanged."""
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again in a minute.")
@@ -1566,7 +1588,8 @@ def search(
     selected = _facets_filter(facet)
 
     explicit = _build_filter(visa, consulate, outcome)
-    hard = " AND ".join(e for e in (explicit, selected) if e)
+    recency_news = _recency_news_clause(include_news, max_age_days)
+    hard = " AND ".join(e for e in (explicit, selected, recency_news) if e)
     if hard:
         # A hard filter (facet chips / visa / consulate / outcome) already
         # scopes results correctly on its own — don't ALSO force a fallback
@@ -1596,7 +1619,13 @@ def search(
         # the recency order entirely. The doc_kind filter scopes the feed to
         # user postings/experiences (gov_news has its own surface) AND keeps us
         # on the hard-filter path where `order_by ... desc` actually governs.
-        browse_filter = 'doc_kind: ANY("post", "experience")'
+        # (Only reachable with include_news is not False and max_age_days==0
+        # — anything else already routed through the hard-filter branch above
+        # via _recency_news_clause — so include_news here can only be
+        # None/True; True means Advanced Search explicitly asked for gov-news
+        # in an otherwise-empty search.)
+        browse_kinds = ["post", "experience"] + (["gov_news"] if include_news else [])
+        browse_filter = "doc_kind: ANY(" + ", ".join(f'"{k}"' for k in browse_kinds) + ")"
         data = search_postings("", _project_id, _ds_location, _engine_id,
                                page_size=page_size, page_token=page_token,
                                filter_expr=browse_filter, sort=sort or "event")
@@ -1614,16 +1643,26 @@ def search(
         # is still honored; "event" (the general default elsewhere) and any
         # other value both mean "let relevance govern" here.
         effective_sort = "recent" if sort == "recent" else "relevance"
-        # gov-news items shouldn't pollute ordinary keyword search — the
-        # empty-query browse path already excludes them (browse_filter
-        # above) and the News tab reaches them via its own explicit
-        # doc_kind:gov_news facet chip (the hard-filter branch above, left
-        # untouched). This is the one remaining path with no doc_kind
-        # handling at all. Carve out anything still within the last 7 days
-        # (by source event date, not ingestion) so breaking news can still
-        # surface in a relevant keyword search while it's still news.
-        news_cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
-        news_recency_filter = f'((NOT doc_kind: ANY("gov_news")) OR posting_date > "{news_cutoff}")'
+        if include_news is not None or max_age_days > 0:
+            # Advanced Search explicitly set News/Cutoff — that replaces the
+            # legacy 7-day carve-out below entirely, including "no
+            # restriction at all" when include_news=True and no cutoff is
+            # set (an explicit ask to see everything, unfiltered).
+            news_recency_filter = _recency_news_clause(include_news, max_age_days)
+        else:
+            # gov-news items shouldn't pollute ordinary keyword search — the
+            # empty-query browse path already excludes them (browse_filter
+            # above) and the News tab reaches them via its own explicit
+            # doc_kind:gov_news facet chip (the hard-filter branch above, left
+            # untouched). This is the one remaining path with no doc_kind
+            # handling at all. Carve out anything still within the last 7 days
+            # (by source event date, not ingestion) so breaking news can still
+            # surface in a relevant keyword search while it's still news.
+            # Only applies when the caller hasn't opted into the explicit
+            # News/Cutoff controls above (i.e. every caller but Advanced
+            # Search) — see _recency_news_clause.
+            news_cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+            news_recency_filter = f'((NOT doc_kind: ANY("gov_news")) OR posting_date > "{news_cutoff}")'
         data = search_with_strictness(q, _project_id, _ds_location, _engine_id,
                                       page_size=page_size, page_token=page_token,
                                       strictness=strictness, sort=effective_sort,

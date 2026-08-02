@@ -398,6 +398,58 @@ describe('AdvancedSearchPage — Match precision', () => {
   })
 })
 
+describe('AdvancedSearchPage — News/Cutoff controls', () => {
+  it('defaults to news included and all-time, sent explicitly on every search', async () => {
+    const fetchMock = mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Include news articles')).toBeInTheDocument())
+    expect(screen.getByRole('checkbox')).toBeChecked()
+
+    fireEvent.click(screen.getByText('Search'))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))
+      expect(call).toBeTruthy()
+    })
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))!
+    expect(String(call[0])).toContain('include_news=true')
+    expect(String(call[0])).not.toContain('max_age_days')
+  })
+
+  it('unchecking "Include news articles" sends include_news=false', async () => {
+    const fetchMock = mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Include news articles')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByText('Search'))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))
+      expect(call).toBeTruthy()
+    })
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))!
+    expect(String(call[0])).toContain('include_news=false')
+  })
+
+  it('moving the Cutoff period slider sends the matching max_age_days', async () => {
+    const fetchMock = mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Cutoff period')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Cutoff period'), { target: { value: '2' } })
+    fireEvent.click(screen.getByText('Search'))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))
+      expect(call).toBeTruthy()
+    })
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))!
+    expect(String(call[0])).toContain('max_age_days=30')
+    expect(await screen.findByText('30 days')).toHaveClass('text-primary')
+  })
+})
+
 describe('AdvancedSearchPage — Search', () => {
   it('runs /api/search with text + selected facets, renders results inline', async () => {
     const fetchMock = mockFetch({ queryTags: [{ field: 'visa_applying_for', code: 'H-1B', label: 'H-1B' }] })

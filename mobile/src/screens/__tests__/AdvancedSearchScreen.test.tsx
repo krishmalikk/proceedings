@@ -243,6 +243,42 @@ describe('AdvancedSearchScreen — Precision', () => {
   });
 });
 
+describe('AdvancedSearchScreen — News/Cutoff controls', () => {
+  it('defaults to news included and all-time, sent explicitly on every search', async () => {
+    const s = await renderAdvancedSearch();
+
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenCalledWith(
+        '', expect.objectContaining({ includeNews: true, maxAgeDays: 0 })
+      )
+    );
+  });
+
+  it('toggling the news switch off sends includeNews=false on the next search', async () => {
+    const s = await renderAdvancedSearch();
+
+    await fireEvent(s.getByTestId('include-news-switch'), 'valueChange', false);
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenCalledWith('', expect.objectContaining({ includeNews: false }))
+    );
+  });
+
+  it('tapping a cutoff step sends the matching maxAgeDays on the next search', async () => {
+    const s = await renderAdvancedSearch();
+
+    await fireEvent.press(s.getByText('30d'));
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenCalledWith('', expect.objectContaining({ maxAgeDays: 30 }))
+    );
+  });
+});
+
 describe('AdvancedSearchScreen — Search', () => {
   it('calls searchPostings with the text and the selected facets, renders inline', async () => {
     (fetchQueryTags as jest.Mock).mockResolvedValue([{ field: 'visa_applying_for', code: 'H-1B', label: 'H-1B' }]);

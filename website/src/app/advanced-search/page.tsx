@@ -18,6 +18,18 @@ type Vocab = {
 }
 const EMPTY_VOCAB: Vocab = { visa: [], consulate: [], consulate_options: [], tag: [] }
 
+// "Cutoff period" slider steps — days-back cutoffs sent to the backend as
+// max_age_days (0 = All time = no restriction, matching /api/search's own
+// default so an untouched slider changes nothing).
+const CUTOFF_STEPS: { days: number; label: string }[] = [
+  { days: 0, label: 'All time' },
+  { days: 7, label: '7 days' },
+  { days: 30, label: '30 days' },
+  { days: 90, label: '90 days' },
+  { days: 182, label: '6 months' },
+  { days: 365, label: '1 year' },
+]
+
 const CATEGORY_FIELDS: { field: TagField; label: string; kind: 'visa' | 'consulate' | 'tag' }[] = [
   { field: 'current_visa_or_greencard_category', label: 'Current status', kind: 'visa' },
   { field: 'visa_applying_for', label: 'Applying for', kind: 'visa' },
@@ -29,6 +41,13 @@ export default function AdvancedSearchPage() {
   const [freeText, setFreeText] = useState('')
   const [tags, setTags] = useState<Tag[]>([])
   const [strictness, setStrictness] = useStrictness()
+  // Advanced Search's own News/Cutoff controls — always sent explicitly to
+  // /api/search (unlike Home, which never sends them and keeps its
+  // existing default behavior untouched; see backend/api.py's
+  // _recency_news_clause). Defaults (news included, all time) match what
+  // Advanced Search's tag search already did before these controls existed.
+  const [includeNews, setIncludeNews] = useState(true)
+  const [cutoffIdx, setCutoffIdx] = useState(0)
   const [revealedFields, setRevealedFields] = useState<Set<TagField>>(new Set())
   const [vocab, setVocab] = useState<Vocab>(EMPTY_VOCAB)
   const [generating, setGenerating] = useState(false)
@@ -118,6 +137,12 @@ export default function AdvancedSearchPage() {
       if (q) p.set('q', q)
       tagList.forEach((t) => p.append('facet', facetId(t.field, t.code)))
       p.set('strictness', strictness)
+      // Explicit on every Advanced Search request — see backend/api.py's
+      // _recency_news_clause. Home never sends these two, so this doesn't
+      // affect it.
+      p.set('include_news', String(includeNews))
+      const maxAgeDays = CUTOFF_STEPS[cutoffIdx].days
+      if (maxAgeDays > 0) p.set('max_age_days', String(maxAgeDays))
       p.set('page_size', '15')
       p.set('sort', 'event')
       if (pageToken) p.set('page_token', pageToken)
@@ -132,7 +157,7 @@ export default function AdvancedSearchPage() {
     } finally {
       setSearchLoading(false); setLoadingMore(false); setSearched(true)
     }
-  }, [strictness])
+  }, [strictness, includeNews, cutoffIdx])
 
   function loadMore() {
     if (!nextPageToken || loadingMore) return
@@ -208,6 +233,39 @@ export default function AdvancedSearchPage() {
 
           <div className="pt-2 border-t border-outline-variant">
             <StrictnessSlider value={strictness} onChange={setStrictness} />
+          </div>
+
+          <div className="pt-2 border-t border-outline-variant space-y-3">
+            <label className="flex items-center gap-2 text-label-md text-on-surface cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeNews}
+                onChange={(e) => setIncludeNews(e.target.checked)}
+                className="accent-primary w-4 h-4"
+              />
+              Include news articles
+            </label>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="material-symbols-outlined text-[18px] text-secondary">schedule</span>
+                <span className="text-label-md text-on-surface font-medium">Cutoff period</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={CUTOFF_STEPS.length - 1}
+                step={1}
+                value={cutoffIdx}
+                onChange={(e) => setCutoffIdx(Number(e.target.value))}
+                className="w-full accent-primary cursor-pointer"
+                aria-label="Cutoff period"
+              />
+              <div className="flex justify-between text-caption text-on-surface-variant">
+                {CUTOFF_STEPS.map((s, i) => (
+                  <span key={s.days} className={i === cutoffIdx ? 'text-primary font-medium' : ''}>{s.label}</span>
+                ))}
+              </div>
+            </div>
           </div>
 
           <button onClick={() => runSearch(freeText, tags, '')} disabled={searchLoading} className="btn-primary w-full mt-2 disabled:opacity-50">
