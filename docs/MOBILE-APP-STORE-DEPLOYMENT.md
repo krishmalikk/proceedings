@@ -705,11 +705,12 @@ npm run metadata:push    # validates + uploads
   content to follow the same guidelines as a binary submission — it's a
   latency optimization, not a way to bypass review. Worth a separate,
   deliberate pass if release velocity becomes a pain point.
-- **Android / Play Store** — this doc is iOS-only per the current ask.
-  `eas.json`'s profiles already cover both platforms (`eas build --platform
-  android` works unchanged), but Play Store submission (`eas submit
-  --platform android`) and its own listing/review flow aren't documented
-  here.
+- **Android / Play Store** — this doc is iOS-only; the Android/Play Store
+  equivalent (a genuine from-scratch setup, not an access-recovery problem)
+  is now documented separately in
+  [`docs/MOBILE-PLAY-STORE-DEPLOYMENT.md`](MOBILE-PLAY-STORE-DEPLOYMENT.md).
+  `mobile-deploy.yml` is shared and platform-aware (`platform: ios | android
+  | all`).
 
 ---
 

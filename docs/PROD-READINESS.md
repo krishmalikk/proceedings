@@ -171,7 +171,7 @@ user. **This must not ship to a public production audience.** Before launch:
 
 **Accounts & tooling**
 - [x] **Apple Developer Program** ($99/yr) + App Store Connect app record — active (proven by the build 11/12 submissions).
-- [ ] **Google Play Console** ($25 one-time) + app record — still not done; this doc and the new deployment runbook are iOS-only so far.
+- [ ] **Google Play Console** ($25 one-time) + app record — still not done; full step-by-step now documented in [`docs/MOBILE-PLAY-STORE-DEPLOYMENT.md`](MOBILE-PLAY-STORE-DEPLOYMENT.md) §2.1.
 - [x] **Expo/EAS** account; `eas-cli` is now a pinned `mobile/package.json` devDependency (`eas login` still needed once per machine).
 
 **Project config**

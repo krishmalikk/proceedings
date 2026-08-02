@@ -16,6 +16,10 @@
     "build:ios:production": "eas build --platform ios --profile production",
     "submit:ios": "eas submit --platform ios --profile production --latest",
     "release:ios": "./scripts/release-ios.sh",
+    "build:android:preview": "eas build --platform android --profile preview",
+    "build:android:production": "eas build --platform android --profile production",
+    "submit:android": "eas submit --platform android --profile production --latest",
+    "release:android": "./scripts/release-android.sh",
     "metadata:push": "eas metadata:push",
     "metadata:pull": "eas metadata:pull"
   },

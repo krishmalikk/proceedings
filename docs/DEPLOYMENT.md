@@ -239,10 +239,13 @@ It points at the same Cloud Run `PYTHON_API_URL` as the website. A gated
 `workflow_dispatch` GitHub Actions pipeline
 ([`mobile-deploy.yml`](../.github/workflows/mobile-deploy.yml)) automates the
 build/submit steps, mirroring `deploy.yml`'s manual-approval pattern.
-Android/Play Store is not yet documented — see the "Optional next steps" in
-the runbook above. (Firebase Auth is already wired for iOS; FCM/push is not
-yet integrated — see the realtime roadmap:
-[docs/app/realtime-communication-options.md](app/realtime-communication-options.md) §11.)
+**Android / Play Store: [`docs/MOBILE-PLAY-STORE-DEPLOYMENT.md`](MOBILE-PLAY-STORE-DEPLOYMENT.md)**
+— unlike iOS, this is a genuine from-scratch setup (no Play Console account,
+app record, or signing keystore exist yet), also via EAS Build/Submit and
+the same `mobile-deploy.yml` workflow (now platform-aware). (Firebase Auth
+is already wired for iOS but not yet for Android — see that doc's §2.5;
+FCM/push is not yet integrated on either platform — see the realtime
+roadmap: [docs/app/realtime-communication-options.md](app/realtime-communication-options.md) §11.)
 
 ---
 
