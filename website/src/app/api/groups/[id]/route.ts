@@ -39,3 +39,18 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ detail: 'Unable to reach the groups service.' }, { status: 503 })
   }
 }
+
+// DELETE /api/groups/{id} — permanently delete a group. Creator-only (backend-enforced).
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const res = await fetch(`${PYTHON_API_URL}/api/groups/${encodeURIComponent(params.id)}`, {
+      method: 'DELETE',
+      headers: { ...userHeader(request) },
+    })
+    const data = await res.json()
+    if (!res.ok) return NextResponse.json({ detail: data.detail || 'Could not delete group' }, { status: res.status })
+    return NextResponse.json(data)
+  } catch {
+    return NextResponse.json({ detail: 'Unable to reach the groups service.' }, { status: 503 })
+  }
+}

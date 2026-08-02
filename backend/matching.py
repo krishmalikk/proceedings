@@ -460,10 +460,21 @@ def invite_member(db, group_id: str, user_id: str, handle: str) -> dict:
     return _group_view(group_id, {**data, "members": members, "last_activity_at": now}, user_id)
 
 
+def _delete_group_and_messages(db, group_id: str, ref=None) -> None:
+    """Delete a group doc and its groups/{id}/messages subcollection (Firestore
+    doesn't cascade-delete subcollections on its own)."""
+    ref = ref or db.collection("groups").document(group_id)
+    for doc in ref.collection("messages").stream():
+        doc.reference.delete()
+    ref.delete()
+
+
 def leave_group(db, group_id: str, user_id: str) -> dict:
     """Remove the user from a group's members. If they were the creator/admin,
     reassign admin to the next remaining member so the group is never left
-    without one. KeyError if the group doesn't exist (→ 404)."""
+    without one. If the last member leaves, the group (and its messages) is
+    deleted outright rather than left behind as an orphaned, empty, admin-less
+    doc. KeyError if the group doesn't exist (→ 404)."""
     if db is None:
         raise RuntimeError("Firestore unavailable")
     ref = db.collection("groups").document(group_id)
@@ -472,11 +483,31 @@ def leave_group(db, group_id: str, user_id: str) -> dict:
         raise KeyError("Group not found.")
     data = snap.to_dict() or {}
     members = [m for m in (data.get("members") or []) if m.get("user_id") != user_id]
+    if not members:
+        _delete_group_and_messages(db, group_id, ref)
+        return _group_view(group_id, {**data, "members": []}, user_id)
     updates: dict = {"members": members, "updated_at": _now_iso()}
-    if data.get("created_by") == user_id and members:
+    if data.get("created_by") == user_id:
         updates["created_by"] = members[0].get("user_id", "")
     ref.update(updates)
     return _group_view(group_id, {**data, **updates}, user_id)
+
+
+def delete_group(db, group_id: str, user_id: str) -> None:
+    """Permanently delete a group and its messages. Creator-only — raises
+    PermissionError otherwise (→ 403 at the route), KeyError if the group
+    doesn't exist (→ 404). Unlike leaving, this works regardless of how many
+    other members remain — the admin can end the group for everyone."""
+    if db is None:
+        raise RuntimeError("Firestore unavailable")
+    ref = db.collection("groups").document(group_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise KeyError("Group not found.")
+    data = snap.to_dict() or {}
+    if user_id != (data.get("created_by") or ""):
+        raise PermissionError("Only the group's creator can delete it.")
+    _delete_group_and_messages(db, group_id, ref)
 
 
 def list_all_groups(db, viewer_id: str = "") -> list[dict]:

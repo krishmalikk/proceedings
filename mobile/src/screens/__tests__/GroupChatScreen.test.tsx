@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { renderScreen, fireEvent, waitFor } from '../../test/render';
 import { GroupChatScreen } from '../GroupChatScreen';
-import { getGroup, leaveGroup, inviteToGroup, renameGroup } from '../../services/apiService';
+import { getGroup, leaveGroup, inviteToGroup, renameGroup, deleteGroup } from '../../services/apiService';
 
 // Navigation hooks: fixed groupId param + spyable nav actions.
 // (jest hoists jest.mock; only `mock`-prefixed vars may be referenced inside.)
@@ -18,6 +18,7 @@ jest.mock('../../services/apiService', () => ({
   leaveGroup: jest.fn(),
   inviteToGroup: jest.fn(),
   renameGroup: jest.fn(),
+  deleteGroup: jest.fn(),
 }));
 
 // The message thread itself is covered by GroupChat's own tests — stub it
@@ -195,6 +196,59 @@ describe('GroupChatScreen — leave group (previously 404\'d, backend route now 
     await fireEvent.press(screen.getByLabelText('Leave Group'));
     await waitFor(() => expect(leaveGroup).toHaveBeenCalledWith('g1'));
     await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Error', 'network down'));
+    expect(mockGoBack).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+});
+
+describe('GroupChatScreen — delete group (admin-only)', () => {
+  it('does not show Delete Group for a non-admin viewer', async () => {
+    const screen = await renderScreen(<GroupChatScreen />);
+    await openMembersModal(screen);
+    expect(screen.queryByText('Delete Group')).toBeNull();
+  });
+
+  it('confirms via Alert, calls deleteGroup, and navigates back', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
+      const deleteButton = buttons?.find((b) => b.text === 'Delete');
+      deleteButton?.onPress?.();
+    });
+    (getGroup as jest.Mock).mockResolvedValue({ ...GROUP, is_admin: true });
+    (deleteGroup as jest.Mock).mockResolvedValue(undefined);
+    const screen = await renderScreen(<GroupChatScreen />);
+    await openMembersModal(screen);
+
+    await fireEvent.press(screen.getByText('Delete Group'));
+    await waitFor(() => expect(deleteGroup).toHaveBeenCalledWith('g1'));
+    expect(mockGoBack).toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it('does nothing when the Delete confirmation is dismissed/cancelled', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (getGroup as jest.Mock).mockResolvedValue({ ...GROUP, is_admin: true });
+    const screen = await renderScreen(<GroupChatScreen />);
+    await openMembersModal(screen);
+
+    await fireEvent.press(screen.getByText('Delete Group'));
+    expect(deleteGroup).not.toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it('shows an error Alert and does not navigate back when deleteGroup fails', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
+      const deleteButton = buttons?.find((b) => b.text === 'Delete');
+      deleteButton?.onPress?.();
+    });
+    (getGroup as jest.Mock).mockResolvedValue({ ...GROUP, is_admin: true });
+    (deleteGroup as jest.Mock).mockRejectedValue(new Error("Only the group's creator can delete it."));
+    const screen = await renderScreen(<GroupChatScreen />);
+    await openMembersModal(screen);
+
+    await fireEvent.press(screen.getByText('Delete Group'));
+    await waitFor(() => expect(deleteGroup).toHaveBeenCalledWith('g1'));
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Error', "Only the group's creator can delete it."));
     expect(mockGoBack).not.toHaveBeenCalled();
     alertSpy.mockRestore();
   });

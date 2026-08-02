@@ -16,7 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../constants/theme';
 import { GroupChat } from '../components';
-import { getGroup, leaveGroup, inviteToGroup, renameGroup, GroupInfo } from '../services/apiService';
+import { getGroup, leaveGroup, inviteToGroup, renameGroup, deleteGroup, GroupInfo } from '../services/apiService';
 
 type RouteParams = {
   GroupChat: {
@@ -47,6 +47,7 @@ export function GroupChatScreen() {
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // rename (admin only)
   const [editing, setEditing] = useState(false);
@@ -93,6 +94,31 @@ export function GroupChatScreen() {
               Alert.alert('Error', e instanceof Error ? e.message : 'Failed to leave group');
             } finally {
               setLeaving(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteGroup = () => {
+    Alert.alert(
+      'Delete Group',
+      'Delete this group for everyone? This can’t be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteGroup(groupId);
+              navigation.goBack();
+            } catch (e) {
+              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete group');
+            } finally {
+              setDeleting(false);
             }
           },
         },
@@ -287,6 +313,14 @@ export function GroupChatScreen() {
               </View>
               {!!inviteMsg && <Text style={styles.inviteMsg}>{inviteMsg}</Text>}
             </View>
+
+            {group?.is_admin && (
+              <View style={styles.deleteSection}>
+                <TouchableOpacity onPress={handleDeleteGroup} disabled={deleting} style={styles.deleteButton}>
+                  <Text style={styles.deleteButtonText}>{deleting ? 'Deleting…' : 'Delete Group'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -519,6 +553,20 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     paddingHorizontal: spacing.md,
     marginTop: spacing.xs,
+  },
+  deleteSection: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.base,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant,
+  },
+  deleteButton: {
+    alignSelf: 'flex-start',
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.error,
   },
 });
 

@@ -2,7 +2,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import GroupPage from '../page'
 
-vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'g1' }) }))
+const mockPush = vi.fn()
+vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'g1' }), useRouter: () => ({ push: mockPush }) }))
 vi.mock('@/lib/useRequireUser', () => ({ useRequireUser: () => {} }))
 vi.mock('@/lib/activeUser', () => ({ userHeaders: vi.fn((h?: Record<string, string>) => h || {}) }))
 vi.mock('@/components/GroupChat', () => ({ default: () => <div data-testid="group-chat" /> }))
@@ -27,6 +28,9 @@ function mockGroup(overrides: Record<string, unknown> = {}) {
     if (String(url).includes('/invite')) {
       return { ok: true, status: 200, json: async () => ({ ...BASE_GROUP, ...overrides, members: [...BASE_GROUP.members, { user_id: 'demo-omar', username: 'omar-b1b2' }] }) } as Response
     }
+    if (method === 'DELETE') {
+      return { ok: true, status: 200, json: async () => ({ ok: true }) } as Response
+    }
     if (method === 'PUT') {
       const body = JSON.parse((opts as { body?: string })?.body || '{}')
       return { ok: true, status: 200, json: async () => ({ ...BASE_GROUP, ...overrides, ...body }) } as Response
@@ -35,7 +39,7 @@ function mockGroup(overrides: Record<string, unknown> = {}) {
   }) as unknown as typeof fetch
 }
 
-beforeEach(() => vi.restoreAllMocks())
+beforeEach(() => { vi.restoreAllMocks(); mockPush.mockClear() })
 
 describe('GroupPage — metadata + admin badge', () => {
   it('renders name, description, and dates', async () => {
@@ -180,5 +184,62 @@ describe('GroupPage — empty description, loading, and error states', () => {
     ) as unknown as typeof fetch
     render(<GroupPage />)
     expect(await screen.findByText('Group not found')).toBeInTheDocument()
+  })
+})
+
+describe('GroupPage — delete group (admin-only)', () => {
+  it('does not show a Delete affordance for a non-admin viewer', async () => {
+    mockGroup({ is_admin: false })
+    render(<GroupPage />)
+    await screen.findByText('Mumbai H-1B crew')
+    expect(screen.queryByText('Delete group')).toBeNull()
+  })
+
+  it('shows an inline confirm step before deleting, and Cancel backs out without calling DELETE', async () => {
+    mockGroup({ is_admin: true })
+    render(<GroupPage />)
+    await screen.findByText('Mumbai H-1B crew')
+
+    fireEvent.click(screen.getByText('Delete group'))
+    expect(await screen.findByText(/can.t be undone/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Cancel'))
+    expect(screen.queryByText(/can.t be undone/)).toBeNull()
+    expect((global.fetch as unknown as Mock).mock.calls.some((c) => c[1]?.method === 'DELETE')).toBe(false)
+  })
+
+  it('confirming delete calls DELETE and navigates to /find', async () => {
+    mockGroup({ is_admin: true })
+    render(<GroupPage />)
+    await screen.findByText('Mumbai H-1B crew')
+
+    fireEvent.click(screen.getByText('Delete group'))
+    fireEvent.click(await screen.findByText('Confirm delete'))
+
+    await waitFor(() => {
+      const delCall = (global.fetch as unknown as Mock).mock.calls.find((c) => c[1]?.method === 'DELETE')
+      expect(delCall).toBeTruthy()
+    })
+    const delCall = (global.fetch as unknown as Mock).mock.calls.find((c) => c[1]?.method === 'DELETE')!
+    expect(String(delCall[0])).toContain('/api/groups/g1')
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/find'))
+  })
+
+  it('surfaces an error and resets the confirm step when delete fails', async () => {
+    global.fetch = vi.fn(async (url: string, opts?: { method?: string }) => {
+      if (opts?.method === 'DELETE') {
+        return { ok: false, status: 403, json: async () => ({ detail: "Only the group's creator can delete it." }) } as Response
+      }
+      return { ok: true, status: 200, json: async () => ({ ...BASE_GROUP, is_admin: true }) } as Response
+    }) as unknown as typeof fetch
+    render(<GroupPage />)
+    await screen.findByText('Mumbai H-1B crew')
+
+    fireEvent.click(screen.getByText('Delete group'))
+    fireEvent.click(await screen.findByText('Confirm delete'))
+
+    expect(await screen.findByText(/Only the group's creator can delete it/)).toBeInTheDocument()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(screen.queryByText('Confirm delete')).toBeNull()
   })
 })

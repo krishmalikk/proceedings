@@ -262,28 +262,64 @@ def group_b_firestore() -> None:
         except ValueError:
             check("B31 empty/whitespace name rejected (ValueError)", True)
 
-        # B32: the LAST member leaving empties the group rather than raising —
-        # created_by is left pointing at the departed (former) creator since
-        # there's nobody left to reassign to (a standalone scratch group, so
-        # it doesn't disturb gid's membership assumptions above). "DV" is a
-        # rare, distinctive, valid visa code confirmed unclaimed by any real
-        # group earlier in this session — guard on `joined` anyway so a
+        # B32-B33: the LAST member leaving DELETES the group (and its messages)
+        # outright rather than leaving an orphaned, empty, admin-less doc behind.
+        # "DV" is a rare, distinctive, valid visa code confirmed unclaimed by any
+        # real group earlier in this session — guard on `joined` anyway so a
         # collision fails loudly instead of silently mutating a real group.
-        solo = M.find_or_create_group(db, ids["a"], "solo scratch group for leave-empties-group check",
+        import group_messages as GM
+        solo = M.find_or_create_group(db, ids["a"], "solo scratch group for leave-deletes-group check",
                                       {"current_visa_or_greencard_category": ["DV"]}, [])
         solo_gid = solo["group_id"]
         try:
             if solo["joined"]:
-                check("B32 last member leaving empties members, created_by left unchanged",
-                      False, "signature collided with a real existing group — skipped")
+                check("B32 last member leaving deletes the group", False,
+                      "signature collided with a real existing group — skipped")
+                check("B33 last member leaving deletes its messages too", False, "skipped")
             else:
+                GM.post_message(db, solo_gid, ids["a"], "hello before leaving")
                 emptied = M.leave_group(db, solo_gid, ids["a"])
-                check("B32 last member leaving empties members, created_by left unchanged",
-                      emptied["members"] == [] and emptied["created_by"] == ids["a"],
-                      str((emptied["members"], emptied["created_by"])))
+                check("B32 last member leaving deletes the group",
+                      emptied["members"] == [] and not db.collection("groups").document(solo_gid).get().exists,
+                      str((emptied["members"], "doc still exists" if db.collection("groups").document(solo_gid).get().exists else "doc gone")))
+                remaining_msgs = list(db.collection("groups").document(solo_gid).collection("messages").stream())
+                check("B33 last member leaving deletes its messages too",
+                      remaining_msgs == [], f"{len(remaining_msgs)} messages left behind")
         finally:
             if not solo["joined"]:
                 db.collection("groups").document(solo_gid).delete()
+
+        # B34-B36: delete_group — creator-only, works even with other members
+        # still present, and removes the messages subcollection too.
+        multi = M.find_or_create_group(db, ids["a"], "multi-member group for delete_group check",
+                                       {"current_visa_or_greencard_category": ["SB-1"]},
+                                       [{"user_id": ids["b"], "username": "bravo"}])
+        multi_gid = multi["group_id"]
+        try:
+            if multi["joined"]:
+                check("B34 delete_group by non-creator raises PermissionError", False, "skipped (signature collided)")
+                check("B35 delete_group by the creator removes the group + messages", False, "skipped (signature collided)")
+            else:
+                GM.post_message(db, multi_gid, ids["b"], "hi from bravo")
+                try:
+                    M.delete_group(db, multi_gid, ids["b"])
+                    check("B34 delete_group by non-creator raises PermissionError", False, "no raise")
+                except PermissionError:
+                    check("B34 delete_group by non-creator raises PermissionError", True)
+                M.delete_group(db, multi_gid, ids["a"])
+                doc_gone = not db.collection("groups").document(multi_gid).get().exists
+                msgs_gone = list(db.collection("groups").document(multi_gid).collection("messages").stream()) == []
+                check("B35 delete_group by the creator removes the group + messages",
+                      doc_gone and msgs_gone, str((doc_gone, msgs_gone)))
+        finally:
+            if not multi["joined"]:
+                db.collection("groups").document(multi_gid).delete()
+
+        try:
+            M.delete_group(db, "no-such-group-xyz", ids["a"])
+            check("B36 delete_group on a missing group raises (KeyError)", False, "no raise")
+        except KeyError:
+            check("B36 delete_group on a missing group raises (KeyError)", True)
     finally:
         for uid in ids.values():
             db.collection("users").document(uid).delete()
@@ -441,6 +477,36 @@ def group_c_api() -> None:
             # C25: a whitespace-only name is a 422 (ValueError from rename_group).
             check("C25 PUT rename with a whitespace-only name → 422",
                   c.put(f"/api/groups/{gid}", json={"name": "   "}, headers=NA).status_code == 422)
+
+            # C26-C28: DELETE — creator-only, group (and messages) gone after.
+            check("C26 DELETE by a non-creator → 403",
+                  c.delete(f"/api/groups/{gid}", headers=A).status_code == 403)
+            check("C27 DELETE on a missing group → 404",
+                  c.delete("/api/groups/no-such-group", headers=NA).status_code == 404)
+            dele = c.delete(f"/api/groups/{gid}", headers=NA)
+            check("C28 DELETE by the creator → 200 {ok:true}, group is gone",
+                  dele.status_code == 200 and dele.json().get("ok") is True
+                  and c.get(f"/api/groups/{gid}", headers=NA).status_code == 404,
+                  f"status={dele.status_code} body={dele.json()}")
+
+            # C29: the orphan-leak fix, exercised over HTTP end-to-end — the sole
+            # member POSTing /leave deletes the group, not just empties it.
+            solo = c.post("/api/groups", json={
+                "criteria_text": "solo group for HTTP leave-deletes-group check",
+                "criteria": {"current_visa_or_greencard_category": ["SIV"]},
+                "members": [],
+            }, headers=A)
+            solo_gid = solo.json().get("group_id")
+            if solo.json().get("joined"):
+                check("C29 POST leave as the sole member deletes the group (HTTP)", False,
+                      "signature collided with a real existing group — skipped")
+            else:
+                created_groups.append(solo_gid)
+                solo_leave = c.post(f"/api/groups/{solo_gid}/leave", headers=A)
+                check("C29 POST leave as the sole member deletes the group (HTTP)",
+                      solo_leave.status_code == 200
+                      and c.get(f"/api/groups/{solo_gid}", headers=A).status_code == 404,
+                      f"leave_status={solo_leave.status_code}")
     finally:
         db.collection("users").document(test_uid).delete()
         for gid in created_groups:

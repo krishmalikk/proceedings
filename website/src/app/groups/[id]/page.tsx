@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import GroupChat from '@/components/GroupChat'
 import { userHeaders } from '@/lib/activeUser'
@@ -37,6 +37,7 @@ function timeAgo(iso: string): string {
 
 export default function GroupPage() {
   useRequireUser()
+  const router = useRouter()
   const params = useParams<{ id: string }>()
   const id = params?.id
   const [group, setGroup] = useState<Group | null>(null)
@@ -53,6 +54,10 @@ export default function GroupPage() {
   const [inviteHandle, setInviteHandle] = useState('')
   const [inviting, setInviting] = useState(false)
   const [inviteMsg, setInviteMsg] = useState('')
+
+  // delete (admin only)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(() => {
     if (!id) return
@@ -106,6 +111,23 @@ export default function GroupPage() {
       setInviteMsg(e instanceof Error ? e.message : 'Could not invite that handle')
     } finally {
       setInviting(false)
+    }
+  }
+
+  async function deleteGroup() {
+    if (!group) return
+    setDeleting(true); setError('')
+    try {
+      const res = await fetch(`/api/groups/${encodeURIComponent(group.group_id)}`, {
+        method: 'DELETE', headers: userHeaders(),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Could not delete group')
+      router.push('/find')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete group')
+      setDeleting(false)
+      setConfirmingDelete(false)
     }
   }
 
@@ -191,6 +213,28 @@ export default function GroupPage() {
 
               {group.criteria_text && (
                 <p className="text-caption text-on-surface-variant pt-3 border-t border-outline-variant">{group.criteria_text}</p>
+              )}
+
+              {group.is_admin && (
+                <div className="pt-3 border-t border-outline-variant">
+                  {confirmingDelete ? (
+                    <div className="space-y-2">
+                      <p className="text-caption text-error">Delete this group for everyone? This can&apos;t be undone.</p>
+                      <div className="flex gap-2">
+                        <button onClick={deleteGroup} disabled={deleting} className="text-label-md text-error hover:underline disabled:opacity-50">
+                          {deleting ? 'Deleting…' : 'Confirm delete'}
+                        </button>
+                        <button onClick={() => setConfirmingDelete(false)} disabled={deleting} className="text-label-md text-on-surface-variant hover:underline">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmingDelete(true)} className="text-label-md text-error hover:underline">
+                      Delete group
+                    </button>
+                  )}
+                </div>
               )}
             </aside>
           </div>

@@ -947,6 +947,17 @@ export async function renameGroup(
   return data;
 }
 
+export async function deleteGroup(groupId: string): Promise<void> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
+    method: 'DELETE',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || 'Could not delete group');
+  }
+}
+
 // ============= Group Chat =============
 
 export interface ChatMessage {

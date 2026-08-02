@@ -2082,6 +2082,20 @@ def invite_member_route(group_id: str, body: GroupInvite, request: Request):
     return GroupCard(**g)
 
 
+@app.delete("/api/groups/{group_id}")
+def delete_group_route(group_id: str, request: Request):
+    """Permanently delete a group and its messages. Creator-only."""
+    import matching
+    uid = _active_user(request)
+    try:
+        _guard(lambda: matching.delete_group(_db, group_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return {"ok": True}
+
+
 # ---------------------------------------------------------------------------
 # Group chat (phase-N). Members-only messages in Firestore groups/{id}/messages
 # (app-state, never the datastore). v1 real-time = client polling with `since`.
