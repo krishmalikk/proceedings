@@ -185,16 +185,121 @@ elsewhere.
 **4. The only complete fix: a separate Organization Apple Developer Program
 enrollment.** Organization accounts support multiple people with full Admin
 role (Developer Portal included) and a real Account Holder transfer process
-if someone leaves — Individual accounts support neither, ever. **Caveat,
-stated honestly:** whether Apple's "Transfer App" feature would let the
-existing Meridian app move to a new Organization account while keeping its
-App Store listing/history could not be confirmed while writing this doc —
-Apple's own documentation on transfer eligibility didn't resolve when
-checked. Verify the current rules directly in App Store Connect Help before
-relying on this path, and note it would still require the *current* Account
-Holder's participation to initiate — it doesn't solve "the person is
-unavailable" by itself. Treat this as a "worth doing in the next few
-months" item, not an urgent one.
+if someone leaves — Individual accounts support neither, ever. Full
+step-by-step details (confirmed against Apple's own documentation, sources
+at the bottom) are in the "Organization enrollment + migration" subsection
+immediately below. Short version: App Transfer **does** preserve the bundle ID, App Store
+listing, and ratings/reviews (better than earlier drafts of this doc
+guessed) — but it still requires the *current* Account Holder to personally
+initiate it, so it doesn't solve "the person is unavailable" by itself, only
+shrinks that dependency to one minimal, well-defined action. Treat this as a
+multi-week undertaking to start now in parallel, not something to wait on
+before making progress elsewhere.
+
+### Organization enrollment + migration — detailed steps
+
+#### Step 0 — the gate to check first: is there a registered legal entity?
+
+Organization enrollment requires a **D-U-N-S Number tied to an actual
+registered legal entity** (LLC, corporation, limited partnership, etc.) —
+sole proprietors and unregistered personal projects **cannot** get a D-U-N-S
+Number and can't enroll as an Organization at all. Nothing in this repo
+(`docs/business/`, or any top-level doc) documents a registered legal entity
+— everything points to this being a personal project under "Krish Malik"
+individually today. Confirm whether an LLC/corporation already exists behind
+Meridian before starting — if not, forming one is a state-level business
+registration step, entirely outside Apple's process, with its own
+cost/timeline, and would need to happen first.
+
+#### Step 1 — Organization enrollment (once the legal entity exists)
+
+1. **D-U-N-S Number** — look up whether the entity already has one via
+   Apple's D-U-N-S lookup tool (legal entity name + HQ address + mailing
+   address). If not found, request one for free — allow **up to 5 business
+   days** from Dun & Bradstreet, then **up to 2 more business days** for
+   Apple to receive it. Budget **~1–2 weeks** total before enrollment can
+   even start.
+2. **Enroll** at Apple's Developer Program enrollment page (organization
+   enrollment is **web-only**, not in the mobile app). Enter the legal
+   entity name and D-U-N-S Number.
+3. **Confirm legal binding authority** — the enrolling person must be the
+   owner/founder, an executive, or someone with documented authority to bind
+   the org to Apple's agreements. If not the owner, Apple requires a
+   reference contact who can confirm that authority.
+4. **Verification** — Apple checks the D-U-N-S Number and binding authority;
+   may request notarized business documents.
+5. **Contact requirements** — a work email on the organization's own domain
+   (not a personal address), and a live, functional website tied to that
+   domain (a placeholder page doesn't count) — `meridianjourney.ai` should
+   satisfy this.
+6. **Pay $99/year** — the **standard** Apple Developer Program (App Store
+   distribution) costs the same $99/yr for Organizations as Individual.
+   *(Don't confuse this with the separate $299/yr Apple Developer
+   **Enterprise** Program — that's for internal-only enterprise
+   distribution, not relevant here.)*
+7. **Confirmation** — typically within 24 hours of payment; contact Apple
+   support with the Enrollment ID if not received.
+
+#### Step 2 — check app transfer eligibility *now*, independent of Step 1
+
+App Transfer preserves the bundle ID (`com.krishmalik.meridian`), the App
+Store listing, ratings/reviews, and App ID. But per Apple's own transfer
+criteria, the app **must have at least one version actually released to the
+App Store**, and specifically **cannot** currently be in any of: Processing
+for Distribution, Waiting for Review, In Review, Accepted, **Pending
+Developer Release**, or Pending Apple Release.
+
+If the app is sitting at **"Ready for Distribution"** (approved but not yet
+manually released to the public App Store — the status seen while writing
+this), **it is not transfer-eligible right now**, regardless of who's
+available. The fix doesn't need the absent developer: anyone with App
+Manager/Admin access in App Store Connect can go to the app's version page
+and click **"Release This Version."** Once it shows as released/live, it
+becomes transfer-eligible. Worth doing regardless of whether Organization
+migration happens — an approved build sitting unreleased helps no one.
+
+#### Step 3 — pre-transfer cleanup (a real project, not a formality)
+
+Before initiating, the transferring side needs to:
+- Generate an app-specific shared secret (if any subscriptions exist).
+- **Remove all TestFlight builds and testers** — this data does **not**
+  survive transfer and must be cleared beforehand (and rebuilt from scratch
+  after).
+- Remove all Xcode Cloud data and webhooks (if any).
+- Document any Game Center / Apple Pay / Sign in with Apple configuration
+  (needs manual reconfiguration after transfer).
+- Check that no in-app purchase product IDs collide with anything already
+  in the receiving Organization account.
+
+#### Step 4 — the transfer itself (the one step that unavoidably needs the absent developer)
+
+Confirmed directly from Apple's docs: **only the Account Holder can
+initiate a transfer, and only the Account Holder of the receiving account
+can accept it.** No delegation, no App Manager/Admin substitute — this is
+the one action in the whole plan that cannot be routed around.
+1. The current Account Holder (once reachable) initiates the transfer from
+   the Individual account, targeting the new Organization account.
+2. The Organization account's Account Holder accepts it within **60 days**.
+
+#### Step 5 — what still needs redoing after transfer, regardless
+
+Certificates and provisioning profiles must be **recreated fresh** under
+the new Team ID (the old EAS-cached ones from the Individual account won't
+carry over) — this is §2.2/§2.3 again, just under the new account. If push
+notifications are ever added later, APNs certs would need regenerating too
+(not relevant today — this app has none).
+
+**Bottom line:** Steps 0–3 don't need the absent developer at all and can
+start immediately in parallel; only Step 4 does. This is a multi-week
+undertaking (legal entity → D-U-N-S → enrollment → release the pending
+build → cleanup → transfer), but it shrinks the dependency on the absent
+developer to one minimal, well-defined action instead of blocking
+everything.
+
+Sources: [App transfer criteria](https://developer.apple.com/help/app-store-connect/transfer-an-app/app-transfer-criteria) ·
+[Overview of app transfer](https://developer.apple.com/help/app-store-connect/transfer-an-app/overview-of-app-transfer) ·
+[Program enrollment](https://developer.apple.com/help/account/membership/program-enrollment/) ·
+[D-U-N-S Number](https://developer.apple.com/help/account/membership/D-U-N-S)
 
 ---
 
