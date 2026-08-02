@@ -189,3 +189,37 @@ describe('SearchScreen — Match precision', () => {
     expect(opts.strictness).toBeUndefined();
   });
 });
+
+// Advanced Search's News/Cutoff controls (includeNews, maxAgeDays) are
+// explicit opt-ins — Home must never send them, on any code path, so the
+// backend keeps applying each branch's own legacy default (see
+// backend/api.py's _recency_news_clause). A regression here would silently
+// change Home's search behavior the next time someone touches runSearch.
+describe('SearchScreen — never sends Advanced Search\'s News/Cutoff params', () => {
+  it('a typed-text search omits includeNews and maxAgeDays', async () => {
+    const s = await renderSearch();
+    await fireEvent.changeText(s.getByPlaceholderText('Search USA visits/migration journey…'), 'H1B RFE');
+
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() => expect(searchPostings).toHaveBeenCalled());
+    const [, opts] = (searchPostings as jest.Mock).mock.calls[0];
+    expect(opts.includeNews).toBeUndefined();
+    expect(opts.maxAgeDays).toBeUndefined();
+  });
+
+  it('a facet-refine search omits includeNews and maxAgeDays', async () => {
+    (fetchQueryTags as jest.Mock).mockResolvedValue([{ field: 'tags', code: 'RFE', label: 'RFE' }]);
+    const s = await renderSearch();
+    await fireEvent.changeText(s.getByPlaceholderText('Search USA visits/migration journey…'), 'H1B RFE');
+    await fireEvent.press(s.getByText('Search'));
+    const chip = await s.findByText('RFE');
+
+    await fireEvent.press(chip);
+
+    await waitFor(() => expect(searchPostings).toHaveBeenCalledTimes(2));
+    const [, opts] = (searchPostings as jest.Mock).mock.calls[1];
+    expect(opts.includeNews).toBeUndefined();
+    expect(opts.maxAgeDays).toBeUndefined();
+  });
+});

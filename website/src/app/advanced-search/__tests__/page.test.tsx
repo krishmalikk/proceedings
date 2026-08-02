@@ -448,6 +448,137 @@ describe('AdvancedSearchPage — News/Cutoff controls', () => {
     expect(String(call[0])).toContain('max_age_days=30')
     expect(await screen.findByText('30 days')).toHaveClass('text-primary')
   })
+
+  it.each([
+    ['1', '7', '7 days'],
+    ['3', '90', '90 days'],
+    ['4', '182', '6 months'],
+    ['5', '365', '1 year'],
+  ])('cutoff step %s sends max_age_days=%s (%s)', async (stepValue, expectedDays, expectedLabel) => {
+    const fetchMock = mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Cutoff period')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Cutoff period'), { target: { value: stepValue } })
+    fireEvent.click(screen.getByText('Search'))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))
+      expect(call).toBeTruthy()
+    })
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))!
+    expect(String(call[0])).toContain(`max_age_days=${expectedDays}`)
+    expect(await screen.findByText(expectedLabel)).toHaveClass('text-primary')
+  })
+
+  it('leaving the slider at "All time" never sends max_age_days, even combined with a tag filter', async () => {
+    const fetchMock = mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('+ Add Tags'))
+    const input = await screen.findByPlaceholderText('Search tags…')
+    fireEvent.change(input, { target: { value: 'timeline' } })
+    fireEvent.click(await screen.findByText('timeline'))
+
+    fireEvent.click(screen.getByText('Search'))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))
+      expect(call).toBeTruthy()
+    })
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))!
+    expect(String(call[0])).not.toContain('max_age_days')
+    expect(String(call[0])).toContain(encodeURIComponent('tags:timeline'))
+  })
+
+  it('re-checking "Include news articles" after unchecking it reverts to include_news=true', async () => {
+    const fetchMock = mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Include news articles')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByText('Search'))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))
+      expect(call).toBeTruthy()
+    })
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))!
+    expect(String(call[0])).toContain('include_news=true')
+  })
+
+  it('combines a tag filter, excluded news, and a cutoff window in the same request', async () => {
+    const fetchMock = mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('+ Add Tags'))
+    const input = await screen.findByPlaceholderText('Search tags…')
+    fireEvent.change(input, { target: { value: 'timeline' } })
+    fireEvent.click(await screen.findByText('timeline'))
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.change(screen.getByLabelText('Cutoff period'), { target: { value: '2' } })
+
+    fireEvent.click(screen.getByText('Search'))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))
+      expect(call).toBeTruthy()
+    })
+    const call = String(fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))![0])
+    expect(call).toContain(encodeURIComponent('tags:timeline'))
+    expect(call).toContain('include_news=false')
+    expect(call).toContain('max_age_days=30')
+  })
+
+  it('does not fire a search just from toggling the controls — only Search triggers a fetch', async () => {
+    const fetchMock = mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Include news articles')).toBeInTheDocument())
+    const callsBeforeToggle = fetchMock.mock.calls.length
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.change(screen.getByLabelText('Cutoff period'), { target: { value: '3' } })
+
+    expect(fetchMock.mock.calls.length).toBe(callsBeforeToggle)
+  })
+
+  it('Load more carries forward the same include_news/max_age_days as the initial search', async () => {
+    let n = 0
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('/api/tag-vocab')) return { ok: true, status: 200, json: async () => VOCAB } as Response
+      if (String(url).startsWith('/api/search?')) {
+        n += 1
+        return {
+          ok: true, status: 200,
+          json: async () => ({
+            results: [{ ...POSTING, case_id: `app-${n}` }],
+            total: 2, next_page_token: n === 1 ? 'p2' : '',
+          }),
+        } as Response
+      }
+      return { ok: true, status: 200, json: async () => ({}) } as Response
+    }) as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('Include news articles')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.change(screen.getByLabelText('Cutoff period'), { target: { value: '2' } })
+    fireEvent.click(screen.getByText('Search'))
+    await screen.findByText('Load more')
+
+    fireEvent.click(screen.getByText('Load more'))
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls.filter((c) => String(c[0]).startsWith('/api/search?'))
+      expect(calls.length).toBe(2)
+    })
+    const secondCall = String(fetchMock.mock.calls.filter((c) => String(c[0]).startsWith('/api/search?'))[1][0])
+    expect(secondCall).toContain('include_news=false')
+    expect(secondCall).toContain('max_age_days=30')
+    expect(secondCall).toContain('page_token=p2')
+  })
 })
 
 describe('AdvancedSearchPage — Search', () => {

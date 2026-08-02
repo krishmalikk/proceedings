@@ -277,6 +277,86 @@ describe('AdvancedSearchScreen — News/Cutoff controls', () => {
       expect(searchPostings).toHaveBeenCalledWith('', expect.objectContaining({ maxAgeDays: 30 }))
     );
   });
+
+  it.each([
+    ['7d', 7],
+    ['90d', 90],
+    ['6mo', 182],
+    ['1yr', 365],
+  ])('cutoff step %s sends maxAgeDays=%s', async (label, days) => {
+    const s = await renderAdvancedSearch();
+
+    await fireEvent.press(s.getByText(label));
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenCalledWith('', expect.objectContaining({ maxAgeDays: days }))
+    );
+  });
+
+  it('leaving the cutoff at "All" sends maxAgeDays=0, even combined with a tag filter', async () => {
+    const s = await renderAdvancedSearch();
+    await fireEvent.press(s.getByText('+ Add Tags'));
+    const input = await s.findByPlaceholderText('Add tags…');
+    await fireEvent.changeText(input, 'timeline');
+    await fireEvent.press(await s.findByText('timeline'));
+
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenCalledWith(
+        '', expect.objectContaining({ facets: ['tags:timeline'], maxAgeDays: 0 })
+      )
+    );
+  });
+
+  it('toggling the news switch back on after switching it off reverts to includeNews=true', async () => {
+    const s = await renderAdvancedSearch();
+
+    await fireEvent(s.getByTestId('include-news-switch'), 'valueChange', false);
+    await fireEvent(s.getByTestId('include-news-switch'), 'valueChange', true);
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenCalledWith('', expect.objectContaining({ includeNews: true }))
+    );
+  });
+
+  it('combines a tag filter, excluded news, and a cutoff window in the same search call', async () => {
+    const s = await renderAdvancedSearch();
+    await fireEvent.press(s.getByText('+ Add Tags'));
+    const input = await s.findByPlaceholderText('Add tags…');
+    await fireEvent.changeText(input, 'timeline');
+    await fireEvent.press(await s.findByText('timeline'));
+    await fireEvent(s.getByTestId('include-news-switch'), 'valueChange', false);
+    await fireEvent.press(s.getByText('30d'));
+
+    await fireEvent.press(s.getByText('Search'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenCalledWith('', expect.objectContaining({
+        facets: ['tags:timeline'], includeNews: false, maxAgeDays: 30,
+      }))
+    );
+  });
+
+  it('Load more carries forward the same includeNews/maxAgeDays as the initial search', async () => {
+    (searchPostings as jest.Mock)
+      .mockResolvedValueOnce({ results: [POSTING], next_page_token: 'p2', suggested_filters: [] })
+      .mockResolvedValueOnce({ results: [{ ...POSTING, case_id: 'app-2' }], next_page_token: '', suggested_filters: [] });
+    const s = await renderAdvancedSearch();
+    await fireEvent(s.getByTestId('include-news-switch'), 'valueChange', false);
+    await fireEvent.press(s.getByText('30d'));
+    await fireEvent.press(s.getByText('Search'));
+    await s.findByText('Load more');
+
+    await fireEvent.press(s.getByText('Load more'));
+
+    await waitFor(() => expect(searchPostings).toHaveBeenCalledTimes(2));
+    expect(searchPostings).toHaveBeenLastCalledWith('', expect.objectContaining({
+      pageToken: 'p2', includeNews: false, maxAgeDays: 30,
+    }));
+  });
 });
 
 describe('AdvancedSearchScreen — Search', () => {

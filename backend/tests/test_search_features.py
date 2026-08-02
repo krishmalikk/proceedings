@@ -544,6 +544,94 @@ def group_n_advanced_search_recency_news() -> None:
               browse_opened["total"] > browse_default["total"],
               f"{browse_default['total']} -> {browse_opened['total']}")
 
+        # N8 (integration, hard-filter branch): both controls combined on
+        # the same request — include_news=false AND max_age_days together,
+        # not just each in isolation (N3/N4 test them separately).
+        combo = client.get("/api/search", params={"facet": "tags:asylum", "include_news": "false",
+                                                   "max_age_days": 365, "page_size": 50}).json()
+        cutoff365 = (datetime.now(timezone.utc) - timedelta(days=365)).strftime("%Y-%m-%d")
+        check("N8 include_news=false + max_age_days=365 together: no gov_news AND every result within "
+              "the window",
+              combo["total"] > 0
+              and all(c["channel"] != "gov_news" for c in combo["results"])
+              and all(c["date"] >= cutoff365 for c in combo["results"] if c["date"]),
+              str([(c["case_id"], c["channel"], c["date"]) for c in combo["results"]
+                   if c["channel"] == "gov_news" or (c["date"] and c["date"] < cutoff365)]))
+
+        # N9 (integration, browse branch, negative direction): an
+        # otherwise-empty search with include_news=FALSE explicitly must
+        # match the legacy default exactly (browse already excludes news by
+        # default — explicitly asking to exclude it changes nothing).
+        browse_excluded = client.get("/api/search", params={"include_news": "false", "page_size": 5}).json()
+        check("N9 include_news=false on an otherwise-empty search matches the legacy default total "
+              "(browse already excludes news)",
+              browse_excluded["total"] == browse_default["total"],
+              f"default={browse_default['total']}, explicit-false={browse_excluded['total']}")
+
+        # N10 (integration, free-text branch, negative direction):
+        # include_news=false excludes gov_news entirely, even articles from
+        # today — a stronger restriction than the legacy 7-day carve-out,
+        # which would still let very recent news through.
+        text_excluded = client.get("/api/search", params={"q": "USCIS policy update", "strictness": "broad",
+                                                           "include_news": "false", "page_size": 50}).json()
+        check("N10 include_news=false on a free-text search excludes gov_news entirely, including "
+              "articles from within the last 7 days",
+              all(c["channel"] != "gov_news" for c in text_excluded["results"]),
+              str([c["case_id"] for c in text_excluded["results"] if c["channel"] == "gov_news"]))
+
+        # N11 (integration, monotonicity): a wider cutoff window can only
+        # return as many or more results than a narrower one, same filter.
+        narrow = client.get("/api/search", params={"facet": "tags:asylum", "max_age_days": 7,
+                                                    "page_size": 50}).json()
+        wide = client.get("/api/search", params={"facet": "tags:asylum", "max_age_days": 3650,
+                                                  "page_size": 50}).json()
+        check("N11 a wider max_age_days window returns at least as many results as a narrower one",
+              wide["total"] >= narrow["total"], f"7d={narrow['total']}, 3650d={wide['total']}")
+
+        # N12 (negative, HTTP-level): max_age_days=0 passed explicitly is
+        # identical to omitting it entirely — 0 is the "no restriction"
+        # sentinel, not a 0-day (impossible) window.
+        explicit_zero = client.get("/api/search", params={"facet": "tags:asylum", "max_age_days": 0,
+                                                           "page_size": 50}).json()
+        check("N12 max_age_days=0 explicitly is identical to omitting it",
+              explicit_zero["total"] == tagged["total"],
+              f"omitted={tagged['total']}, explicit-zero={explicit_zero['total']}")
+
+        # N13 (negative, HTTP-level): a negative max_age_days doesn't crash
+        # and doesn't restrict anything (treated the same as 0/omitted, per
+        # _recency_news_clause's `> 0` guard) — a malformed/adversarial
+        # value must degrade safely, not 500 or silently return zero results.
+        negative_age = client.get("/api/search", params={"facet": "tags:asylum", "max_age_days": -5,
+                                                          "page_size": 50})
+        check("N13 a negative max_age_days doesn't error and doesn't restrict results",
+              negative_age.status_code == 200 and negative_age.json()["total"] == tagged["total"],
+              f"status={negative_age.status_code}, total={negative_age.json().get('total')}")
+
+        # N14 (negative, HTTP-level): a non-boolean include_news value is
+        # rejected with a clean 422 (FastAPI's own bool coercion), not a 500
+        # — confirms the endpoint signature's type stays enforced.
+        bad_bool = client.get("/api/search", params={"facet": "tags:asylum", "include_news": "not-a-bool",
+                                                      "page_size": 5})
+        check("N14 a non-boolean include_news value is rejected with 422, not a server error",
+              bad_bool.status_code == 422, f"status={bad_bool.status_code}")
+
+        # N15 (integration, pagination): max_age_days must keep restricting
+        # page 2, not just the first page — a caller paginating through
+        # Advanced Search results shouldn't see the window silently widen.
+        page1 = client.get("/api/search", params={"facet": "tags:asylum", "max_age_days": 365,
+                                                   "page_size": 2}).json()
+        if page1.get("next_page_token"):
+            page2 = client.get("/api/search", params={"facet": "tags:asylum", "max_age_days": 365,
+                                                       "page_size": 2,
+                                                       "page_token": page1["next_page_token"]}).json()
+            check("N15 max_age_days still restricts page 2 of a paginated tag search",
+                  all(c["date"] >= cutoff365 for c in page2["results"] if c["date"]),
+                  str([(c["case_id"], c["date"]) for c in page2["results"]
+                       if c["date"] and c["date"] < cutoff365]))
+        else:
+            check("N15 max_age_days still restricts page 2 of a paginated tag search", True,
+                  "skipped — only one page of results at this cutoff")
+
 
 def main() -> int:
     if not PROJECT:

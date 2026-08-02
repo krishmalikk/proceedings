@@ -333,3 +333,65 @@ describe('UnifiedSearch — Match precision', () => {
     expect(calledUrl).toContain('strictness=balanced')
   })
 })
+
+// Advanced Search's News/Cutoff controls (include_news, max_age_days) are
+// explicit opt-ins — Home must never send them, on any code path, so the
+// backend's _recency_news_clause keeps applying each branch's own legacy
+// default (see backend/api.py). A regression here would silently change
+// Home's search behavior the next time someone touches searchQs.
+describe('UnifiedSearch — never sends Advanced Search\'s News/Cutoff params', () => {
+  it('the initial browse feed fetch omits include_news and max_age_days', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ results: [POSTING], total: 1, next_page_token: '', suggested_filters: [] }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<UnifiedSearch />)
+    await screen.findByText('H-1B RFE experience')
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string
+    expect(calledUrl).not.toContain('include_news')
+    expect(calledUrl).not.toContain('max_age_days')
+  })
+
+  it('a typed-text search omits include_news and max_age_days', async () => {
+    mockSearchParam = 'H-1B RFE'
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        results: [POSTING], total: 1, next_page_token: '',
+        applied_filters: {}, relaxed: false, suggested_filters: [],
+      }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<UnifiedSearch />)
+    await screen.findByText('H-1B RFE experience')
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string
+    expect(calledUrl).not.toContain('include_news')
+    expect(calledUrl).not.toContain('max_age_days')
+  })
+
+  it('a facet-refine search from the browse view omits include_news and max_age_days', async () => {
+    const SUGGESTED = [{ key: 'tag', label: 'Topic', field: 'tags', values: [{ code: 'approved', label: 'Approved', count: 65 }] }]
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        results: [POSTING], total: 1, next_page_token: '',
+        applied_filters: {}, relaxed: false, suggested_filters: SUGGESTED,
+      }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<UnifiedSearch />)
+    await screen.findByText('H-1B RFE experience')
+    fireEvent.click(screen.getByText(/Approved/))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    const facetCallUrl = fetchMock.mock.calls[1][0] as string
+    expect(facetCallUrl).not.toContain('include_news')
+    expect(facetCallUrl).not.toContain('max_age_days')
+  })
+})
