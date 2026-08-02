@@ -142,6 +142,60 @@ low-risk to route around. Treat Apple Developer Program / App Store Connect
 access as the one to protect and investigate carefully; a from-scratch Apple
 enrollment is the only genuinely costly outcome described in this doc.
 
+### Doing this the right way — avoid a repeat single point of failure
+
+This whole section exists because exactly one person had App Store Connect
+access. Once the Account Holder is reachable, have them do the following —
+it takes about 10 minutes and prevents this from happening again:
+
+**1. Invite every developer who needs access — at least two people, not one.**
+In App Store Connect, in the **Meridian** team context → **Users and
+Access** → **+** (add user) → their Apple ID email → role **App Manager**
+(sufficient — Apple's own permissions table shows App Manager can generate
+API keys, upload builds, submit for review, and manage TestFlight; a lesser
+role like "Developer" or "Marketing" can't). If prompted to scope by app,
+check **Meridian** explicitly. **Each invitee must click Accept in the
+email** — an unaccepted invite can look like access was granted while
+functionally not working yet (plausibly what caused the "something went
+wrong" error earlier in this doc's history). Inviting only one replacement
+just moves the single point of failure to a new person — invite at least two.
+
+**2. Generate an App Store Connect API key and store it in a team-shared
+vault — this is the most durable fix, and needed for CI anyway.** Mechanics
+are already documented in §2.3 above — the only difference here is *who*
+should end up with a copy: put the `.p8` + Key ID + Issuer ID in a shared
+password manager / secrets vault the whole team can reach, not in one
+person's inbox. An API key authenticates independent of anyone's login
+session or 2FA device, so it isn't exposed to the kind of session/team-
+context error described in this section, and it's exactly what
+`mobile-deploy.yml` needs for non-interactive CI builds/submits (§3.2).
+
+**3. Understand the hard limit of an Individual account — steps 1–2 don't
+fully remove it.** App Store Connect access is *not* the same as full Apple
+Developer Portal access (Certificates, Identifiers & Profiles). On an
+**Individual** membership, Apple only ever grants Developer Portal access to
+the one person who enrolled — it cannot be delegated to invited App Store
+Connect users, regardless of role. Steps 1–2 keep day-to-day builds,
+submits, and App Review fully unblocked for multiple people; they do **not**
+help if the signing certificate/provisioning profile ever needs regenerating
+(expiry, revocation, a new capability) — that specifically still needs the
+original Account Holder, personally, no matter how many people are invited
+elsewhere.
+
+**4. The only complete fix: a separate Organization Apple Developer Program
+enrollment.** Organization accounts support multiple people with full Admin
+role (Developer Portal included) and a real Account Holder transfer process
+if someone leaves — Individual accounts support neither, ever. **Caveat,
+stated honestly:** whether Apple's "Transfer App" feature would let the
+existing Meridian app move to a new Organization account while keeping its
+App Store listing/history could not be confirmed while writing this doc —
+Apple's own documentation on transfer eligibility didn't resolve when
+checked. Verify the current rules directly in App Store Connect Help before
+relying on this path, and note it would still require the *current* Account
+Holder's participation to initiate — it doesn't solve "the person is
+unavailable" by itself. Treat this as a "worth doing in the next few
+months" item, not an urgent one.
+
 ---
 
 ## 2. One-time setup (do this once per Apple/EAS account, not per release)
