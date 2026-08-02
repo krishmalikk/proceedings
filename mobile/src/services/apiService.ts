@@ -840,9 +840,14 @@ export interface GroupMember {
 export interface GroupInfo {
   group_id: string;
   name: string;
+  description: string;
   criteria_text: string;
   members: GroupMember[];
+  created_by: string;
+  is_admin: boolean;
   is_member: boolean;
+  created_at: string;
+  last_activity_at: string;
 }
 
 export interface GroupResult {
@@ -911,6 +916,35 @@ export async function leaveGroup(groupId: string): Promise<void> {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.detail || 'Could not leave group');
   }
+}
+
+export async function inviteToGroup(groupId: string, handle: string): Promise<GroupInfo> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/invite`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ handle }),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not invite that handle');
+  }
+  return data;
+}
+
+export async function renameGroup(
+  groupId: string,
+  updates: { name?: string; description?: string }
+): Promise<GroupInfo> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}`, {
+    method: 'PUT',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(updates),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not rename group');
+  }
+  return data;
 }
 
 // ============= Group Chat =============

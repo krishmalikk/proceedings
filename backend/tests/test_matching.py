@@ -87,12 +87,13 @@ def group_b_firestore() -> None:
     from google.cloud import firestore
     db = firestore.Client(project=PROJECT)
 
-    ids = {k: f"test-match-{k}-{secrets.token_hex(3)}" for k in ("a", "b", "c")}
+    ids = {k: f"test-match-{k}-{secrets.token_hex(3)}" for k in ("a", "b", "c", "d")}
     seeds = {
         ids["a"]: {"username": "alpha", "current_visa_or_greencard_category": ["H-1B"],
                    "consulates": ["BOM"], "key_stages_or_info": {"citizen_of_country": "IN"}},
         ids["b"]: {"username": "bravo", "current_visa_or_greencard_category": ["H-1B"]},
         ids["c"]: {"username": "charlie", "current_visa_or_greencard_category": ["F-1"], "consulates": ["LON"]},
+        ids["d"]: {"username": "delta", "current_visa_or_greencard_category": ["F-1"]},
     }
     criteria = {"current_visa_or_greencard_category": ["H-1B"], "consulates": ["BOM"],
                 "key_stages_or_info": {"citizen_of_country": "IN"}}
@@ -149,6 +150,53 @@ def group_b_firestore() -> None:
             check("B10 non-distinctive criteria rejected", False, "no raise")
         except ValueError:
             check("B10 non-distinctive criteria rejected (ValueError)", True)
+
+        # B11-B14: _group_view's new fields — admin flag, description, last_activity_at
+        creator_view = next(x for x in M.list_all_groups(db, "demo-arjun") if x["group_id"] == gid)
+        check("B11 creator sees is_admin=True", creator_view["is_admin"] is True)
+        peer_view = next(x for x in M.list_all_groups(db, ids["a"]) if x["group_id"] == gid)
+        check("B12 non-creator member sees is_admin=False", peer_view["is_admin"] is False)
+        check("B13 new group starts with an empty description", creator_view["description"] == "")
+        check("B14 new group has a last_activity_at timestamp", bool(creator_view["last_activity_at"]))
+
+        # B15-B16: rename_group — creator-only
+        try:
+            M.rename_group(db, gid, ids["a"], name="Hijacked")
+            check("B15 rename by non-creator rejected", False, "no raise")
+        except PermissionError:
+            check("B15 rename by non-creator rejected (PermissionError)", True)
+        renamed = M.rename_group(db, gid, "demo-arjun", name="Mumbai H-1B crew", description="H-1B folks near BOM")
+        check("B16 rename by creator updates name + description",
+              renamed["name"] == "Mumbai H-1B crew" and renamed["description"] == "H-1B folks near BOM",
+              str((renamed["name"], renamed["description"])))
+
+        # B17-B19: invite_member — member-only, handle-based, direct add
+        try:
+            M.invite_member(db, gid, "some-stranger-not-a-member", "delta")
+            check("B17 invite by non-member rejected", False, "no raise")
+        except PermissionError:
+            check("B17 invite by non-member rejected (PermissionError)", True)
+        try:
+            M.invite_member(db, gid, "demo-arjun", "no-such-handle-at-all")
+            check("B18 invite of an unknown handle rejected", False, "no raise")
+        except ValueError:
+            check("B18 invite of an unknown handle rejected (ValueError)", True)
+        invited = M.invite_member(db, gid, "demo-arjun", "delta")
+        check("B19 invite by handle adds the resolved member",
+              ids["d"] in {m["user_id"] for m in invited["members"]},
+              str({m["user_id"] for m in invited["members"]}))
+
+        # B20-B21: leave_group — a regular member leaving needs no reassignment;
+        # the creator leaving must hand admin to a remaining member.
+        left = M.leave_group(db, gid, ids["d"])
+        check("B20 leave_group removes the member, admin unchanged for a non-creator leaving",
+              ids["d"] not in {m["user_id"] for m in left["members"]} and left["created_by"] == "demo-arjun",
+              str(({m["user_id"] for m in left["members"]}, left["created_by"])))
+        creator_left = M.leave_group(db, gid, "demo-arjun")
+        check("B21 creator leaving reassigns admin to a remaining member",
+              "demo-arjun" not in {m["user_id"] for m in creator_left["members"]}
+              and creator_left["created_by"] in {m["user_id"] for m in creator_left["members"]},
+              str((creator_left["created_by"], {m["user_id"] for m in creator_left["members"]})))
     finally:
         for uid in ids.values():
             db.collection("users").document(uid).delete()
@@ -233,6 +281,36 @@ def group_c_api() -> None:
                   and "demo-sofia" in {m["user_id"] for m in jj.get("members", [])}, f"status={j.status_code}")
             check("C11 join unknown group → 404",
                   c.post("/api/groups/no-such-group/join", headers=A).status_code == 404)
+
+            gid = gj.get("group_id")
+            # C12-C13: PUT rename — creator-only
+            check("C12 PUT rename by non-creator → 403",
+                  c.put(f"/api/groups/{gid}", json={"name": "Hijacked"},
+                        headers={"X-User-Id": test_uid}).status_code == 403)
+            ren = c.put(f"/api/groups/{gid}", json={"name": "API Renamed", "description": "desc via API"}, headers=A)
+            check("C13 PUT rename by creator → 200, name + description updated",
+                  ren.status_code == 200 and ren.json().get("name") == "API Renamed"
+                  and ren.json().get("description") == "desc via API", f"status={ren.status_code}")
+
+            # C14-C16: POST invite — member-only, handle-based
+            check("C14 POST invite by non-member → 403",
+                  c.post(f"/api/groups/{gid}/invite", json={"handle": "apitest"},
+                         headers={"X-User-Id": "demo-omar"}).status_code == 403)
+            check("C15 POST invite of an unknown handle → 422",
+                  c.post(f"/api/groups/{gid}/invite", json={"handle": "no-such-handle"}, headers=A).status_code == 422)
+            inv = c.post(f"/api/groups/{gid}/invite", json={"handle": "omar-b1b2"}, headers=A)
+            check("C16 POST invite of a known handle → 200, the (previously non-member) invitee is added",
+                  inv.status_code == 200 and "demo-omar" in {m["user_id"] for m in inv.json().get("members", [])},
+                  f"status={inv.status_code}")
+
+            # C17: POST leave — the creator leaving reassigns admin
+            lv = c.post(f"/api/groups/{gid}/leave", headers=A)
+            check("C17 POST leave (creator) → 200, admin reassigned to a remaining member",
+                  lv.status_code == 200 and "demo-arjun" not in {m["user_id"] for m in lv.json().get("members", [])}
+                  and lv.json().get("created_by") in {m["user_id"] for m in lv.json().get("members", [])},
+                  f"status={lv.status_code} body={lv.json()}")
+            check("C18 leave unknown group → 404",
+                  c.post("/api/groups/no-such-group/leave", headers=A).status_code == 404)
     finally:
         db.collection("users").document(test_uid).delete()
         for gid in created_groups:

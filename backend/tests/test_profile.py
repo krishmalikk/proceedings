@@ -45,6 +45,15 @@ def group_a() -> None:
     check("A3 username_for resolves roster id", pr.username_for(first) == users[0]["username"])
     check("A4 username_for falls back to the id for unknown", pr.username_for("nope") == "nope")
 
+    # A5-A6: handle_for(db=None) — no Firestore available, must behave exactly
+    # like username_for() (roster lookup, then raw-uid fallback). The Firestore-
+    # aware branch (the actual bug fix — Groups: raw uid displayed instead of a
+    # real handle) needs a live db and is covered in group D (integration).
+    check("A5 handle_for(None, ...) resolves a roster id same as username_for",
+          pr.handle_for(None, first) == users[0]["username"])
+    check("A6 handle_for(None, ...) falls back to the raw id, same as username_for",
+          pr.handle_for(None, "nope") == "nope")
+
 
 # ---------------------------------------------------------------------------
 # B — profile shape / cleaning / PII / validate / merge (UNIT)
@@ -401,6 +410,35 @@ def group_d() -> None:
             check("D8 cleanup of test profile doc", True)
     except Exception as e:  # noqa: BLE001
         check("D8 cleanup of test profile doc", False, str(e))
+
+    # D10-D12: handle_for(db, uid) — the actual Groups bug fix. A real
+    # (non-seed, Firebase-registered) user has NO entry in the static seed
+    # roster, so the OLD code path (username_for(uid) alone, with no
+    # Firestore fallback — what matching.py/group_messages.py called before
+    # this fix) returns the raw uid unchanged. handle_for() must instead
+    # find the real handle random_username() assigned at registration.
+    new_uid = ""
+    with TestClient(api.app) as client:
+        reg = client.post("/api/users", json={})
+        reg_ok = reg.status_code == 200 and reg.json().get("id") and reg.json().get("username")
+        check("D10 POST /api/users registers a fresh non-seed uid with a real handle",
+              reg_ok, f"status={reg.status_code} body={reg.text[:200]}")
+        if reg_ok:
+            new_uid, real_handle = reg.json()["id"], reg.json()["username"]
+            check("D11 handle_for(db, uid) resolves the REAL registered handle, not the raw uid",
+                  api._db is not None and pr.handle_for(api._db, new_uid) == real_handle,
+                  f"handle_for={pr.handle_for(api._db, new_uid) if api._db else 'no db'} real={real_handle}")
+            check("D12 the OLD code path (username_for alone) would have returned the raw uid "
+                  "— confirms this really is a bug fix, not a no-op",
+                  pr.username_for(new_uid) == new_uid, pr.username_for(new_uid))
+
+    # cleanup the synthetic registered user
+    try:
+        if api._db is not None and new_uid:
+            api._db.collection("users").document(new_uid).delete()
+            check("D13 cleanup of synthetic registered user", True)
+    except Exception as e:  # noqa: BLE001
+        check("D13 cleanup of synthetic registered user", False, str(e))
 
 
 def main() -> int:

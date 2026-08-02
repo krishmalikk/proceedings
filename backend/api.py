@@ -537,16 +537,29 @@ class GroupCreate(BaseModel):
 class GroupCard(BaseModel):
     group_id: str
     name: str = ""
+    description: str = ""
     criteria_text: str = ""
     members: list[GroupMember] = []
+    created_by: str = ""
+    is_admin: bool = False  # true for the viewer who created this group
     status: str = "formed"
     created_at: str = ""
+    last_activity_at: str = ""
     is_member: bool = False
     joined: bool = False  # true when an existing group was joined (vs. created)
 
 
 class GroupsResponse(BaseModel):
     groups: list[GroupCard]
+
+
+class GroupUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
+class GroupInvite(BaseModel):
+    handle: str = Field(..., min_length=1, max_length=64)
 
 
 # --- Group chat messages (phase-N) ---
@@ -2022,6 +2035,50 @@ def join_group_route(group_id: str, request: Request):
         g = _guard(lambda: matching.join_group(_db, group_id, uid))
     except KeyError:
         raise HTTPException(status_code=404, detail="Group not found")
+    return GroupCard(**g)
+
+
+@app.post("/api/groups/{group_id}/leave", response_model=GroupCard)
+def leave_group_route(group_id: str, request: Request):
+    """Leave a group. Reassigns admin to the next member if the creator leaves."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.leave_group(_db, group_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return GroupCard(**g)
+
+
+@app.put("/api/groups/{group_id}", response_model=GroupCard)
+def rename_group_route(group_id: str, body: GroupUpdate, request: Request):
+    """Rename and/or re-describe a group. Creator-only."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.rename_group(_db, group_id, uid, body.name, body.description))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return GroupCard(**g)
+
+
+@app.post("/api/groups/{group_id}/invite", response_model=GroupCard)
+def invite_member_route(group_id: str, body: GroupInvite, request: Request):
+    """A current member adds someone they know by handle."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.invite_member(_db, group_id, uid, body.handle))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     return GroupCard(**g)
 
 
