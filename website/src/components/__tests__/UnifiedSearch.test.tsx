@@ -118,3 +118,16 @@ describe('UnifiedSearch — single layout, no separate hero landing state', () =
     await waitFor(() => expect(screen.getByPlaceholderText('Search a posting or ask a question…')).toBeInTheDocument())
   })
 })
+
+describe('UnifiedSearch — Advanced Search entry point', () => {
+  it('links to /advanced-search, next to the search box', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ results: [], total: 0, next_page_token: '', suggested_filters: [] }),
+    })))
+
+    render(<UnifiedSearch />)
+    await waitFor(() => expect(screen.getByText('Advanced Search')).toBeInTheDocument())
+    expect(screen.getByText('Advanced Search').closest('a')).toHaveAttribute('href', '/advanced-search')
+  })
+})

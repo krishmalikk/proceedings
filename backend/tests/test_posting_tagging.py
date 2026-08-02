@@ -985,6 +985,39 @@ def group_f_llm() -> None:
           "the EMPLOYMENT-IMMIGRATION fallback) wins over the generic ADJUSTMENT-OF-STATUS (<=3 tries)",
           emp_ok, o15.get("groups"))
 
+    # F16-F17: visa-bulletin (backend/tags-cleaned/1.10-common-misc.csv) —
+    # a plain misc tag, no special exemption/deterministic logic like
+    # news-update/discussion/blog, so this is a live model-selection check
+    # (same <=3-try tolerance as F7/F10-F15) rather than a helper-isolation
+    # test. Confirms the tag is actually reachable end-to-end, not just
+    # present in the CSV.
+    bulletin_ok, o16 = False, {}
+    for _ in range(3):
+        o16 = p.suggest_tags(
+            "EB-2 India priority date finally current!",
+            "Checked the September Visa Bulletin and my EB-2 India priority date of Jan 2013 is finally "
+            "current under the Final Action Date chart. Filing I-485 next week.")
+        if "visa-bulletin" in allt(o16):
+            bulletin_ok = True
+            break
+    check("F16 explicit visa-bulletin content -> 'visa-bulletin' tag applied (<=3 tries)",
+          bulletin_ok, o16.get("groups"))
+
+    # F17: same concept without the literal phrase "visa bulletin" — a
+    # generic priority-date question — to confirm the tag isn't only
+    # reachable when the user names the document explicitly.
+    bulletin_implicit_ok, o17 = False, {}
+    for _ in range(3):
+        o17 = p.suggest_tags(
+            "When will my priority date be current",
+            "My priority date is Dec 2020 for EB-2, wondering how many more months until it becomes "
+            "current based on recent bulletin trends.")
+        if "visa-bulletin" in allt(o17) or "priority-date-current" in allt(o17):
+            bulletin_implicit_ok = True
+            break
+    check("F17 implicit priority-date-movement question -> visa-bulletin or priority-date-current applied "
+          "(<=3 tries)", bulletin_implicit_ok, o17.get("groups"))
+
 
 # ---------------------------------------------------------------------------
 # G — API endpoints + real publish/cleanup (INTEGRATION)

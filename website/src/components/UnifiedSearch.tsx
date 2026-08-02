@@ -297,6 +297,10 @@ export default function UnifiedSearch() {
           />
           <button type="submit" disabled={input.trim().length < 3} className="btn-primary rounded-full mr-2 my-2 disabled:opacity-40">Search</button>
         </form>
+        <Link href="/advanced-search" className="btn-secondary rounded-full flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <span className="material-symbols-outlined text-[20px]">tune</span>
+          <span className="hidden sm:inline">Advanced Search</span>
+        </Link>
         <div className="ml-auto">{postButton}</div>
       </div>
 

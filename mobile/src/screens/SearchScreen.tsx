@@ -198,6 +198,13 @@ export function SearchScreen({ navigation }: any) {
               <Text style={styles.searchButtonText}>Search</Text>
             )}
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.advancedSearchButton}
+            onPress={() => navigation.navigate('AdvancedSearch')}
+            accessibilityLabel="Advanced Search"
+          >
+            <Ionicons name="options-outline" size={20} color={colors.onSurfaceVariant} />
+          </TouchableOpacity>
         </View>
 
         {/* Strictness — parity with the website's precision slider */}
@@ -367,6 +374,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   searchButtonText: { color: colors.onPrimary, fontWeight: '600', fontSize: 14 },
+  advancedSearchButton: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceContainerLowest,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   postButton: {
     width: 36,
     height: 36,

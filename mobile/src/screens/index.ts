@@ -1,4 +1,5 @@
 export { SearchScreen } from './SearchScreen';
+export { AdvancedSearchScreen } from './AdvancedSearchScreen';
 export { OnboardingScreen } from './OnboardingScreen';
 export { CaseDetailsScreen } from './CaseDetailsScreen';
 export { AuthorScreen } from './AuthorScreen';

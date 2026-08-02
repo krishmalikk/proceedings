@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator, NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import {
   SearchScreen,
+  AdvancedSearchScreen,
   CaseDetailsScreen,
   AuthorScreen,
   AuthorByHandleScreen,
@@ -69,6 +70,7 @@ function HomeStack() {
   return (
     <Stack.Navigator screenOptions={screenTransitionOptions}>
       <Stack.Screen name="HomeMain" component={SearchScreen} />
+      <Stack.Screen name="AdvancedSearch" component={AdvancedSearchScreen} />
       <Stack.Screen name="VisaExperiences" component={VisaExperiencesScreen} />
       <Stack.Screen name="AIChat" component={AIChatScreen} />
       <Stack.Screen name="Post" component={PostScreen} />

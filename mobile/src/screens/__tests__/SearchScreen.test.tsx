@@ -87,3 +87,14 @@ describe('SearchScreen — query-derived tag chips', () => {
     expect(s.queryByText('Tags from your search')).toBeNull();
   });
 });
+
+describe('SearchScreen — Advanced Search entry point', () => {
+  it('navigates to AdvancedSearch when the button is pressed', async () => {
+    const navigation = { navigate: jest.fn() };
+    const s = await renderSearch(navigation);
+
+    await fireEvent.press(s.getByLabelText('Advanced Search'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('AdvancedSearch');
+  });
+});
