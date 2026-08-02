@@ -168,13 +168,104 @@ describe('UnifiedSearch — refining from the initial browse view (regression)',
     fireEvent.click(screen.getByText(/Approved/))
     await screen.findByText('Filtered result')
 
-    fireEvent.click(screen.getByText(/Approved/))
+    // Removing it via the "Active filters" chip's remove control — now
+    // ambiguous by plain text since "Approved" also renders there once
+    // selected (in addition to its "Refine by" pill).
+    fireEvent.click(screen.getByLabelText('Remove Approved'))
 
     expect(await screen.findByText('H-1B RFE experience')).toBeInTheDocument()
     expect(screen.getByText('1 recent postings')).toBeInTheDocument()
     const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
     expect(String(lastCall[0])).not.toContain('facet=')
     expect(String(lastCall[0])).not.toContain('q=')
+  })
+})
+
+// Regression: a facet's chip in "Refine by" comes from suggested_filters,
+// which is recomputed from the CURRENT (already-filtered) result set on
+// every response. A facet that narrows results enough can legitimately
+// stop being suggested for that narrower set — previously that silently
+// removed the only way to undo the selection, stranding the user on a
+// filtered view with no visible path back.
+describe('UnifiedSearch — Active filters stay removable independent of suggested_filters', () => {
+  it('a selected facet remains removable even after the backend stops suggesting it', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('facet=')) {
+        // The filtered response's suggested_filters no longer includes
+        // "Arrest" at all — mirrors the reported scenario exactly.
+        return {
+          ok: true,
+          json: async () => ({
+            results: [{ ...POSTING, title: 'Arrest result' }], total: 2, next_page_token: '',
+            applied_filters: {}, relaxed: false,
+            suggested_filters: [{ key: 'tag', label: 'Topic', field: 'tags', values: [{ code: 'approved', label: 'Approved', count: 12 }] }],
+          }),
+        }
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          results: [POSTING], total: 394, next_page_token: '',
+          suggested_filters: [{ key: 'tag', label: 'Topic', field: 'tags', values: [{ code: 'arrest', label: 'Arrest', count: 25 }] }],
+        }),
+      }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<UnifiedSearch />)
+    await screen.findByText('H-1B RFE experience')
+    fireEvent.click(screen.getByText(/Arrest/))
+    await screen.findByText('Arrest result')
+
+    // "Arrest" no longer appears under "Refine by" (only "Approved" does),
+    // but it must still be shown, and removable, as an active filter.
+    expect(screen.queryByText(/^Approved/)).toBeInTheDocument()
+    const activeChip = screen.getByLabelText('Remove Arrest')
+    expect(activeChip).toBeInTheDocument()
+
+    fireEvent.click(activeChip)
+
+    expect(await screen.findByText('H-1B RFE experience')).toBeInTheDocument()
+    expect(screen.getByText('394 recent postings')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Remove Arrest')).toBeNull()
+  })
+
+  it('Clear all removes every active filter at once', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('facet=')) {
+        // Still suggests "Approved" for the Arrest-narrowed set, so a
+        // second facet can be picked before everything is cleared.
+        return {
+          ok: true,
+          json: async () => ({
+            results: [{ ...POSTING, title: 'Filtered result' }], total: 1, next_page_token: '',
+            applied_filters: {}, relaxed: false,
+            suggested_filters: [{ key: 'tag', label: 'Topic', field: 'tags', values: [{ code: 'approved', label: 'Approved', count: 12 }] }],
+          }),
+        }
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          results: [POSTING], total: 394, next_page_token: '',
+          suggested_filters: [{ key: 'tag', label: 'Topic', field: 'tags', values: [{ code: 'arrest', label: 'Arrest', count: 25 }] }],
+        }),
+      }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<UnifiedSearch />)
+    await screen.findByText('H-1B RFE experience')
+    fireEvent.click(screen.getByText(/Arrest/))
+    fireEvent.click(await screen.findByText(/Approved/))
+    await screen.findByText('Filtered result')
+    expect(screen.getByText('Active filters')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Clear all'))
+
+    expect(await screen.findByText('H-1B RFE experience')).toBeInTheDocument()
+    expect(screen.getByText('394 recent postings')).toBeInTheDocument()
+    expect(screen.queryByText('Active filters')).toBeNull()
   })
 })
 

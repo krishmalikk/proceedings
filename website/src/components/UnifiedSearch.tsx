@@ -19,6 +19,14 @@ function parseFacetsFromUrl(sp: { getAll: (key: string) => string[] }): string[]
   return sp.getAll('facet').filter(Boolean)
 }
 
+// Fallback label for a facet id with no known display label yet (e.g.
+// restored from the URL on mount, before any click supplied one) — turns
+// "tags:change-of-status-COS" into "Change Of Status COS".
+function humanizeFacetId(id: string): string {
+  const code = id.includes(':') ? id.slice(id.indexOf(':') + 1) : id
+  return code.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 type Turn = { id: string; role: 'user' | 'ai'; content: string }
 
 // TODO (phase-H): Re-enable the AI-mode right panel. Disabled for now per
@@ -48,6 +56,14 @@ export default function UnifiedSearch() {
   const [input, setInput] = useState(params.get('q') || '')
   const [query, setQuery] = useState(params.get('q') || '')
   const [selectedFacets, setSelectedFacets] = useState<string[]>(() => parseFacetsFromUrl(params))
+  // Display labels for selectedFacets, keyed by facet id — independent of
+  // the backend's `suggested_filters`/`applied_filters` responses, which
+  // are recomputed from the CURRENT (already-filtered) result set and can
+  // silently stop including a facet the user has selected, leaving no
+  // affordance to remove it. This map is the client's own record of what's
+  // active, so the "Active filters" chips below always have something to
+  // render and remove, regardless of what the backend suggests next.
+  const [facetLabels, setFacetLabels] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [queryTags, setQueryTags] = useState<QueryTag[]>([])
 
@@ -135,7 +151,7 @@ export default function UnifiedSearch() {
 
   const loadFeed = useCallback(async () => {
     setSearchLoading(true); setError(''); setMode('browse')
-    setSelectedFacets([]); setAppliedFilters({}); setRelaxed(false); setQueryTags([])
+    setSelectedFacets([]); setFacetLabels({}); setAppliedFilters({}); setRelaxed(false); setQueryTags([])
     try {
       const res = await fetch(`/api/search?${loadFeedQs('')}`)
       const data = await res.json()
@@ -255,15 +271,29 @@ export default function UnifiedSearch() {
   // query yet), not just once a search has been submitted: toggling a
   // facet always re-runs, falling back to loadFeed()'s pure recency feed
   // only once every facet is cleared and there's no text query either.
-  function toggleFacet(field: string, code: string) {
+  function toggleFacet(field: string, code: string, label?: string) {
     const id = facetId(field, code)
-    const next = selectedFacets.includes(id) ? selectedFacets.filter((x) => x !== id) : [...selectedFacets, id]
+    const removing = selectedFacets.includes(id)
+    const next = removing ? selectedFacets.filter((x) => x !== id) : [...selectedFacets, id]
     setSelectedFacets(next)
+    if (!removing && label) setFacetLabels((prev) => ({ ...prev, [id]: label }))
     if (next.length === 0 && !query) {
       loadFeed()
     } else {
       runSearch(query, next)
       syncUrl(query, next)
+    }
+  }
+
+  // Definitive fallback for clearing every active facet at once — separate
+  // from removing them one at a time via toggleFacet.
+  function clearFilters() {
+    setSelectedFacets([])
+    if (!query) {
+      loadFeed()
+    } else {
+      runSearch(query, [])
+      syncUrl(query, [])
     }
   }
 
@@ -313,6 +343,34 @@ export default function UnifiedSearch() {
       <div className={`grid gap-6 ${(!AI_MODE_ENABLED || aiCollapsed) ? 'lg:grid-cols-[15rem_1fr]' : 'lg:grid-cols-[15rem_1fr_24rem]'}`}>
         {/* ===== LEFT — refine ===== */}
         <aside className="space-y-4">
+          {/* The client's own record of what's currently filtering the
+              results — always shown and always removable, independent of
+              whether the backend's next "Refine by" response happens to
+              suggest these same facets again (a facet that narrows the
+              result set enough can legitimately stop being "suggested" for
+              that narrower set, which previously left no way to undo it). */}
+          {selectedFacets.length > 0 && (
+            <div className="bg-surface-container-low rounded-xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-label-md text-on-surface font-medium">Active filters</p>
+                <button onClick={clearFilters} className="text-caption text-primary hover:underline">Clear all</button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedFacets.map((id) => {
+                  const idx = id.indexOf(':')
+                  const field = idx >= 0 ? id.slice(0, idx) : id
+                  const code = idx >= 0 ? id.slice(idx + 1) : ''
+                  const label = facetLabels[id] || humanizeFacetId(id)
+                  return (
+                    <span key={id} className="inline-flex items-center gap-1 text-caption bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full">
+                      {label}
+                      <button onClick={() => toggleFacet(field, code)} className="material-symbols-outlined text-[14px] hover:text-error" aria-label={`Remove ${label}`}>close</button>
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {/* Tags generated from the search text itself (Gemini, same tagging
               principles as posting composition) — a separate concept from
               the "Refine by" facets below, which are backend result-derived.
@@ -328,7 +386,7 @@ export default function UnifiedSearch() {
                   return (
                     <button
                       key={id}
-                      onClick={() => toggleFacet(t.field, t.code)}
+                      onClick={() => toggleFacet(t.field, t.code, t.label)}
                       className={on ? 'pill-active' : 'pill'}
                     >
                       {t.label}

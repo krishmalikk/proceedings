@@ -88,6 +88,74 @@ describe('SearchScreen — query-derived tag chips', () => {
   });
 });
 
+// Regression: a facet's chip in "Refine by" comes from `suggested`, which
+// is recomputed from the CURRENT (already-filtered) result set on every
+// response. A facet that narrows results enough can legitimately stop
+// being suggested for that narrower set — previously that silently
+// removed the only way to undo the selection.
+describe('SearchScreen — Active filters stay removable independent of suggested', () => {
+  it('a selected facet remains removable even after the backend stops suggesting it', async () => {
+    (searchPostings as jest.Mock)
+      .mockResolvedValueOnce({
+        results: [POSTING], next_page_token: '',
+        suggested_filters: [{ key: 'tag', label: 'Topic', field: 'tags', values: [{ code: 'arrest', label: 'Arrest', count: 25 }] }],
+      })
+      .mockResolvedValueOnce({
+        results: [{ ...POSTING, title: 'Arrest result' }], next_page_token: '',
+        // No longer suggests "Arrest" for the narrowed set — only "Approved".
+        suggested_filters: [{ key: 'tag', label: 'Topic', field: 'tags', values: [{ code: 'approved', label: 'Approved', count: 12 }] }],
+      });
+
+    const s = await renderSearch();
+    await fireEvent.changeText(s.getByPlaceholderText('Search USA visits/migration journey…'), 'H1B RFE');
+    await fireEvent.press(s.getByText('Search'));
+    await fireEvent.press(await s.findByText('Arrest (25)'));
+    await s.findByText('Arrest result');
+
+    // "Arrest (25)" is gone from "Refine by" (only "Approved (12)" shows),
+    // but "Arrest" must still appear, and be removable, as an active filter.
+    expect(s.queryByText('Arrest (25)')).toBeNull();
+    expect(await s.findByText('Approved (12)')).toBeOnTheScreen();
+    const activeChip = await s.findByText('Arrest');
+
+    await fireEvent.press(activeChip);
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenLastCalledWith('H1B RFE', expect.objectContaining({ facets: [] }))
+    );
+  });
+
+  it('Clear all removes every active filter at once', async () => {
+    (searchPostings as jest.Mock)
+      .mockResolvedValueOnce({
+        results: [POSTING], next_page_token: '',
+        suggested_filters: [{
+          key: 'tag', label: 'Topic', field: 'tags',
+          values: [{ code: 'arrest', label: 'Arrest', count: 25 }, { code: 'approved', label: 'Approved', count: 65 }],
+        }],
+      })
+      .mockResolvedValue({
+        results: [{ ...POSTING, title: 'Filtered result' }], next_page_token: '',
+        suggested_filters: [{ key: 'tag', label: 'Topic', field: 'tags', values: [{ code: 'approved', label: 'Approved', count: 12 }] }],
+      });
+
+    const s = await renderSearch();
+    await fireEvent.changeText(s.getByPlaceholderText('Search USA visits/migration journey…'), 'H1B RFE');
+    await fireEvent.press(s.getByText('Search'));
+    await fireEvent.press(await s.findByText('Arrest (25)'));
+    await fireEvent.press(await s.findByText('Approved (12)'));
+    await s.findByText('Filtered result');
+    expect(s.getByText('Active filters')).toBeOnTheScreen();
+
+    await fireEvent.press(s.getByText('Clear all'));
+
+    await waitFor(() =>
+      expect(searchPostings).toHaveBeenLastCalledWith('H1B RFE', expect.objectContaining({ facets: [] }))
+    );
+    expect(s.queryByText('Active filters')).toBeNull();
+  });
+});
+
 describe('SearchScreen — Advanced Search entry point', () => {
   it('navigates to AdvancedSearch when the button is pressed', async () => {
     const navigation = { navigate: jest.fn() };

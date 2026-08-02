@@ -26,6 +26,14 @@ import {
 // Same example prompts as the website's empty search state.
 const EXAMPLES = ['B1/B2 Mumbai', 'H-1B RFE', 'F-1 to H-1B'];
 
+// Fallback label for a facet id with no known display label yet (restored
+// from state with none recorded) — turns "tags:change-of-status-COS" into
+// "Change Of Status COS".
+function humanizeFacetId(id: string): string {
+  const code = id.includes(':') ? id.slice(id.indexOf(':') + 1) : id;
+  return code.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Clear the absolutely-positioned floating tab bar (~70pt) so the last cards
 // and the "Load more" button stay reachable.
 const TAB_BAR_CLEARANCE = 96;
@@ -40,6 +48,13 @@ export function SearchScreen({ navigation }: any) {
   const [suggested, setSuggested] = useState<SuggestedFilterGroup[]>([]);
   const [queryTags, setQueryTags] = useState<QueryTag[]>([]);
   const [selectedFacets, setSelectedFacets] = useState<Set<string>>(new Set());
+  // Display labels for selectedFacets, keyed by facet id — independent of
+  // `suggested`, which is recomputed from the CURRENT (already-filtered)
+  // result set and can silently stop including a facet the user has
+  // selected, leaving no affordance to remove it. This map is the client's
+  // own record of what's active, so the "Active filters" chips below
+  // always have something to render and remove.
+  const [facetLabels, setFacetLabels] = useState<Record<string, string>>({});
   const [nextPageToken, setNextPageToken] = useState('');
   const [searched, setSearched] = useState(false);
   // 'browse' = default recent feed (empty query); 'search' = typed/faceted
@@ -55,6 +70,7 @@ export function SearchScreen({ navigation }: any) {
     setError('');
     setMode('browse');
     setSelectedFacets(new Set());
+    setFacetLabels({});
     setSuggested([]);
     setQueryTags([]);
     try {
@@ -115,13 +131,22 @@ export function SearchScreen({ navigation }: any) {
     }
   };
 
-  const toggleFacet = (field: string, code: string) => {
+  const toggleFacet = (field: string, code: string, label?: string) => {
     const id = facetId(field, code);
     const next = new Set(selectedFacets);
-    if (next.has(id)) next.delete(id);
+    const removing = next.has(id);
+    if (removing) next.delete(id);
     else next.add(id);
     setSelectedFacets(next);
+    if (!removing && label) setFacetLabels((prev) => ({ ...prev, [id]: label }));
     runSearch(query, next);
+  };
+
+  // Definitive fallback for clearing every active facet at once — separate
+  // from removing them one at a time via toggleFacet.
+  const clearFilters = () => {
+    setSelectedFacets(new Set());
+    runSearch(query, new Set());
   };
 
   const submit = (q?: string) => {
@@ -191,6 +216,39 @@ export function SearchScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* The client's own record of active facets — always shown and
+            removable, independent of whether the next `suggested` response
+            happens to echo these same facets back (a facet that narrows
+            the result set enough can legitimately stop being suggested for
+            that narrower set, which previously left no way to undo it). */}
+        {selectedFacets.size > 0 && (
+          <View style={styles.filtersBlock}>
+            <View style={styles.activeFiltersHeader}>
+              <AppText variant="labelMd" color="onSurface" style={styles.queryTagsTitle}>
+                Active filters
+              </AppText>
+              <TouchableOpacity onPress={clearFilters}>
+                <AppText variant="caption" color="primary">Clear all</AppText>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.queryTagsRow}>
+              {Array.from(selectedFacets).map((id) => {
+                const idx = id.indexOf(':');
+                const field = idx >= 0 ? id.slice(0, idx) : id;
+                const code = idx >= 0 ? id.slice(idx + 1) : '';
+                return (
+                  <FilterChip
+                    key={id}
+                    label={facetLabels[id] || humanizeFacetId(id)}
+                    selected
+                    onPress={() => toggleFacet(field, code)}
+                  />
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {/* Tags generated from the search text itself (Gemini, same tagging
             principles as posting composition) — a separate concept from the
             "Refine by" facets below, which are backend result-derived.
@@ -207,7 +265,7 @@ export function SearchScreen({ navigation }: any) {
                   key={facetId(t.field, t.code)}
                   label={t.label}
                   selected={selectedFacets.has(facetId(t.field, t.code))}
-                  onPress={() => toggleFacet(t.field, t.code)}
+                  onPress={() => toggleFacet(t.field, t.code, t.label)}
                 />
               ))}
             </View>
@@ -231,7 +289,7 @@ export function SearchScreen({ navigation }: any) {
                       <TouchableOpacity
                         key={v.code}
                         style={[styles.facetChip, active && styles.facetChipActive]}
-                        onPress={() => toggleFacet(g.field, v.code)}
+                        onPress={() => toggleFacet(g.field, v.code, v.label)}
                       >
                         <Text style={[styles.facetChipText, active && styles.facetChipTextActive]}>
                           {v.label} ({v.count})
@@ -361,6 +419,7 @@ const styles = StyleSheet.create({
   },
   filtersBlock: { marginTop: spacing.md },
   filtersHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.base },
+  activeFiltersHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   filtersTitle: { fontSize: 13, fontWeight: '600', color: colors.onSurface },
   queryTagsTitle: { marginBottom: spacing.base },
   queryTagsRow: { flexDirection: 'row', flexWrap: 'wrap' },
