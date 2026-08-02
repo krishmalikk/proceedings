@@ -143,6 +143,13 @@ describe('UnifiedSearch — refining from the initial browse view (regression)',
     const facetCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('facet='))
     expect(facetCall).toBeTruthy()
     expect(String(facetCall![0])).toContain(encodeURIComponent('tags:approved'))
+    // No filler q text for a facet-only refine (no typed query): Discovery
+    // Engine relevance-ranks against q IN ADDITION TO the facet filter, so
+    // a non-empty filler string here silently drops facet-matching
+    // documents that don't also relevance-match the filler text —
+    // confirmed live: tags:asylum alone returns the correct 24 postings,
+    // but with a filler q it drops to 3.
+    expect(String(facetCall![0])).not.toContain('q=')
   })
 
   it('removing the last active filter with no typed query reverts to the recency browse feed', async () => {

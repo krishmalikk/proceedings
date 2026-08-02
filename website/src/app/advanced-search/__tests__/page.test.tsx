@@ -479,7 +479,7 @@ describe('AdvancedSearchPage — Search', () => {
     expect(await screen.findByText('Search backend unavailable')).toBeInTheDocument()
   })
 
-  it('searching with tags only (no free text) falls back to the default relevance query', async () => {
+  it('searching with tags only (no free text) sends no q param — a filler query would silently drop non-matching-but-tag-matching results', async () => {
     const fetchMock = mockFetch()
     render(<AdvancedSearchPage />)
     await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
@@ -495,7 +495,7 @@ describe('AdvancedSearchPage — Search', () => {
       expect(call).toBeTruthy()
     })
     const call = fetchMock.mock.calls.find((c) => String(c[0]).startsWith('/api/search?'))!
-    expect(String(call[0])).toContain('q=immigration+visa+experience')
+    expect(String(call[0])).not.toContain('q=')
     expect(String(call[0])).toContain(encodeURIComponent('tags:timeline'))
   })
 

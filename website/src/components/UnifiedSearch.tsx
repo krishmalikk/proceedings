@@ -107,9 +107,19 @@ export default function UnifiedSearch() {
   // Main search always runs at "balanced" precision — the Broad/Strict ends
   // of the slider are advanced-user tools, moved to /advanced-search so this
   // page's search stays a single one-box action.
+  //
+  // No filler text when q is empty (a facet-only refine, e.g. from "Refine
+  // by" or the "Active filters" chips): the backend's Discovery Engine call
+  // relevance-ranks against whatever `q` it receives IN ADDITION TO
+  // applying the facet filter, so a non-empty filler string here silently
+  // drops facet-matching documents that don't also relevance-match the
+  // filler text — confirmed live: `tags:asylum` alone returns the correct
+  // 24 postings; with a filler `q` it drops to 3. An empty `q` combined
+  // with a facet filter is exactly what the backend's own hard-filter
+  // branch is built to handle correctly (backend/api.py's /api/search).
   const searchQs = useCallback((q: string, facets: string[], pageToken: string) => {
     const p = new URLSearchParams()
-    p.set('q', q || 'immigration visa experience')
+    if (q) p.set('q', q)
     facets.forEach((f) => p.append('facet', f))
     p.set('strictness', 'balanced')
     p.set('page_size', '15')

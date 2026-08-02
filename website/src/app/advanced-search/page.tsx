@@ -109,7 +109,13 @@ export default function AdvancedSearchPage() {
     setError('')
     try {
       const p = new URLSearchParams()
-      p.set('q', q || 'immigration visa experience')
+      // No filler text when q is empty (tags-only search): Discovery Engine
+      // relevance-ranks against `q` IN ADDITION TO applying the facet
+      // filter, so a non-empty filler string here silently drops
+      // facet-matching documents that don't also relevance-match the
+      // filler text — confirmed live: `tags:asylum` alone returns the
+      // correct 24 postings; with a filler `q` it drops to 3.
+      if (q) p.set('q', q)
       tagList.forEach((t) => p.append('facet', facetId(t.field, t.code)))
       p.set('strictness', strictness)
       p.set('page_size', '15')
