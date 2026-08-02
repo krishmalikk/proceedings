@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import PostingCard, { type PostingCardData } from '@/components/PostingCard'
 import { facetId } from '@/components/SuggestedFilters'
+import TagAutocomplete from '@/components/TagAutocomplete'
 
 type TagField = 'current_visa_or_greencard_category' | 'visa_applying_for' | 'consulates' | 'tags'
 type Tag = { field: TagField; code: string; label: string }
@@ -46,9 +47,6 @@ export default function AdvancedSearchPage() {
     })).catch(() => {})
   }, [])
 
-  const vocabSets = useMemo(() => ({
-    visa: new Set(vocab.visa), consulate: new Set(vocab.consulate), tag: new Set(vocab.tag),
-  }), [vocab])
   const consulateByLabel = useMemo(() => new Map(vocab.consulate_options.map((o) => [o.label, o.code])), [vocab])
   const consulateByCode = useMemo(() => new Map(vocab.consulate_options.map((o) => [o.code, o.label])), [vocab])
 
@@ -64,16 +62,11 @@ export default function AdvancedSearchPage() {
 
   // A category that's ever held a tag (generated or manual) stays visible
   // even after its last tag is removed — avoids layout/focus jumping while
-  // the user is actively editing it.
-  function addTag(field: TagField, kind: 'visa' | 'consulate' | 'tag', raw: string) {
-    let code = raw.trim()
-    if (!code) return
-    if (kind === 'consulate' && consulateByLabel.has(code)) code = consulateByLabel.get(code) as string
-    if (!vocabSets[kind].has(code)) {
-      setError(kind === 'consulate' ? 'Pick a consulate from the list (e.g. "Mumbai, India (BOM)").' : `"${code}" is not a valid ${kind} — pick one from the list.`)
-      return
-    }
-    setError('')
+  // the user is actively editing it. No separate "invalid value" validation
+  // path is needed here — TagAutocomplete only ever offers suggestions
+  // filtered from the fetched vocab list itself, so every pickable value is
+  // valid by construction (mirrors mobile's TagPicker).
+  function addTag(field: TagField, code: string) {
     reveal(field)
     setTags((prev) => (prev.some((t) => t.field === field && t.code === code) ? prev : [...prev, { field, code, label: code }]))
   }
@@ -176,7 +169,9 @@ export default function AdvancedSearchPage() {
 
           {CATEGORY_FIELDS.filter((c) => isShown(c.field)).map((c) => {
             const values = tagsFor(c.field)
-            const listId = `as-${c.kind}`
+            const options = c.kind === 'visa' ? vocab.visa
+              : c.kind === 'consulate' ? vocab.consulate_options.map((o) => o.label)
+                : vocab.tag
             return (
               <div key={c.field}>
                 <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-1">{c.label}</p>
@@ -189,21 +184,17 @@ export default function AdvancedSearchPage() {
                     </span>
                   ))}
                 </div>
-                <input list={listId}
-                  placeholder={c.kind === 'consulate' ? 'Add a consulate (city/country)…' : `Add ${c.label.toLowerCase()}…`}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    const valid = c.kind === 'consulate' ? consulateByLabel.has(val) : vocabSets[c.kind].has(val)
-                    if (valid) { addTag(c.field, c.kind, val); e.target.value = '' }
+                <TagAutocomplete
+                  placeholder={c.kind === 'consulate' ? 'Search a consulate (city/country)…' : `Search ${c.label.toLowerCase()}…`}
+                  options={options}
+                  onPick={(picked) => {
+                    const code = c.kind === 'consulate' ? consulateByLabel.get(picked) || picked : picked
+                    addTag(c.field, code)
                   }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(c.field, c.kind, (e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = '' } }}
-                  className="mt-1 w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary" />
+                />
               </div>
             )
           })}
-          <datalist id="as-visa">{vocab.visa.map((v) => <option key={v} value={v} />)}</datalist>
-          <datalist id="as-consulate">{vocab.consulate_options.map((o) => <option key={o.code} value={o.label} />)}</datalist>
-          <datalist id="as-tag">{vocab.tag.map((v) => <option key={v} value={v} />)}</datalist>
 
           {CATEGORY_FIELDS.filter((c) => !isShown(c.field)).length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">

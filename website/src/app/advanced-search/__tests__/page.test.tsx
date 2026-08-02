@@ -163,32 +163,42 @@ describe('AdvancedSearchPage — Send error handling', () => {
   })
 })
 
-describe('AdvancedSearchPage — manual tag add/remove', () => {
-  it('adds a valid vocab value as a chip', async () => {
+describe('AdvancedSearchPage — manual tag add/remove (search-to-select)', () => {
+  it('typing a substring shows matching suggestions to pick from', async () => {
     mockFetch()
     render(<AdvancedSearchPage />)
     await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
     fireEvent.click(screen.getByText('+ Add Tags'))
 
-    const input = await screen.findByPlaceholderText('Add tags…')
-    fireEvent.change(input, { target: { value: 'timeline' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
+    const input = await screen.findByPlaceholderText('Search tags…')
+    fireEvent.change(input, { target: { value: 'time' } })
 
     expect(await screen.findByText('timeline')).toBeInTheDocument()
-    expect(screen.queryByText(/is not a valid/)).toBeNull()
   })
 
-  it('rejects an invalid value with an error, no chip added', async () => {
+  it('clicking a suggestion adds it as a chip and clears the search box', async () => {
     mockFetch()
     render(<AdvancedSearchPage />)
     await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
     fireEvent.click(screen.getByText('+ Add Tags'))
 
-    const input = await screen.findByPlaceholderText('Add tags…')
-    fireEvent.change(input, { target: { value: 'not-a-real-tag' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
+    const input = await screen.findByPlaceholderText('Search tags…') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'timeline' } })
+    fireEvent.click(await screen.findByText('timeline'))
 
-    expect(await screen.findByText(/is not a valid tag/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Remove timeline')).toBeInTheDocument()
+    await waitFor(() => expect(input.value).toBe(''))
+  })
+
+  it('typing a substring with no matches shows no suggestions', async () => {
+    mockFetch()
+    render(<AdvancedSearchPage />)
+    await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('+ Add Tags'))
+
+    const input = await screen.findByPlaceholderText('Search tags…')
+    fireEvent.change(input, { target: { value: 'not-a-real-tag' } })
+
     expect(screen.queryByText('not-a-real-tag')).toBeNull()
   })
 
@@ -220,48 +230,49 @@ describe('AdvancedSearchPage — manual tag add/remove', () => {
     await waitFor(() => expect(screen.queryByText('timeline')).toBeNull())
   })
 
-  it('adding the same value twice does not create a duplicate chip', async () => {
+  it('picking the same value twice does not create a duplicate chip', async () => {
     mockFetch()
     render(<AdvancedSearchPage />)
     await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
     fireEvent.click(screen.getByText('+ Add Tags'))
-    const input = await screen.findByPlaceholderText('Add tags…')
+    const input = await screen.findByPlaceholderText('Search tags…')
 
     fireEvent.change(input, { target: { value: 'timeline' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    await screen.findByText('timeline')
+    fireEvent.click(await screen.findByText('timeline'))
     fireEvent.change(input, { target: { value: 'timeline' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
+    // Two "timeline" texts now exist (the chip already added + the
+    // TagAutocomplete suggestion, which doesn't filter out already-selected
+    // values) — the suggestion is the last one in document order.
+    const matches = await screen.findAllByText('timeline')
+    fireEvent.click(matches[matches.length - 1])
 
     await waitFor(() => expect(screen.getAllByText('timeline')).toHaveLength(1))
   })
 
-  it('adds a consulate by its label, storing/displaying the resolved code', async () => {
+  it('picks a consulate by its label, storing/displaying the resolved code', async () => {
     mockFetch()
     render(<AdvancedSearchPage />)
     await waitFor(() => expect(screen.getByText('+ Add Consulate(s)')).toBeInTheDocument())
     fireEvent.click(screen.getByText('+ Add Consulate(s)'))
 
-    const input = await screen.findByPlaceholderText('Add a consulate (city/country)…')
-    fireEvent.change(input, { target: { value: 'Mumbai, India (BOM)' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
+    const input = await screen.findByPlaceholderText('Search a consulate (city/country)…')
+    fireEvent.change(input, { target: { value: 'Mumbai' } })
+    fireEvent.click(await screen.findByText('Mumbai, India (BOM)'))
 
-    expect(await screen.findByText('Mumbai, India (BOM)')).toBeInTheDocument()
     expect(screen.getByLabelText('Remove BOM')).toBeInTheDocument()
   })
 
-  it('rejects an invalid consulate with a consulate-specific error', async () => {
+  it('typing an unmatched consulate substring shows no suggestions', async () => {
     mockFetch()
     render(<AdvancedSearchPage />)
     await waitFor(() => expect(screen.getByText('+ Add Consulate(s)')).toBeInTheDocument())
     fireEvent.click(screen.getByText('+ Add Consulate(s)'))
 
-    const input = await screen.findByPlaceholderText('Add a consulate (city/country)…')
+    const input = await screen.findByPlaceholderText('Search a consulate (city/country)…')
     fireEvent.change(input, { target: { value: 'Nowhere City' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
 
-    expect(await screen.findByText(/Pick a consulate from the list/)).toBeInTheDocument()
     expect(screen.queryByText('Nowhere City')).toBeNull()
+    expect(screen.queryByText(/is not a valid/)).toBeNull()
   })
 
   it('all four categories revealed leaves no "+ Add" pills', async () => {
@@ -364,9 +375,9 @@ describe('AdvancedSearchPage — Search', () => {
     render(<AdvancedSearchPage />)
     await waitFor(() => expect(screen.getByText('+ Add Tags')).toBeInTheDocument())
     fireEvent.click(screen.getByText('+ Add Tags'))
-    const input = await screen.findByPlaceholderText('Add tags…')
+    const input = await screen.findByPlaceholderText('Search tags…')
     fireEvent.change(input, { target: { value: 'timeline' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.click(await screen.findByText('timeline'))
 
     fireEvent.click(screen.getByText('Search'))
 
