@@ -277,6 +277,8 @@ export function GroupChatScreen() {
                   onChangeText={setInviteHandle}
                   placeholder="their handle…"
                   placeholderTextColor={colors.onSurfaceVariant}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   style={styles.inviteInput}
                 />
                 <TouchableOpacity onPress={submitInvite} disabled={inviting || !inviteHandle.trim()} style={styles.inviteButton}>
