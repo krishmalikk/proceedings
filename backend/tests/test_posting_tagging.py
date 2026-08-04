@@ -788,6 +788,49 @@ def group_e_build() -> None:
     check("E75 blog + discussion split across tags/concerns_or_questions_tags -> validate() still accepts",
           p.validate(c75) == [], str(p.validate(c75)))
 
+    # E76-E84: regression coverage for the i765/ead + adjustment-of-status-AOS
+    # tag retirements (features/timeline-notifications-3/timeline-notifications-{ead,485}.md).
+    # Positive cases confirm the surviving tag/mapping still works exactly as
+    # before; negative cases confirm the retired name is truly gone end-to-end
+    # (dropped as out-of-vocab, not just absent from the CSV) and doesn't
+    # silently keep triggering old behavior via some other code path.
+
+    # -- EAD/I-765 --
+    check("E76 (positive) _MILESTONE_DATE_KEY['opt_application'] renamed to 'ead_filed_date'",
+          p._MILESTONE_DATE_KEY.get("opt_application") == "ead_filed_date",
+          str(p._MILESTONE_DATE_KEY.get("opt_application")))
+    check("E77 (negative) _MILESTONE_DATE_KEY no longer maps anything to the retired 'i765_filed_date'",
+          "i765_filed_date" not in p._MILESTONE_DATE_KEY.values(), str(p._MILESTONE_DATE_KEY))
+
+    c78 = p.build_canonical("t", "d", {"tags": ["i765-filing", "i765-approval", "ead-filing"]})
+    check("E78 (negative) retired 'i765-filing'/'i765-approval' don't survive build_canonical() (OOV-dropped)",
+          "i765-filing" not in c78["tags"] and "i765-approval" not in c78["tags"], str(c78["tags"]))
+    check("E79 (positive) 'ead-filing' survives build_canonical() unaffected",
+          "ead-filing" in c78["tags"], str(c78["tags"]))
+
+    # -- I-485 / AOS --
+    check("E80 (positive) 'AOS' is in _AOS_TAGS (added as the retired duplicate's replacement)",
+          "AOS" in p._AOS_TAGS)
+    check("E81 (negative) retired 'adjustment-of-status-AOS' is no longer in _AOS_TAGS",
+          "adjustment-of-status-AOS" not in p._AOS_TAGS, str(p._AOS_TAGS))
+
+    c82 = p.build_canonical("t", "d", {"tags": ["adjustment-of-status-AOS"]})
+    check("E82 (negative) a posting tagged ONLY with the retired string doesn't backfill to "
+          "ADJUSTMENT-OF-STATUS anymore (dropped as OOV before _apply_visa_backfill ever sees it)",
+          c82["current_visa_or_greencard_category"] == [], str(c82))
+    check("E82b (negative) the retired tag itself doesn't survive into the stored tags list either",
+          "adjustment-of-status-AOS" not in c82["tags"], str(c82["tags"]))
+
+    c83 = p.build_canonical("t", "d", {"tags": ["AOS"]})
+    check("E83 (positive) a posting tagged with the bare 'AOS' abbreviation alone DOES backfill to "
+          "ADJUSTMENT-OF-STATUS end-to-end (contrast with E82's negative case)",
+          c83["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], str(c83))
+
+    c84 = p.build_canonical("t", "d", {"tags": ["I-485", "aos-filing"]})
+    check("E84 (positive) the pre-existing I-485 + aos-filing combo still backfills correctly, "
+          "unaffected by the AOS retirement (regression guard)",
+          c84["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], str(c84))
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)

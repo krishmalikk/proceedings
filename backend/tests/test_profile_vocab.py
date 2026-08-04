@@ -46,6 +46,20 @@ def group_tags() -> None:
     check("T4 visa-form-action (1.6 'h1b-petition') dropped from tags", "h1b-petition" not in c["tags"])
     check("T5 garbage dropped from tags", "NOT-A-TAG" not in c["tags"])
 
+    # T6-T7 — regression coverage for the adjustment-of-status-AOS retirement
+    # (features/timeline-notifications-3/timeline-notifications-485.md), scoped
+    # to profile.tags' actual domain (1.3 abbreviations + 1.10 topics only —
+    # per T4 above, 1.6 action tags like ead-filing/i765-filing were NEVER
+    # valid here regardless of the retirement, so they're not re-tested in
+    # this file; that coverage lives in test_posting_tagging.py's E78/E79,
+    # which exercise build_canonical()'s tags-field cleaning instead).
+    c2 = pr.clean_profile({"tags": ["EAD", "AOS", "adjustment-of-status-AOS"]})
+    check("T6 (positive) 'EAD' abbreviation still valid, kept (unaffected sanity check)",
+          "EAD" in c2["tags"], str(c2["tags"]))
+    check("T7 (positive) 'AOS' abbreviation still valid, kept", "AOS" in c2["tags"], str(c2["tags"]))
+    check("T8 (negative) retired 'adjustment-of-status-AOS' (1.10) dropped as OOV",
+          "adjustment-of-status-AOS" not in c2["tags"], str(c2["tags"]))
+
 
 # ---------------------------------------------------------------------------
 # S — key_stages_or_info value-domains (forms->outcome, country, 1.6 excluded)
@@ -88,6 +102,23 @@ def group_domains() -> None:
     check("D6 stage_value_ok(form, 'banana') False", not posting.stage_value_ok("I-485", "banana"))
     check("D7 1.6 action NOT in profile_stage_keys", "h1b-petition" not in posting._Vocab.profile_stage_keys)
     check("D8 form IS in profile_stage_keys", "I-485" in posting._Vocab.profile_stage_keys)
+
+    # D9-D10 — i765_filed_date -> ead_filed_date rename
+    # (features/timeline-notifications-3/timeline-notifications-ead.md §3/§6)
+    check("D9 (positive) 'ead_filed_date' is a valid 1.8 key_dates key",
+          "ead_filed_date" in posting._Vocab.date_keys)
+    check("D10 (negative) retired 'i765_filed_date' is no longer a valid key_dates key",
+          "i765_filed_date" not in posting._Vocab.date_keys)
+
+    # D11-D12 — profile-side clean_profile() key_dates cleaning honors the rename
+    # (mirrors T6-T9's tags-side coverage, but for the key_dates field).
+    import profile as pr
+    cd = pr.clean_profile({"key_dates": {"ead_filed_date": "2026-03-01",
+                                          "i765_filed_date": "2026-03-01"}})
+    check("D11 (positive) clean_profile keeps 'ead_filed_date'",
+          cd["key_dates"].get("ead_filed_date") == "2026-03-01", str(cd["key_dates"]))
+    check("D12 (negative) clean_profile drops retired 'i765_filed_date' as OOV",
+          "i765_filed_date" not in cd["key_dates"], str(cd["key_dates"]))
 
 
 # ---------------------------------------------------------------------------
