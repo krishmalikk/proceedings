@@ -60,6 +60,18 @@ def group_tags() -> None:
     check("T8 (negative) retired 'adjustment-of-status-AOS' (1.10) dropped as OOV",
           "adjustment-of-status-AOS" not in c2["tags"], str(c2["tags"]))
 
+    # T9-T10 — regression coverage for the COE retirement
+    # (features/timeline-notifications-3/timeline-notifications-coe.md) — the
+    # OPPOSITE direction from AOS: here the 1.3 abbreviation was retired and
+    # the 1.10 compound tag survives, since live evidence showed the model
+    # never selected bare 'COE' even when the query text used the literal
+    # acronym.
+    c3 = pr.clean_profile({"tags": ["change-of-employer-COE", "COE"]})
+    check("T9 (positive) 'change-of-employer-COE' (1.10) still valid, kept",
+          "change-of-employer-COE" in c3["tags"], str(c3["tags"]))
+    check("T10 (negative) retired 'COE' (1.3) dropped as OOV",
+          "COE" not in c3["tags"], str(c3["tags"]))
+
 
 # ---------------------------------------------------------------------------
 # S — key_stages_or_info value-domains (forms->outcome, country, 1.6 excluded)

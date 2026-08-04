@@ -831,6 +831,16 @@ def group_e_build() -> None:
           "unaffected by the AOS retirement (regression guard)",
           c84["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], str(c84))
 
+    # E85-E86: COE retirement (features/timeline-notifications-3/timeline-notifications-coe.md)
+    # — the opposite direction from AOS: 'COE' (1.3) retired, 'change-of-employer-COE'
+    # (1.10) survives as canonical, per live evidence the abbreviation was
+    # never actually selected by the model.
+    c85 = p.build_canonical("t", "d", {"tags": ["COE", "change-of-employer-COE"]})
+    check("E85 (negative) retired 'COE' doesn't survive build_canonical() (OOV-dropped)",
+          "COE" not in c85["tags"], str(c85["tags"]))
+    check("E86 (positive) 'change-of-employer-COE' survives build_canonical() unaffected",
+          "change-of-employer-COE" in c85["tags"], str(c85["tags"]))
+
 
 # ---------------------------------------------------------------------------
 # F — Gemini tagging EDGE CASES (INTEGRATION, network, may be slightly flaky)
