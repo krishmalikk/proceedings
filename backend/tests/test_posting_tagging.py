@@ -327,7 +327,7 @@ def group_e_build() -> None:
     # tag present, no EB level stated) — this exact file failed validate()
     # in the 072826 batch; confirms it now resolves.
     g_real_emp = _backfilled(["I-485", "biometrics", "RFE", "pending",
-                              "employment-based-immigration", "adjustment-of-status-AOS"])
+                              "employment-based-immigration", "AOS"])
     check("E16c real dont-know-what-to-think.txt shape resolves to EMPLOYMENT-IMMIGRATION",
           g_real_emp["current_visa_or_greencard_category"] == ["EMPLOYMENT-IMMIGRATION"], g_real_emp)
 
@@ -619,8 +619,10 @@ def group_e_build() -> None:
     check("E53 I-485 + aos-filing, no other basis -> ADJUSTMENT-OF-STATUS",
           g53["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], g53)
 
-    g54 = _aos_backfilled(["adjustment-of-status-AOS"])
-    check("E54 the alternate_tag alone also triggers the fallback",
+    g54 = _aos_backfilled(["AOS"])
+    check("E54 the bare 'AOS' abbreviation alone also triggers the fallback "
+          "(adjustment-of-status-AOS 1.10 duplicate retired in favor of this — see "
+          "features/timeline-notifications-3/timeline-notifications-485.md)",
           g54["current_visa_or_greencard_category"] == ["ADJUSTMENT-OF-STATUS"], g54)
 
     g55 = _aos_backfilled(["i485-filing", "family-based-immigration"])

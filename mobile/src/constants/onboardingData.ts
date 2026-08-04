@@ -67,7 +67,7 @@ export const TAGS = [
   'NIW',
   'premium-processing',
   'consular-processing',
-  'adjustment-of-status-AOS',
+  'AOS',
   'OPT',
   'EAD',
   'NVC',

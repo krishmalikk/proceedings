@@ -644,8 +644,8 @@ _GENERIC_CATEGORY_FALLBACK = {
 # the even-more-generic sibling of FAMILY-IMMIGRATION/EMPLOYMENT-IMMIGRATION
 # below it in _apply_visa_backfill()'s ordering — it only fires when even
 # THOSE couldn't narrow things down (e.g. no I-130/I-140 signal either).
-_AOS_TAGS = {"I-485", "i485-filing", "i485-approval", "i485-rfe",
-             "aos-filing", "aos-interview", "aos-approval", "adjustment-of-status-AOS"}
+_AOS_TAGS = {"I-485", "AOS", "i485-filing", "i485-approval", "i485-rfe",
+             "aos-filing", "aos-interview", "aos-approval"}
 
 # All three last-resort codes are now valid entries in the model's own visa
 # vocab list (they're 1.2 CSV rows like any other), so the model CAN pick one
@@ -1769,7 +1769,7 @@ _MILESTONE_DATE_KEY = {
     "visa_interview": "visa_interview_date", "visa_stamping": "visa_stamp_date",
     "port_of_entry": "admission_date", "h1b_filing": "h1b_filed_date",
     "h1b_approval": "h1b_approved_date", "h1b_rfe": "rfe_date",
-    "opt_application": "i765_filed_date", "perm_filing": "labor_cert_filed_date",
+    "opt_application": "ead_filed_date", "perm_filing": "labor_cert_filed_date",
     "perm_approval": "perm_approved_date", "i140_approval": "i140_approved_date",
     "i485_filing": "i485_filed_date", "biometrics": "biometrics_appointment_date",
     "aos_interview": "aos_appointment_date", "ead_approval": "ead_approved_date",

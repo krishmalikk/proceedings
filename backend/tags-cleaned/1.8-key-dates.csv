@@ -23,7 +23,7 @@ i131_filed_date,Date Form I-131 was filed
 i140_filed_date,Date Form I-140 was filed
 i140_approved_date,Date Form I-140 was approved
 i485_filed_date,Date Form I-485 was filed
-i765_filed_date,Date Form I-765 was filed
+ead_filed_date,Date EAD application (Form I-765) was filed
 i94_expire_date,Expiration date on Form I-94
 i94_admit_until_date,Admit-until date shown on the I-94
 i797a_receipt_date,Date Form I-797A was received
