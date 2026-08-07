@@ -40,7 +40,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-// DELETE /api/groups/{id} — permanently delete a group. Creator-only (backend-enforced).
+// DELETE /api/groups/{id} — soft-delete a group (hidden everywhere, data retained). Creator-only (backend-enforced).
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const res = await fetch(`${PYTHON_API_URL}/api/groups/${encodeURIComponent(params.id)}`, {

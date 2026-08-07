@@ -422,6 +422,31 @@ def group_d() -> None:
               and re["key_dates"] == {"opt_expire_date": "2027-05-31"},
               f"stages={re['key_stages_or_info']} dates={re['key_dates']}")
 
+        # D14-D17: POST /api/profile/key-dates — the post-join Timeline
+        # attribute form's save endpoint. Unlike PUT /api/profile (a full
+        # replace, D9 above), this is a PARTIAL merge: it must add/overwrite
+        # only the given keys and leave everything else (including other
+        # key_dates keys, and non-key_dates fields entirely) untouched.
+        client.put("/api/profile", headers=hdr, json={
+            "current_visa_or_greencard_category": ["F-1"],
+            "tags": ["premium-processing"],
+            "key_dates": {"opt_expire_date": "2027-05-31"}})
+        kd = client.post("/api/profile/key-dates", headers=hdr, json={
+            "key_dates": {"ead_filed_date": "2026-03-01", "rfe_date": "2026-04-15"}})
+        kdj = kd.json()
+        check("D14 POST key-dates 200 + adds the new keys",
+              kd.status_code == 200 and kdj["key_dates"].get("ead_filed_date") == "2026-03-01"
+              and kdj["key_dates"].get("rfe_date") == "2026-04-15", f"status={kd.status_code}")
+        check("D15 POST key-dates preserves a pre-existing key_dates entry not in the request",
+              kdj["key_dates"].get("opt_expire_date") == "2027-05-31", str(kdj["key_dates"]))
+        check("D16 POST key-dates leaves other profile fields untouched (visa, tags)",
+              kdj["current_visa_or_greencard_category"] == ["F-1"] and kdj["tags"] == ["premium-processing"],
+              f"visa={kdj['current_visa_or_greencard_category']} tags={kdj['tags']}")
+        kd2 = client.post("/api/profile/key-dates", headers=hdr, json={
+            "key_dates": {"ead_filed_date": "2026-03-05"}})
+        check("D17 POST key-dates overwrites a matching key on a second call",
+              kd2.json()["key_dates"].get("ead_filed_date") == "2026-03-05", str(kd2.json()["key_dates"]))
+
     # cleanup the test user's Firestore doc
     try:
         if api._db is not None:

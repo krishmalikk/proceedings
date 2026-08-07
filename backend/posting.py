@@ -327,6 +327,264 @@ GROUP_FIELDS = [
 _VOCAB_LISTS_CACHE: dict | None = None
 
 
+# The EAD eligibility categories a Timeline "EAD" group can be scoped to —
+# the second dropdown on the find/create panel, and the second segment of an
+# EAD group's name.
+#
+# Derived from 8 CFR § 274a.12, the regulation behind the eligibility-category
+# codes printed on Form I-765 and on the EAD card. The full derivation, the
+# categories we deliberately DON'T list, and the vocabulary gaps are written up
+# in features/ead-eligibility-5/ead-eligibility-evaluation.md — read that before
+# adding a row here.
+#
+# Two rules this list obeys, both from that evaluation:
+#   * Only § 274a.12(c) classes (must apply for an EAD) and the (a) classes that
+#     still file an I-765 for the card. The (b) classes — H-1B, L-1, O-1, TN,
+#     E-1/E-2, J-1, F-1 on-campus/CPT — are authorized incident to status and
+#     NEVER file, so offering them here would be simply wrong.
+#   * Every row's `tag` must already exist in the controlled vocabulary, so a
+#     group scoped to it is findable by the same tag a posting would carry.
+#
+# `code` is display-only provenance (it makes the row auditable against the
+# CFR); nothing keys off it.
+EAD_ELIGIBILITY_CATEGORIES: list[dict] = [
+    {"code": "(c)(3)(C)", "label": "F-1 STEM OPT extension (24-month)", "tag": "stem-opt-extension"},
+    {"code": "(c)(3)(B)", "label": "F-1 post-completion OPT", "tag": "opt-application"},
+    {"code": "(c)(9)", "label": "Pending adjustment of status (I-485)", "tag": "adjustment-of-status"},
+    {"code": "(c)(26)", "label": "H-4 spouse of H-1B", "tag": "h4-ead"},
+    {"code": "(c)(5)", "label": "J-2 spouse of exchange visitor", "tag": "J-2"},
+    {"code": "(c)(8)", "label": "Asylum applicant", "tag": "asylum"},
+    {"code": "(c)(19)", "label": "Temporary Protected Status", "tag": "TPS"},
+    {"code": "(c)(33)", "label": "DACA", "tag": "DACA"},
+    {"code": "(a)(3)", "label": "Refugee / asylee", "tag": "refugee"},
+    {"code": "(c)(11)", "label": "Humanitarian parole", "tag": "humanitarian-parole"},
+]
+
+# The "Processing type" dropdown itself. Was previously derived from
+# TAG_ATTRIBUTE_TEMPLATES's keys, which meant the dropdown literally read
+# "stem-opt-extension" — an ACTION tag masquerading as the kind of case being
+# tracked. A processing type is now its own concept: the filing a group is
+# organised around, optionally narrowed by an eligibility category.
+#
+# `eligibility_categories` empty => that type has no second dropdown. The
+# second dropdown's contents therefore ALREADY depend on the first: each type
+# names its own list, and EAD is simply the only type that has one today. A
+# future "I-485" type would carry its own list here and nothing else changes.
+#
+# Each entry is enriched by _resolve_templates() below with the `scope_rows`
+# and `post_join_rows` its selection implies — see that function's docstring.
+PROCESSING_TYPES: list[dict] = [
+    {"value": "EAD", "label": "EAD", "eligibility_categories": EAD_ELIGIBILITY_CATEGORIES},
+    {"value": "H-1B", "label": "H-1B", "eligibility_categories": []},
+]
+
+
+# ─────────────────────────── the attribute framework ───────────────────────
+#
+# A Timeline group's fields are CONFIGURATION, not code. Two dropdowns select
+# a scope — Processing type (first) and Eligibility category (second) — and
+# that pair decides two independent sets of rows:
+#
+#   SCOPE rows      what the group is scoped BY. Entered on the find/create
+#                   panel, stored in the GROUP's criteria, part of its name,
+#                   and compared by _exact_match() when searching or deduping.
+#                   Every member of the group shares these values.
+#   POST-JOIN rows  personal per-member facts. Entered on the group's own page
+#                   right after joining, written into the MEMBER'S OWN profile.
+#                   Two members of one stem-opt-extension/Aug-2026 group filed
+#                   on different days, so these can't live in the criteria.
+#
+# Both are resolved the same way, by layering:
+#
+#     base (every Timeline scope)  +  processing-type extras  +  category extras
+#
+# with a later layer overriding an earlier one on matching `key`. Adding a
+# field to one category is therefore a one-line entry in the *_ROW_EXTRAS dict
+# below, and adding a whole processing type is one PROCESSING_TYPES entry plus
+# (optionally) its own extras — no frontend change either way, because both
+# clients render whatever rows the resolved config hands them.
+#
+# EACH ROW'S "kind" DRIVES BOTH THE CONTROL AND THE VALIDATION:
+#   "date"     — free-form YYYY-MM-DD
+#   "select"   — must be one of the row's "options" (enforced server-side by
+#                matching.py's _validate_attribute_values, not just in the UI)
+#   "year"     — like select, but the frontend fills in previous/current/next
+#                at render time; never baked in here, so it can't go stale
+#   "checkbox" — stored as CHECKBOX_ON ("yes") or absent; never "no", so an
+#                unticked box reads the same as never-answered and the sparse
+#                `values` dict stays sparse
+#
+# EACH ROW'S "field" DECIDES WHERE THE VALUE LANDS — key_dates rows merge into
+# profile.key_dates (or the group's criteria key_dates), key_stages_or_info
+# rows into key_stages_or_info. Every key must exist in the matching CSV
+# (1.8-key-dates / 1.7-key-stages) or profile.py's cleaners will silently drop
+# it on save.
+#
+# OPTIONAL PER-ROW KEYS:
+#   "required"    — post-join only: the member must supply it to join. Defaults
+#                   to row 0 of the list, which is the convention every existing
+#                   template was written to; set it explicitly to move it.
+#   "name_prefix" — scope only: label this value carries in the generated group
+#                   name, so 'EAD-adjustment-of-status-Aug-2026-PD-2021-03-15'
+#                   doesn't read as two anonymous dates. Period rows have none.
+CHECKBOX_ON = "yes"
+
+_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _period_rows() -> list[dict]:
+    """The base scope every Timeline group gets: a 3-letter calendar Month
+    plus a Year. ONE shape for every processing type and every eligibility
+    category — there is deliberately no "Cycle" anywhere. The OPT categories
+    used to get a Fall/Spring academic cycle, but two different period
+    controls made the panel inconsistent depending on what you'd picked, and
+    a filing month is perfectly well-defined for an OPT application too.
+
+    (The OPT pair previously wrote stem_opt_cycle / stem_opt_year. Those keys
+    stay in the 1.7 vocabulary — existing profiles and postings still carry
+    them — but nothing collects them anymore.)"""
+    return [
+        {"kind": "select", "label": "Month", "field": "key_stages_or_info",
+         "key": "filing_month", "options": list(_MONTHS)},
+        {"kind": "year", "label": "Year", "field": "key_stages_or_info", "key": "filing_year"},
+    ]
+
+
+# Scope rows a specific processing type or eligibility category adds ON TOP OF
+# the period rows. Keyed by processing-type value or category tag.
+#
+# Empty today: every Timeline scope is defined by its filing period alone.
+# (I-485's priority date was briefly modelled here before moving to the
+# post-join rows below — it varies per member, so scoping a whole group by one
+# exact date would have split every AOS cohort into cohorts of one.)
+#
+# A row here may carry "name_prefix" to label its value in the generated group
+# name, which is what keeps two same-period groups distinguishable when a
+# category scopes by something beyond the period. Nothing configures one right
+# now; the mechanism is covered by M45.
+SCOPE_ROW_EXTRAS: dict[str, list[dict]] = {}
+
+
+# Per-member rows collected after joining, keyed the same way. Ordered roughly
+# as a case progresses, so the members table reads left→right like a timeline.
+POST_JOIN_ROW_EXTRAS: dict[str, list[dict]] = {
+    # I-485. A priority date is a per-member fact — everyone in an AOS cohort
+    # has their own — so it belongs here rather than in the group's scope.
+    # Explicitly optional: many filers don't have one to hand (and some
+    # categories never get one), and required_keys() would otherwise make
+    # row 0 mandatory by convention.
+    "adjustment-of-status": [
+        {"kind": "date", "label": "Priority Date", "field": "key_dates",
+         "key": "priority_date", "required": False},
+    ],
+    "stem-opt-extension": [
+        {"kind": "date", "label": "Date Applied", "field": "key_dates", "key": "ead_filed_date",
+         "required": True},
+        {"kind": "select", "label": "Status", "field": "key_stages_or_info", "key": "application_status",
+         "options": ["approved", "pending", "denied", "RFE", "NOID"]},
+        {"kind": "select", "label": "Service Center", "field": "key_stages_or_info", "key": "service_center",
+         "options": ["PSC", "SRC", "LIN", "VSC"]},
+        {"kind": "checkbox", "label": "Premium Processing", "field": "key_stages_or_info", "key": "premium_processing"},
+        {"kind": "date", "label": "Request for Initial Evidence (RFIE)", "field": "key_dates", "key": "rfe_date"},
+        {"kind": "checkbox", "label": "Biometrics Requested", "field": "key_stages_or_info", "key": "biometrics_requested"},
+        {"kind": "date", "label": "Biometrics Completed", "field": "key_dates", "key": "biometrics_completed_date"},
+        {"kind": "checkbox", "label": "Notice of Intent to Deny", "field": "key_stages_or_info", "key": "noid_issued"},
+        {"kind": "date", "label": "Date Approved", "field": "key_dates", "key": "ead_approved_date"},
+        {"kind": "date", "label": "Date Card Produced", "field": "key_dates", "key": "ead_card_produced_date"},
+        {"kind": "date", "label": "Date Card Received", "field": "key_dates", "key": "ead_card_received_date"},
+    ],
+}
+
+
+def _layer_rows(*layers: list[dict]) -> list[dict]:
+    """Concatenate row layers, a later layer replacing an earlier row with the
+    same `key` in place rather than appending a duplicate control."""
+    out: list[dict] = []
+    at: dict[str, int] = {}
+    for layer in layers:
+        for row in layer:
+            row = dict(row)
+            if row["key"] in at:
+                out[at[row["key"]]] = row
+            else:
+                at[row["key"]] = len(out)
+                out.append(row)
+    return out
+
+
+def timeline_scope_rows(processing_type: str = "", eligibility: str = "") -> list[dict]:
+    """The scope controls the find/create panel shows for a dropdown pair.
+
+    Either argument may be empty — a type with no eligibility categories
+    (H-1B) resolves off the type alone, and a bare tag resolves off itself,
+    which is what lets tag-only callers (group naming, the group page) reuse
+    this without knowing which dropdown a tag came from."""
+    return _layer_rows(_period_rows(),
+                       SCOPE_ROW_EXTRAS.get(processing_type, []),
+                       SCOPE_ROW_EXTRAS.get(eligibility, []))
+
+
+def timeline_post_join_rows(processing_type: str = "", eligibility: str = "") -> list[dict]:
+    """The per-member controls shown after joining, for a dropdown pair.
+    Empty list => that scope collects nothing and joining is ungated."""
+    return _layer_rows(POST_JOIN_ROW_EXTRAS.get(processing_type, []),
+                       POST_JOIN_ROW_EXTRAS.get(eligibility, []))
+
+
+def required_keys(rows: list[dict]) -> list[str]:
+    """Which of `rows` a member must fill in.
+
+    If ANY row declares "required" the declarations are taken literally —
+    which is the only way to say "nothing here is mandatory" (a template whose
+    single row is `"required": False` collects an entirely optional fact).
+    A template that declares nothing falls back to row 0, the convention every
+    template predating the flag was written to."""
+    if any("required" in r for r in rows):
+        return [r["key"] for r in rows if r.get("required")]
+    return [rows[0]["key"]] if rows else []
+
+
+def _resolve_templates() -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
+    """Flatten the spec into the two tag-keyed registries the rest of the
+    system already reads, and enrich PROCESSING_TYPES in place so each client
+    can read `scope_rows`/`post_join_rows` straight off the dropdown option it
+    has selected — no second lookup, and correct even once a type and a
+    category both contribute rows.
+
+    The flat dicts stay keyed by a single tag because their callers (group
+    naming, the group page, attribute validation) only ever have a stored tag
+    to go on, never the dropdown pair that produced it."""
+    scope: dict[str, list[dict]] = {}
+    post_join: dict[str, list[dict]] = {}
+    for ptype in PROCESSING_TYPES:
+        pv = ptype["value"]
+        ptype["scope_rows"] = scope[pv] = timeline_scope_rows(pv)
+        ptype["post_join_rows"] = timeline_post_join_rows(pv)
+        # Only tags that actually collect something get a POST_JOIN entry —
+        # presence in that dict is what gates joining, so an empty list would
+        # gate a group behind a form with no fields in it.
+        if ptype["post_join_rows"]:
+            post_join[pv] = ptype["post_join_rows"]
+        for cat in ptype["eligibility_categories"]:
+            tag = cat["tag"]
+            cat["scope_rows"] = timeline_scope_rows(pv, tag)
+            cat["post_join_rows"] = timeline_post_join_rows(pv, tag)
+            # The tag-keyed entry can't know which type it was reached
+            # through, so it resolves off the tag alone.
+            scope[tag] = timeline_scope_rows(eligibility=tag)
+            pj = timeline_post_join_rows(eligibility=tag)
+            if pj:
+                post_join[tag] = pj
+    return scope, post_join
+
+
+# Tag -> rows. TAG_ATTRIBUTE_TEMPLATES holds the scope rows (find/create
+# panel), POST_JOIN_ATTRIBUTE_TEMPLATES the per-member ones (group page); a
+# tag absent from the latter means joining that group is ungated.
+TAG_ATTRIBUTE_TEMPLATES, POST_JOIN_ATTRIBUTE_TEMPLATES = _resolve_templates()
+
+
 def vocab_lists() -> dict:
     """The controlled vocabularies for the composer's add-tag autocomplete.
     Assembled once per process — the CSVs are static at runtime, and this used
@@ -358,6 +616,10 @@ def vocab_lists() -> dict:
         "profile_stage_key": _uniq(_Vocab._profile_stage_list),  # stage keys w/o 1.6
         # key -> value-domain (incl. every form -> 'outcome')
         "stage_value_domains": stage_value_domains_map(),
+        "tag_attribute_templates": TAG_ATTRIBUTE_TEMPLATES,
+        "post_join_attribute_templates": POST_JOIN_ATTRIBUTE_TEMPLATES,
+        "processing_types": PROCESSING_TYPES,
+        "ead_eligibility_categories": EAD_ELIGIBILITY_CATEGORIES,
     }
     return _VOCAB_LISTS_CACHE
 
@@ -515,7 +777,7 @@ Return ONLY the sections that truly apply (omit the rest). Example: a consular B
 Always capture the applicant's visa/status in current_visa_or_greencard_category and/or visa_applying_for whenever one is discernible.
 Populate key_stages_or_info with discrete outcomes/state facts (e.g. visa_status: approved, I-140: approved) and key_dates with any dates mentioned — these become their own UI sections when present.
 
-FAMILY-IMMIGRATION, EMPLOYMENT-IMMIGRATION, and ADJUSTMENT-OF-STATUS are LAST-RESORT category codes — use them ONLY when the posting is clearly family-based, employment-based, or (for ADJUSTMENT-OF-STATUS) an I-485/AOS filing of unstated basis, but truly gives no way to determine a specific code (IR-1, F2A-FAMILY, EB-2, ...). I-485 and "AOS"/"adjustment of status" are used interchangeably by posters for the same real-world action (filing to become a permanent resident) — treat a mention of either the same way. Never use these as a shortcut when a specific code IS determinable from the text — e.g. an explicit "my wife"/"my husband" mention with a U.S.-citizen petitioner means IR-1, not FAMILY-IMMIGRATION; "filed my I-485 based on my approved I-140 in EB-2" means EB-2, not ADJUSTMENT-OF-STATUS.
+family-immigration, employment-immigration, and adjustment-of-status are LAST-RESORT category codes — use them ONLY when the posting is clearly family-based, employment-based, or (for adjustment-of-status) an I-485/AOS filing of unstated basis, but truly gives no way to determine a specific code (IR-1, F2A-FAMILY, EB-2, ...). I-485 and "AOS"/"adjustment of status" are used interchangeably by posters for the same real-world action (filing to become a permanent resident) — treat a mention of either the same way. Never use these as a shortcut when a specific code IS determinable from the text — e.g. an explicit "my wife"/"my husband" mention with a U.S.-citizen petitioner means IR-1, not family-immigration; "filed my I-485 based on my approved I-140 in EB-2" means EB-2, not adjustment-of-status.
 
 Set "is_personal_case" to false ONLY for a general question or discussion about immigration policy, process, or industry-wide news that is NOT tied to the poster's own situation — e.g. "what does everyone think about the new $100k H-1B fee", "why does every category feel backed up this year". Set it to true for EVERYTHING else, including a vague personal question with no specific visa code named — e.g. "is it too late for my priority date to still lock in this year" is personal (uses "my", asks about their own timeline) even though no visa is named. When genuinely unsure, default to true — a posting incorrectly treated as personal just asks the poster to clarify their status; a personal posting incorrectly treated as general discussion loses its personal-status signal entirely. (The system deterministically tags "discussion" when is_personal_case is false and no visa/status was captured — do not tag "discussion" yourself.)
 
@@ -630,8 +892,8 @@ _I140_TAGS = {"I-140", "i140-filing", "i140-approval", "i140-portability"}
 # ever runs after _derive_visa_from_tags() has already had its chance, so
 # a real, specific, derivable code always wins over the generic fallback.
 _GENERIC_CATEGORY_FALLBACK = {
-    "family-based-immigration": "FAMILY-IMMIGRATION",
-    "employment-based-immigration": "EMPLOYMENT-IMMIGRATION",
+    "family-based-immigration": "family-immigration",
+    "employment-based-immigration": "employment-immigration",
 }
 
 # I-485 (the form) and AOS (the process it's filed for) aren't duplicates —
@@ -640,8 +902,8 @@ _GENERIC_CATEGORY_FALLBACK = {
 # family, employment, diversity, or asylum basis, so mentioning it alone
 # doesn't tell us which. Every tag below (both the i485-* and aos-* action
 # families in 1.6, plus the bare form/abbreviation) represents the same
-# "filed for a green card, basis unstated" signal. ADJUSTMENT-OF-STATUS is
-# the even-more-generic sibling of FAMILY-IMMIGRATION/EMPLOYMENT-IMMIGRATION
+# "filed for a green card, basis unstated" signal. adjustment-of-status is
+# the even-more-generic sibling of family-immigration/employment-immigration
 # below it in _apply_visa_backfill()'s ordering — it only fires when even
 # THOSE couldn't narrow things down (e.g. no I-130/I-140 signal either).
 _AOS_TAGS = {"I-485", "AOS", "i485-filing", "i485-approval", "i485-rfe",
@@ -652,11 +914,11 @@ _AOS_TAGS = {"I-485", "AOS", "i485-filing", "i485-approval", "i485-rfe",
 # directly instead of leaving both fields empty for this function to fill in
 # — found live: given "based on my approved I-130 (spouse petition)" (a
 # clearly family-based signal), the model still sometimes picks the more
-# generic ADJUSTMENT-OF-STATUS on its own, bypassing the specificity
+# generic adjustment-of-status on its own, bypassing the specificity
 # ordering below entirely (that ordering is only ever consulted when BOTH
 # fields start empty). The prompt's "never use these as a shortcut" guidance
 # alone isn't reliable enough — same lesson as _apply_discussion_backfill().
-_LAST_RESORT_CODES = {"FAMILY-IMMIGRATION", "EMPLOYMENT-IMMIGRATION", "ADJUSTMENT-OF-STATUS"}
+_LAST_RESORT_CODES = {"family-immigration", "employment-immigration", "adjustment-of-status"}
 
 
 def _apply_visa_backfill(groups: dict, is_personal_case=True) -> None:
@@ -666,7 +928,7 @@ def _apply_visa_backfill(groups: dict, is_personal_case=True) -> None:
          (e.g. h1b-petition -> H-1B, opt-application -> F-1).
       2. _GENERIC_CATEGORY_FALLBACK — a broad family/employment signal
          without enough detail for a specific code.
-      3. _AOS_TAGS -> ADJUSTMENT-OF-STATUS — an even broader "filing for a
+      3. _AOS_TAGS -> adjustment-of-status — an even broader "filing for a
          green card, basis unknown" signal. Last resort of the last resorts:
          only reached when neither of the above found anything more
          specific, so a real family/employment signal (e.g. an I-130 tag
@@ -683,7 +945,7 @@ def _apply_visa_backfill(groups: dict, is_personal_case=True) -> None:
     news link about H-1B policy, or commentary on family-based overstay
     forgiveness), not the poster's own case. Found live: a link-share post
     with no personal status claim at all still got backfilled to
-    FAMILY-IMMIGRATION because the model tagged "family-based-immigration"
+    family-immigration because the model tagged "family-based-immigration"
     as the ARTICLE's topic — which then suppressed the "discussion" tag
     entirely, since _apply_discussion_backfill() only fires when both visa
     fields are still empty. is_personal_case defaults to True so
@@ -706,7 +968,7 @@ def _apply_visa_backfill(groups: dict, is_personal_case=True) -> None:
             groups["current_visa_or_greencard_category"] = [fallback]
             return
     if _AOS_TAGS & set(groups["tags"]):
-        groups["current_visa_or_greencard_category"] = ["ADJUSTMENT-OF-STATUS"]
+        groups["current_visa_or_greencard_category"] = ["adjustment-of-status"]
         return
 
 

@@ -94,3 +94,232 @@ describe('apiService.searchPostings — includeNews / maxAgeDays', () => {
     expect(calledUrl).toContain(encodeURIComponent('tags:asylum'));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Group + invitation calls.
+//
+// This branch added ~14 of these and none had coverage — the file only tested
+// search-param building. They are the whole client half of the groups feature,
+// and each one hand-rolls the same four things: the URL (with the group id
+// interpolated), the method, the identity headers, and the error message it
+// raises when the backend says no. A dropped X-User-Id here is invisible until
+// a live 400.
+// ---------------------------------------------------------------------------
+import {
+  archiveGroup, searchGroups, addMembers, joinGroup, saveMemberAttributes,
+  getMemberAttributes, inviteToGroup, getMyInvitations, getGroupInvitations,
+  acceptInvitation, declineInvitation, findCandidates, saveKeyDates,
+  requiredAttributeKeys, setActiveUserId, CHECKBOX_ON,
+  type PostJoinAttributeRow,
+} from '../apiService';
+
+const API = process.env.EXPO_PUBLIC_API_URL
+  || 'https://immiguide-api-971592620882.us-central1.run.app';
+
+function mockOk(payload: unknown = { ok: true }) {
+  global.fetch = jest.fn(async () => ({
+    ok: true, status: 200, json: async () => payload,
+  })) as unknown as typeof fetch;
+}
+function mockErr(status: number, payload: unknown) {
+  global.fetch = jest.fn(async () => ({
+    ok: false, status, json: async () => payload,
+  })) as unknown as typeof fetch;
+}
+const call = (n = 0) => (global.fetch as jest.Mock).mock.calls[n];
+const url = (n = 0) => String(call(n)[0]);
+const init = (n = 0) => (call(n)[1] || {}) as RequestInit;
+const headers = (n = 0) => (init(n).headers || {}) as Record<string, string>;
+const body = (n = 0) => JSON.parse(String(init(n).body ?? '{}'));
+
+describe('apiService — group calls carry the caller identity', () => {
+  beforeEach(async () => {
+    await setActiveUserId('demo-arjun');
+    mockOk();
+  });
+  afterEach(async () => { await setActiveUserId(null); });
+
+  it('attaches X-User-Id to an authed group call', async () => {
+    await joinGroup('g1');
+    expect(headers()['X-User-Id']).toBe('demo-arjun');
+  });
+
+  it('omits X-User-Id entirely when there is no active user', async () => {
+    // An empty header value would read as a real (blank) identity upstream.
+    await setActiveUserId(null);
+    mockOk();
+    await joinGroup('g1');
+    expect(headers()).not.toHaveProperty('X-User-Id');
+  });
+
+  it('does NOT send identity on group SEARCH — that route is public', async () => {
+    await searchGroups({} as never, 'timeline', 'balanced', 0);
+    expect(headers()).not.toHaveProperty('X-User-Id');
+  });
+});
+
+describe('apiService — URL, method and body per call', () => {
+  beforeEach(async () => { await setActiveUserId('demo-arjun'); mockOk(); });
+  afterEach(async () => { await setActiveUserId(null); });
+
+  it('joinGroup posts values + notes to the join route', async () => {
+    await joinGroup('g1', { ead_filed_date: '2026-03-01' }, 'hello');
+    expect(url()).toBe(`${API}/api/groups/g1/join`);
+    expect(init().method).toBe('POST');
+    expect(body()).toEqual({ values: { ead_filed_date: '2026-03-01' }, notes: 'hello' });
+  });
+
+  it('saveMemberAttributes posts to the attributes route', async () => {
+    await saveMemberAttributes('g1', { priority_date: '2021-03-15' }, '');
+    expect(url()).toBe(`${API}/api/groups/g1/attributes`);
+    expect(init().method).toBe('POST');
+    expect(body()).toEqual({ values: { priority_date: '2021-03-15' }, notes: '' });
+  });
+
+  it('getMemberAttributes GETs the attributes route', async () => {
+    mockOk({ attributes: [] });
+    await getMemberAttributes('g1');
+    expect(url()).toBe(`${API}/api/groups/g1/attributes`);
+    expect(init().method ?? 'GET').toBe('GET');
+  });
+
+  it('archiveGroup posts the archived flag', async () => {
+    await archiveGroup('g1', true);
+    expect(url()).toBe(`${API}/api/groups/g1/archive`);
+    expect(body()).toEqual({ archived: true });
+  });
+
+  it('archiveGroup sends false when un-archiving rather than dropping the key', async () => {
+    await archiveGroup('g1', false);
+    expect(body()).toEqual({ archived: false });
+  });
+
+  it('inviteToGroup posts the handle', async () => {
+    await inviteToGroup('g1', 'omar-b1b2');
+    expect(url()).toBe(`${API}/api/groups/g1/invite`);
+    expect(body()).toEqual({ handle: 'omar-b1b2' });
+  });
+
+  it('addMembers posts the selected user ids', async () => {
+    await addMembers('g1', ['u2', 'u3']);
+    expect(url()).toBe(`${API}/api/groups/g1/add-members`);
+    expect(body()).toEqual({ user_ids: ['u2', 'u3'] });
+  });
+
+  it('findCandidates posts to the per-group candidates route', async () => {
+    mockOk({ matches: [] });
+    await findCandidates('g1');
+    expect(url()).toBe(`${API}/api/groups/g1/find-candidates`);
+    expect(init().method).toBe('POST');
+  });
+
+  it('getMyInvitations GETs the cross-group feed, not a per-group path', async () => {
+    mockOk({ invitations: [] });
+    await getMyInvitations();
+    expect(url()).toBe(`${API}/api/groups/invitations`);
+  });
+
+  it('getGroupInvitations GETs the per-group list', async () => {
+    mockOk({ invitations: [] });
+    await getGroupInvitations('g1');
+    expect(url()).toBe(`${API}/api/groups/g1/invitations`);
+  });
+
+  it('acceptInvitation posts values + notes — accepting runs the same gate as joining', async () => {
+    await acceptInvitation('g1', { ead_filed_date: '2026-03-01' }, 'note');
+    expect(url()).toBe(`${API}/api/groups/g1/invitations/accept`);
+    expect(body()).toEqual({ values: { ead_filed_date: '2026-03-01' }, notes: 'note' });
+  });
+
+  it('acceptInvitation works with no attributes at all', async () => {
+    await acceptInvitation('g1');
+    expect(body()).toEqual({ values: {}, notes: '' });
+  });
+
+  it('declineInvitation posts to the decline route', async () => {
+    await declineInvitation('g1');
+    expect(url()).toBe(`${API}/api/groups/g1/invitations/decline`);
+    expect(init().method).toBe('POST');
+  });
+
+  it('saveKeyDates posts the map to the profile route', async () => {
+    await saveKeyDates({ ead_filed_date: '2026-03-01' });
+    expect(url()).toBe(`${API}/api/profile/key-dates`);
+    expect(body()).toEqual({ key_dates: { ead_filed_date: '2026-03-01' } });
+  });
+
+  it('searchGroups forwards every search knob', async () => {
+    mockOk({ groups: [] });
+    await searchGroups({ tags: ['EAD'] } as never, 'timeline', 'strict', 30);
+    expect(url()).toBe(`${API}/api/groups/search`);
+    expect(body()).toEqual({
+      criteria: { tags: ['EAD'] }, group_type: 'timeline',
+      precision: 'strict', max_age_days: 30,
+    });
+  });
+});
+
+describe('apiService — backend refusals surface as real errors', () => {
+  beforeEach(async () => { await setActiveUserId('demo-arjun'); });
+  afterEach(async () => { await setActiveUserId(null); });
+
+  it('raises the backend detail rather than a generic message', async () => {
+    mockErr(422, { detail: '"Date Applied" is required to join this group.' });
+    await expect(joinGroup('g1')).rejects.toThrow('"Date Applied" is required to join this group.');
+  });
+
+  it('falls back to its own message when the backend gives no detail', async () => {
+    mockErr(500, {});
+    await expect(joinGroup('g1')).rejects.toThrow('Could not join group');
+  });
+
+  it('surfaces a 403 on invite', async () => {
+    mockErr(403, { detail: 'Only members can invite.' });
+    await expect(inviteToGroup('g1', 'omar')).rejects.toThrow('Only members can invite.');
+  });
+
+  it('surfaces an unknown-handle 422 on invite', async () => {
+    mockErr(422, { detail: 'No user with the handle "nope".' });
+    await expect(inviteToGroup('g1', 'nope')).rejects.toThrow('No user with the handle "nope".');
+  });
+
+  it('surfaces a dead-group refusal on accept', async () => {
+    mockErr(422, { detail: 'That group is no longer active.' });
+    await expect(acceptInvitation('g1')).rejects.toThrow('That group is no longer active.');
+  });
+
+  it('surfaces a rejected select value on saveMemberAttributes', async () => {
+    mockErr(422, { detail: '"maybe" is not a valid Status.' });
+    await expect(saveMemberAttributes('g1', { application_status: 'maybe' }, ''))
+      .rejects.toThrow('"maybe" is not a valid Status.');
+  });
+});
+
+describe('apiService — requiredAttributeKeys mirrors posting.required_keys()', () => {
+  const row = (key: string, required?: boolean): PostJoinAttributeRow =>
+    ({ label: key, field: 'key_dates', key, ...(required === undefined ? {} : { required }) });
+
+  it('falls back to row 0 when nothing is declared', () => {
+    expect(requiredAttributeKeys([row('a'), row('b')])).toEqual(['a']);
+  });
+
+  it('honours an explicit required:true', () => {
+    expect(requiredAttributeKeys([row('a'), row('b', true)])).toEqual(['b']);
+  });
+
+  it('treats a declared required:false as nothing mandatory — the I-485 case', () => {
+    expect(requiredAttributeKeys([row('priority_date', false)])).toEqual([]);
+  });
+
+  it('does not fall back to row 0 once any row declares', () => {
+    expect(requiredAttributeKeys([row('a'), row('b', false), row('c', true)])).toEqual(['c']);
+  });
+
+  it('requires nothing for an empty template', () => {
+    expect(requiredAttributeKeys([])).toEqual([]);
+  });
+
+  it('agrees with the backend on the checkbox literal', () => {
+    expect(CHECKBOX_ON).toBe('yes');
+  });
+});

@@ -9,6 +9,8 @@ const mockPush = vi.fn()
 // Route param + Link (→ plain anchor so we can read hrefs) + the heavy children
 // the case page composes (each of which fetches on its own — stub them out).
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
   useParams: () => ({ id: 'app-1' }),
   useRouter: () => ({ back: mockBack, push: mockPush }),
 }))

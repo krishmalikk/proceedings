@@ -751,6 +751,75 @@ export interface ConsulateCountry {
   cities: { code: string; city: string }[];
 }
 
+/**
+ * One group-SCOPE row: what a Timeline group is scoped by, entered on the
+ * find/create panel and stored in the group's criteria. `field` decides which
+ * criteria map it lands in — a date row (I-485's priority date) goes to
+ * key_dates, the period rows to key_stages_or_info. `name_prefix`, when set,
+ * labels this value's segment in the generated group name.
+ */
+export type AttributeField = 'key_dates' | 'key_stages_or_info';
+export type TagAttributeRow =
+  | { kind: 'date'; label: string; field: AttributeField; key: string; name_prefix?: string }
+  | { kind: 'select'; label: string; field: AttributeField; key: string; options: string[]; name_prefix?: string }
+  | { kind: 'year'; label: string; field: AttributeField; key: string; name_prefix?: string };
+
+/**
+ * One row of backend/posting.py's POST_JOIN_ATTRIBUTE_TEMPLATES.
+ *
+ * `kind` drives BOTH the control and the server-side validation (a 'select'
+ * value outside `options` is rejected with a 422), and `field` decides which
+ * profile map the value merges into. Older rows carry no `kind` — treat a
+ * missing one as 'date'.
+ */
+export type PostJoinAttributeRow = {
+  label: string;
+  field: 'key_dates' | 'key_stages_or_info';
+  key: string;
+  kind?: 'date' | 'select' | 'checkbox';
+  options?: string[];
+  /** Must be supplied to join. Configured per template server-side. */
+  required?: boolean;
+};
+
+/**
+ * Which rows a member must fill in to join. Mirrors posting.required_keys():
+ * if ANY row declares `required` the declarations are taken literally — the
+ * only way to say "nothing here is mandatory" — and a template that declares
+ * nothing falls back to row 0, the convention every template predating the
+ * flag was written to.
+ */
+export function requiredAttributeKeys(rows: PostJoinAttributeRow[]): string[] {
+  if (rows.some((r) => r.required !== undefined)) {
+    return rows.filter((r) => r.required).map((r) => r.key);
+  }
+  return rows.length ? [rows[0].key] : [];
+}
+
+/**
+ * A ticked checkbox stores this exact string; an unticked one stores nothing
+ * at all — never "no" — so unticked and never-answered are the same absent
+ * key (mirrors posting.CHECKBOX_ON).
+ */
+export const CHECKBOX_ON = 'yes';
+
+/**
+ * backend/posting.py's EAD_ELIGIBILITY_CATEGORIES / PROCESSING_TYPES.
+ *
+ * Both a type and a category carry the `scope_rows` their selection implies,
+ * already resolved server-side (the base period rows plus whatever that
+ * type/category configures on top), so a screen renders whichever rows it is
+ * handed rather than knowing any of them.
+ */
+export type EligibilityCategory = {
+  code: string; label: string; tag: string;
+  scope_rows?: TagAttributeRow[]; post_join_rows?: PostJoinAttributeRow[];
+};
+export type ProcessingTypeOption = {
+  value: string; label: string; eligibility_categories: EligibilityCategory[];
+  scope_rows?: TagAttributeRow[]; post_join_rows?: PostJoinAttributeRow[];
+};
+
 export interface TagVocab {
   visa: string[];
   consulate: string[];
@@ -765,6 +834,9 @@ export interface TagVocab {
   stage_value_domains: Record<string, string>;
   country: string[];
   outcome: string[];
+  tag_attribute_templates: Record<string, TagAttributeRow[]>;
+  post_join_attribute_templates: Record<string, PostJoinAttributeRow[]>;
+  processing_types: ProcessingTypeOption[];
 }
 
 // Cached per app session; returns null offline so callers can fall back to the
@@ -791,6 +863,9 @@ export async function getTagVocab(): Promise<TagVocab | null> {
       stage_value_domains: data.stage_value_domains || {},
       country: data.country || [],
       outcome: data.outcome || [],
+      tag_attribute_templates: data.tag_attribute_templates || {},
+      post_join_attribute_templates: data.post_join_attribute_templates || {},
+      processing_types: data.processing_types || [],
     };
     return vocabCache;
   } catch {
@@ -814,6 +889,7 @@ export interface Criteria {
   visa_applying_for: string[];
   primary_consulate: string;
   consulates: string[];
+  tags: string[];
   key_stages_or_info: Record<string, string>;
   key_dates: Record<string, string>;
   background_text: string;
@@ -859,18 +935,58 @@ export interface GroupInfo {
   group_id: string;
   name: string;
   description: string;
+  group_type: string;
   criteria_text: string;
+  criteria_tags?: Partial<Criteria>;
   members: GroupMember[];
   created_by: string;
+  created_by_username?: string;
   is_admin: boolean;
+  status?: string;
+  expiration_date?: string;
   is_member: boolean;
   created_at: string;
   last_activity_at: string;
+  score: number;
+  shared: string[];
+  needs_attributes?: boolean;
+  // You have a pending invitation to this group (browse cards only).
+  is_invited?: boolean;
+  invited?: Invitation[];
+}
+
+// A pending ask to join a group. Nobody is added to `GroupInfo.members` until
+// they accept, so an invitee is invisible to every membership check until then.
+export interface Invitation {
+  invitation_id: string;
+  group_id: string;
+  group_name: string;
+  user_id: string;
+  username: string;
+  invited_by: string;
+  invited_by_username: string;
+  status: string;
+  // Accepting will demand the group's attribute form — the caller has to
+  // collect those values rather than accepting blind.
+  requires_attributes: boolean;
+  created_at: string;
+  responded_at: string;
+}
+
+export interface MemberAttributes {
+  user_id: string;
+  username: string;
+  processing_type: string;
+  values: Record<string, string>;
+  notes: string;
+  submitted_at: string;
+  updated_at: string;
 }
 
 export interface GroupResult {
   group_id: string;
   name: string;
+  group_type: string;
   joined: boolean;
   members: GroupMember[];
 }
@@ -900,12 +1016,17 @@ export async function getAllGroups(): Promise<{ groups: GroupInfo[] }> {
 export async function createGroup(
   criteriaText: string,
   criteria: Criteria,
-  members: GroupMember[]
+  members: GroupMember[],
+  groupType: string = '',
+  description: string = '',
+  validity: string = '',
+  values: Record<string, string> = {},
+  notes: string = ''
 ): Promise<GroupResult> {
   const response = await apiFetch(`${API_URL}/api/groups`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ criteria_text: criteriaText, criteria, members }),
+    body: JSON.stringify({ criteria_text: criteriaText, criteria, members, group_type: groupType, description, validity, values, notes }),
   });
   const data = await safeJson(response);
   if (!response.ok) {
@@ -914,15 +1035,139 @@ export async function createGroup(
   return data;
 }
 
-export async function joinGroup(groupId: string): Promise<void> {
+// Admin-only archive/unarchive toggle.
+export async function archiveGroup(groupId: string, archived: boolean): Promise<GroupInfo> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/archive`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ archived }),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not update group status');
+  }
+  return data;
+}
+
+// Post-join Timeline attribute form's save — merges a partial key_dates
+// update into the caller's OWN profile (personal per-member facts, e.g.
+// STEM-OPT dates — not the group's shared criteria).
+export async function saveKeyDates(keyDates: Record<string, string>): Promise<void> {
+  const response = await apiFetch(`${API_URL}/api/profile/key-dates`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ key_dates: keyDates }),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not save your dates');
+  }
+}
+
+// Search EXISTING groups by criteria — the group-search counterpart to
+// findMatches() (candidate-user matching, now scoped to inside a group's own
+// page as "Find candidates"). Public, like Advanced Search's own posting
+// search — no auth required to search; joining/creating still require it.
+export async function searchGroups(
+  criteria: Criteria,
+  groupType: string,
+  precision: Strictness,
+  maxAgeDays: number
+): Promise<{ groups: GroupInfo[] }> {
+  const response = await apiFetch(`${API_URL}/api/groups/search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ criteria, group_type: groupType, precision, max_age_days: maxAgeDays }),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not search groups');
+  }
+  return data;
+}
+
+// Rank candidate users against a specific group's own stored criteria —
+// member-only (enforced backend-side).
+export async function findCandidates(groupId: string): Promise<{ matches: MatchData[] }> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/find-candidates`, {
+    method: 'POST',
+    headers: userHeaders(),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not find candidates');
+  }
+  return data;
+}
+
+// A current member invites one or more found candidates — the "Find
+// candidates" counterpart to inviteToGroup() (which invites by typed handle).
+// Nobody joins until they accept, so `group` comes back unchanged; a bad
+// candidate lands in `skipped` rather than failing the whole batch.
+export async function addMembers(
+  groupId: string,
+  userIds: string[]
+): Promise<{ group: GroupInfo; invited: Invitation[]; skipped: { user_id: string; reason: string }[] }> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/add-members`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ user_ids: userIds }),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not invite candidates');
+  }
+  return data;
+}
+
+export async function joinGroup(
+  groupId: string,
+  values: Record<string, string> = {},
+  notes: string = ''
+): Promise<GroupInfo> {
   const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/join`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ values, notes }),
   });
+  const data = await safeJson(response);
   if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
     throw new Error(data.detail || 'Could not join group');
   }
+  return data;
+}
+
+// The mandatory-gate fill-in path for a member already added to the group
+// (e.g. via invite, who never went through joinGroup()) — same server-side
+// validation as join, but membership-gated instead of join-gated.
+export async function saveMemberAttributes(
+  groupId: string,
+  values: Record<string, string>,
+  notes: string = ''
+): Promise<GroupInfo> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/attributes`, {
+    method: 'POST',
+    headers: userHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ values, notes }),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not save your attributes');
+  }
+  return data;
+}
+
+// Members-only — every member's submitted post-join attributes, shared with
+// the whole group (not just the caller's own submission).
+export async function getMemberAttributes(groupId: string): Promise<{ attributes: MemberAttributes[] }> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/attributes`, {
+    headers: userHeaders(),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load attributes');
+  }
+  return data;
 }
 
 export async function leaveGroup(groupId: string): Promise<void> {
@@ -936,7 +1181,9 @@ export async function leaveGroup(groupId: string): Promise<void> {
   }
 }
 
-export async function inviteToGroup(groupId: string, handle: string): Promise<GroupInfo> {
+// Sends an invitation — it does NOT add the person. The group is unchanged
+// until they accept, so this returns the invitation, not a group card.
+export async function inviteToGroup(groupId: string, handle: string): Promise<Invitation> {
   const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/invite`, {
     method: 'POST',
     headers: userHeaders({ 'Content-Type': 'application/json' }),
@@ -945,6 +1192,72 @@ export async function inviteToGroup(groupId: string, handle: string): Promise<Gr
   const data = await safeJson(response);
   if (!response.ok) {
     throw new Error(data.detail || 'Could not invite that handle');
+  }
+  return data;
+}
+
+// Every invitation waiting on the signed-in user, across all groups — the feed
+// behind the Find tab's "Pending invitations" section. Each entry carries the
+// group so the row can be rendered without a second round-trip per invite.
+export async function getMyInvitations(): Promise<{
+  invitations: { invitation: Invitation; group: GroupInfo }[];
+}> {
+  const response = await apiFetch(`${API_URL}/api/groups/invitations`, {
+    headers: userHeaders(),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load invitations');
+  }
+  return data;
+}
+
+// Who this group has invited but who hasn't answered yet. Members only.
+export async function getGroupInvitations(groupId: string): Promise<{ invitations: Invitation[] }> {
+  const response = await apiFetch(`${API_URL}/api/groups/${encodeURIComponent(groupId)}/invitations`, {
+    headers: userHeaders(),
+  });
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load invitations');
+  }
+  return data;
+}
+
+// Accepting is what actually joins the group, so it carries the same attribute
+// payload as joinGroup() — for a group with a required field, accepting without
+// it is rejected and nobody is added.
+export async function acceptInvitation(
+  groupId: string,
+  values: Record<string, string> = {},
+  notes: string = ''
+): Promise<GroupInfo> {
+  const response = await apiFetch(
+    `${API_URL}/api/groups/${encodeURIComponent(groupId)}/invitations/accept`,
+    {
+      method: 'POST',
+      headers: userHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ values, notes }),
+    }
+  );
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not accept the invitation');
+  }
+  return data;
+}
+
+export async function declineInvitation(groupId: string): Promise<Invitation> {
+  const response = await apiFetch(
+    `${API_URL}/api/groups/${encodeURIComponent(groupId)}/invitations/decline`,
+    {
+      method: 'POST',
+      headers: userHeaders({ 'Content-Type': 'application/json' }),
+    }
+  );
+  const data = await safeJson(response);
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not decline the invitation');
   }
   return data;
 }

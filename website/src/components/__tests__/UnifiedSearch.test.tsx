@@ -7,6 +7,7 @@ let mockSearchParam = ''
 let mockFacetParams: string[] = []
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   useSearchParams: () => ({
     get: (key: string) => (key === 'q' ? mockSearchParam || null : null),

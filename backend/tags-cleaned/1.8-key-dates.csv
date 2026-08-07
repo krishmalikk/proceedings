@@ -58,3 +58,6 @@ perm_approved_date,Date the PERM labor certification was approved
 cap_gap_expire_date,End date of the F-1 cap-gap extension (typically Sep 30 of the fiscal year)
 passport_renewal_date,Date the candidate's passport was renewed
 visa_refused_date,Date a visa application was refused at a consular interview
+noid_date,Date a Notice of Intent to Deny was issued
+ead_card_produced_date,Date USCIS began producing the physical EAD card
+ead_card_received_date,Date the physical EAD card was received

@@ -10,6 +10,7 @@ export { DiscussionsScreen } from './DiscussionsScreen';
 export { FindScreen } from './FindScreen';
 export { PostScreen } from './PostScreen';
 export { GroupChatScreen } from './GroupChatScreen';
+export { GroupAttributesScreen } from './GroupAttributesScreen';
 export { LoginScreen } from './LoginScreen';
 export { SignupScreen } from './SignupScreen';
 export { EmailVerificationScreen } from './EmailVerificationScreen';

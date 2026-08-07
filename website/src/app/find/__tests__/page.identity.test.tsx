@@ -14,7 +14,9 @@ vi.mock('@/lib/activeUser', () => ({
   userHeaders: vi.fn((h?: Record<string, string>) => h || {}),
   DEMO_PICKER_ENABLED: false,
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(), useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/components/Markdown', () => ({ default: ({ children }: { children: string }) => <div>{children}</div> }))
 
 beforeEach(() => {

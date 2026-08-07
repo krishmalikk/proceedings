@@ -1,13 +1,22 @@
 'use client';
 
 import { useState, FormEvent, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { safeReturnPath } from '@/lib/useRequireUser';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading, signInWithEmail, signInWithGoogle } = useAuth();
+
+  // Where to land after signing in. useRequireUser() puts the page the visitor
+  // was actually trying to reach here — without it a shared group link dumped
+  // the recipient on the home page with no way back to the group.
+  // safeReturnPath() rejects anything that isn't a path on this origin, so a
+  // crafted ?next= can't turn the login page into an open redirect.
+  const returnTo = safeReturnPath(searchParams?.get('next')) || '/';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,9 +27,9 @@ export default function LoginPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
-      router.push('/');
+      router.push(returnTo);
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, returnTo]);
 
   const handleEmailSignIn = async (e: FormEvent) => {
     e.preventDefault();
@@ -29,7 +38,7 @@ export default function LoginPage() {
 
     try {
       await signInWithEmail(email, password);
-      router.push('/');
+      router.push(returnTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
@@ -43,7 +52,7 @@ export default function LoginPage() {
 
     try {
       await signInWithGoogle();
-      router.push('/');
+      router.push(returnTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     } finally {

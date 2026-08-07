@@ -273,6 +273,10 @@ class ProfilePayload(BaseModel):
     journey: list[JourneyEntry] = []
 
 
+class KeyDatesUpdate(BaseModel):
+    key_dates: dict[str, str] = {}
+
+
 class OnboardRequest(BaseModel):
     messages: list[dict] = []
     draft: ProfilePayload = ProfilePayload()
@@ -488,6 +492,7 @@ class Criteria(BaseModel):
     visa_applying_for: list[str] = []
     primary_consulate: str = ""
     consulates: list[str] = []
+    tags: list[str] = []
     key_stages_or_info: dict[str, str] = {}
     key_dates: dict[str, str] = {}
     background_text: str = ""
@@ -515,6 +520,7 @@ class MatchCard(BaseModel):
     shared: list[str] = []
     summary: str = ""
     background: str = ""
+    reason: str = ""  # one human sentence for WHY this candidate surfaced
 
 
 class MatchesResponse(BaseModel):
@@ -532,25 +538,94 @@ class GroupCreate(BaseModel):
     criteria_text: str = ""
     criteria: Criteria = Criteria()
     members: list[GroupMember] = []
+    group_type: str = ""  # "" = regular, "timeline" = Timeline Group
+    description: str = ""
+    validity: str = ""  # e.g. "1_month" | "1_year" | "5_years" — see matching.py _VALIDITY_DAYS
+    values: dict[str, str] = {}  # post-join attribute values, if this creates/joins a Timeline group needing them
+    notes: str = ""
+
+
+class InvitationCard(BaseModel):
+    """A pending (or resolved) group invitation. Declared BEFORE GroupCard so
+    GroupCard can reference it without a forward-reference rebuild; the
+    group↔invitation pairing lives on the PendingInvitation wrapper below
+    rather than nesting, which would make the two models mutually recursive."""
+    invitation_id: str
+    group_id: str
+    group_name: str = ""
+    user_id: str = ""
+    username: str = ""
+    invited_by: str = ""
+    invited_by_username: str = ""
+    status: str = "pending"  # pending | accepted | declined | cancelled
+    requires_attributes: bool = False  # accepting will demand the post-join form
+    created_at: str = ""
+    responded_at: str = ""
+
+
+class SkippedInvite(BaseModel):
+    user_id: str
+    reason: str = ""  # already_member | already_pending | self | unknown_user
 
 
 class GroupCard(BaseModel):
     group_id: str
     name: str = ""
     description: str = ""
+    group_type: str = ""
     criteria_text: str = ""
+    criteria_tags: dict = {}
     members: list[GroupMember] = []
     created_by: str = ""
+    created_by_username: str = ""
     is_admin: bool = False  # true for the viewer who created this group
-    status: str = "formed"
+    status: str = "active"  # active | archived | deleted
+    expiration_date: str = ""
     created_at: str = ""
     last_activity_at: str = ""
     is_member: bool = False
     joined: bool = False  # true when an existing group was joined (vs. created)
+    needs_attributes: bool = False  # viewer-scoped: true if a Timeline post-join attribute template applies and they haven't submitted yet
+    score: float = 0.0  # set only on /api/groups/search results (regular groups)
+    shared: list[str] = []  # set only on /api/groups/search results (regular groups)
+    is_invited: bool = False  # viewer-scoped: they have a PENDING invite (browse lists only)
+    invited: list[InvitationCard] = []  # set by POST /api/groups when peers were invited
 
 
 class GroupsResponse(BaseModel):
     groups: list[GroupCard]
+
+
+class PendingInvitation(BaseModel):
+    invitation: InvitationCard
+    group: GroupCard
+
+
+class PendingInvitationsResponse(BaseModel):
+    invitations: list[PendingInvitation] = []
+    total: int = 0
+
+
+class InvitationsResponse(BaseModel):
+    invitations: list[InvitationCard] = []
+    total: int = 0
+
+
+class InviteBatchResponse(BaseModel):
+    group: GroupCard
+    invited: list[InvitationCard] = []
+    skipped: list[SkippedInvite] = []
+
+
+class GroupSearchRequest(BaseModel):
+    criteria: Criteria = Criteria()
+    group_type: str = ""
+    precision: str = "balanced"  # broad | balanced | strict — regular groups only
+    max_age_days: int = 0  # 0 = all time
+
+
+class AddMembersRequest(BaseModel):
+    user_ids: list[str] = Field(default=[], max_length=50)
 
 
 class GroupUpdate(BaseModel):
@@ -558,8 +633,22 @@ class GroupUpdate(BaseModel):
     description: str | None = None
 
 
+class GroupArchiveUpdate(BaseModel):
+    archived: bool = True
+
+
 class GroupInvite(BaseModel):
     handle: str = Field(..., min_length=1, max_length=64)
+
+
+class JoinGroupBody(BaseModel):
+    values: dict[str, str] = {}  # post-join attribute values, required if the group needs them (see matching.join_group)
+    notes: str = ""
+
+
+class MemberAttributesUpdate(BaseModel):
+    values: dict[str, str] = {}
+    notes: str = ""
 
 
 # --- Group chat messages (phase-N) ---
@@ -1007,6 +1096,23 @@ def put_profile(body: ProfilePayload, request: Request):
     return _guard(lambda: profile.save_profile(_db, uid, body.model_dump()))
 
 
+@app.post("/api/profile/key-dates")
+def update_key_dates(body: KeyDatesUpdate, request: Request):
+    """Partial key_dates update — merges the given dates into the active
+    user's existing profile (new keys added, matching keys overwritten,
+    every other profile field round-trips unchanged). Used by the post-join
+    Timeline attribute form (POST_JOIN_ATTRIBUTE_TEMPLATES); a plain PUT
+    /api/profile would require resubmitting the whole profile, which the
+    caller doesn't have on hand there."""
+    import profile
+    uid = _active_user(request)
+    def _do():
+        current = profile.get_profile(_db, uid)
+        merged = profile.merge_profile(current, {**current, "key_dates": body.key_dates})
+        return profile.save_profile(_db, uid, merged)
+    return _guard(_do)
+
+
 @app.delete("/api/users/me")
 def delete_account(request: Request):
     """Delete the authenticated user's account and all associated data.
@@ -1081,6 +1187,15 @@ def delete_account(request: Request):
             doc.reference.delete()
     except Exception:
         pass  # votes collection might not exist or have different schema
+
+    # 5b. Delete group invitations ADDRESSED to the user. Invitations they
+    # sent are left alone (they carry a now-dead invited_by uid, consistent
+    # with how groups.created_by already retains a deleted user's uid).
+    try:
+        for doc in _db.collection("group_invitations").where("user_id", "==", uid).stream():
+            doc.reference.delete()
+    except Exception:
+        pass  # collection may not exist yet
 
     # 6. Delete Firebase Auth account
     if _firebase_ready() and _fb_auth is not None:
@@ -2032,19 +2147,82 @@ def find_matches_route(body: MatchesRequest, request: Request):
     return MatchesResponse(matches=[MatchCard(**m) for m in matches], total=len(matches))
 
 
+@app.post("/api/groups/{group_id}/find-candidates", response_model=MatchesResponse)
+def find_candidates_route(group_id: str, request: Request):
+    """Rank candidate users against an EXISTING group's own criteria — the
+    relocated counterpart of the old top-level chat-based matching flow,
+    now scoped to a specific group and reachable only by its members."""
+    import matching
+    uid = _active_user(request)
+    try:
+        group = _guard(lambda: matching.get_group(_db, group_id))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    member_ids = {m.get("user_id") for m in (group.get("members") or [])}
+    if uid not in member_ids:
+        raise HTTPException(status_code=403, detail="Only group members can find candidates.")
+    # Exclusions are passed INTO find_matches so its top_n caps the eligible
+    # pool. Filtering after the fact (as this route used to) meant a group
+    # with more members than top_n could return almost nothing. Pending
+    # invitees are excluded too, so we stop re-offering someone who already
+    # has an outstanding invitation.
+    exclude = member_ids | _guard(lambda: matching.pending_invitee_ids(_db, group_id))
+    matches = _guard(lambda: matching.find_matches(
+        _db, uid, group.get("criteria_tags") or {}, exclude_ids=exclude))
+    return MatchesResponse(matches=[MatchCard(**m) for m in matches], total=len(matches))
+
+
+@app.post("/api/groups/{group_id}/add-members", response_model=InviteBatchResponse)
+def add_members_route(group_id: str, body: AddMembersRequest, request: Request):
+    """A current member INVITES one or more found candidates — the "Find
+    candidates" counterpart to /invite (which invites by typed handle). They
+    become members only once they accept, so `group.members` is unchanged
+    here. Per-candidate problems come back in `skipped` rather than failing
+    the batch."""
+    import matching
+    uid = _active_user(request)
+    try:
+        r = _guard(lambda: matching.add_members(_db, group_id, uid, body.user_ids))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return InviteBatchResponse(
+        group=GroupCard(**r["group"]),
+        invited=[InvitationCard(**i) for i in r["invited"]],
+        skipped=[SkippedInvite(**s) for s in r["skipped"]],
+    )
+
+
 @app.post("/api/groups", response_model=GroupCard)
 def create_group_route(body: GroupCreate, request: Request):
-    """Join the existing group for this criteria signature, or create it. The
-    acting user (+ any selected peers) become members. `joined`=true on join."""
+    """Join the existing group for this criteria signature, or create it. Only
+    the acting user becomes a member — any selected peers are INVITED and
+    appear in `invited`. `joined`=true on join."""
     import matching
     uid = _active_user(request)
     try:
         g = _guard(lambda: matching.find_or_create_group(
             _db, uid, body.criteria_text, body.criteria.model_dump(),
-            [m.model_dump() for m in body.members]))
+            [m.model_dump() for m in body.members], body.group_type, body.description, body.validity,
+            body.values, body.notes))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    g["needs_attributes"] = matching.compute_needs_attributes(_db, g["group_id"], g, uid)
     return GroupCard(**g)
+
+
+@app.post("/api/groups/search", response_model=GroupsResponse)
+def search_groups_route(body: GroupSearchRequest):
+    """Search existing groups by criteria — the group-search counterpart to
+    Advanced Search's posting search. Public, like Advanced Search itself;
+    joining/creating still requires auth."""
+    import matching
+    groups = _guard(lambda: matching.search_groups(
+        _db, body.criteria.model_dump(), body.group_type, body.precision, body.max_age_days))
+    return GroupsResponse(groups=[GroupCard(**g) for g in groups])
 
 
 @app.get("/api/groups", response_model=GroupsResponse)
@@ -2058,22 +2236,63 @@ def list_groups_route(request: Request):
 
 @app.get("/api/groups/all", response_model=GroupsResponse)
 def list_all_groups_route(request: Request):
-    """All groups (browse), flagged with the viewer's membership."""
+    """All groups (browse), flagged with the viewer's membership and with
+    `is_invited` for groups they have a pending invitation to."""
     import matching
     uid = _active_user(request)
     groups = _guard(lambda: matching.list_all_groups(_db, uid))
     return GroupsResponse(groups=[GroupCard(**g) for g in groups])
 
 
+@app.get("/api/groups/invitations", response_model=PendingInvitationsResponse)
+def my_invitations_route(request: Request):
+    """Every pending invitation addressed to the active user, across all
+    groups — the "Pending invitations" section on the Groups tab. Each entry
+    carries the live group card alongside the invitation.
+
+    MUST stay declared above GET /api/groups/{group_id} (further down this
+    file) or "invitations" is captured as a group_id and this 404s."""
+    import matching
+    uid = _active_user(request)
+    rows = _guard(lambda: matching.list_pending_invitations_for_user(_db, uid))
+    return PendingInvitationsResponse(
+        invitations=[PendingInvitation(invitation=InvitationCard(**r["invitation"]),
+                                       group=GroupCard(**r["group"])) for r in rows],
+        total=len(rows),
+    )
+
+
 @app.post("/api/groups/{group_id}/join", response_model=GroupCard)
-def join_group_route(group_id: str, request: Request):
-    """Join an existing group directly (browse → join)."""
+def join_group_route(group_id: str, request: Request, body: JoinGroupBody = JoinGroupBody()):
+    """Join an existing group directly (browse → join). `values`/`notes` are
+    required if the group is a Timeline group with a registered post-join
+    attribute template and the user hasn't already submitted them (422 if
+    the required field is missing — see matching.join_group)."""
     import matching
     uid = _active_user(request)
     try:
-        g = _guard(lambda: matching.join_group(_db, group_id, uid))
+        g = _guard(lambda: matching.join_group(_db, group_id, uid, body.values, body.notes))
     except KeyError:
         raise HTTPException(status_code=404, detail="Group not found")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    g["needs_attributes"] = matching.compute_needs_attributes(_db, group_id, g, uid)
+    return GroupCard(**g)
+
+
+@app.post("/api/groups/{group_id}/archive", response_model=GroupCard)
+def archive_group_route(group_id: str, body: GroupArchiveUpdate, request: Request):
+    """Admin-only archive/unarchive toggle."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.archive_group(_db, group_id, uid, body.archived))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     return GroupCard(**g)
 
 
@@ -2105,25 +2324,79 @@ def rename_group_route(group_id: str, body: GroupUpdate, request: Request):
     return GroupCard(**g)
 
 
-@app.post("/api/groups/{group_id}/invite", response_model=GroupCard)
+@app.post("/api/groups/{group_id}/invite", response_model=InvitationCard)
 def invite_member_route(group_id: str, body: GroupInvite, request: Request):
-    """A current member adds someone they know by handle."""
+    """A current member INVITES someone they know by handle. Returns the
+    invitation, not a group card — the group is unchanged until the invitee
+    accepts, and returning a group card here would render a member who isn't
+    one yet."""
     import matching
     uid = _active_user(request)
     try:
-        g = _guard(lambda: matching.invite_member(_db, group_id, uid, body.handle))
+        inv = _guard(lambda: matching.invite_member(_db, group_id, uid, body.handle))
     except KeyError:
         raise HTTPException(status_code=404, detail="Group not found")
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    return InvitationCard(**inv)
+
+
+@app.get("/api/groups/{group_id}/invitations", response_model=InvitationsResponse)
+def group_invitations_route(group_id: str, request: Request):
+    """Pending invitations for one group. Members-only — any member can see
+    them because any member can invite."""
+    import matching
+    uid = _active_user(request)
+    try:
+        rows = _guard(lambda: matching.list_pending_invitations_for_group(_db, group_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return InvitationsResponse(invitations=[InvitationCard(**i) for i in rows], total=len(rows))
+
+
+@app.post("/api/groups/{group_id}/invitations/accept", response_model=GroupCard)
+def accept_invitation_route(group_id: str, request: Request, body: JoinGroupBody = JoinGroupBody()):
+    """Accept a pending invitation and become a member. Runs the same
+    post-join attribute gate as /join — if this is a Timeline group with a
+    registered template, the required field must be in `values` (422
+    otherwise, and the invitation stays pending so it can be retried)."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.accept_invitation(_db, group_id, uid, body.values, body.notes))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    g["needs_attributes"] = matching.compute_needs_attributes(_db, group_id, g, uid)
     return GroupCard(**g)
+
+
+@app.post("/api/groups/{group_id}/invitations/decline", response_model=InvitationCard)
+def decline_invitation_route(group_id: str, request: Request):
+    """Decline a pending invitation. Never touches the group's members — the
+    invitee was never one."""
+    import matching
+    uid = _active_user(request)
+    try:
+        inv = _guard(lambda: matching.decline_invitation(_db, group_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return InvitationCard(**inv)
 
 
 @app.delete("/api/groups/{group_id}")
 def delete_group_route(group_id: str, request: Request):
-    """Permanently delete a group and its messages. Creator-only."""
+    """Soft-delete a group (status="deleted", hidden from every list/lookup
+    from then on; data retained). Creator-only."""
     import matching
     uid = _active_user(request)
     try:
@@ -2150,7 +2423,42 @@ def get_group_route(group_id: str, request: Request):
               if x["group_id"] == group_id), None)
     if g is None:
         raise HTTPException(status_code=404, detail="Group not found")
+    g["needs_attributes"] = matching.compute_needs_attributes(_db, group_id, g, uid)
     return GroupCard(**g)
+
+
+@app.post("/api/groups/{group_id}/attributes", response_model=GroupCard)
+def save_member_attributes_route(group_id: str, body: MemberAttributesUpdate, request: Request):
+    """A current member submits (or updates) their post-join attributes —
+    the mandatory-gate fill-in path for a member added via invite (who
+    never went through /join), or anyone revisiting to complete it."""
+    import matching
+    uid = _active_user(request)
+    try:
+        g = _guard(lambda: matching.save_member_attributes(_db, group_id, uid, body.values, body.notes))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    g["needs_attributes"] = matching.compute_needs_attributes(_db, group_id, g, uid)
+    return GroupCard(**g)
+
+
+@app.get("/api/groups/{group_id}/attributes")
+def list_member_attributes_route(group_id: str, request: Request):
+    """Members-only — every member's submitted post-join attributes, shared
+    with the whole group (not just the submitter)."""
+    import matching
+    uid = _active_user(request)
+    try:
+        attrs = _guard(lambda: matching.list_member_attributes(_db, group_id, uid))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Group not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    return {"attributes": attrs}
 
 
 @app.get("/api/groups/{group_id}/messages", response_model=MessagesResponse)
