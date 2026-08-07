@@ -163,6 +163,15 @@ def validate(spec: Any) -> list[str]:
 
     posting._Vocab.load()
 
+    # The period pair is load-bearing, not decorative: Timeline dedup is
+    # name-based, and the name is built from the scope rows. Strip the period
+    # and every group of a given category resolves to the same name, so
+    # _find_timeline_duplicate collapses them all into one cohort. A missing
+    # key means "use the default"; an explicit empty list is a config that
+    # would quietly destroy dedup, so it is refused.
+    if "period_rows" in spec and isinstance(spec["period_rows"], list) and not spec["period_rows"]:
+        errs.append("period_rows: must not be empty — the filing period is what makes two "
+                    "groups of the same category distinguishable (omit the key to use the default)")
     check_rows(spec.get("period_rows", []), "period_rows", scope_side=True)
     for name, scope_side in (("scope_row_extras", True), ("post_join_row_extras", False)):
         block = spec.get(name, {})
@@ -171,6 +180,10 @@ def validate(spec: Any) -> list[str]:
             continue
         for tag, rows in block.items():
             check_rows(rows, f"{name}.{tag}", scope_side)
+
+    # Eligibility tags and type values come from five CSVs: 1.1/1.2 land in
+    # `visa`, 1.3/1.6/1.10 in `tag`.
+    vocab = posting._Vocab.visa | posting._Vocab.tag
 
     types = spec.get("processing_types", [])
     if not isinstance(types, list) or not types:
@@ -185,6 +198,13 @@ def validate(spec: Any) -> list[str]:
             if t["value"] in seen_types:
                 errs.append(f"{at}: duplicate processing type '{t['value']}'")
             seen_types.add(t["value"])
+            # A type's value is written into the group's criteria, where
+            # _clean_criteria drops anything out of vocabulary. Offering a
+            # type nobody can actually be tagged with produces groups that
+            # lose their defining criterion on save — silently.
+            if t["value"] not in vocab:
+                errs.append(f"{at}: processing type '{t['value']}' is not in the controlled "
+                            f"vocabulary — a group created with it would lose the tag on save")
             cats = t.get("eligibility_categories", [])
             if not isinstance(cats, list):
                 errs.append(f"{at}.eligibility_categories: must be a list")

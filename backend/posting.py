@@ -453,8 +453,15 @@ def _period_rows() -> list[dict]:
     stay in the 1.7 vocabulary — existing profiles and postings still carry
     them — but nothing collects them anymore.)
 
-    Read from the live config, so this is overridable without a deploy."""
-    return [dict(r) for r in _spec().get("period_rows") or _DEFAULT_PERIOD_ROWS]
+    Read from the live config, so this is overridable without a deploy.
+
+    A MISSING `period_rows` means "not configured, use the default"; an
+    explicitly EMPTY one means "no period rows". `or` would conflate the two
+    and silently reinstate the default against the operator's wishes — hence
+    the `is None`. (Publishing an empty period is separately rejected by
+    attribute_config.validate; see there for why.)"""
+    rows = _spec().get("period_rows")
+    return [dict(r) for r in (_DEFAULT_PERIOD_ROWS if rows is None else rows)]
 
 
 # Scope rows a specific processing type or eligibility category adds ON TOP OF
