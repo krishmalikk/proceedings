@@ -31,6 +31,7 @@ import os
 import re
 import secrets
 import time
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 
 from google import genai
@@ -347,7 +348,7 @@ _VOCAB_LISTS_CACHE: dict | None = None
 #
 # `code` is display-only provenance (it makes the row auditable against the
 # CFR); nothing keys off it.
-EAD_ELIGIBILITY_CATEGORIES: list[dict] = [
+_DEFAULT_EAD_CATEGORIES: list[dict] = [
     {"code": "(c)(3)(C)", "label": "F-1 STEM OPT extension (24-month)", "tag": "stem-opt-extension"},
     {"code": "(c)(3)(B)", "label": "F-1 post-completion OPT", "tag": "opt-application"},
     {"code": "(c)(9)", "label": "Pending adjustment of status (I-485)", "tag": "adjustment-of-status"},
@@ -373,8 +374,8 @@ EAD_ELIGIBILITY_CATEGORIES: list[dict] = [
 #
 # Each entry is enriched by _resolve_templates() below with the `scope_rows`
 # and `post_join_rows` its selection implies — see that function's docstring.
-PROCESSING_TYPES: list[dict] = [
-    {"value": "EAD", "label": "EAD", "eligibility_categories": EAD_ELIGIBILITY_CATEGORIES},
+_DEFAULT_PROCESSING_TYPES: list[dict] = [
+    {"value": "EAD", "label": "EAD", "eligibility_categories": _DEFAULT_EAD_CATEGORIES},
     {"value": "H-1B", "label": "H-1B", "eligibility_categories": []},
 ]
 
@@ -433,6 +434,13 @@ _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
+_DEFAULT_PERIOD_ROWS: list[dict] = [
+    {"kind": "select", "label": "Month", "field": "key_stages_or_info",
+     "key": "filing_month", "options": list(_MONTHS)},
+    {"kind": "year", "label": "Year", "field": "key_stages_or_info", "key": "filing_year"},
+]
+
+
 def _period_rows() -> list[dict]:
     """The base scope every Timeline group gets: a 3-letter calendar Month
     plus a Year. ONE shape for every processing type and every eligibility
@@ -443,12 +451,10 @@ def _period_rows() -> list[dict]:
 
     (The OPT pair previously wrote stem_opt_cycle / stem_opt_year. Those keys
     stay in the 1.7 vocabulary — existing profiles and postings still carry
-    them — but nothing collects them anymore.)"""
-    return [
-        {"kind": "select", "label": "Month", "field": "key_stages_or_info",
-         "key": "filing_month", "options": list(_MONTHS)},
-        {"kind": "year", "label": "Year", "field": "key_stages_or_info", "key": "filing_year"},
-    ]
+    them — but nothing collects them anymore.)
+
+    Read from the live config, so this is overridable without a deploy."""
+    return [dict(r) for r in _spec().get("period_rows") or _DEFAULT_PERIOD_ROWS]
 
 
 # Scope rows a specific processing type or eligibility category adds ON TOP OF
@@ -463,12 +469,12 @@ def _period_rows() -> list[dict]:
 # name, which is what keeps two same-period groups distinguishable when a
 # category scopes by something beyond the period. Nothing configures one right
 # now; the mechanism is covered by M45.
-SCOPE_ROW_EXTRAS: dict[str, list[dict]] = {}
+_DEFAULT_SCOPE_ROW_EXTRAS: dict[str, list[dict]] = {}
 
 
 # Per-member rows collected after joining, keyed the same way. Ordered roughly
 # as a case progresses, so the members table reads left→right like a timeline.
-POST_JOIN_ROW_EXTRAS: dict[str, list[dict]] = {
+_DEFAULT_POST_JOIN_ROW_EXTRAS: dict[str, list[dict]] = {
     # I-485. A priority date is a per-member fact — everyone in an AOS cohort
     # has their own — so it belongs here rather than in the group's scope.
     # Explicitly optional: many filers don't have one to hand (and some
@@ -520,16 +526,18 @@ def timeline_scope_rows(processing_type: str = "", eligibility: str = "") -> lis
     (H-1B) resolves off the type alone, and a bare tag resolves off itself,
     which is what lets tag-only callers (group naming, the group page) reuse
     this without knowing which dropdown a tag came from."""
+    extras = _spec().get("scope_row_extras") or {}
     return _layer_rows(_period_rows(),
-                       SCOPE_ROW_EXTRAS.get(processing_type, []),
-                       SCOPE_ROW_EXTRAS.get(eligibility, []))
+                       extras.get(processing_type, []),
+                       extras.get(eligibility, []))
 
 
 def timeline_post_join_rows(processing_type: str = "", eligibility: str = "") -> list[dict]:
     """The per-member controls shown after joining, for a dropdown pair.
     Empty list => that scope collects nothing and joining is ungated."""
-    return _layer_rows(POST_JOIN_ROW_EXTRAS.get(processing_type, []),
-                       POST_JOIN_ROW_EXTRAS.get(eligibility, []))
+    extras = _spec().get("post_join_row_extras") or {}
+    return _layer_rows(extras.get(processing_type, []),
+                       extras.get(eligibility, []))
 
 
 def required_keys(rows: list[dict]) -> list[str]:
@@ -545,19 +553,25 @@ def required_keys(rows: list[dict]) -> list[str]:
     return [rows[0]["key"]] if rows else []
 
 
-def _resolve_templates() -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
-    """Flatten the spec into the two tag-keyed registries the rest of the
-    system already reads, and enrich PROCESSING_TYPES in place so each client
-    can read `scope_rows`/`post_join_rows` straight off the dropdown option it
-    has selected — no second lookup, and correct even once a type and a
-    category both contribute rows.
+def _resolve_templates() -> tuple[dict[str, list[dict]], dict[str, list[dict]], list[dict]]:
+    """Flatten the live spec into the two tag-keyed registries the rest of the
+    system reads, and return the processing types enriched with the
+    `scope_rows`/`post_join_rows` each dropdown option implies — no second
+    lookup for a client, and correct even once a type and a category both
+    contribute rows.
 
     The flat dicts stay keyed by a single tag because their callers (group
     naming, the group page, attribute validation) only ever have a stored tag
-    to go on, never the dropdown pair that produced it."""
+    to go on, never the dropdown pair that produced it.
+
+    Builds fresh from `_spec()` on every call — cheap dict work over a handful
+    of rows, and it is what lets a config edit take effect without a restart.
+    Callers that want it memoised go through the module-level views below."""
     scope: dict[str, list[dict]] = {}
     post_join: dict[str, list[dict]] = {}
-    for ptype in PROCESSING_TYPES:
+    types: list[dict] = []
+    for raw in _spec().get("processing_types") or _DEFAULT_PROCESSING_TYPES:
+        ptype = {**raw, "eligibility_categories": []}
         pv = ptype["value"]
         ptype["scope_rows"] = scope[pv] = timeline_scope_rows(pv)
         ptype["post_join_rows"] = timeline_post_join_rows(pv)
@@ -566,7 +580,8 @@ def _resolve_templates() -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
         # gate a group behind a form with no fields in it.
         if ptype["post_join_rows"]:
             post_join[pv] = ptype["post_join_rows"]
-        for cat in ptype["eligibility_categories"]:
+        for raw_cat in raw.get("eligibility_categories") or []:
+            cat = {**raw_cat}
             tag = cat["tag"]
             cat["scope_rows"] = timeline_scope_rows(pv, tag)
             cat["post_join_rows"] = timeline_post_join_rows(pv, tag)
@@ -576,22 +591,94 @@ def _resolve_templates() -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
             pj = timeline_post_join_rows(eligibility=tag)
             if pj:
                 post_join[tag] = pj
-    return scope, post_join
+            ptype["eligibility_categories"].append(cat)
+        types.append(ptype)
+    return scope, post_join, types
+
+
+class _LiveMapping(Mapping):
+    """A read-only dict view that re-resolves from the live config on access.
+
+    Exists so externalising the config didn't have to touch the ~15 call sites
+    (and every test) that read these registries as plain dicts — `in`, `[k]`,
+    `.get()`, `.items()` and iteration all behave as before, they just see the
+    current config instead of whatever was frozen at import."""
+
+    def __init__(self, index: int):
+        self._index = index
+
+    def _d(self) -> dict:
+        return _resolve_templates()[self._index]
+
+    def __getitem__(self, k): return self._d()[k]
+    def __iter__(self): return iter(self._d())
+    def __len__(self): return len(self._d())
+    def __repr__(self): return repr(self._d())
+
+
+class _LiveSequence(Sequence):
+    """The same idea for PROCESSING_TYPES / EAD_ELIGIBILITY_CATEGORIES, which
+    callers index and iterate as lists."""
+
+    def __init__(self, pick):
+        self._pick = pick
+
+    def _l(self) -> list:
+        return self._pick(_resolve_templates()[2])
+
+    def __getitem__(self, i): return self._l()[i]
+    def __len__(self): return len(self._l())
+    def __repr__(self): return repr(self._l())
 
 
 # Tag -> rows. TAG_ATTRIBUTE_TEMPLATES holds the scope rows (find/create
 # panel), POST_JOIN_ATTRIBUTE_TEMPLATES the per-member ones (group page); a
 # tag absent from the latter means joining that group is ungated.
-TAG_ATTRIBUTE_TEMPLATES, POST_JOIN_ATTRIBUTE_TEMPLATES = _resolve_templates()
+TAG_ATTRIBUTE_TEMPLATES = _LiveMapping(0)
+POST_JOIN_ATTRIBUTE_TEMPLATES = _LiveMapping(1)
+
+# The two dropdowns. EAD_ELIGIBILITY_CATEGORIES stays exported as the second
+# dropdown's list for the one type that has one — callers that predate
+# per-type category lists still read it.
+PROCESSING_TYPES = _LiveSequence(lambda types: types)
+EAD_ELIGIBILITY_CATEGORIES = _LiveSequence(
+    lambda types: next((t["eligibility_categories"] for t in types if t["value"] == "EAD"), []))
+
+
+# The spec that ships with the code. It is the fallback when nothing is
+# published and Firestore is unreachable, and the payload the publish CLI
+# seeds a fresh environment with — so "what the code does by default" and
+# "what is in the document" are the same shape, diffable against each other.
+DEFAULT_ATTRIBUTE_SPEC: dict = {
+    "version": 1,
+    "processing_types": _DEFAULT_PROCESSING_TYPES,
+    "period_rows": _DEFAULT_PERIOD_ROWS,
+    "scope_row_extras": _DEFAULT_SCOPE_ROW_EXTRAS,
+    "post_join_row_extras": _DEFAULT_POST_JOIN_ROW_EXTRAS,
+}
+
+
+def _spec() -> dict:
+    """The live attribute spec — Firestore-backed, TTL-cached, falling back to
+    DEFAULT_ATTRIBUTE_SPEC. Imported lazily because attribute_config validates
+    against this module's vocabulary."""
+    import attribute_config
+    return attribute_config.get()
 
 
 def vocab_lists() -> dict:
-    """The controlled vocabularies for the composer's add-tag autocomplete.
-    Assembled once per process — the CSVs are static at runtime, and this used
-    to rebuild the whole payload (uniq passes + domain map) on every request."""
+    """The controlled vocabularies for the composer's add-tag autocomplete,
+    plus the Timeline attribute templates both clients render from.
+
+    The CSV-derived half is assembled once per process — those files are
+    static at runtime, and rebuilding the uniq passes and domain map on every
+    request was measurable. The ATTRIBUTE half is spliced in fresh on each
+    call, because it comes from the externalised config: caching it here for
+    the process lifetime is exactly what used to make a config change require
+    a restart. The splice is four dict lookups over already-resolved data."""
     global _VOCAB_LISTS_CACHE
     if _VOCAB_LISTS_CACHE is not None:
-        return _VOCAB_LISTS_CACHE
+        return {**_VOCAB_LISTS_CACHE, **_attribute_vocab()}
     _Vocab.load()
     # de-dupe while preserving order
     def _uniq(xs: list[str]) -> list[str]:
@@ -616,12 +703,21 @@ def vocab_lists() -> dict:
         "profile_stage_key": _uniq(_Vocab._profile_stage_list),  # stage keys w/o 1.6
         # key -> value-domain (incl. every form -> 'outcome')
         "stage_value_domains": stage_value_domains_map(),
-        "tag_attribute_templates": TAG_ATTRIBUTE_TEMPLATES,
-        "post_join_attribute_templates": POST_JOIN_ATTRIBUTE_TEMPLATES,
-        "processing_types": PROCESSING_TYPES,
-        "ead_eligibility_categories": EAD_ELIGIBILITY_CATEGORIES,
     }
-    return _VOCAB_LISTS_CACHE
+    return {**_VOCAB_LISTS_CACHE, **_attribute_vocab()}
+
+
+def _attribute_vocab() -> dict:
+    """The config-derived half of the vocab payload, resolved fresh so an
+    edit to the Firestore spec reaches both clients within one TTL."""
+    scope, post_join, types = _resolve_templates()
+    return {
+        "tag_attribute_templates": scope,
+        "post_join_attribute_templates": post_join,
+        "processing_types": types,
+        "ead_eligibility_categories": next(
+            (t["eligibility_categories"] for t in types if t["value"] == "EAD"), []),
+    }
 
 
 # key_stages_or_info keys whose VALUE must come from a sub-vocabulary (not free text).

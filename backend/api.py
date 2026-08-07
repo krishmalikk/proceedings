@@ -976,10 +976,46 @@ def search_query_tags(body: QueryTagsRequest, request: Request):
 @app.get("/api/tag-vocab")
 def tag_vocab():
     """Controlled vocabularies (visa / consulate / tag) for the composer's
-    add-tag autocomplete. Static; safe to cache on the client."""
+    add-tag autocomplete, plus the Timeline attribute templates.
+
+    The vocabulary half is static. The attribute half is externalised config
+    (attribute_config) and changes without a deploy, so clients should cache
+    this on the order of the config TTL, not indefinitely."""
     import posting
 
     return posting.vocab_lists()
+
+
+@app.get("/api/config/attributes")
+def get_attribute_config():
+    """The Timeline attribute spec currently in force, plus where it came
+    from. `source` is the operational answer to "is prod running my edit?":
+
+      firestore  — serving the published document
+      last-good  — the document is unreadable or failed validation; still
+                   serving the previous good one (see last_error)
+      default    — nothing published, or nothing has ever validated; serving
+                   the spec baked into the image
+
+    Read-only by design: the API never writes config, so a bad spec cannot
+    arrive over HTTP. Publishing goes through
+    scripts/publish_attribute_config.py, which validates first."""
+    import attribute_config
+
+    return {"meta": attribute_config.meta(), "spec": attribute_config.get()}
+
+
+@app.post("/api/config/attributes/refresh")
+def refresh_attribute_config(request: Request):
+    """Force an immediate re-read instead of waiting out the TTL — for the
+    moment after publishing when you want to confirm the rollout rather than
+    watch a clock. Admin-token gated: it is cheap, but it is an unauthenticated
+    Firestore read amplifier otherwise."""
+    _require_admin(request)
+    import attribute_config
+
+    attribute_config.refresh(force=True)
+    return {"ok": True, "meta": attribute_config.meta()}
 
 
 @app.post("/api/postings", response_model=PostingCreateResponse)

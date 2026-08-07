@@ -1433,22 +1433,37 @@ def group_m_attributes_pure() -> None:
     # machinery that keeps two same-period groups distinct is exercised
     # against an injected one. Without it, name-based dedup would merge two
     # groups that differ only by that extra criterion.
-    posting.SCOPE_ROW_EXTRAS["h4-ead"] = [
-        {"kind": "date", "label": "Receipt Date", "field": "key_dates",
-         "key": "receipt_date", "name_prefix": "RD"}]
+    #
+    # Injected through the CONFIG rather than by patching a module global —
+    # that is the real path now, so this doubles as proof that a published
+    # config actually reaches group naming.
+    import attribute_config
+    attribute_config._set_for_tests({
+        **posting.DEFAULT_ATTRIBUTE_SPEC,
+        "scope_row_extras": {"h4-ead": [
+            {"kind": "date", "label": "Card Received", "field": "key_dates",
+             "key": "ead_card_received_date", "name_prefix": "RD"}]},
+    })
     try:
         base = {"tags": ["EAD", "h4-ead"],
                 "key_stages_or_info": {"filing_month": "Aug", "filing_year": "2026"}}
-        named = M._timeline_group_name({**base, "key_dates": {"receipt_date": "2026-08-20"}})
+        named = M._timeline_group_name({**base, "key_dates": {"ead_card_received_date": "2026-08-20"}})
         check("M45 an extra scope row reaches the name behind its name_prefix",
               named == "EAD-h4-ead-Aug-2026-RD-2026-08-20", named)
-        other = M._timeline_group_name({**base, "key_dates": {"receipt_date": "2026-09-02"}})
+        other = M._timeline_group_name({**base, "key_dates": {"ead_card_received_date": "2026-09-02"}})
         check("M45b …so two values in one filing month are DIFFERENT groups",
               named != other, f"{named} vs {other}")
         check("M45c …and the row is omitted entirely when unset",
               M._timeline_group_name(base) == "EAD-h4-ead-Aug-2026")
+        check("M45d …and the injected row reaches the tag-keyed registry too",
+              [r["key"] for r in posting.TAG_ATTRIBUTE_TEMPLATES["h4-ead"]]
+              == ["filing_month", "filing_year", "ead_card_received_date"],
+              str([r["key"] for r in posting.TAG_ATTRIBUTE_TEMPLATES["h4-ead"]]))
     finally:
-        del posting.SCOPE_ROW_EXTRAS["h4-ead"]
+        attribute_config._set_for_tests(None)
+    check("M45e reverting the config reverts the behaviour, no restart",
+          [r["key"] for r in posting.TAG_ATTRIBUTE_TEMPLATES["h4-ead"]]
+          == ["filing_month", "filing_year"])
 
     # --- M46-M52: what the validator does with input it did NOT expect -------
     # Everything above proves the happy shapes. These are the ones a client
