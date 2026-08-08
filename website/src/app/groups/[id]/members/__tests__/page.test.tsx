@@ -145,6 +145,55 @@ describe('GroupMembersPage', () => {
     expect(screen.queryByText('Clear filters')).toBeNull()
   })
 
+  it('matches case-insensitively and filters the Notes column too', async () => {
+    mockFetch(GROUP, ATTRS_TWO)
+    render(<MembersPage />)
+    await screen.findByText('Fall 2026 STEM OPT')
+    const body = () => within(screen.getByRole('table')).getAllByRole('row').slice(2)
+
+    // Typed lowercase, stored capitalised — a filter that only matched the
+    // exact casing would look broken to anyone who types naturally.
+    fireEvent.change(screen.getByLabelText('Filter Member'), { target: { value: 'ARJUN' } })
+    expect(body()).toHaveLength(1)
+
+    fireEvent.change(screen.getByLabelText('Filter Member'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Filter Notes'), { target: { value: 'waiting' } })
+    expect(body()).toHaveLength(1)
+    expect(within(screen.getByRole('table')).getByText('mei-f1')).toBeInTheDocument()
+  })
+
+  it('treats an emptied filter as no filter rather than matching nothing', async () => {
+    mockFetch(GROUP, ATTRS_TWO)
+    render(<MembersPage />)
+    await screen.findByText('Fall 2026 STEM OPT')
+    const body = () => within(screen.getByRole('table')).getAllByRole('row').slice(2)
+
+    fireEvent.change(screen.getByLabelText('Filter Date Applied'), { target: { value: '2026' } })
+    expect(body()).toHaveLength(1)
+    fireEvent.change(screen.getByLabelText('Filter Date Applied'), { target: { value: '' } })
+    expect(body()).toHaveLength(2)
+    // …and the count line goes back to the plain member count.
+    expect(screen.getByText('2 members')).toBeInTheDocument()
+    expect(screen.queryByText('Clear filters')).toBeNull()
+  })
+
+  it('filters on a member who submitted nothing, without crashing on the gaps', async () => {
+    // mei has no attributes row at all in the single-submitter fixture, so
+    // every cell resolves through `undefined` — the path most likely to throw.
+    mockFetch()
+    render(<MembersPage />)
+    await screen.findByText('Fall 2026 STEM OPT')
+
+    fireEvent.change(screen.getByLabelText('Filter Member'), { target: { value: 'mei' } })
+    const body = within(screen.getByRole('table')).getAllByRole('row').slice(2)
+    expect(body).toHaveLength(1)
+    expect(within(screen.getByRole('table')).getByText('mei-f1')).toBeInTheDocument()
+
+    // And a value filter excludes her, since she has no value to match.
+    fireEvent.change(screen.getByLabelText('Filter Date Applied'), { target: { value: '2026' } })
+    expect(screen.getByText('No members match these filters.')).toBeInTheDocument()
+  })
+
   it('matches the checkbox column on its displayed Yes, not the stored value', async () => {
     mockFetch(GROUP, ATTRS_TWO)
     render(<MembersPage />)

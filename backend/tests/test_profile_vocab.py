@@ -270,9 +270,13 @@ def group_vocab_api() -> None:
           [r["kind"] for r in h1b_rows if r["key"] in ("premium_processing", "admin_processing")]
           == ["checkbox", "checkbox"],
           str([(r["key"], r["kind"]) for r in h1b_rows]))
-    check("V H-1B 'Current Status' offers the RFE/NOID family",
-          {"NOID", "RFE", "NOIR", "NOIRescind"} ==
-          set(next(r for r in h1b_rows if r["key"] == "application_status")["options"]))
+    status_row = next(r for r in h1b_rows if r["key"] == "application_status")
+    check("V H-1B 'Intermediate Status' offers the RFE/NOID family",
+          {"NOID", "RFE", "NOIR", "NOIRescind"} == set(status_row["options"]))
+    # "Current Status" read as the case's final state; these are the states a
+    # petition passes THROUGH on the way to one.
+    check("V …and it is labelled 'Intermediate Status', not 'Current Status'",
+          status_row["label"] == "Intermediate Status", status_row["label"])
     check("V H-1B 'Final Decision' offers approved/denied/rejected",
           {"approved", "denied", "rejected"} ==
           set(next(r for r in h1b_rows if r["key"] == "outcome_status")["options"]))
@@ -289,6 +293,12 @@ def group_vocab_api() -> None:
     check("V H-1B's three application types carry no post_join rows of their own",
           all(c["tag"] not in post_join for c in h1b_type["eligibility_categories"]),
           str([c["tag"] for c in h1b_type["eligibility_categories"]]))
+    # The clients read the second dropdown's heading off the payload; if it
+    # didn't survive vocab_lists() they'd silently fall back to EAD's wording.
+    check("V the payload carries H-1B's own category_label",
+          h1b_type.get("category_label") == "Application type", str(h1b_type.get("category_label")))
+    check("V …and EAD omits it, so the client default is what's exercised there",
+          "category_label" not in next(t for t in v["processing_types"] if t["value"] == "EAD"))
 
 
 # ---------------------------------------------------------------------------

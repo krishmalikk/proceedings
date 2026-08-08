@@ -1408,6 +1408,23 @@ def group_m_attributes_pure() -> None:
           next(t for t in posting.PROCESSING_TYPES
                if t["value"] == "H-1B").get("category_label") == "Application type")
 
+    # --- ALL_ELIGIBILITY_CATEGORIES ----------------------------------------
+    # The accessor whose absence caused the collision below. EAD's own list
+    # stays exported for callers that specifically mean EAD's 8 CFR classes,
+    # but anything resolving "which category is this group scoped to" must
+    # read every type's.
+    all_tags = [c["tag"] for c in posting.ALL_ELIGIBILITY_CATEGORIES]
+    ead_tags = [c["tag"] for c in posting.EAD_ELIGIBILITY_CATEGORIES]
+    check("M47 ALL_ELIGIBILITY_CATEGORIES spans every type, not just EAD",
+          set(ead_tags) < set(all_tags), str(sorted(set(all_tags) - set(ead_tags))))
+    check("M47b …and it is exactly the union of the per-type lists, in order",
+          all_tags == [c["tag"] for t in posting.PROCESSING_TYPES
+                       for c in t.get("eligibility_categories") or []], str(all_tags))
+    check("M47c …with no duplicates — a tag belongs to one type",
+          len(all_tags) == len(set(all_tags)), str(all_tags))
+    check("M47d …and it tracks config, so a new type's categories appear unbidden",
+          {"change-of-status-COS", "h1b-stamping", "change-of-employer-COE"} <= set(all_tags))
+
     # --- generated name + description (preview_timeline_group) -------------
     def crit(cat, ptype="H-1B", month="Mar", year="2026"):
         """Which criteria field a tag lands in is decided by its vocabulary
@@ -1464,6 +1481,30 @@ def group_m_attributes_pure() -> None:
     check("M52 preview is pure — two calls with the same criteria agree",
           M.preview_timeline_group(crit("h1b-stamping"))
           == M.preview_timeline_group(crit("h1b-stamping")))
+
+    # The name and the description are built from the SAME segments, so a
+    # scope row that reaches one must reach the other — otherwise the blurb
+    # would describe a cohort the name doesn't.
+    part = M.preview_timeline_group(crit("change-of-status-COS", month="Mar", year=""))
+    check("M53a a half-filled period still names and describes what IS set",
+          part["name"] == "H-1B-change-of-status-COS-Mar"
+          and "filed Mar." in part["description"], str(part))
+
+    # A priority date is a PER-MEMBER fact, so it is a post-join row, not a
+    # scope row — it must stay out of both the name and the "filed …" phrase,
+    # and appear only as a field members will be asked for. Putting it in the
+    # scope would give every AOS filer a cohort of one.
+    aos = {"current_visa_or_greencard_category": ["adjustment-of-status"], "tags": ["EAD"],
+           "key_stages_or_info": {"filing_month": "Aug", "filing_year": "2026"},
+           "key_dates": {"priority_date": "2021-03-15"}}
+    aos_p = M.preview_timeline_group(aos)
+    check("M53b a per-member date stays out of the generated name",
+          aos_p["name"] == "EAD-adjustment-of-status-Aug-2026", aos_p["name"])
+    check("M53c …and out of the period phrase the description states",
+          "filed Aug 2026." in aos_p["description"]
+          and "2021-03-15" not in aos_p["description"], aos_p["description"])
+    check("M53d …but IS named as a field members will be asked for",
+          "Priority Date" in aos_p["description"], aos_p["description"])
 
     # required_keys() is the config; row 0 is only the fallback.
     check("M43 an explicit required flag decides which rows are mandatory",

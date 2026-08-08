@@ -109,7 +109,7 @@ import {
   archiveGroup, searchGroups, addMembers, joinGroup, saveMemberAttributes,
   getMemberAttributes, inviteToGroup, getMyInvitations, getGroupInvitations,
   acceptInvitation, declineInvitation, findCandidates, saveKeyDates,
-  requiredAttributeKeys, setActiveUserId, CHECKBOX_ON,
+  previewGroup, requiredAttributeKeys, setActiveUserId, CHECKBOX_ON,
   type PostJoinAttributeRow,
 } from '../apiService';
 
@@ -256,6 +256,39 @@ describe('apiService — URL, method and body per call', () => {
       criteria: { tags: ['EAD'] }, group_type: 'timeline',
       precision: 'strict', max_age_days: 30,
     });
+  });
+
+  it('previewGroup posts the criteria and returns the generated pair', async () => {
+    mockOk({ name: 'H-1B-change-of-status-COS-Mar-2026', description: 'Blurb.' });
+    const out = await previewGroup({ tags: ['EAD'] } as never, 'timeline');
+    expect(url()).toBe(`${API}/api/groups/preview`);
+    expect(body()).toEqual({ criteria: { tags: ['EAD'] }, group_type: 'timeline' });
+    expect(out).toEqual({ name: 'H-1B-change-of-status-COS-Mar-2026', description: 'Blurb.' });
+  });
+});
+
+// previewGroup is the one group call that must NEVER throw: its result is
+// cosmetic (the name shown above the create form), and a create screen you
+// can't use because the preview died is a worse bug than a missing name.
+describe('apiService.previewGroup — failure is cosmetic, never fatal', () => {
+  afterEach(async () => { await setActiveUserId(null); });
+
+  it('resolves to empty strings on a backend refusal instead of throwing', async () => {
+    mockErr(500, { detail: 'boom' });
+    await expect(previewGroup({} as never, 'timeline'))
+      .resolves.toEqual({ name: '', description: '' });
+  });
+
+  it('resolves to empty strings when the backend is unreachable', async () => {
+    global.fetch = jest.fn(async () => { throw new Error('ECONNREFUSED'); }) as unknown as typeof fetch;
+    await expect(previewGroup({} as never, 'timeline'))
+      .resolves.toEqual({ name: '', description: '' });
+  });
+
+  it('fills in missing fields rather than handing back undefined', async () => {
+    mockOk({});
+    await expect(previewGroup({} as never, 'timeline'))
+      .resolves.toEqual({ name: '', description: '' });
   });
 });
 

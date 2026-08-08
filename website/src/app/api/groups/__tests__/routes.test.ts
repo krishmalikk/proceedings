@@ -62,6 +62,10 @@ type Row = {
   /** Deliberately unauthenticated — searching groups needs no identity, the
    *  same way Advanced Search's posting search doesn't. */
   public?: boolean
+  /** Deliberately swallows upstream failure and answers 200 with a neutral
+   *  body instead of passing the status through. Only for routes whose result
+   *  is cosmetic: a dead preview must not block creating a group. */
+  softFail?: unknown
 }
 
 const ID = 'g1'
@@ -74,6 +78,9 @@ const ROUTES: Row[] = [
     load: async () => ({ handler: (r) => import('../route').then((m) => m.POST(r)) }) },
   { name: 'POST /groups/search', path: '/api/groups/search', method: 'POST', body: { criteria: {} }, public: true,
     load: async () => ({ handler: (r) => import('../search/route').then((m) => m.POST(r)) }) },
+  { name: 'POST /groups/preview', path: '/api/groups/preview', method: 'POST', body: { criteria: {} },
+    public: true, softFail: { name: '', description: '' },
+    load: async () => ({ handler: (r) => import('../preview/route').then((m) => m.POST(r)) }) },
   { name: 'GET /groups/invitations', path: '/api/groups/invitations', method: 'GET',
     load: async () => ({ handler: (r) => import('../invitations/route').then((m) => m.GET(r)) }) },
   { name: 'GET /groups/{id}', path: `/api/groups/${ID}`, method: 'GET',
@@ -132,26 +139,47 @@ describe.each(ROUTES)('$name', (row) => {
     expect(calledHeaders()).not.toHaveProperty('Authorization')
   })
 
-  it('passes an upstream error status and detail straight through', async () => {
+  it(row.softFail
+    ? 'swallows an upstream error into a neutral 200 — the result is cosmetic'
+    : 'passes an upstream error status and detail straight through', async () => {
     global.fetch = upstream(403, { detail: 'Only members can do that.' })
     const { handler } = await row.load()
     const res = await handler(req({ uid: 'demo-arjun', body: row.body }))
-    expect(res.status).toBe(403)
-    await expect(res.json()).resolves.toEqual({ detail: 'Only members can do that.' })
+    if (row.softFail) {
+      expect(res.status).toBe(200)
+      await expect(res.json()).resolves.toEqual(row.softFail)
+    } else {
+      expect(res.status).toBe(403)
+      await expect(res.json()).resolves.toEqual({ detail: 'Only members can do that.' })
+    }
   })
 
-  it('answers 503 when the backend is unreachable, not an unhandled rejection', async () => {
+  it(row.softFail
+    ? 'answers a neutral 200 when the backend is unreachable, never blocking the page'
+    : 'answers 503 when the backend is unreachable, not an unhandled rejection', async () => {
     global.fetch = vi.fn(async () => { throw new Error('ECONNREFUSED') }) as unknown as typeof fetch
     const { handler } = await row.load()
     const res = await handler(req({ uid: 'demo-arjun', body: row.body }))
-    expect(res.status).toBe(503)
-    await expect(res.json()).resolves.toEqual({ detail: expect.stringMatching(/Unable to reach/) })
+    if (row.softFail) {
+      expect(res.status).toBe(200)
+      await expect(res.json()).resolves.toEqual(row.softFail)
+    } else {
+      expect(res.status).toBe(503)
+      await expect(res.json()).resolves.toEqual({ detail: expect.stringMatching(/Unable to reach/) })
+    }
   })
 
-  it('substitutes its own message when the upstream error has no detail', async () => {
+  it(row.softFail
+    ? 'still answers a neutral 200 when the upstream error has no detail'
+    : 'substitutes its own message when the upstream error has no detail', async () => {
     global.fetch = upstream(500, {})
     const { handler } = await row.load()
     const res = await handler(req({ uid: 'demo-arjun', body: row.body }))
+    if (row.softFail) {
+      expect(res.status).toBe(200)
+      await expect(res.json()).resolves.toEqual(row.softFail)
+      return
+    }
     expect(res.status).toBe(500)
     const body = await res.json() as { detail: string }
     expect(body.detail).toBeTruthy()
@@ -219,6 +247,33 @@ describe('bodies the routes reshape', () => {
     const m = await import('../[id]/add-members/route')
     await m.POST(req({ uid: 'demo-arjun', body: {} }), ctx)
     expect(calledBody()).toEqual({ user_ids: [] })
+  })
+
+  it('preview forwards only criteria and group_type — it sends nothing else upstream', async () => {
+    global.fetch = upstream()
+    const m = await import('../preview/route')
+    await m.POST(req({
+      uid: 'demo-arjun',
+      // precision/max_age_days belong to /search; preview must not smuggle them.
+      body: { criteria: { tags: ['EAD'] }, group_type: 'timeline', precision: 'strict' },
+    }))
+    expect(calledBody()).toEqual({ criteria: { tags: ['EAD'] }, group_type: 'timeline' })
+  })
+
+  it('preview defaults a partial body rather than sending undefined', async () => {
+    global.fetch = upstream()
+    const m = await import('../preview/route')
+    await m.POST(req({ uid: 'demo-arjun', body: {} }))
+    expect(calledBody()).toEqual({ criteria: {}, group_type: '' })
+  })
+
+  it('preview returns the upstream name and description untouched', async () => {
+    global.fetch = upstream(200, { name: 'H-1B-change-of-status-COS-Mar-2026', description: 'Blurb.' })
+    const m = await import('../preview/route')
+    const res = await m.POST(req({ uid: 'demo-arjun', body: { criteria: {}, group_type: 'timeline' } }))
+    await expect(res.json()).resolves.toEqual({
+      name: 'H-1B-change-of-status-COS-Mar-2026', description: 'Blurb.',
+    })
   })
 })
 
