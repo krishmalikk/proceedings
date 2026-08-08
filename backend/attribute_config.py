@@ -14,7 +14,8 @@ review and a Cloud Run rollout. This module makes that spec a document:
 Edit the document, and every instance picks it up within one TTL (default
 60s) with no deploy. `POST /api/config/attributes/refresh` makes it immediate.
 
-THE SPEC SHAPE (see posting.DEFAULT_ATTRIBUTE_SPEC for the live example)
+THE SPEC SHAPE (config/timeline_attributes.default.json is a full example,
+and config/README.md explains the reasoning behind it)
 ------------------------------------------------------------------------
     {
       "version": 3,                       # advisory; bumped by the publisher
@@ -48,9 +49,11 @@ three gates before it is believed:
   2. KEEP LAST-GOOD. A read error, or a document that fails validation, leaves
      the previously-serving config in place. A bad edit degrades to "stale",
      never to "broken".
-  3. FALL BACK TO CODE. If nothing good has ever loaded — first boot with an
-     empty/missing document, or Firestore unreachable — the in-code
-     DEFAULT_ATTRIBUTE_SPEC serves. The app always has a working config.
+  3. FALL BACK TO THE SHIPPED BASE. If nothing good has ever loaded — first
+     boot with an empty/missing document, or Firestore unreachable —
+     posting.DEFAULT_ATTRIBUTE_SPEC serves, which is
+     config/timeline_attributes.default.json read from the image. The app
+     always has a working config.
 
 `source` on the returned metadata says which of these you are looking at, so
 "is this live or is it silently on the default?" is answerable in prod.

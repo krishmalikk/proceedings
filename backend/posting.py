@@ -328,58 +328,6 @@ GROUP_FIELDS = [
 _VOCAB_LISTS_CACHE: dict | None = None
 
 
-# The EAD eligibility categories a Timeline "EAD" group can be scoped to —
-# the second dropdown on the find/create panel, and the second segment of an
-# EAD group's name.
-#
-# Derived from 8 CFR § 274a.12, the regulation behind the eligibility-category
-# codes printed on Form I-765 and on the EAD card. The full derivation, the
-# categories we deliberately DON'T list, and the vocabulary gaps are written up
-# in features/ead-eligibility-5/ead-eligibility-evaluation.md — read that before
-# adding a row here.
-#
-# Two rules this list obeys, both from that evaluation:
-#   * Only § 274a.12(c) classes (must apply for an EAD) and the (a) classes that
-#     still file an I-765 for the card. The (b) classes — H-1B, L-1, O-1, TN,
-#     E-1/E-2, J-1, F-1 on-campus/CPT — are authorized incident to status and
-#     NEVER file, so offering them here would be simply wrong.
-#   * Every row's `tag` must already exist in the controlled vocabulary, so a
-#     group scoped to it is findable by the same tag a posting would carry.
-#
-# `code` is display-only provenance (it makes the row auditable against the
-# CFR); nothing keys off it.
-_DEFAULT_EAD_CATEGORIES: list[dict] = [
-    {"code": "(c)(3)(C)", "label": "F-1 STEM OPT extension (24-month)", "tag": "stem-opt-extension"},
-    {"code": "(c)(3)(B)", "label": "F-1 post-completion OPT", "tag": "opt-application"},
-    {"code": "(c)(9)", "label": "Pending adjustment of status (I-485)", "tag": "adjustment-of-status"},
-    {"code": "(c)(26)", "label": "H-4 spouse of H-1B", "tag": "h4-ead"},
-    {"code": "(c)(5)", "label": "J-2 spouse of exchange visitor", "tag": "J-2"},
-    {"code": "(c)(8)", "label": "Asylum applicant", "tag": "asylum"},
-    {"code": "(c)(19)", "label": "Temporary Protected Status", "tag": "TPS"},
-    {"code": "(c)(33)", "label": "DACA", "tag": "DACA"},
-    {"code": "(a)(3)", "label": "Refugee / asylee", "tag": "refugee"},
-    {"code": "(c)(11)", "label": "Humanitarian parole", "tag": "humanitarian-parole"},
-]
-
-# The "Processing type" dropdown itself. Was previously derived from
-# TAG_ATTRIBUTE_TEMPLATES's keys, which meant the dropdown literally read
-# "stem-opt-extension" — an ACTION tag masquerading as the kind of case being
-# tracked. A processing type is now its own concept: the filing a group is
-# organised around, optionally narrowed by an eligibility category.
-#
-# `eligibility_categories` empty => that type has no second dropdown. The
-# second dropdown's contents therefore ALREADY depend on the first: each type
-# names its own list, and EAD is simply the only type that has one today. A
-# future "I-485" type would carry its own list here and nothing else changes.
-#
-# Each entry is enriched by _resolve_templates() below with the `scope_rows`
-# and `post_join_rows` its selection implies — see that function's docstring.
-_DEFAULT_PROCESSING_TYPES: list[dict] = [
-    {"value": "EAD", "label": "EAD", "eligibility_categories": _DEFAULT_EAD_CATEGORIES},
-    {"value": "H-1B", "label": "H-1B", "eligibility_categories": []},
-]
-
-
 # ─────────────────────────── the attribute framework ───────────────────────
 #
 # A Timeline group's fields are CONFIGURATION, not code. Two dropdowns select
@@ -392,122 +340,69 @@ _DEFAULT_PROCESSING_TYPES: list[dict] = [
 #                   Every member of the group shares these values.
 #   POST-JOIN rows  personal per-member facts. Entered on the group's own page
 #                   right after joining, written into the MEMBER'S OWN profile.
-#                   Two members of one stem-opt-extension/Aug-2026 group filed
-#                   on different days, so these can't live in the criteria.
 #
-# Both are resolved the same way, by layering:
+# THE BASE SPEC IS DATA, NOT CODE: config/timeline_attributes.default.json.
+# Firestore overrides it at runtime (attribute_config.py); the file is what
+# serves until something is published there, and what
+# `scripts/publish_attribute_config.py --from-default` seeds a fresh
+# environment with. There is exactly one base — editing the JSON changes the
+# shipped default, and nothing here needs touching.
 #
-#     base (every Timeline scope)  +  processing-type extras  +  category extras
-#
-# with a later layer overriding an earlier one on matching `key`. Adding a
-# field to one category is therefore a one-line entry in the *_ROW_EXTRAS dict
-# below, and adding a whole processing type is one PROCESSING_TYPES entry plus
-# (optionally) its own extras — no frontend change either way, because both
-# clients render whatever rows the resolved config hands them.
-#
-# EACH ROW'S "kind" DRIVES BOTH THE CONTROL AND THE VALIDATION:
-#   "date"     — free-form YYYY-MM-DD
-#   "select"   — must be one of the row's "options" (enforced server-side by
-#                matching.py's _validate_attribute_values, not just in the UI)
-#   "year"     — like select, but the frontend fills in previous/current/next
-#                at render time; never baked in here, so it can't go stale
-#   "checkbox" — stored as CHECKBOX_ON ("yes") or absent; never "no", so an
-#                unticked box reads the same as never-answered and the sparse
-#                `values` dict stays sparse
-#
-# EACH ROW'S "field" DECIDES WHERE THE VALUE LANDS — key_dates rows merge into
-# profile.key_dates (or the group's criteria key_dates), key_stages_or_info
-# rows into key_stages_or_info. Every key must exist in the matching CSV
-# (1.8-key-dates / 1.7-key-stages) or profile.py's cleaners will silently drop
-# it on save.
-#
-# OPTIONAL PER-ROW KEYS:
-#   "required"    — post-join only: the member must supply it to join. Defaults
-#                   to row 0 of the list, which is the convention every existing
-#                   template was written to; set it explicitly to move it.
-#   "name_prefix" — scope only: label this value carries in the generated group
-#                   name, so 'EAD-adjustment-of-status-Aug-2026-PD-2021-03-15'
-#                   doesn't read as two anonymous dates. Period rows have none.
+# The reasoning that used to live in comments around these literals — why only
+# 8 CFR 274a.12(c) classes are offered, why an I-485 priority date is
+# post-join and optional, what each row field means and how `required`
+# resolves — moved to config/README.md, because JSON has nowhere to put it.
+# Read that before editing the spec.
 CHECKBOX_ON = "yes"
 
-_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+_BASE_CONFIG_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "config", "timeline_attributes.default.json")
+
+# Structurally valid, but offers nothing. Used ONLY when the base JSON is
+# missing or unparseable — a packaging accident, which tests/test_packaging.py
+# exists to catch before a deploy. Degrading rather than raising is deliberate:
+# /api/tag-vocab also carries the CSV vocabulary the post composer and search
+# depend on, and neither has anything to do with Timeline groups.
+_EMPTY_SPEC: dict = {"version": 0, "processing_types": [], "period_rows": [],
+                     "scope_row_extras": {}, "post_join_row_extras": {}}
 
 
-_DEFAULT_PERIOD_ROWS: list[dict] = [
-    {"kind": "select", "label": "Month", "field": "key_stages_or_info",
-     "key": "filing_month", "options": list(_MONTHS)},
-    {"kind": "year", "label": "Year", "field": "key_stages_or_info", "key": "filing_year"},
-]
+def _load_base_config() -> dict:
+    """Read the shipped base spec. Called once, at import."""
+    try:
+        with open(_BASE_CONFIG_PATH, encoding="utf-8") as fh:
+            spec = json.load(fh)
+        if not isinstance(spec, dict):
+            raise ValueError("base config is not a JSON object")
+        return spec
+    except Exception as e:  # noqa: BLE001 — packaging must not break the API
+        print(f"[posting] WARNING: could not load {_BASE_CONFIG_PATH} "
+              f"({type(e).__name__}: {e}) — Timeline attributes will be empty "
+              f"until a config is published to Firestore")
+        return json.loads(json.dumps(_EMPTY_SPEC))
+
+
+# The spec that ships with the code: the fallback when nothing is published
+# and Firestore is unreachable, and the payload the publish CLI seeds with.
+DEFAULT_ATTRIBUTE_SPEC: dict = _load_base_config()
 
 
 def _period_rows() -> list[dict]:
-    """The base scope every Timeline group gets: a 3-letter calendar Month
-    plus a Year. ONE shape for every processing type and every eligibility
-    category — there is deliberately no "Cycle" anywhere. The OPT categories
-    used to get a Fall/Spring academic cycle, but two different period
-    controls made the panel inconsistent depending on what you'd picked, and
-    a filing month is perfectly well-defined for an OPT application too.
+    """The base scope every Timeline group gets — a 3-letter calendar Month
+    plus a Year, per the config's `period_rows`.
 
-    (The OPT pair previously wrote stem_opt_cycle / stem_opt_year. Those keys
-    stay in the 1.7 vocabulary — existing profiles and postings still carry
-    them — but nothing collects them anymore.)
+    ONE shape for every processing type and every eligibility category; there
+    is deliberately no "Cycle" anywhere (config/README.md explains why).
 
-    Read from the live config, so this is overridable without a deploy.
-
-    A MISSING `period_rows` means "not configured, use the default"; an
+    A MISSING `period_rows` means "not configured, use the shipped base"; an
     explicitly EMPTY one means "no period rows". `or` would conflate the two
-    and silently reinstate the default against the operator's wishes — hence
-    the `is None`. (Publishing an empty period is separately rejected by
+    and silently reinstate the base against the operator's wishes — hence the
+    `is None`. (Publishing an empty period is separately rejected by
     attribute_config.validate; see there for why.)"""
     rows = _spec().get("period_rows")
-    return [dict(r) for r in (_DEFAULT_PERIOD_ROWS if rows is None else rows)]
-
-
-# Scope rows a specific processing type or eligibility category adds ON TOP OF
-# the period rows. Keyed by processing-type value or category tag.
-#
-# Empty today: every Timeline scope is defined by its filing period alone.
-# (I-485's priority date was briefly modelled here before moving to the
-# post-join rows below — it varies per member, so scoping a whole group by one
-# exact date would have split every AOS cohort into cohorts of one.)
-#
-# A row here may carry "name_prefix" to label its value in the generated group
-# name, which is what keeps two same-period groups distinguishable when a
-# category scopes by something beyond the period. Nothing configures one right
-# now; the mechanism is covered by M45.
-_DEFAULT_SCOPE_ROW_EXTRAS: dict[str, list[dict]] = {}
-
-
-# Per-member rows collected after joining, keyed the same way. Ordered roughly
-# as a case progresses, so the members table reads left→right like a timeline.
-_DEFAULT_POST_JOIN_ROW_EXTRAS: dict[str, list[dict]] = {
-    # I-485. A priority date is a per-member fact — everyone in an AOS cohort
-    # has their own — so it belongs here rather than in the group's scope.
-    # Explicitly optional: many filers don't have one to hand (and some
-    # categories never get one), and required_keys() would otherwise make
-    # row 0 mandatory by convention.
-    "adjustment-of-status": [
-        {"kind": "date", "label": "Priority Date", "field": "key_dates",
-         "key": "priority_date", "required": False},
-    ],
-    "stem-opt-extension": [
-        {"kind": "date", "label": "Date Applied", "field": "key_dates", "key": "ead_filed_date",
-         "required": True},
-        {"kind": "select", "label": "Status", "field": "key_stages_or_info", "key": "application_status",
-         "options": ["approved", "pending", "denied", "RFE", "NOID"]},
-        {"kind": "select", "label": "Service Center", "field": "key_stages_or_info", "key": "service_center",
-         "options": ["PSC", "SRC", "LIN", "VSC"]},
-        {"kind": "checkbox", "label": "Premium Processing", "field": "key_stages_or_info", "key": "premium_processing"},
-        {"kind": "date", "label": "Request for Initial Evidence (RFIE)", "field": "key_dates", "key": "rfe_date"},
-        {"kind": "checkbox", "label": "Biometrics Requested", "field": "key_stages_or_info", "key": "biometrics_requested"},
-        {"kind": "date", "label": "Biometrics Completed", "field": "key_dates", "key": "biometrics_completed_date"},
-        {"kind": "checkbox", "label": "Notice of Intent to Deny", "field": "key_stages_or_info", "key": "noid_issued"},
-        {"kind": "date", "label": "Date Approved", "field": "key_dates", "key": "ead_approved_date"},
-        {"kind": "date", "label": "Date Card Produced", "field": "key_dates", "key": "ead_card_produced_date"},
-        {"kind": "date", "label": "Date Card Received", "field": "key_dates", "key": "ead_card_received_date"},
-    ],
-}
+    if rows is None:
+        rows = DEFAULT_ATTRIBUTE_SPEC.get("period_rows") or []
+    return [dict(r) for r in rows]
 
 
 def _layer_rows(*layers: list[dict]) -> list[dict]:
@@ -577,7 +472,7 @@ def _resolve_templates() -> tuple[dict[str, list[dict]], dict[str, list[dict]], 
     scope: dict[str, list[dict]] = {}
     post_join: dict[str, list[dict]] = {}
     types: list[dict] = []
-    for raw in _spec().get("processing_types") or _DEFAULT_PROCESSING_TYPES:
+    for raw in _spec().get("processing_types") or DEFAULT_ATTRIBUTE_SPEC.get("processing_types") or []:
         ptype = {**raw, "eligibility_categories": []}
         pv = ptype["value"]
         ptype["scope_rows"] = scope[pv] = timeline_scope_rows(pv)
@@ -650,19 +545,6 @@ POST_JOIN_ATTRIBUTE_TEMPLATES = _LiveMapping(1)
 PROCESSING_TYPES = _LiveSequence(lambda types: types)
 EAD_ELIGIBILITY_CATEGORIES = _LiveSequence(
     lambda types: next((t["eligibility_categories"] for t in types if t["value"] == "EAD"), []))
-
-
-# The spec that ships with the code. It is the fallback when nothing is
-# published and Firestore is unreachable, and the payload the publish CLI
-# seeds a fresh environment with — so "what the code does by default" and
-# "what is in the document" are the same shape, diffable against each other.
-DEFAULT_ATTRIBUTE_SPEC: dict = {
-    "version": 1,
-    "processing_types": _DEFAULT_PROCESSING_TYPES,
-    "period_rows": _DEFAULT_PERIOD_ROWS,
-    "scope_row_extras": _DEFAULT_SCOPE_ROW_EXTRAS,
-    "post_join_row_extras": _DEFAULT_POST_JOIN_ROW_EXTRAS,
-}
 
 
 def _spec() -> dict:

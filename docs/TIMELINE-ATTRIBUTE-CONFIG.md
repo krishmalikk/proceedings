@@ -6,7 +6,8 @@ change without a deploy.
 
     Firestore   app_config/timeline_attributes
     Loader      backend/attribute_config.py
-    Defaults    backend/posting.py  →  DEFAULT_ATTRIBUTE_SPEC
+    Base spec   backend/config/timeline_attributes.default.json
+                (+ config/README.md — the reasoning behind it)
     Publisher   backend/scripts/publish_attribute_config.py
     Read API    GET  /api/config/attributes
     Refresh     POST /api/config/attributes/refresh   (X-Admin-Token)
@@ -15,8 +16,9 @@ change without a deploy.
 
 ## 1. Create it for the first time
 
-**You may not need to.** With no document, every instance serves the in-code
-`DEFAULT_ATTRIBUTE_SPEC` and the app works normally — `meta.source` just reads
+**You may not need to.** With no document, every instance serves the base spec
+shipped in the image (`config/timeline_attributes.default.json`, loaded into
+`posting.DEFAULT_ATTRIBUTE_SPEC`) and the app works normally — `meta.source` just reads
 `default`. Seed the document when you want to start *editing* config without
 deploying. A brand-new environment is not broken until then.
 
@@ -56,7 +58,7 @@ cd backend
 python scripts/publish_attribute_config.py --from-default --yes
 ```
 
-That validates the in-code default, writes it as version 1, and prints the
+That validates the shipped base JSON, writes it as version 1, and prints the
 diff it applied. Drop `--yes` first if you want to see the diff and be asked.
 
 ### Verify
@@ -174,9 +176,9 @@ curl https://<api-host>/api/config/attributes | jq .meta
 |---|---|---|
 | `firestore` | serving the published document | check `version` matches what you published |
 | `last-good` | the document is unreadable or **failed validation** — serving the previous good one | read `last_error`; fix and republish |
-| `default` | nothing published, or nothing has ever validated — serving the spec baked into the image | publish, or check `last_error` |
+| `default` | nothing published, or nothing has ever validated — serving `config/timeline_attributes.default.json` from the image | publish, or check `last_error` |
 
-**Rollback** is `--delete` (every instance reverts to the in-code default
+**Rollback** is `--delete` (every instance reverts to the shipped base JSON
 within one TTL) or republishing the previous JSON. Keep the exported file.
 
 ## 7. Why Firestore

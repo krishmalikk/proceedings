@@ -8,7 +8,7 @@ here validates before it writes.
 
 WORKFLOW
 --------
-    # 1. see what is live vs what the code ships with
+    # 1. see what is live vs what the image ships with
     python scripts/publish_attribute_config.py --show
     python scripts/publish_attribute_config.py --diff
 
@@ -20,11 +20,11 @@ WORKFLOW
     # 3. publish (prints the diff and asks, unless --yes)
     python scripts/publish_attribute_config.py --file spec.json
 
-    # seed a fresh environment from the in-code default
+    # seed a fresh environment from the shipped base JSON
     python scripts/publish_attribute_config.py --from-default
 
-    # emergency: drop the document, reverting every instance to the in-code
-    # default within one TTL
+    # emergency: drop the document, reverting every instance to the shipped
+    # base JSON within one TTL
     python scripts/publish_attribute_config.py --delete
 
 The version field is bumped automatically on publish so `GET
@@ -83,20 +83,20 @@ def main() -> int:
     src = ap.add_mutually_exclusive_group()
     src.add_argument("--file", help="publish this JSON file")
     src.add_argument("--from-default", action="store_true",
-                     help="publish the spec baked into the code (seeds a fresh environment)")
+                     help="publish config/timeline_attributes.default.json (seeds a fresh environment)")
     ap.add_argument("--show", action="store_true", help="print the live spec and exit")
     ap.add_argument("--export", metavar="PATH", help="write the live spec (or the default) to PATH and exit")
     ap.add_argument("--diff", action="store_true", help="show live vs proposed and exit")
     ap.add_argument("--validate-only", action="store_true", help="validate the proposed spec and exit")
     ap.add_argument("--delete", action="store_true",
-                    help="delete the document — every instance reverts to the in-code default")
+                    help="delete the document — every instance reverts to the shipped base JSON")
     ap.add_argument("--yes", action="store_true", help="skip the confirmation prompt")
     args = ap.parse_args()
 
     if args.show:
         live = _live_raw()
         print(json.dumps(live, indent=2, sort_keys=True, default=str) if live
-              else "(nothing published — instances are serving the in-code default)")
+              else "(nothing published — instances are serving config/timeline_attributes.default.json)")
         return 0
 
     if args.export:
@@ -105,18 +105,18 @@ def main() -> int:
             json.dump({k: v for k, v in live.items() if k != "updated_at"},
                       fh, indent=2, sort_keys=True, default=str)
             fh.write("\n")
-        print(f"wrote {args.export} ({'live document' if _live_raw() else 'in-code default'})")
+        print(f"wrote {args.export} ({'live document' if _live_raw() else 'shipped base JSON'})")
         return 0
 
     if args.delete:
         if not args.yes:
             print("This deletes app_config/timeline_attributes. Every instance reverts to the")
-            print("in-code default within one TTL. Re-run with --yes to confirm.")
+            print("shipped base JSON within one TTL. Re-run with --yes to confirm.")
             return 1
         from google.cloud import firestore
         firestore.Client().collection(attribute_config.COLLECTION) \
             .document(attribute_config.DOCUMENT).delete()
-        print("deleted — instances will fall back to the in-code default")
+        print("deleted — instances will fall back to config/timeline_attributes.default.json")
         return 0
 
     # ---- assemble the proposed spec -------------------------------------

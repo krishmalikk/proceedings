@@ -42,7 +42,7 @@ the scope would give each person a group of one.
 
 ## 2. How resolution works
 
-Both sets resolve by layering, in `backend/posting.py`:
+Both sets resolve by layering, in `backend/config/timeline_attributes.default.json` (loaded by `backend/posting.py`):
 
 ```
 base (every Timeline scope)  +  processing-type extras  +  category extras
