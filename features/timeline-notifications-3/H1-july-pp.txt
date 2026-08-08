@@ -26,13 +26,34 @@ Service center: TX
        ↓
 6. Activation / Consular Processing (if applicable)
 -----------------------------------
-Application type: H1B CoS (Initial) / H1B Consular (Initial) / H1B COE
+(dropdown 1)
+Processing Type: H1B
+
+(dropdown 2)
+
+Application type:
+CoS (Initial)
+/ Consular (Initial)
+/ H1B COE
+
+Application filed:
+Month
+Year
+
+Parametsrs at the time of joining:
 
 Premium Processing: Yes / No
 Receipt date (Petition Submission Date):
 Actively being reviewed date:
 Approved Date:
-Service Center (if known):
+Service Center :
+Current status: NOID, RFE, NOIR, NOIRescind
+RFE Date:
+Biometrics appointment date:
+ADmin processing YES / NO
+Interview date:
+Final decision: Approved / Denied / Rejected
+Final decision date:
 
 -----------------------------------
 
