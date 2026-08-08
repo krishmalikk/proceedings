@@ -14,13 +14,30 @@ change without a deploy.
 
 ---
 
-## 1. Create it for the first time
+## 1. Seed it into Firestore for the first time
 
 **You may not need to.** With no document, every instance serves the base spec
 shipped in the image (`config/timeline_attributes.default.json`, loaded into
 `posting.DEFAULT_ATTRIBUTE_SPEC`) and the app works normally — `meta.source` just reads
 `default`. Seed the document when you want to start *editing* config without
 deploying. A brand-new environment is not broken until then.
+
+### The three moving parts
+
+| | What | Why it's that one |
+|---|---|---|
+| **Program that writes** | [`backend/scripts/publish_attribute_config.py`](../backend/scripts/publish_attribute_config.py) | The **only** write path. The API deliberately exposes no config-write endpoint, so a malformed spec can't arrive over HTTP — it has to come through here, and here runs `attribute_config.validate()` *before* it writes. |
+| **JSON it reads** | [`backend/config/timeline_attributes.default.json`](../backend/config/timeline_attributes.default.json) | The base spec, and the single source for a fresh seed. `posting._load_base_config()` loads it into `DEFAULT_ATTRIBUTE_SPEC` at import; `--from-default` publishes exactly that. Its field-by-field reasoning is in [`backend/config/README.md`](../backend/config/README.md). |
+| **Where it lands** | Firestore document `app_config/timeline_attributes`, in the **GCP project your ADC resolves to** | One document per project. Not a collection to design, not an index to create — see the warning below about *which* project that actually is. |
+
+The whole path in one line:
+
+    config/timeline_attributes.default.json
+      → posting.DEFAULT_ATTRIBUTE_SPEC        (loaded at import)
+      → publish_attribute_config.py --from-default
+      → validate()                            (refuses to write a bad spec)
+      → Firestore  app_config/timeline_attributes   (version bumped)
+      → attribute_config.get()  in every API instance, within one TTL
 
 ### Prerequisites
 
@@ -53,13 +70,32 @@ command, or re-run `gcloud auth application-default login` against it.
 
 ### Seed it
 
+The script finds the JSON and `backend/.env` relative to its own location, so
+it works from anywhere; `cd backend` just keeps the `--file` paths below short.
+
 ```bash
 cd backend
 python scripts/publish_attribute_config.py --from-default --yes
 ```
 
-That validates the shipped base JSON, writes it as version 1, and prints the
-diff it applied. Drop `--yes` first if you want to see the diff and be asked.
+`--from-default` is what makes this a *seed from the JSON file*: it reads
+`config/timeline_attributes.default.json` (via `posting.DEFAULT_ATTRIBUTE_SPEC`)
+rather than any local edit. In order, the script:
+
+1. loads the JSON and runs `attribute_config.validate()` on it — on any error it
+   prints every problem and **writes nothing** (exit 1);
+2. prints a unified diff of live-vs-proposed, so you see exactly what changes;
+3. sets `version` to `(live version or 0) + 1`;
+4. writes `app_config/timeline_attributes` in the resolved project.
+
+Drop `--yes` to stop after step 2 and be asked. To seed from a file that is
+*not* the shipped default — a spec exported from another environment, say —
+use `--file <path>` instead; it takes the same validate → diff → write path.
+
+```bash
+python scripts/publish_attribute_config.py --file spec.json --validate-only   # check only
+python scripts/publish_attribute_config.py --file spec.json --yes             # write it
+```
 
 ### Verify
 
@@ -72,12 +108,45 @@ curl -s https://<api-host>/api/config/attributes | jq .meta
 or immediately after `POST /api/config/attributes/refresh`. If it still says
 `default`, read `meta.last_error` — §6.
 
-### Per environment
+### Which environment you just wrote to
 
 The document is **per GCP project**, so dev / staging / prod each need their
-own seed. They can hold different specs on purpose; nothing syncs them. Keep
-the exported JSON in version control or a ticket if you want a record of what
-each environment is running — `--show` is the only other source of truth.
+own seed. They can hold different specs on purpose; nothing syncs them. There
+is no environment flag on the script — the target is whatever project ADC
+resolves, so switching environments means switching credentials:
+
+```bash
+# one-off, for this command only
+GOOGLE_CLOUD_PROJECT=my-staging-project \
+  python scripts/publish_attribute_config.py --from-default --yes
+
+# or switch the ambient credentials
+gcloud auth application-default login       # against the other project
+```
+
+Confirm which one you hit, from the environment's own API rather than from
+your shell:
+
+```bash
+curl -s https://<api-host>/api/config/attributes | jq '.meta.source, .meta.version'
+```
+
+Keep the exported JSON in version control or a ticket if you want a record of
+what each environment is running — `--show` is the only other source of truth.
+
+### After seeding, the JSON is no longer what's live
+
+This is the trap worth internalising: once a project has a published document,
+**editing `timeline_attributes.default.json` changes nothing in that
+environment.** Firestore overrides the shipped base, so the file only serves
+environments with no document yet, and only seeds new ones. To change a live
+environment you either re-run the seed (`--from-default`, picking up your JSON
+edit) or publish an edited export — §2. To go back to the file for good, delete
+the document:
+
+```bash
+python scripts/publish_attribute_config.py --delete --yes
+```
 
 ## 2. Change a field
 
