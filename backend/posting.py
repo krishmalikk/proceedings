@@ -539,12 +539,21 @@ class _LiveSequence(Sequence):
 TAG_ATTRIBUTE_TEMPLATES = _LiveMapping(0)
 POST_JOIN_ATTRIBUTE_TEMPLATES = _LiveMapping(1)
 
-# The two dropdowns. EAD_ELIGIBILITY_CATEGORIES stays exported as the second
-# dropdown's list for the one type that has one — callers that predate
-# per-type category lists still read it.
+# The two dropdowns.
 PROCESSING_TYPES = _LiveSequence(lambda types: types)
+
+# EAD's own second-dropdown list. Narrow by construction — use it only when
+# you specifically mean EAD's 8 CFR categories. Anything resolving "which
+# category is this group scoped to" must use ALL_ELIGIBILITY_CATEGORIES:
+# more than one type has a list now, and reading EAD's alone made every H-1B
+# application type resolve to nothing, which collapsed three distinct cohorts
+# onto one generated name (Timeline dedup is name-based).
 EAD_ELIGIBILITY_CATEGORIES = _LiveSequence(
     lambda types: next((t["eligibility_categories"] for t in types if t["value"] == "EAD"), []))
+
+# Every type's categories, in dropdown order.
+ALL_ELIGIBILITY_CATEGORIES = _LiveSequence(
+    lambda types: [c for t in types for c in (t.get("eligibility_categories") or [])])
 
 
 def _spec() -> dict:

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import MembersPage from '../page'
 
@@ -16,6 +16,10 @@ const TEMPLATES = {
     { kind: 'date', label: 'Date Applied', field: 'key_dates', key: 'ead_filed_date' },
     { kind: 'date', label: 'EAD Received', field: 'key_dates', key: 'ead_approved_date' },
     { kind: 'checkbox', label: 'Premium Processing', field: 'key_stages_or_info', key: 'premium_processing' },
+    // A select column, so the filter row's "offer the configured options"
+    // branch is exercised rather than only the substring one.
+    { kind: 'select', label: 'Service Center', field: 'key_stages_or_info', key: 'service_center',
+      options: ['PSC', 'SRC', 'VSC'] },
   ],
 }
 
@@ -32,8 +36,21 @@ const GROUP = {
 const ATTRS = [
   {
     user_id: 'demo-arjun', username: 'arjun-h1b', processing_type: 'stem-opt-extension',
-    values: { ead_filed_date: '2026-03-01', ead_approved_date: '2026-05-20', premium_processing: 'yes' },
+    values: {
+      ead_filed_date: '2026-03-01', ead_approved_date: '2026-05-20',
+      premium_processing: 'yes', service_center: 'PSC',
+    },
     notes: 'filed early', submitted_at: '', updated_at: '',
+  },
+]
+
+// A second submitter, so filtering has something to actually exclude.
+const ATTRS_TWO = [
+  ...ATTRS,
+  {
+    user_id: 'demo-mei', username: 'mei-f1', processing_type: 'stem-opt-extension',
+    values: { ead_filed_date: '2025-11-02', service_center: 'VSC' },
+    notes: 'still waiting', submitted_at: '', updated_at: '',
   },
 ]
 
@@ -59,8 +76,8 @@ describe('GroupMembersPage', () => {
     await screen.findByText('Fall 2026 STEM OPT')
     const table = screen.getByRole('table')
     const rows = within(table).getAllByRole('row')
-    // header + one row per member
-    expect(rows).toHaveLength(1 + GROUP.members.length)
+    // header + filter row + one row per member
+    expect(rows).toHaveLength(2 + GROUP.members.length)
 
     const arjun = within(table).getByText('arjun-h1b').closest('tr')!
     expect(within(arjun).getByText('2026-03-01')).toBeInTheDocument()
@@ -68,9 +85,9 @@ describe('GroupMembersPage', () => {
     expect(within(arjun).getByText('filed early')).toBeInTheDocument()
 
     // mei submitted nothing — every cell falls back to an em dash
-    // (3 attribute columns + notes).
+    // (4 attribute columns + notes).
     const mei = within(table).getByText('mei-f1').closest('tr')!
-    expect(within(mei).getAllByText('—')).toHaveLength(4)
+    expect(within(mei).getAllByText('—')).toHaveLength(5)
   })
 
   it('takes its columns from the matched attribute template', async () => {
@@ -78,8 +95,67 @@ describe('GroupMembersPage', () => {
     render(<MembersPage />)
 
     await screen.findByText('Fall 2026 STEM OPT')
-    const headers = within(screen.getByRole('table')).getAllByRole('columnheader').map((h) => h.textContent)
-    expect(headers).toEqual(['Member', 'Date Applied', 'EAD Received', 'Premium Processing', 'Notes'])
+    // The FIRST header row — the second one holds the filter controls.
+    const labelRow = within(screen.getByRole('table')).getAllByRole('row')[0]
+    const headers = within(labelRow).getAllByRole('columnheader').map((h) => h.textContent)
+    expect(headers).toEqual(['Member', 'Date Applied', 'EAD Received', 'Premium Processing', 'Service Center', 'Notes'])
+  })
+
+  it('gives every column a filter, typed to what the column holds', async () => {
+    mockFetch()
+    render(<MembersPage />)
+    await screen.findByText('Fall 2026 STEM OPT')
+
+    // Every column, not just the three the brief named — the columns are
+    // configuration, so a hardcoded subset would stop covering a column added
+    // from Firestore tomorrow.
+    expect(screen.getByLabelText('Filter Member')).toBeInTheDocument()
+    expect(screen.getByLabelText('Filter Date Applied')).toBeInTheDocument()
+    expect(screen.getByLabelText('Filter Notes')).toBeInTheDocument()
+
+    // A select column offers its own configured domain rather than free text.
+    const sc = screen.getByLabelText('Filter Service Center') as HTMLSelectElement
+    expect([...sc.options].map((o) => o.value)).toEqual(['', 'PSC', 'SRC', 'VSC'])
+    // A checkbox column is Yes-or-all; there is no stored "no" to offer.
+    const pp = screen.getByLabelText('Filter Premium Processing') as HTMLSelectElement
+    expect([...pp.options].map((o) => o.value)).toEqual(['', 'Yes'])
+  })
+
+  it('filters rows down, combines filters, and clears them again', async () => {
+    mockFetch(GROUP, ATTRS_TWO)
+    render(<MembersPage />)
+    await screen.findByText('Fall 2026 STEM OPT')
+    const body = () => within(screen.getByRole('table')).getAllByRole('row').slice(2)
+    expect(body()).toHaveLength(2)
+
+    // A date column filters by substring, so a bare year works — no range
+    // picker needed to answer "who filed in 2026".
+    fireEvent.change(screen.getByLabelText('Filter Date Applied'), { target: { value: '2026' } })
+    expect(body()).toHaveLength(1)
+    expect(within(screen.getByRole('table')).getByText('arjun-h1b')).toBeInTheDocument()
+    expect(screen.getByText('1 of 2 shown · 1 filter')).toBeInTheDocument()
+
+    // Filters AND together — this one contradicts the first.
+    fireEvent.change(screen.getByLabelText('Filter Service Center'), { target: { value: 'VSC' } })
+    expect(body()).toHaveLength(1)
+    expect(screen.getByText('No members match these filters.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Clear filters'))
+    expect(body()).toHaveLength(2)
+    expect(screen.queryByText('Clear filters')).toBeNull()
+  })
+
+  it('matches the checkbox column on its displayed Yes, not the stored value', async () => {
+    mockFetch(GROUP, ATTRS_TWO)
+    render(<MembersPage />)
+    await screen.findByText('Fall 2026 STEM OPT')
+
+    // Stored as 'yes', displayed as 'Yes' — the filter compares what the user
+    // can actually see in the cell.
+    fireEvent.change(screen.getByLabelText('Filter Premium Processing'), { target: { value: 'Yes' } })
+    const body = within(screen.getByRole('table')).getAllByRole('row').slice(2)
+    expect(body).toHaveLength(1)
+    expect(within(screen.getByRole('table')).getByText('arjun-h1b')).toBeInTheDocument()
   })
 
   it('links back to the group', async () => {

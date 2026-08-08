@@ -20,6 +20,7 @@ import {
   getTagVocab,
   getAllGroups,
   createGroup,
+  previewGroup,
   searchGroups,
   joinGroup,
   getActiveUserId,
@@ -178,6 +179,14 @@ export function FindScreen() {
   // which is the searcher's "situation" text → criteria_text). Sent as the
   // group's `description` field on create only — Search doesn't use it.
   const [groupDescription, setGroupDescription] = useState('');
+  // True once the creator edits the blurb themselves — after that the
+  // generated one stops overwriting it, so changing a criterion never
+  // silently discards what they wrote.
+  const [descriptionEdited, setDescriptionEdited] = useState(false);
+  // The name and description these criteria WOULD produce, from the server.
+  // Not computed here: Timeline dedup is name-based, so a local guess that
+  // drifted would promise a new cohort and deliver a join into an existing one.
+  const [preview, setPreview] = useState<{ name: string; description: string }>({ name: '', description: '' });
   // Timeline-only: written exclusively by the scope rows the selected
   // Processing type / Eligibility category configures (no manual key-stage
   // entry point anymore). Held flat by row key and split into
@@ -383,6 +392,30 @@ export function FindScreen() {
       background_text: description,
     };
   }
+
+  // Refreshed whenever the criteria that feed the name change. Keyed on the
+  // tags and scope values only — the "situation" text is part of the criteria
+  // but has no bearing on the name, and keying on it would fire a request per
+  // keystroke.
+  const previewKey = JSON.stringify([
+    groupType,
+    tags.map((t) => `${t.field}:${t.code}`).sort(),
+    Object.entries(scopeValues).filter(([, v]) => v).sort(),
+  ]);
+  useEffect(() => {
+    if (groupType !== 'timeline') { setPreview({ name: '', description: '' }); return; }
+    let cancelled = false;
+    previewGroup(criteriaFromPanel(), 'timeline').then((p) => {
+      if (!cancelled) setPreview(p);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey]);
+
+  // Fill the blurb in for them, until they make it their own.
+  useEffect(() => {
+    if (!descriptionEdited) setGroupDescription(preview.description);
+  }, [preview.description, descriptionEdited]);
 
   // "Search" — searches EXISTING groups by criteria (regular groups: ranked
   // tag-overlap score, thresholded by Precision; Timeline groups: exact
@@ -623,15 +656,43 @@ export function FindScreen() {
             </>
           )}
 
+          {/* The name this group will get, generated server-side. Shown
+              before you commit because a Timeline group can't be renamed
+              afterwards, and because it is what dedup keys on: seeing it is
+              how you tell "a new cohort" from "the one that already exists". */}
+          {createMode && groupType === 'timeline' && !!preview.name && (
+            <View style={styles.previewCard}>
+              <AppText variant="caption" color="onSurfaceVariant">GROUP NAME</AppText>
+              <AppText variant="titleMd" color="onSurface" style={styles.previewName}>
+                {preview.name}
+              </AppText>
+              <AppText variant="caption" color="onSurfaceVariant">
+                Generated from your criteria. A Timeline group can&apos;t be renamed after it&apos;s created.
+              </AppText>
+            </View>
+          )}
+
           {createMode && groupType === 'timeline' && (
             <>
-              <AppText variant="labelMd" color="onSurface" style={styles.sectionLabel}>
-                Group description (optional)
-              </AppText>
+              <View style={styles.descriptionHeader}>
+                <AppText variant="labelMd" color="onSurface" style={styles.sectionLabel}>
+                  Group description
+                </AppText>
+                {/* Only offered once they've diverged — a reset that does
+                    nothing is just noise. */}
+                {descriptionEdited && !!preview.description && (
+                  <TouchableOpacity onPress={() => {
+                    setDescriptionEdited(false);
+                    setGroupDescription(preview.description);
+                  }}>
+                    <AppText variant="caption" color="primary">Reset to generated</AppText>
+                  </TouchableOpacity>
+                )}
+              </View>
               <TextInput
                 style={styles.textArea}
                 value={groupDescription}
-                onChangeText={setGroupDescription}
+                onChangeText={(t) => { setDescriptionEdited(true); setGroupDescription(t); }}
                 placeholder="What's this group for? Shown to anyone browsing before they join."
                 placeholderTextColor={colors.onSurfaceVariant}
                 multiline
@@ -999,6 +1060,25 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     minHeight: 88,
     textAlignVertical: 'top',
+  },
+  previewCard: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    borderRadius: borderRadius.default,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  previewName: {
+    marginVertical: spacing.xs,
+  },
+  descriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   category: {
     marginBottom: spacing.md,

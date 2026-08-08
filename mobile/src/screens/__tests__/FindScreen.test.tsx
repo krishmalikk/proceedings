@@ -7,6 +7,7 @@ import {
   getTagVocab,
   getAllGroups,
   createGroup,
+  previewGroup,
   searchGroups,
   joinGroup,
   getActiveUserId,
@@ -15,6 +16,9 @@ import {
   acceptInvitation,
   declineInvitation,
 } from '../../services/apiService';
+
+// What the server generates for the criteria these tests pick.
+const PREVIEW = { name: 'H-1B-change-of-status-COS-Mar-2026', description: 'Generated blurb.' };
 
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
@@ -28,6 +32,7 @@ jest.mock('../../services/apiService', () => {
     getTagVocab: jest.fn(),
     getAllGroups: jest.fn(),
     createGroup: jest.fn(),
+    previewGroup: jest.fn(),
     searchGroups: jest.fn(),
     joinGroup: jest.fn(),
     getActiveUserId: jest.fn(),
@@ -191,6 +196,7 @@ beforeEach(() => {
   (getAllGroups as jest.Mock).mockResolvedValue({ groups: [] });
   (searchGroups as jest.Mock).mockResolvedValue({ groups: [GROUP] });
   (createGroup as jest.Mock).mockResolvedValue({ group_id: 'new-g', name: 'New Group', group_type: '', joined: false, members: [] });
+  (previewGroup as jest.Mock).mockResolvedValue(PREVIEW);
   (joinGroup as jest.Mock).mockResolvedValue(undefined);
   (getMyInvitations as jest.Mock).mockResolvedValue({ invitations: [] });
   (acceptInvitation as jest.Mock).mockResolvedValue(undefined);
@@ -352,6 +358,75 @@ describe('FindScreen — Search (group search, not candidate matching)', () => {
     await fireEvent.press(s.getByText('Search'));
 
     expect(await s.findByText('Group search unavailable')).toBeOnTheScreen();
+  });
+});
+
+describe('FindScreen — the generated name and description', () => {
+  it('shows the server-generated name at the top of the create view', async () => {
+    const s = await renderFind('timeline');
+    await enterCreateMode(s, 'timeline');
+
+    // Server-generated on purpose: Timeline dedup keys on the name, so a
+    // local guess that drifted would promise a new cohort and deliver a join.
+    await waitFor(() => expect(s.getByText(PREVIEW.name)).toBeTruthy());
+    expect(s.getByText('GROUP NAME')).toBeTruthy();
+  });
+
+  it('does not show it while searching, only while creating', async () => {
+    const s = await renderFind('timeline');
+    expect(s.queryByText('GROUP NAME')).toBeNull();
+  });
+
+  it('asks for a preview with the criteria currently in the panel', async () => {
+    const s = await renderFind('timeline');
+    await pickProcessing(s, 'stem-opt-extension');
+
+    await waitFor(() => {
+      const calls = (previewGroup as jest.Mock).mock.calls;
+      const [criteria, groupType] = calls[calls.length - 1];
+      expect(groupType).toBe('timeline');
+      expect(criteria.tags).toEqual(['EAD', 'stem-opt-extension']);
+    });
+  });
+
+  it('prefills the description, and stops once the creator edits it', async () => {
+    const s = await renderFind('timeline');
+    await enterCreateMode(s, 'timeline');
+    const box = () => s.getByPlaceholderText("What's this group for? Shown to anyone browsing before they join.");
+
+    await waitFor(() => expect(box().props.value).toBe(PREVIEW.description));
+    expect(s.queryByText('Reset to generated')).toBeNull();
+
+    await fireEvent.changeText(box(), 'my own words');
+    expect(box().props.value).toBe('my own words');
+
+    // Changing a criterion must not silently discard what they wrote.
+    await pickProcessing(s, 'stem-opt-extension');
+    expect(box().props.value).toBe('my own words');
+
+    await fireEvent.press(s.getByText('Reset to generated'));
+    expect(box().props.value).toBe(PREVIEW.description);
+  });
+
+  it('sends the generated description when the creator leaves it alone', async () => {
+    const s = await renderFind('timeline');
+    await enterCreateMode(s, 'timeline');
+    await waitFor(() => expect(
+      s.getByPlaceholderText("What's this group for? Shown to anyone browsing before they join.").props.value
+    ).toBe(PREVIEW.description));
+
+    await fireEvent.press(s.getByText('Create a Timeline group'));
+    await waitFor(() => expect(createGroup).toHaveBeenCalled());
+    expect((createGroup as jest.Mock).mock.calls[0][4]).toBe(PREVIEW.description);
+  });
+
+  it('a failed preview leaves the create view usable rather than erroring', async () => {
+    (previewGroup as jest.Mock).mockResolvedValue({ name: '', description: '' });
+    const s = await renderFind('timeline');
+    await enterCreateMode(s, 'timeline');
+
+    expect(s.queryByText('GROUP NAME')).toBeNull();
+    expect(s.getByText('Create a Timeline group')).toBeTruthy();
   });
 });
 

@@ -74,6 +74,41 @@ export default function GroupMembersPage() {
     [attrs],
   )
 
+  // One filter per column, keyed by row key ('' = Member, '_notes' = Notes).
+  // Every column is filterable rather than the three the brief named, because
+  // the columns ARE configuration — hardcoding "service center, status, dates"
+  // would silently stop covering a column added from Firestore tomorrow.
+  const [filters, setFilters] = useState<Record<string, string>>({})
+  const setFilter = (key: string, value: string) =>
+    setFilters((f) => ({ ...f, [key]: value }))
+  const activeCount = Object.values(filters).filter(Boolean).length
+
+  // A select's own options are the domain; everything else matches on
+  // substring, so a date column filters by year ("2026") or by month
+  // ("2026-03") without needing a range picker.
+  const visibleMembers = useMemo(() => {
+    const active = Object.entries(filters).filter(([, v]) => v)
+    if (!group || !active.length) return group?.members || []
+    return group.members.filter((m) => {
+      const a = byUser[m.user_id]
+      return active.every(([key, want]) => {
+        const cell = key === ''
+          ? m.username
+          : key === '_notes'
+            ? a?.notes || ''
+            : (() => {
+                const row = rows.find((r) => r.key === key)
+                return row ? displayValue(row, a?.values?.[key]) : ''
+              })()
+        return cell.toLowerCase().includes(want.toLowerCase())
+      })
+    })
+  }, [group, byUser, rows, filters])
+
+  const inputClass =
+    'w-full bg-surface-container-lowest border border-outline-variant rounded px-1.5 py-1 ' +
+    'text-caption text-on-surface focus:outline-none focus:border-primary'
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
       <Link href={`/groups/${encodeURIComponent(id)}`}
@@ -100,52 +135,113 @@ export default function GroupMembersPage() {
               This group doesn&apos;t collect timeline attributes.
             </div>
           ) : (
-            <div className="card overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr>
-                    <th className="text-caption uppercase tracking-wide text-on-surface-variant text-left align-bottom pb-2 pr-4 w-32">
-                      Member
-                    </th>
-                    {/* The clamp lives on an inner span, not the th:
-                        line-clamp sets display:-webkit-box, which on a cell
-                        would drop table-cell layout and misalign the column.
-                        title= keeps the full label reachable when it clips. */}
-                    {rows.map((r) => (
-                      <th key={r.key} title={r.label}
-                        className="text-caption uppercase tracking-wide text-on-surface-variant text-left align-bottom pb-2 pr-3">
-                        <span className="max-w-[7.5rem] leading-tight line-clamp-2">{r.label}</span>
+            <>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <p className="text-caption text-on-surface-variant">
+                  {activeCount === 0
+                    ? `${group.members.length} member${group.members.length === 1 ? '' : 's'}`
+                    : `${visibleMembers.length} of ${group.members.length} shown · ${activeCount} filter${activeCount === 1 ? '' : 's'}`}
+                </p>
+                {activeCount > 0 && (
+                  <button onClick={() => setFilters({})}
+                    className="text-caption text-primary hover:underline whitespace-nowrap">
+                    Clear filters
+                  </button>
+                )}
+              </div>
+
+              <div className="card overflow-x-auto">
+                {/* Bordered on every cell, not just row rules: this is a wide
+                    grid of short values, and without verticals the eye loses
+                    which column a date belongs to halfway across. */}
+                <table className="w-full text-left border-collapse border border-outline-variant">
+                  <thead>
+                    <tr className="bg-surface-container-low">
+                      <th className="text-caption uppercase tracking-wide text-on-surface-variant text-left align-bottom p-2 w-32 border border-outline-variant">
+                        Member
                       </th>
-                    ))}
-                    <th className="text-caption uppercase tracking-wide text-on-surface-variant text-left align-bottom pb-2 min-w-[8rem]">
-                      Notes
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.members.map((m) => {
-                    const a = byUser[m.user_id]
-                    return (
-                      <tr key={m.user_id} className="border-b border-outline-variant last:border-0">
-                        <td className="text-body-md text-on-surface py-2 pr-4 whitespace-nowrap">{m.username}</td>
-                        {rows.map((r) => (
-                          <td key={r.key} className="text-body-md text-on-surface-variant py-2 pr-3 whitespace-nowrap">
-                            {r.kind === 'checkbox'
-                              ? (a?.values?.[r.key]
-                                  ? <span className="material-symbols-outlined text-[18px] text-primary" title="Yes">check</span>
-                                  : <span className="text-on-surface-variant/40">—</span>)
-                              : (displayValue(r, a?.values?.[r.key]) || <span className="text-on-surface-variant/40">—</span>)}
+                      {/* The clamp lives on an inner span, not the th:
+                          line-clamp sets display:-webkit-box, which on a cell
+                          would drop table-cell layout and misalign the column.
+                          title= keeps the full label reachable when it clips. */}
+                      {rows.map((r) => (
+                        <th key={r.key} title={r.label}
+                          className="text-caption uppercase tracking-wide text-on-surface-variant text-left align-bottom p-2 border border-outline-variant">
+                          <span className="max-w-[7.5rem] leading-tight line-clamp-2">{r.label}</span>
+                        </th>
+                      ))}
+                      <th className="text-caption uppercase tracking-wide text-on-surface-variant text-left align-bottom p-2 min-w-[8rem] border border-outline-variant">
+                        Notes
+                      </th>
+                    </tr>
+                    {/* Filter row. A select column offers its own configured
+                        options; a checkbox is Yes/No; everything else is a
+                        substring box, which is what makes a date column
+                        filterable by year or by year-month without a range
+                        picker nobody asked for. */}
+                    <tr className="bg-surface-container-lowest">
+                      <th className="p-1 border border-outline-variant">
+                        <input aria-label="Filter Member" value={filters[''] || ''}
+                          onChange={(e) => setFilter('', e.target.value)}
+                          placeholder="Filter…" className={inputClass} />
+                      </th>
+                      {rows.map((r) => (
+                        <th key={r.key} className="p-1 border border-outline-variant">
+                          {r.kind === 'select' || r.kind === 'checkbox' ? (
+                            <select aria-label={`Filter ${r.label}`} value={filters[r.key] || ''}
+                              onChange={(e) => setFilter(r.key, e.target.value)} className={inputClass}>
+                              <option value="">All</option>
+                              {(r.kind === 'checkbox' ? ['Yes'] : r.options || []).map((o) => (
+                                <option key={o} value={o}>{o}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input aria-label={`Filter ${r.label}`} value={filters[r.key] || ''}
+                              onChange={(e) => setFilter(r.key, e.target.value)}
+                              placeholder="Filter…" className={inputClass} />
+                          )}
+                        </th>
+                      ))}
+                      <th className="p-1 border border-outline-variant">
+                        <input aria-label="Filter Notes" value={filters['_notes'] || ''}
+                          onChange={(e) => setFilter('_notes', e.target.value)}
+                          placeholder="Filter…" className={inputClass} />
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleMembers.map((m) => {
+                      const a = byUser[m.user_id]
+                      return (
+                        <tr key={m.user_id}>
+                          <td className="text-body-md text-on-surface p-2 whitespace-nowrap border border-outline-variant">{m.username}</td>
+                          {rows.map((r) => (
+                            <td key={r.key} className="text-body-md text-on-surface-variant p-2 whitespace-nowrap border border-outline-variant">
+                              {r.kind === 'checkbox'
+                                ? (a?.values?.[r.key]
+                                    ? <span className="material-symbols-outlined text-[18px] text-primary" title="Yes">check</span>
+                                    : <span className="text-on-surface-variant/40">—</span>)
+                                : (displayValue(r, a?.values?.[r.key]) || <span className="text-on-surface-variant/40">—</span>)}
+                            </td>
+                          ))}
+                          <td className="text-caption text-on-surface-variant p-2 border border-outline-variant">
+                            {a?.notes || <span className="text-on-surface-variant/40">—</span>}
                           </td>
-                        ))}
-                        <td className="text-caption text-on-surface-variant py-2">
-                          {a?.notes || <span className="text-on-surface-variant/40">—</span>}
+                        </tr>
+                      )
+                    })}
+                    {visibleMembers.length === 0 && (
+                      <tr>
+                        <td colSpan={rows.length + 2}
+                          className="text-body-md text-on-surface-variant p-4 text-center border border-outline-variant">
+                          No members match these filters.
                         </td>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </>
       )}

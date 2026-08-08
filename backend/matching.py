@@ -426,6 +426,95 @@ def _group_name(criteria: dict) -> str:
     return name
 
 
+def _resolve_scope_pair(clean_criteria: dict) -> tuple[str, str, str]:
+    """(processing type, eligibility/application tag, attribute-template key)
+    for a Timeline scope. Shared by the name and the description so the two
+    can never disagree about what the group IS."""
+    known = {*(clean_criteria.get("tags") or []),
+             *(clean_criteria.get("current_visa_or_greencard_category") or [])}
+    ptype = next((t["value"] for t in posting.PROCESSING_TYPES if t["value"] in known), "")
+    # Every type's categories, not just EAD's: H-1B's three application types
+    # must each name their own cohort, or a change-of-employer group and a
+    # change-of-status group filed the same month dedup into one.
+    eligibility = next((c["tag"] for c in posting.ALL_ELIGIBILITY_CATEGORIES if c["tag"] in known), "")
+    tmpl_key = next((t for t in (eligibility, ptype) if t in posting.TAG_ATTRIBUTE_TEMPLATES), "")
+    return ptype, eligibility, tmpl_key
+
+
+def _scope_segments(clean_criteria: dict, ptype: str, eligibility: str) -> list[str]:
+    """The scope rows that actually carry a value, as display segments —
+    `["Mar", "2026"]`, or `["Mar", "2026", "PD", "2021-03-15"]` when a category
+    scopes by priority date too. The name joins these with "-"; the description
+    joins them with a space."""
+    values = {"key_stages_or_info": clean_criteria.get("key_stages_or_info") or {},
+              "key_dates": clean_criteria.get("key_dates") or {}}
+    out: list[str] = []
+    for row in posting.timeline_scope_rows(ptype, eligibility):
+        val = values.get(row.get("field", "key_stages_or_info"), {}).get(row["key"], "")
+        if val:
+            out += [p for p in (row.get("name_prefix", ""), val) if p]
+    return out
+
+
+def _timeline_group_description(clean_criteria: dict) -> str:
+    """A description generated from the same parameters that generate the name,
+    so a creator never has to write one:
+
+        'H-1B · Change of Status (initial, in the U.S.), filed Mar 2026.
+         Members share their own petition timeline — Receipt Date (petition
+         submitted), Premium Processing, Service Center and 9 more.'
+
+    Deliberately deterministic rather than model-written: it is shown to
+    everyone browsing before they join, it must be identical for two people
+    creating the same cohort, and it costs nothing to produce. The labels all
+    come from the live config, so a config edit rewrites the copy too.
+
+    Returns "" for a scope that names no processing type — the caller leaves
+    the field empty rather than inventing something.
+    """
+    ptype, eligibility, tmpl_key = _resolve_scope_pair(clean_criteria)
+    if not ptype and not tmpl_key:
+        return ""
+
+    type_row = next((t for t in posting.PROCESSING_TYPES if t["value"] == ptype), None)
+    head = (type_row or {}).get("label") or ptype or tmpl_key
+    if eligibility and eligibility != ptype:
+        cat = next((c for c in (type_row or {}).get("eligibility_categories") or []
+                    if c["tag"] == eligibility), None)
+        head += f" · {(cat or {}).get('label') or eligibility}"
+
+    period = " ".join(_scope_segments(clean_criteria, ptype, eligibility))
+    first = f"{head}, filed {period}." if period else f"{head}."
+
+    # The join form's own resolver, not a guess: for H-1B the scope rows are
+    # keyed by the application type while the post-join rows sit on the type,
+    # so tmpl_key is the wrong key to ask with.
+    rows = posting.POST_JOIN_ATTRIBUTE_TEMPLATES.get(
+        _matched_post_join_type({"group_type": "timeline", "criteria_tags": clean_criteria})) or []
+    if not rows:
+        return f"{first} A timeline cohort — everyone here filed at the same point."
+    shown = [r["label"] for r in rows[:3]]
+    rest = len(rows) - len(shown)
+    fields = ", ".join(shown) + (f" and {rest} more" if rest > 0 else "")
+    return (f"{first} Everyone here filed at the same point, and members share "
+            f"their own progress — {fields}.")
+
+
+def preview_timeline_group(criteria: dict, group_type: str = "timeline") -> dict:
+    """{"name", "description"} for criteria that have not been saved yet.
+
+    Exists so the create screen can show the name the group WILL get before
+    committing to it, using the very function that will name it — a client
+    reimplementation would drift, and the name is load-bearing (Timeline dedup
+    is name-based, so two people who see different previews for the same
+    criteria would expect two groups and get one)."""
+    clean = _clean_criteria(criteria)
+    if group_type == "timeline":
+        return {"name": _timeline_group_name(clean) or _group_name(criteria),
+                "description": _timeline_group_description(clean)}
+    return {"name": _group_name(criteria), "description": ""}
+
+
 def _timeline_group_name(clean_criteria: dict) -> str:
     """'<processing-type>-<eligibility>-<scope values…>', e.g.
     'EAD-stem-opt-extension-Aug-2026' or, for an I-485 cohort that also scopes
@@ -447,14 +536,7 @@ def _timeline_group_name(clean_criteria: dict) -> str:
 
     Returns "" (caller falls back to _group_name()) when the criteria name
     neither a processing type nor a registered attribute template."""
-    candidates = [*(clean_criteria.get("tags") or []),
-                  *(clean_criteria.get("current_visa_or_greencard_category") or [])]
-    known = set(candidates)
-
-    ptype = next((t["value"] for t in posting.PROCESSING_TYPES if t["value"] in known), "")
-    eligibility = next((c["tag"] for c in posting.EAD_ELIGIBILITY_CATEGORIES if c["tag"] in known), "")
-
-    tmpl_key = next((t for t in (eligibility, ptype) if t in posting.TAG_ATTRIBUTE_TEMPLATES), "")
+    ptype, eligibility, tmpl_key = _resolve_scope_pair(clean_criteria)
     if not ptype and not tmpl_key:
         return ""
 
@@ -464,12 +546,7 @@ def _timeline_group_name(clean_criteria: dict) -> str:
     if not ptype:
         parts[1] = parts[1] or tmpl_key
 
-    values = {"key_stages_or_info": clean_criteria.get("key_stages_or_info") or {},
-              "key_dates": clean_criteria.get("key_dates") or {}}
-    for row in posting.timeline_scope_rows(ptype, eligibility):
-        val = values.get(row.get("field", "key_stages_or_info"), {}).get(row["key"], "")
-        if val:
-            parts += [row.get("name_prefix", ""), val]
+    parts += _scope_segments(clean_criteria, ptype, eligibility)
     return "-".join(p for p in parts if p)
 
 

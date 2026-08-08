@@ -219,6 +219,15 @@ export default function FindPage() {
   // which is the searcher's "situation" text → criteria_text). Sent as the
   // group's `description` field on create only — Search doesn't use it.
   const [groupDescription, setGroupDescription] = useState('')
+  // True once the creator edits the blurb themselves — after that the
+  // generated one stops overwriting it. Without this, changing any criterion
+  // would silently discard what they wrote.
+  const [descriptionEdited, setDescriptionEdited] = useState(false)
+  // The name and description these criteria WOULD produce, from the server.
+  // Not computed here on purpose: Timeline dedup is name-based, so a local
+  // guess that drifted from matching._timeline_group_name() would promise a
+  // new group and deliver a join into an existing one.
+  const [preview, setPreview] = useState<{ name: string; description: string }>({ name: '', description: '' })
   // Timeline-only: written exclusively by the scope rows the selected
   // Processing type / Eligibility category configures (no manual key-stage
   // entry point anymore). Held flat by row key and split into
@@ -317,6 +326,7 @@ export default function FindPage() {
   function switchUser(id: string) {
     setActiveUser(id); setActiveId(id)
     setTags([]); setRevealedFields(new Set()); setDescription(''); setGroupDescription('')
+    setDescriptionEdited(false)
     setScopeValues({}); setProcessingType(''); setEligibility(''); setValidity('1_year')
     resetSearch()
   }
@@ -438,6 +448,35 @@ export default function FindPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tags, description, groupType, precision, cutoffIdx, scopeValues])
+
+  // The generated name/description, refreshed whenever the criteria that feed
+  // them change. Keyed on the tags and scope values only — the "situation"
+  // textarea is part of the criteria but has no bearing on the name, and
+  // keying on it would fire a request per keystroke.
+  const previewKey = JSON.stringify([
+    groupType,
+    tags.map((t) => `${t.field}:${t.code}`).sort(),
+    Object.entries(scopeValues).filter(([, v]) => v).sort(),
+  ])
+  useEffect(() => {
+    if (groupType !== 'timeline') { setPreview({ name: '', description: '' }); return }
+    let cancelled = false
+    fetch('/api/groups/preview', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ criteria: criteriaFromPanel(), group_type: 'timeline' }),
+    })
+      .then((r) => (r.ok ? r.json() : { name: '', description: '' }))
+      .then((p) => { if (!cancelled) setPreview({ name: p.name || '', description: p.description || '' }) })
+      // A failed preview is cosmetic — never surface it as a page error.
+      .catch(() => { if (!cancelled) setPreview({ name: '', description: '' }) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey])
+
+  // Fill the blurb in for them, until they make it their own.
+  useEffect(() => {
+    if (!descriptionEdited) setGroupDescription(preview.description)
+  }, [preview.description, descriptionEdited])
 
   async function joinResult(groupId: string) {
     setError('')
@@ -595,6 +634,23 @@ export default function FindPage() {
               </button>
             )}
           </div>
+
+          {/* The name this group will get, generated server-side from the
+              criteria — shown before you commit because it is not editable
+              afterwards for a Timeline group (the rename lock) and because it
+              is what dedup keys on: seeing it is how you tell "a new cohort"
+              from "the one that already exists". */}
+          {createMode && groupType === 'timeline' && preview.name && (
+            <div className="card border-l-4 border-l-primary">
+              <p className="text-caption uppercase tracking-wide text-on-surface-variant mb-0.5">
+                Group name
+              </p>
+              <p className="text-title-md text-on-surface break-words" data-testid="preview-name">{preview.name}</p>
+              <p className="text-caption text-on-surface-variant mt-1">
+                Generated from your criteria. A Timeline group can&apos;t be renamed after it&apos;s created.
+              </p>
+            </div>
+          )}
 
           {/* Two panels: the criteria that define what you're looking for on
               the left (deliberately narrow — it's a form, not content), the
@@ -833,15 +889,27 @@ export default function FindPage() {
 
             {createMode && groupType === 'timeline' && (
               <div className="card">
-                <label htmlFor="group-description" className="text-label-md font-semibold text-on-surface mb-1 block">
-                  Group description (optional)
-                </label>
+                <div className="flex items-baseline justify-between gap-3 mb-1">
+                  <label htmlFor="group-description" className="text-label-md font-semibold text-on-surface">
+                    Group description
+                  </label>
+                  {/* Only offered once they've diverged — a "reset" that does
+                      nothing is just noise. */}
+                  {descriptionEdited && preview.description && (
+                    <button type="button"
+                      onClick={() => { setDescriptionEdited(false); setGroupDescription(preview.description) }}
+                      className="text-caption text-primary hover:underline whitespace-nowrap">
+                      Reset to generated
+                    </button>
+                  )}
+                </div>
                 <p className="text-caption text-on-surface-variant mb-2">
-                  Only used when you create a group — shown to anyone browsing before they join.
+                  Written for you from the criteria — edit it if you want. Shown to anyone browsing before they join.
                 </p>
-                <textarea id="group-description" value={groupDescription} onChange={(e) => setGroupDescription(e.target.value)}
+                <textarea id="group-description" value={groupDescription}
+                  onChange={(e) => { setDescriptionEdited(true); setGroupDescription(e.target.value) }}
                   placeholder="What's this group for?"
-                  rows={2}
+                  rows={3}
                   className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-body-md focus:outline-none focus:border-primary resize-none" />
               </div>
             )}

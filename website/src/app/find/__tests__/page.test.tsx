@@ -107,10 +107,18 @@ const GROUP = {
   members: [{ user_id: 'u1', username: 'alpha' }], score: 4.5,
 }
 
-function mockFetch(overrides: { search?: Record<string, unknown>; groups?: Record<string, unknown>; browse?: Record<string, unknown> } = {}) {
+const PREVIEW = { name: 'H-1B-change-of-status-COS-Mar-2026', description: 'Generated blurb.' }
+
+function mockFetch(overrides: {
+  search?: Record<string, unknown>; groups?: Record<string, unknown>
+  browse?: Record<string, unknown>; preview?: Record<string, unknown>
+} = {}) {
   const fetchMock = vi.fn(async (url: string, opts?: { method?: string }) => {
     const method = opts?.method || 'GET'
     if (String(url).includes('/api/tag-vocab')) return { ok: true, status: 200, json: async () => VOCAB } as Response
+    if (String(url) === '/api/groups/preview' && method === 'POST') {
+      return { ok: true, status: 200, json: async () => ({ ...PREVIEW, ...overrides.preview }) } as Response
+    }
     if (String(url).includes('/api/users')) {
       return { ok: true, status: 200, json: async () => [{ id: 'demo-arjun', username: 'arjun-h1b', label: 'Arjun' }] } as Response
     }
@@ -439,7 +447,7 @@ describe('FindPage — Create a group', () => {
     await waitFor(() => expect(screen.getByText('Search criteria')).toBeInTheDocument())
     enterCreateMode('timeline')
 
-    fireEvent.change(screen.getByLabelText('Group description (optional)'), { target: { value: 'Fall cohort' } })
+    fireEvent.change(screen.getByLabelText('Group description'), { target: { value: 'Fall cohort' } })
     fireEvent.click(screen.getByText('Create a Timeline group'))
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/groups/new-g'))
@@ -457,7 +465,7 @@ describe('FindPage — Create a group', () => {
     enterCreateMode('regular')
 
     // The description box is Timeline-only.
-    expect(screen.queryByLabelText('Group description (optional)')).toBeNull()
+    expect(screen.queryByLabelText('Group description')).toBeNull()
     fireEvent.click(screen.getByText('Create a group'))
 
     await waitFor(() => expect(push).toHaveBeenCalled())
@@ -1095,7 +1103,7 @@ describe('FindPage — search vs create are separate modes', () => {
     await timelineSearch()
 
     expect(screen.queryByText('Group validity')).toBeNull()
-    expect(screen.queryByLabelText('Group description (optional)')).toBeNull()
+    expect(screen.queryByLabelText('Group description')).toBeNull()
     expect(screen.queryByText('Create a Timeline group')).toBeNull()
     // Search itself is here.
     expect(screen.getByText('Search')).toBeInTheDocument()
@@ -1108,10 +1116,100 @@ describe('FindPage — search vs create are separate modes', () => {
 
     expect(screen.getByText('New Timeline group')).toBeInTheDocument()
     expect(screen.getByText('Group validity')).toBeInTheDocument()
-    expect(screen.getByLabelText('Group description (optional)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Group description')).toBeInTheDocument()
     expect(screen.getByText('Create a Timeline group')).toBeInTheDocument()
     // Search UI is gone while creating.
     expect(screen.queryByText('Search')).toBeNull()
+  })
+
+  it('shows the generated group name at the top of the create view', async () => {
+    await timelineSearch()
+    fireEvent.click(screen.getByText('Create a Timeline Group'))
+
+    // The name comes from the server, not from a client reimplementation —
+    // Timeline dedup keys on it, so a local guess that drifted would promise
+    // a new cohort and deliver a join into an existing one.
+    expect(await screen.findByTestId('preview-name')).toHaveTextContent(PREVIEW.name)
+    expect(screen.getByText('Group name')).toBeInTheDocument()
+  })
+
+  it('the generated name is not shown while searching, only while creating', async () => {
+    await timelineSearch()
+    await waitFor(() => expect(screen.queryByTestId('preview-name')).toBeNull())
+  })
+
+  it('is asked for a preview with the criteria currently in the panel', async () => {
+    const fetchMock = mockFetch()
+    render(<FindPage />)
+    fireEvent.click(screen.getByText('Find / create group'))
+    await waitFor(() => expect(screen.getByLabelText('Processing type')).toBeInTheDocument())
+    fireEvent.change(screen.getByLabelText('Processing type'), { target: { value: 'EAD' } })
+    fireEvent.change(screen.getByLabelText('Eligibility category'), { target: { value: 'stem-opt-extension' } })
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls.filter((c) => c[0] === '/api/groups/preview')
+      const last = JSON.parse((calls[calls.length - 1]![1] as { body: string }).body)
+      expect(last.group_type).toBe('timeline')
+      expect(last.criteria.tags).toEqual(['EAD', 'stem-opt-extension'])
+    })
+  })
+
+  it('prefills the description with the generated one, and stops once you edit it', async () => {
+    await timelineSearch()
+    fireEvent.click(screen.getByText('Create a Timeline Group'))
+
+    const box = await screen.findByLabelText('Group description') as HTMLTextAreaElement
+    await waitFor(() => expect(box.value).toBe(PREVIEW.description))
+    // No reset offered while it still matches — a no-op control is noise.
+    expect(screen.queryByText('Reset to generated')).toBeNull()
+
+    fireEvent.change(box, { target: { value: 'my own words' } })
+    expect(box.value).toBe('my own words')
+
+    // Changing a criterion must not silently discard what they wrote.
+    fireEvent.change(screen.getByLabelText('Processing type'), { target: { value: 'EAD' } })
+    await waitFor(() => expect(screen.getByLabelText('Eligibility category')).toBeInTheDocument())
+    expect((screen.getByLabelText('Group description') as HTMLTextAreaElement).value).toBe('my own words')
+
+    fireEvent.click(screen.getByText('Reset to generated'))
+    expect((screen.getByLabelText('Group description') as HTMLTextAreaElement).value).toBe(PREVIEW.description)
+  })
+
+  it('sends the generated description when the creator leaves it alone', async () => {
+    const fetchMock = mockFetch()
+    render(<FindPage />)
+    fireEvent.click(screen.getByText('Find / create group'))
+    await waitFor(() => expect(screen.getByText('Search criteria')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Create a Timeline Group'))
+    await waitFor(() => expect((screen.getByLabelText('Group description') as HTMLTextAreaElement).value)
+      .toBe(PREVIEW.description))
+
+    fireEvent.click(screen.getByText('Create a Timeline group'))
+    await waitFor(() => expect(fetchMock.mock.calls.find((c) => c[0] === '/api/groups')).toBeTruthy())
+    const body = JSON.parse((fetchMock.mock.calls.find((c) => c[0] === '/api/groups')![1] as { body: string }).body)
+    expect(body.description).toBe(PREVIEW.description)
+  })
+
+  it('a failed preview leaves the create view usable rather than erroring', async () => {
+    const fetchMock = vi.fn(async (url: string, opts?: { method?: string }) => {
+      const method = opts?.method || 'GET'
+      if (String(url).includes('/api/tag-vocab')) return { ok: true, status: 200, json: async () => VOCAB } as Response
+      if (String(url) === '/api/groups/preview') throw new Error('down')
+      if (String(url) === '/api/users') return { ok: true, status: 200, json: async () => [] } as Response
+      if (String(url) === '/api/groups' && method === 'POST') {
+        return { ok: true, status: 200, json: async () => ({ group_id: 'new-g' }) } as Response
+      }
+      return { ok: true, status: 200, json: async () => ({}) } as Response
+    }) as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<FindPage />)
+    fireEvent.click(screen.getByText('Find / create group'))
+    await waitFor(() => expect(screen.getByText('Search criteria')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Create a Timeline Group'))
+
+    expect(screen.queryByTestId('preview-name')).toBeNull()
+    expect(screen.getByText('Create a Timeline group')).toBeInTheDocument()
   })
 
   it('criteria typed while searching carry into the create view', async () => {

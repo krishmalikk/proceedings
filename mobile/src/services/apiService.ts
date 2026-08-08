@@ -1091,6 +1091,33 @@ export async function searchGroups(
   return data;
 }
 
+/**
+ * The name and description these criteria WOULD produce, without creating
+ * anything — so the create screen can show the name before you commit to it.
+ *
+ * Server-generated on purpose: Timeline dedup is name-based, so a local
+ * reimplementation that drifted would promise a new cohort and deliver a join
+ * into an existing one. A failure is cosmetic, so this resolves to empty
+ * strings rather than throwing — the create screen stays usable.
+ */
+export async function previewGroup(
+  criteria: Criteria,
+  groupType: string
+): Promise<{ name: string; description: string }> {
+  try {
+    const response = await apiFetch(`${API_URL}/api/groups/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ criteria, group_type: groupType }),
+    });
+    const data = await safeJson(response);
+    if (!response.ok) return { name: '', description: '' };
+    return { name: data.name || '', description: data.description || '' };
+  } catch {
+    return { name: '', description: '' };
+  }
+}
+
 // Rank candidate users against a specific group's own stored criteria —
 // member-only (enforced backend-side).
 export async function findCandidates(groupId: string): Promise<{ matches: MatchData[] }> {

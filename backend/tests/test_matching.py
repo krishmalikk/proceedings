@@ -1408,6 +1408,63 @@ def group_m_attributes_pure() -> None:
           next(t for t in posting.PROCESSING_TYPES
                if t["value"] == "H-1B").get("category_label") == "Application type")
 
+    # --- generated name + description (preview_timeline_group) -------------
+    def crit(cat, ptype="H-1B", month="Mar", year="2026"):
+        """Which criteria field a tag lands in is decided by its vocabulary
+        class — exactly how the clients route it (find/page.tsx's
+        processingTypeField). Getting this wrong in a fixture makes the tag
+        look dropped when the code is fine."""
+        c: dict = {"current_visa_or_greencard_category": [], "tags": [],
+                   "key_stages_or_info": {}}
+        for t in (ptype, cat):
+            if not t:
+                continue
+            c["current_visa_or_greencard_category" if t in posting._Vocab.visa
+              else "tags"].append(t)
+        if month:
+            c["key_stages_or_info"] = {"filing_month": month, "filing_year": year}
+        return c
+
+    # THE regression: every H-1B application type must name its OWN cohort.
+    # Resolving the category against EAD's list alone (which is what the code
+    # did when EAD was the only type with one) returned "" for all three, so
+    # all three produced "H-1B-Mar-2026" — and Timeline dedup is name-based,
+    # so a change-of-employer cohort would have silently joined a
+    # change-of-status one.
+    h1b_names = [M.preview_timeline_group(crit(c))["name"]
+                 for c in ("change-of-status-COS", "h1b-stamping", "change-of-employer-COE")]
+    check("M50a each H-1B application type generates a DISTINCT group name",
+          len(set(h1b_names)) == 3, str(h1b_names))
+    check("M50b …and each name carries its own application type",
+          all(c in n for c, n in zip(
+              ("change-of-status-COS", "h1b-stamping", "change-of-employer-COE"), h1b_names)),
+          str(h1b_names))
+    check("M50c the generated name is exactly what find_or_create_group would use",
+          h1b_names[0] == M._timeline_group_name(
+              M._clean_criteria(crit("change-of-status-COS"))), h1b_names[0])
+
+    cos = M.preview_timeline_group(crit("change-of-status-COS"))
+    check("M51a the description names the type and the application type by LABEL",
+          "H-1B" in cos["description"]
+          and "Change of Status (initial, in the U.S.)" in cos["description"],
+          cos["description"])
+    check("M51b …carries the filing period",
+          "Mar 2026" in cos["description"], cos["description"])
+    check("M51c …and lists the fields members will actually be asked for",
+          "Receipt Date (petition submitted)" in cos["description"]
+          and "9 more" in cos["description"], cos["description"])
+    no_period = M.preview_timeline_group(crit("change-of-status-COS", month=""))["description"]
+    check("M51d a period-less scope still describes the cohort, claiming no period",
+          no_period.startswith("H-1B · Change of Status (initial, in the U.S.).")
+          and "Mar" not in no_period, no_period)
+    check("M51e criteria naming no processing type get NO invented description",
+          M.preview_timeline_group({"tags": ["rfe-experience"]})["description"] == "")
+    check("M51f a Regular group is never given a generated description",
+          M.preview_timeline_group(crit("change-of-status-COS"), "")["description"] == "")
+    check("M52 preview is pure — two calls with the same criteria agree",
+          M.preview_timeline_group(crit("h1b-stamping"))
+          == M.preview_timeline_group(crit("h1b-stamping")))
+
     # required_keys() is the config; row 0 is only the fallback.
     check("M43 an explicit required flag decides which rows are mandatory",
           posting.required_keys([{"key": "x"}, {"key": "y", "required": True}]) == ["y"])
@@ -2439,6 +2496,22 @@ def group_q_invitations_api() -> None:
             check("Q1 GET /api/groups/invitations resolves to the invitations route, "
                   "NOT get_group_route (route-ordering constraint)",
                   r_inv.status_code == 200 and "invitations" in r_inv.json(), str(r_inv.json()))
+
+            # Same constraint for the preview route — and it must not need
+            # auth, since the create screen shows the name before you commit.
+            before = len(c.get("/api/groups/all", headers=A).json()["groups"])
+            r_prev = c.post("/api/groups/preview", json={
+                "group_type": "timeline",
+                "criteria": {"current_visa_or_greencard_category": ["H-1B"],
+                             "tags": ["change-of-status-COS"],
+                             "key_stages_or_info": {"filing_month": "Mar", "filing_year": "2026"}}})
+            check("Q1b POST /api/groups/preview resolves, needs no auth, and returns "
+                  "the generated name + description",
+                  r_prev.status_code == 200
+                  and r_prev.json()["name"] == "H-1B-change-of-status-COS-Mar-2026"
+                  and "Change of Status" in r_prev.json()["description"], str(r_prev.json()))
+            check("Q1c …and previewing creates nothing",
+                  len(c.get("/api/groups/all", headers=A).json()["groups"]) == before)
 
             r2 = c.post(f"/api/groups/{gid}/invite", json={"handle": "q-bravo"}, headers=A)
             check("Q2 POST /invite → 200 and returns an InvitationCard (not a group card)",

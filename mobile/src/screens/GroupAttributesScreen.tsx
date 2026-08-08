@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -83,6 +83,30 @@ export function GroupAttributesScreen() {
     byUser[a.user_id] = a;
   });
 
+  // One filter per column, keyed by row key ('' = Member, '_notes' = Notes).
+  // Every column, not just dates/status/service centre: the columns ARE
+  // configuration, so a hardcoded subset would stop covering a column added
+  // from Firestore tomorrow. Substring matching means a date column filters
+  // by year ("2026") or year-month ("2026-03") with no range picker.
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const setFilter = (key: string, value: string) =>
+    setFilters((f) => ({ ...f, [key]: value }));
+  const activeCount = Object.values(filters).filter(Boolean).length;
+
+  const cellText = (m: { user_id: string; username: string }, key: string): string => {
+    const a = byUser[m.user_id];
+    if (key === '') return m.username;
+    if (key === '_notes') return a?.notes || '';
+    const row = rows.find((r) => r.key === key);
+    if (row?.kind === 'checkbox') return a?.values?.[key] ? 'Yes' : '';
+    return a?.values?.[key] || '';
+  };
+
+  const visibleMembers = (group?.members || []).filter((m) =>
+    Object.entries(filters)
+      .filter(([, v]) => v)
+      .every(([key, want]) => cellText(m, key).toLowerCase().includes(want.toLowerCase())));
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
@@ -92,6 +116,13 @@ export function GroupAttributesScreen() {
         <AppText variant="titleMd" color="onSurface" style={styles.headerTitle} numberOfLines={1}>
           {group?.name || groupName || 'Attributes'}
         </AppText>
+        {activeCount > 0 && (
+          <TouchableOpacity onPress={() => setFilters({})} accessibilityLabel="Clear filters">
+            <AppText variant="caption" color="primary">
+              Clear ({activeCount})
+            </AppText>
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading ? (
@@ -131,7 +162,66 @@ export function GroupAttributesScreen() {
                 NOTES
               </AppText>
             </View>
-            {group.members.map((m) => {
+            {/* Filter row, aligned to the same fixed-width columns. There is
+                no <select> in RN, so a select/checkbox column cycles through
+                its configured options on tap rather than opening a picker for
+                a two-to-four-item domain. */}
+            <View style={styles.filterRow}>
+              <TextInput
+                style={[styles.filterInput, styles.memberCol]}
+                value={filters[''] || ''}
+                onChangeText={(t) => setFilter('', t)}
+                placeholder="Filter"
+                placeholderTextColor={colors.onSurfaceVariant}
+                accessibilityLabel="Filter Member"
+              />
+              {rows.map((r) => {
+                const domain = r.kind === 'checkbox' ? ['Yes'] : r.kind === 'select' ? r.options || [] : null;
+                if (domain) {
+                  const current = filters[r.key] || '';
+                  const next = domain[(domain.indexOf(current) + 1) % (domain.length + 1)] ?? '';
+                  return (
+                    <TouchableOpacity
+                      key={r.key}
+                      style={[styles.filterInput, styles.cell]}
+                      onPress={() => setFilter(r.key, next)}
+                      accessibilityLabel={`Filter ${r.label}`}
+                    >
+                      <AppText variant="caption" color={current ? 'primary' : 'onSurfaceVariant'} numberOfLines={1}>
+                        {current || 'All'}
+                      </AppText>
+                    </TouchableOpacity>
+                  );
+                }
+                return (
+                  <TextInput
+                    key={r.key}
+                    style={[styles.filterInput, styles.cell]}
+                    value={filters[r.key] || ''}
+                    onChangeText={(t) => setFilter(r.key, t)}
+                    placeholder="Filter"
+                    placeholderTextColor={colors.onSurfaceVariant}
+                    accessibilityLabel={`Filter ${r.label}`}
+                  />
+                );
+              })}
+              <TextInput
+                style={[styles.filterInput, styles.cell]}
+                value={filters['_notes'] || ''}
+                onChangeText={(t) => setFilter('_notes', t)}
+                placeholder="Filter"
+                placeholderTextColor={colors.onSurfaceVariant}
+                accessibilityLabel="Filter Notes"
+              />
+            </View>
+            {visibleMembers.length === 0 && (
+              <View style={styles.dataRow}>
+                <AppText variant="bodyMd" color="onSurfaceVariant">
+                  No members match these filters.
+                </AppText>
+              </View>
+            )}
+            {visibleMembers.map((m) => {
               const a = byUser[m.user_id];
               return (
                 <View key={m.user_id} style={styles.dataRow}>
@@ -199,6 +289,27 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.outlineVariant,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceContainerLowest,
+  },
+  filterInput: {
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: 4,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    marginRight: spacing.xs,
+    fontSize: 12,
+    color: colors.onSurface,
+    minHeight: 26,
+    justifyContent: 'center',
   },
   dataRow: {
     flexDirection: 'row',

@@ -235,7 +235,7 @@
       },
       {
         "kind": "select",
-        "label": "Current Status",
+        "label": "Intermediate Status",
         "field": "key_stages_or_info",
         "key": "application_status",
         "options": [
