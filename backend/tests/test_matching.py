@@ -1241,8 +1241,11 @@ def group_m_attributes_pure() -> None:
                                      "criteria_tags": {"current_visa_or_greencard_category": ["stem-opt-extension"]}}) == "stem-opt-extension")
     check("M3 _matched_post_join_type is '' for a Regular group even with the same tag",
           M._matched_post_join_type({"group_type": "", "criteria_tags": {"tags": ["stem-opt-extension"]}}) == "")
-    check("M4 _matched_post_join_type is '' for a Timeline group with an unregistered type (e.g. H-1B has no POST_JOIN template)",
-          M._matched_post_join_type({"group_type": "timeline", "criteria_tags": {"current_visa_or_greencard_category": ["H-1B"]}}) == "")
+    # O-1 is real vocabulary but configures no post-join rows, so a Timeline
+    # group scoped to it collects nothing on join. (Not H-1B — that gained a
+    # 12-row petition template; see test_profile_vocab.py group V.)
+    check("M4 _matched_post_join_type is '' for a Timeline group whose type configures no rows",
+          M._matched_post_join_type({"group_type": "timeline", "criteria_tags": {"current_visa_or_greencard_category": ["O-1"]}}) == "")
     check("M5 _matched_post_join_type is '' for a Timeline group with no matching tag at all",
           M._matched_post_join_type({"group_type": "timeline", "criteria_tags": {"tags": ["rfe-experience"]}}) == "")
 
@@ -1391,9 +1394,19 @@ def group_m_attributes_pure() -> None:
           all("scope_rows" in t and "post_join_rows" in t for t in posting.PROCESSING_TYPES)
           and all("scope_rows" in c for t in posting.PROCESSING_TYPES
                   for c in t["eligibility_categories"]))
+    # Each type names its own list, so picking a different first dropdown must
+    # give a genuinely different second one — not a shared global list filtered
+    # after the fact. Asserted as disjointness rather than exact contents so
+    # this doesn't have to be edited every time a category is configured.
+    by_type = {t["value"]: {c["tag"] for c in t["eligibility_categories"]}
+               for t in posting.PROCESSING_TYPES if t["eligibility_categories"]}
     check("M42 the second dropdown's contents depend on the first",
-          [t["value"] for t in posting.PROCESSING_TYPES if t["eligibility_categories"]] == ["EAD"],
-          str([(t["value"], len(t["eligibility_categories"])) for t in posting.PROCESSING_TYPES]))
+          len(by_type) > 1 and all(a.isdisjoint(b) for a in by_type.values()
+                                   for b in by_type.values() if a is not b),
+          str({k: sorted(v) for k, v in by_type.items()}))
+    check("M42b a type may name its own second dropdown, and H-1B's are application types",
+          next(t for t in posting.PROCESSING_TYPES
+               if t["value"] == "H-1B").get("category_label") == "Application type")
 
     # required_keys() is the config; row 0 is only the fallback.
     check("M43 an explicit required flag decides which rows are mandatory",
@@ -1963,8 +1976,9 @@ def group_n_member_attributes_integration() -> None:
             check("N7 save_member_attributes missing the required field raises ValueError",
                   "Date Applied" in str(e), str(e))
 
+        # O-1, not H-1B — H-1B now configures a 12-row petition template.
         g_no_template = M.find_or_create_group(
-            db, ids["c"], "n-no-template", {"current_visa_or_greencard_category": ["H-1B"]}, [], "timeline")
+            db, ids["c"], "n-no-template", {"current_visa_or_greencard_category": ["O-1"]}, [], "timeline")
         gids.append(g_no_template["group_id"])
         try:
             M.save_member_attributes(db, g_no_template["group_id"], ids["c"], {"anything": "x"})

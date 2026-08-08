@@ -17,6 +17,10 @@ import { useRequireUser } from '@/lib/useRequireUser'
 type EligibilityCategory = { code: string; label: string; tag: string; scope_rows?: AttributeRow[] }
 type ProcessingType = {
   value: string; label: string
+  // What the second dropdown is called for THIS type. EAD's list really is
+  // 8 CFR eligibility categories; H-1B's is application types. Optional —
+  // omitted falls back to the EAD wording below.
+  category_label?: string
   eligibility_categories: EligibilityCategory[]; scope_rows?: AttributeRow[]
 }
 
@@ -627,16 +631,18 @@ export default function FindPage() {
                     {vocab.processing_types.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
 
-                  {/* Which eligibility category under that type. For EAD these
-                      are the 8 CFR 274a.12 classes that actually file an
-                      I-765 — see features/ead-eligibility-5/. Hidden for a
-                      type with no categories (H-1B). */}
+                  {/* Which category under that type. For EAD these are the
+                      8 CFR 274a.12 classes that actually file an I-765 — see
+                      features/ead-eligibility-5/; for H-1B they are the three
+                      application types. The heading comes from the config so
+                      it can be right for both. Hidden for a type that
+                      configures no categories at all. */}
                   {!!selectedType?.eligibility_categories.length && (
                     <div className="mt-2">
                       <label htmlFor="eligibility-category" className="text-caption uppercase tracking-wide text-on-surface-variant mb-1 block">
-                        Eligibility category
+                        {selectedType.category_label || 'Eligibility category'}
                       </label>
-                      <select id="eligibility-category" aria-label="Eligibility category" value={eligibility}
+                      <select id="eligibility-category" aria-label={selectedType.category_label || 'Eligibility category'} value={eligibility}
                         onChange={(e) => selectEligibility(e.target.value)}
                         className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-body-md focus:outline-none focus:border-primary">
                         <option value="">Select…</option>

@@ -236,8 +236,8 @@ def group_vocab_api() -> None:
     # own page right after a user JOINS (not on the find/create panel). Mixed
     # kinds: dates into key_dates, selects/checkboxes into key_stages_or_info.
     post_join = v.get("post_join_attribute_templates") or {}
-    check("V post_join_attribute_templates has a 'stem-opt-extension' entry, no 'H-1B' entry",
-          "stem-opt-extension" in post_join and "H-1B" not in post_join, str(list(post_join)))
+    check("V post_join_attribute_templates has 'stem-opt-extension' and 'H-1B' entries",
+          {"stem-opt-extension", "H-1B"} <= set(post_join), str(list(post_join)))
     pj_rows = post_join["stem-opt-extension"]
     check("V post_join rows carry dates, selects and checkboxes",
           {r.get("kind") for r in pj_rows} == {"date", "select", "checkbox"},
@@ -254,6 +254,41 @@ def group_vocab_api() -> None:
     check("V exactly one post_join row is required, and it is the filing date",
           posting.required_keys(pj_rows) == ["ead_filed_date"],
           str(posting.required_keys(pj_rows)))
+
+    # H-1B — the petition lifecycle, collected per member at join time.
+    h1b_rows = post_join["H-1B"]
+    h1b_keys = [r["key"] for r in h1b_rows]
+    check("V H-1B post_join keys are unique", len(h1b_keys) == len(set(h1b_keys)), str(h1b_keys))
+    check("V every H-1B post_join key is real vocabulary for the field it targets",
+          all(r["key"] in (posting._Vocab.date_keys if r["field"] == "key_dates"
+                           else posting._Vocab.profile_stage_keys) for r in h1b_rows),
+          str([(r["key"], r["field"]) for r in h1b_rows]))
+    check("V H-1B covers the petition lifecycle from receipt through final decision",
+          {"h1b_receipt_date", "h1b_review_started_date", "h1b_approved_date",
+           "final_decision_date"} <= set(h1b_keys), str(h1b_keys))
+    check("V H-1B collects premium processing and admin processing as checkboxes",
+          [r["kind"] for r in h1b_rows if r["key"] in ("premium_processing", "admin_processing")]
+          == ["checkbox", "checkbox"],
+          str([(r["key"], r["kind"]) for r in h1b_rows]))
+    check("V H-1B 'Current Status' offers the RFE/NOID family",
+          {"NOID", "RFE", "NOIR", "NOIRescind"} ==
+          set(next(r for r in h1b_rows if r["key"] == "application_status")["options"]))
+    check("V H-1B 'Final Decision' offers approved/denied/rejected",
+          {"approved", "denied", "rejected"} ==
+          set(next(r for r in h1b_rows if r["key"] == "outcome_status")["options"]))
+    check("V no H-1B select offers a value profile.py would silently drop",
+          all(posting.stage_value_ok(r["key"], o)
+              for r in h1b_rows if r["kind"] == "select" for o in r["options"]),
+          str([(r["key"], r["options"]) for r in h1b_rows if r["kind"] == "select"]))
+    check("V H-1B never blocks the join — every petition field is optional",
+          posting.required_keys(h1b_rows) == [], str(posting.required_keys(h1b_rows)))
+    # Join-time resolution is by tag, so rows on the TYPE and rows on one of its
+    # CATEGORIES would shadow each other (TIMELINE-ATTRIBUTE-CONFIG.md §8). The
+    # 12 rows sit on the type precisely so all three application types share them.
+    h1b_type = next(t for t in v["processing_types"] if t["value"] == "H-1B")
+    check("V H-1B's three application types carry no post_join rows of their own",
+          all(c["tag"] not in post_join for c in h1b_type["eligibility_categories"]),
+          str([c["tag"] for c in h1b_type["eligibility_categories"]]))
 
 
 # ---------------------------------------------------------------------------

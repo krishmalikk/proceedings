@@ -27,6 +27,7 @@ travel_country,Country candidate traveled to / from in the relevant event (value
 stem_opt_cycle,STEM OPT extension application cycle (value is Fall or Spring)
 stem_opt_year,Year of the STEM OPT extension application cycle
 premium_processing,Whether premium processing was requested (checkbox — value "yes" when ticked)
+admin_processing,Whether the case went into administrative processing (checkbox — value "yes" when ticked)
 service_center,USCIS service center handling the case (value is PSC/SRC/LIN/VSC)
 biometrics_requested,Whether biometrics were requested (checkbox — value "yes" when ticked)
 noid_issued,Whether a Notice of Intent to Deny was issued (checkbox — value "yes" when ticked)

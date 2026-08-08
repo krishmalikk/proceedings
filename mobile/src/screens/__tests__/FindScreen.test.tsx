@@ -59,6 +59,14 @@ async function renderFind(groupType: 'regular' | 'timeline' = 'regular') {
   return s;
 }
 
+// The base period pair every Timeline scope leads with. The server resolves
+// it onto each option before sending, so fixtures carry it the same way.
+const PERIOD_ROWS = [
+  { kind: 'select', label: 'Month', field: 'key_stages_or_info', key: 'filing_month',
+    options: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] },
+  { kind: 'year', label: 'Year', field: 'key_stages_or_info', key: 'filing_year' },
+];
+
 const VOCAB = {
   visa: ['H-1B', 'F-1'],
   consulate: ['BOM'],
@@ -129,7 +137,19 @@ const VOCAB = {
         },
       ],
     },
-    { value: 'H-1B', label: 'H-1B', eligibility_categories: [] },
+    // H-1B's second picker is application types, not 8 CFR eligibility
+    // categories, so it names its own heading via category_label.
+    {
+      value: 'H-1B', label: 'H-1B', category_label: 'Application type',
+      eligibility_categories: [
+        { code: 'CoS', label: 'Change of Status (initial, in the U.S.)', tag: 'change-of-status-COS', scope_rows: PERIOD_ROWS },
+        { code: 'Consular', label: 'Consular processing / stamping (initial)', tag: 'h1b-stamping', scope_rows: PERIOD_ROWS },
+        { code: 'COE', label: 'Change of employer (H-1B transfer)', tag: 'change-of-employer-COE', scope_rows: PERIOD_ROWS },
+      ],
+    },
+    // A type that configures no categories at all — the second picker is
+    // hidden entirely rather than rendered empty.
+    { value: 'O-1', label: 'O-1', eligibility_categories: [] },
   ],
 };
 
@@ -143,10 +163,13 @@ async function enterCreateMode(s: any, groupType: 'regular' | 'timeline' = 'time
   await fireEvent.press(s.getByText(`Create a ${groupType === 'timeline' ? 'Timeline' : 'Regular'} Group`));
 }
 
+// Pass a processing type to tap just the first chip row, or a category tag to
+// tap its owning type and then the category.
 async function pickProcessing(s: any, value: string) {
-  const isType = VOCAB.processing_types.some((t) => t.value === value);
-  await fireEvent.press(s.getByText(isType ? value : 'EAD'));
-  if (!isType) {
+  const owner = VOCAB.processing_types.find(
+    (t: any) => t.eligibility_categories?.some((c: any) => c.tag === value));
+  await fireEvent.press(s.getByText(owner ? owner.value : value));
+  if (owner) {
     await fireEvent.press(s.getByText(value));
   }
 }
@@ -489,14 +512,35 @@ describe('FindScreen — Processing type chip row + Month/Year', () => {
     await fireEvent.press(s.getByText('H-1B'));
 
     expect(s.queryByText('CURRENT STATUS')).toBeNull();
+    // H-1B now has application types, so — exactly like EAD — the period
+    // fields wait for the second picker rather than appearing at once. The
+    // heading is the type's own, not EAD's "eligibility category" framing.
+    expect(s.queryByText('Month')).toBeNull();
+    expect(s.getByText('APPLICATION TYPE')).toBeOnTheScreen();
+    expect(s.queryByText('ELIGIBILITY CATEGORY')).toBeNull();
+
+    await fireEvent.press(s.getByText('change-of-status-COS'));
     expect(await s.findByText('Month')).toBeOnTheScreen();
     expect(s.getByText('Year')).toBeOnTheScreen();
 
     await fireEvent.press(s.getByText('Search'));
     await waitFor(() => expect(searchGroups).toHaveBeenCalled());
     const [criteria] = (searchGroups as jest.Mock).mock.calls[0];
+    // The type is visa vocabulary so it lands in the visa field; the
+    // application type is a plain tag, so it lands in tags.
     expect(criteria.current_visa_or_greencard_category).toEqual(['H-1B']);
-    expect(criteria.tags).toEqual([]);
+    expect(criteria.tags).toEqual(['change-of-status-COS']);
+  });
+
+  it('a type that configures no categories gets no second picker at all', async () => {
+    const s = await renderFind();
+    await fireEvent.press(s.getByText('Timeline'));
+    await s.findByText('PROCESSING TYPE');
+
+    await fireEvent.press(s.getByText('O-1'));
+
+    expect(s.queryByText('ELIGIBILITY CATEGORY')).toBeNull();
+    expect(s.queryByText('APPLICATION TYPE')).toBeNull();
   });
 
   it('switching processing type removes the old selection and adds the new one', async () => {
@@ -508,10 +552,11 @@ describe('FindScreen — Processing type chip row + Month/Year', () => {
 
     await fireEvent.press(s.getByText('H-1B'));
 
-    await s.findByText('Month');
     await fireEvent.press(s.getByText('Search'));
     await waitFor(() => expect(searchGroups).toHaveBeenCalled());
     const [criteria] = (searchGroups as jest.Mock).mock.calls[0];
+    // EAD *and* its category are both gone — switching the first picker must
+    // not leave the old pair's second half behind.
     expect(criteria.tags).toEqual([]);
     expect(criteria.current_visa_or_greencard_category).toEqual(['H-1B']);
   });

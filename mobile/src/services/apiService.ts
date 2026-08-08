@@ -816,7 +816,12 @@ export type EligibilityCategory = {
   scope_rows?: TagAttributeRow[]; post_join_rows?: PostJoinAttributeRow[];
 };
 export type ProcessingTypeOption = {
-  value: string; label: string; eligibility_categories: EligibilityCategory[];
+  value: string; label: string;
+  // What the second picker is called for THIS type — EAD's list is 8 CFR
+  // eligibility categories, H-1B's is application types. Optional; omitted
+  // falls back to the EAD wording.
+  category_label?: string;
+  eligibility_categories: EligibilityCategory[];
   scope_rows?: TagAttributeRow[]; post_join_rows?: PostJoinAttributeRow[];
 };
 

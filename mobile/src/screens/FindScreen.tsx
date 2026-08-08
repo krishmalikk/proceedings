@@ -661,12 +661,16 @@ export function FindScreen() {
             </View>
           )}
 
-          {/* Which eligibility category under that type. For EAD these are the
-              8 CFR 274a.12 classes that actually file an I-765 — see
-              features/ead-eligibility-5/. Hidden for a type with none. */}
+          {/* Which category under that type. For EAD these are the 8 CFR
+              274a.12 classes that actually file an I-765 — see
+              features/ead-eligibility-5/; for H-1B they are the three
+              application types. The heading comes from the config so it can be
+              right for both. Hidden for a type that configures none. */}
           {groupType === 'timeline' && !!selectedType?.eligibility_categories.length && (
             <View style={styles.category}>
-              <AppText variant="caption" color="onSurfaceVariant" style={styles.categoryLabel}>ELIGIBILITY CATEGORY</AppText>
+              <AppText variant="caption" color="onSurfaceVariant" style={styles.categoryLabel}>
+                {(selectedType.category_label || 'Eligibility category').toUpperCase()}
+              </AppText>
               <View style={styles.chipRow}>
                 {/* The TAG, not the CFR label — it's what the group is named
                     after and what a posting carries. */}

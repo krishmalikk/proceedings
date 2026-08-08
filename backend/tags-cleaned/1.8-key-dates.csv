@@ -14,6 +14,8 @@ l1_expire_date,Expiration date of L-1 status
 o1_expire_date,Expiration date of O-1 status
 h1b_receipt_date,Date USCIS receipt notice was issued for an H-1B petition
 h1b_approved_date,Date the H-1B petition was approved
+h1b_review_started_date,"Date USCIS moved the H-1B petition to ""Case Is Being Actively Reviewed"" (the status between receipt and decision)"
+final_decision_date,"Date the final decision was issued on a petition or application, whatever the outcome (approved / denied / rejected)"
 h1b_filed_date,Date the H-1B petition was filed
 h1b_expire_date,Expiration date of H-1B status
 h1b_processing_start_date,Date H-1B processing began at USCIS

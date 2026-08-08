@@ -714,6 +714,19 @@ def group_more_negatives() -> None:
     rejects({**default_spec(), "processing_types": [
         {"value": "EAD", "eligibility_categories": [{"code": "(x)", "label": "no tag"}]}]},
         "X6 a category with no 'tag' is rejected", "tag")
+    # category_label names the second dropdown. Blank or non-string would
+    # render an unlabelled control, so it is rejected rather than defaulted.
+    for bad, name in ((" ", "X6b a blank category_label is rejected"),
+                      (7, "X6c a non-string category_label is rejected")):
+        rejects({**default_spec(), "processing_types": [
+            {"value": "EAD", "category_label": bad, "eligibility_categories": []}]},
+            name, "category_label")
+    check("X6d a real category_label is accepted, and omitting it stays valid",
+          not ac.validate({**default_spec(), "processing_types": [
+              {"value": "EAD", "category_label": "Application type",
+               "eligibility_categories": []}]})
+          and not ac.validate({**default_spec(), "processing_types": [
+              {"value": "EAD", "eligibility_categories": []}]}))
     rejects({**default_spec(), "scope_row_extras": "nope"},
             "X7 scope_row_extras must be an object keyed by tag", "scope_row_extras")
     rejects({**default_spec(), "post_join_row_extras": {"h4-ead": "nope"}},

@@ -75,8 +75,13 @@ entirely is different and fine — it means "use this file's value".
 ## `processing_types` and `eligibility_categories`
 
 The first and second dropdowns. Each type names **its own** category list, so
-the second dropdown already depends on the first; EAD is simply the only type
-with a list today.
+the second dropdown already depends on the first. Two types have one today:
+EAD's entries are 8 CFR eligibility categories, H-1B's are application types
+(CoS / consular stamping / change of employer).
+
+Because those are not the same kind of thing, a type may set
+`"category_label"` to name its own second dropdown. Omit it and the clients
+fall back to "Eligibility category".
 
 A type's `value` and a category's `tag` must both be in the controlled
 vocabulary. `_clean_criteria()` drops anything out of vocabulary, so an

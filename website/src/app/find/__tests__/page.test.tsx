@@ -14,6 +14,14 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
   useSearchParams: () => new URLSearchParams(), useRouter: () => ({ push }) }))
 
+// The base period pair every Timeline scope leads with. The server resolves
+// it onto each option before sending, so fixtures carry it the same way.
+const PERIOD_ROWS = [
+  { kind: 'select', label: 'Month', field: 'key_stages_or_info', key: 'filing_month',
+    options: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] },
+  { kind: 'year', label: 'Year', field: 'key_stages_or_info', key: 'filing_year' },
+]
+
 const VOCAB = {
   visa: ['H-1B', 'F-1'],
   consulate_options: [{ code: 'BOM', label: 'Mumbai, India (BOM)' }],
@@ -76,7 +84,21 @@ const VOCAB = {
         },
       ],
     },
-    { value: 'H-1B', label: 'H-1B', eligibility_categories: [] },
+    // H-1B's second dropdown is application types, not 8 CFR eligibility
+    // categories, so it names its own heading.
+    {
+      value: 'H-1B', label: 'H-1B', category_label: 'Application type',
+      // Each carries the period rows the server already resolved for it —
+      // H-1B configures no scope extras, so all three get the base pair.
+      eligibility_categories: [
+        { code: 'CoS', label: 'Change of Status (initial, in the U.S.)', tag: 'change-of-status-COS', scope_rows: PERIOD_ROWS },
+        { code: 'Consular', label: 'Consular processing / stamping (initial)', tag: 'h1b-stamping', scope_rows: PERIOD_ROWS },
+        { code: 'COE', label: 'Change of employer (H-1B transfer)', tag: 'change-of-employer-COE', scope_rows: PERIOD_ROWS },
+      ],
+    },
+    // A type that configures no categories at all — the second dropdown is
+    // hidden entirely rather than rendered empty.
+    { value: 'O-1', label: 'O-1', eligibility_categories: [] },
   ],
 }
 
@@ -566,11 +588,17 @@ describe('FindPage — Processing type dropdown + Month/Year', () => {
    * rather than a type — picks EAD first and then that category in the second
    * dropdown. Month/Year hang off the ELIGIBILITY category now, not the type.
    */
+  // Pass a processing type to pick just the first dropdown, or a category tag
+  // to pick its owning type and then the category. The second dropdown's
+  // heading is per-type, so it's looked up rather than hardcoded.
   function selectProcessingType(value: string) {
-    const isType = VOCAB.processing_types.some((t) => t.value === value)
-    fireEvent.change(screen.getByLabelText('Processing type'), { target: { value: isType ? value : 'EAD' } })
-    if (!isType) {
-      fireEvent.change(screen.getByLabelText('Eligibility category'), { target: { value } })
+    const owner = VOCAB.processing_types.find(
+      (t) => t.eligibility_categories?.some((c) => c.tag === value))
+    fireEvent.change(screen.getByLabelText('Processing type'),
+                     { target: { value: owner ? owner.value : value } })
+    if (owner) {
+      fireEvent.change(screen.getByLabelText(owner.category_label || 'Eligibility category'),
+                       { target: { value } })
     }
   }
 
@@ -585,7 +613,7 @@ describe('FindPage — Processing type dropdown + Month/Year', () => {
 
     const select = screen.getByLabelText('Processing type') as HTMLSelectElement
     const values = Array.from(select.querySelectorAll('option')).map((o) => (o as HTMLOptionElement).value)
-    expect(values).toEqual(['', 'EAD', 'H-1B'])
+    expect(values).toEqual(['', 'EAD', 'H-1B', 'O-1'])
     // The old dropdown showed the raw action tag; "EAD" is the filing.
     expect(select.textContent).not.toContain('stem-opt-extension')
   })
@@ -626,6 +654,10 @@ describe('FindPage — Processing type dropdown + Month/Year', () => {
     selectProcessingType('H-1B')
 
     expect(screen.queryByText('Current status')).toBeNull()
+    // H-1B now has application types, so — exactly like EAD — the period
+    // fields wait for the second dropdown rather than appearing at once.
+    expect(screen.queryByText('Month')).toBeNull()
+    selectProcessingType('change-of-status-COS')
     expect(await screen.findByText('Month')).toBeInTheDocument()
     expect(screen.getByText('Year')).toBeInTheDocument()
 
@@ -633,8 +665,11 @@ describe('FindPage — Processing type dropdown + Month/Year', () => {
     await waitFor(() => expect(fetchMock.mock.calls.find((c) => c[0] === '/api/groups/search')).toBeTruthy())
     const call = fetchMock.mock.calls.find((c) => c[0] === '/api/groups/search')!
     const body = JSON.parse((call[1] as { body: string }).body)
+    // The type is visa vocabulary so it goes to the visa field; the
+    // application type is a plain tag, so it goes to tags. Both together are
+    // what the group gets named after.
     expect(body.criteria.current_visa_or_greencard_category).toEqual(['H-1B'])
-    expect(body.criteria.tags).toEqual([])
+    expect(body.criteria.tags).toEqual(['change-of-status-COS'])
   })
 
   it('switching Processing type removes the previous selection and adds the new one', async () => {
@@ -648,11 +683,12 @@ describe('FindPage — Processing type dropdown + Month/Year', () => {
 
     selectProcessingType('H-1B')
 
-    await screen.findByText('Month')
     fireEvent.click(screen.getByText('Search'))
     await waitFor(() => expect(fetchMock.mock.calls.find((c) => c[0] === '/api/groups/search')).toBeTruthy())
     const call = fetchMock.mock.calls.find((c) => c[0] === '/api/groups/search')!
     const body = JSON.parse((call[1] as { body: string }).body)
+    // EAD *and* its category are both gone — switching the first dropdown
+    // must not leave the old pair's second half behind.
     expect(body.criteria.tags).toEqual([])
     expect(body.criteria.current_visa_or_greencard_category).toEqual(['H-1B'])
   })
@@ -950,12 +986,31 @@ describe('FindPage — EAD processing type + eligibility category', () => {
     expect([...sel.options][1].title).toBe('F-1 STEM OPT extension (24-month) · (c)(3)(C)')
   })
 
-  it('H-1B has no eligibility categories, so no second dropdown', async () => {
+  it('a type that configures no categories gets no second dropdown at all', async () => {
+    openTimeline()
+    await waitFor(() => expect(screen.getByLabelText('Processing type')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Processing type'), { target: { value: 'O-1' } })
+    expect(screen.queryByLabelText('Eligibility category')).toBeNull()
+    expect(screen.queryByLabelText('Application type')).toBeNull()
+  })
+
+  it("the second dropdown is titled by the type's own category_label", async () => {
     openTimeline()
     await waitFor(() => expect(screen.getByLabelText('Processing type')).toBeInTheDocument())
 
     fireEvent.change(screen.getByLabelText('Processing type'), { target: { value: 'H-1B' } })
+    // H-1B's list is application types — calling it "Eligibility category"
+    // would be EAD's framing borrowed for something it doesn't describe.
     expect(screen.queryByLabelText('Eligibility category')).toBeNull()
+    const sel = screen.getByLabelText('Application type') as HTMLSelectElement
+    expect([...sel.options].map((o) => o.value))
+      .toEqual(['', 'change-of-status-COS', 'h1b-stamping', 'change-of-employer-COE'])
+
+    // EAD keeps the default heading, so the label really is per-type.
+    fireEvent.change(screen.getByLabelText('Processing type'), { target: { value: 'EAD' } })
+    expect(screen.getByLabelText('Eligibility category')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Application type')).toBeNull()
   })
 
   it('the period fields appear only once an eligibility category is picked', async () => {

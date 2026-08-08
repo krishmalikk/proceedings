@@ -164,6 +164,22 @@ def validate(spec: Any) -> list[str]:
                     errs.append(f"{at}: '{key}' is not a known {field} vocabulary key "
                                 f"(add it to the matching tags-cleaned CSV first)")
 
+            # A SECOND silent-drop path, one layer deeper than the key check:
+            # some stage keys constrain their VALUE to a sub-vocabulary
+            # (outcome_status -> 1.9 outcomes, *_of_country -> 1.4 countries).
+            # profile.py drops a value outside that domain on save, so a
+            # select offering options the domain doesn't contain renders fine,
+            # submits fine, passes _validate_attribute_values — and then loses
+            # the answer. Catch it here, where the options are declared.
+            if kind == "select" and isinstance(row.get("options"), list):
+                domain = posting.stage_value_domain(key)
+                if domain:
+                    bad = [o for o in row["options"] if not posting.stage_value_ok(key, o)]
+                    if bad:
+                        errs.append(f"{at} ({key}): option(s) {bad} are outside the "
+                                    f"'{domain}' value domain this key enforces — they would "
+                                    f"be dropped on save")
+
     posting._Vocab.load()
 
     # The period pair is load-bearing, not decorative: Timeline dedup is
@@ -208,6 +224,13 @@ def validate(spec: Any) -> list[str]:
             if t["value"] not in vocab:
                 errs.append(f"{at}: processing type '{t['value']}' is not in the controlled "
                             f"vocabulary — a group created with it would lose the tag on save")
+            # Optional heading for the second dropdown. EAD's list really is
+            # 8 CFR eligibility categories; H-1B's is application types. A
+            # blank or non-string here would render an unlabelled control, so
+            # it is checked rather than silently defaulted client-side.
+            if "category_label" in t and not (isinstance(t["category_label"], str)
+                                              and t["category_label"].strip()):
+                errs.append(f"{at}.category_label: must be a non-empty string when present")
             cats = t.get("eligibility_categories", [])
             if not isinstance(cats, list):
                 errs.append(f"{at}.eligibility_categories: must be a list")
