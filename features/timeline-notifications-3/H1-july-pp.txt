@@ -9,7 +9,22 @@ PP start date:
 Current status:
 Final decision & date:
 Service center: TX
-
+----------------------------------
+1. Petition Delivery & Intake
+       ↓
+2. Form I-797C Receipt Notice Issued
+       ↓
+3. Case Status Updates: "Active Review"
+       ↓
+4. Adjudication Action:
+   ├── [Path A] Direct Approval / Denial
+   └── [Path B] Request for Evidence (RFE) / NOID
+            ↓
+            Response Received & Re-adjudication
+       ↓
+5. Final Approval Notice (Form I-797A / I-797B)
+       ↓
+6. Activation / Consular Processing (if applicable)
 -----------------------------------
 Application type: H1B CoS (Initial) / H1B Consular (Initial) / H1B COE
 

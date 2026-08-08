@@ -13,7 +13,71 @@ change without a deploy.
 
 ---
 
-## 1. Change a field
+## 1. Create it for the first time
+
+**You may not need to.** With no document, every instance serves the in-code
+`DEFAULT_ATTRIBUTE_SPEC` and the app works normally — `meta.source` just reads
+`default`. Seed the document when you want to start *editing* config without
+deploying. A brand-new environment is not broken until then.
+
+### Prerequisites
+
+```bash
+gcloud auth application-default login          # once per machine
+```
+
+**Which project gets written is decided by ADC, not by `.env`.** The publisher
+constructs a bare `firestore.Client()`, which resolves the project from
+`GOOGLE_CLOUD_PROJECT` or the ADC credentials — it does *not* read
+`GCP_PROJECT_ID`, even though that is set in `backend/.env` and usually holds
+the same value. Setting `GCP_PROJECT_ID` alone will silently write to whatever
+project your ADC points at. Check before you publish:
+
+```bash
+gcloud config get-value project                  # what ADC will use
+python -c "from google.cloud import firestore; print(firestore.Client().project)"
+```
+
+To target a different project explicitly, set `GOOGLE_CLOUD_PROJECT` for the
+command, or re-run `gcloud auth application-default login` against it.
+
+- The caller needs Firestore **write** access to the `app_config` collection —
+  `roles/datastore.user` covers it. The running API only ever *reads*, so its
+  service account needs `roles/datastore.viewer` at minimum (it almost
+  certainly already has more, since groups and profiles live in Firestore).
+- No collection or index to create up front: Firestore makes
+  `app_config/timeline_attributes` on first write, and a single-document read
+  needs no composite index.
+
+### Seed it
+
+```bash
+cd backend
+python scripts/publish_attribute_config.py --from-default --yes
+```
+
+That validates the in-code default, writes it as version 1, and prints the
+diff it applied. Drop `--yes` first if you want to see the diff and be asked.
+
+### Verify
+
+```bash
+python scripts/publish_attribute_config.py --show          # the stored document
+curl -s https://<api-host>/api/config/attributes | jq .meta
+```
+
+`meta.source` should flip from `default` to `firestore` within one TTL (60s),
+or immediately after `POST /api/config/attributes/refresh`. If it still says
+`default`, read `meta.last_error` — §6.
+
+### Per environment
+
+The document is **per GCP project**, so dev / staging / prod each need their
+own seed. They can hold different specs on purpose; nothing syncs them. Keep
+the exported JSON in version control or a ticket if you want a record of what
+each environment is running — `--show` is the only other source of truth.
+
+## 2. Change a field
 
 ```bash
 cd backend
@@ -35,7 +99,7 @@ curl -X POST -H "X-Admin-Token: $MODERATION_ADMIN_TOKEN" \
 rejects it and keeps last-good), but you'd only discover that from
 `last_error`, having believed the change was live.
 
-## 2. The spec
+## 3. The spec
 
 ```jsonc
 {
@@ -70,7 +134,7 @@ A **row**:
 member has their own → post-join row. A per-member fact in the scope gives
 everybody a cohort of one.
 
-## 3. Adding a key the vocabulary doesn't have
+## 4. Adding a key the vocabulary doesn't have
 
 Validation rejects a `key` that isn't in the CSVs, because `profile.py`'s
 cleaners silently drop unknown keys — the form would accept input and throw it
@@ -81,7 +145,7 @@ away. So a genuinely new field is **two** changes:
 
 Adding a field that uses an *existing* key is config-only.
 
-## 4. Caching and propagation
+## 5. Caching and propagation
 
 | Layer | Window | Tunable by |
 |---|---|---|
@@ -98,7 +162,7 @@ briefly serve different versions. That is fine for form definitions, and is
 why group *names* are built from stored criteria rather than recomputed from
 config.
 
-## 5. When something looks wrong
+## 6. When something looks wrong
 
 ```bash
 curl https://<api-host>/api/config/attributes | jq .meta
@@ -115,7 +179,7 @@ curl https://<api-host>/api/config/attributes | jq .meta
 **Rollback** is `--delete` (every instance reverts to the in-code default
 within one TTL) or republishing the previous JSON. Keep the exported file.
 
-## 6. Why Firestore
+## 7. Why Firestore
 
 Already an in-process dependency — no new client, IAM or env — and strongly
 consistent, so an edit is visible on the very next refresh. GCS would have
@@ -123,7 +187,7 @@ worked but is slower and needs generation-polling to detect change. Cloud Run
 env vars were disqualified outright: changing one requires a new revision,
 which is the exact thing this removes.
 
-## 7. What is still code
+## 8. What is still code
 
 - **The four `kind`s.** A fifth (`number`, `multiselect`) needs the validator
   plus each client's control renderer — three code changes.
@@ -136,7 +200,7 @@ which is the exact thing this removes.
   the join form returns only one of them. See
   `features/timeline-attributes-6/timeline-attribute-framework.md` §5.
 
-## 8. Tests
+## 9. Tests
 
 `backend/tests/test_attribute_config.py` — 41 checks, no GCP calls (Firestore
 is stubbed):
