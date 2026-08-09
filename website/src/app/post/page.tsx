@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense,useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getActiveUser, userHeaders } from '@/lib/activeUser'
 import { useRequireUser } from '@/lib/useRequireUser'
@@ -50,7 +50,7 @@ const POSTING_TYPE_LABEL: Record<string, string> = {
   general_question: 'General question',
 }
 
-export default function PostPage() {
+function PostPageInner() {
   useRequireUser()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -466,5 +466,20 @@ export default function PostPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * This page reads the query string — PostPageInner (or a hook it calls, e.g.
+ * useRequireUser's ?next= round-trip) uses useSearchParams(). Next 14 refuses
+ * to prerender such a page unless it sits under a Suspense boundary, and
+ * fails the PRODUCTION build with "useSearchParams() should be wrapped in a
+ * suspense boundary" — an error `next dev`, tsc and vitest never surface.
+ */
+export default function PostPage() {
+  return (
+    <Suspense fallback={null}>
+      <PostPageInner />
+    </Suspense>
   )
 }

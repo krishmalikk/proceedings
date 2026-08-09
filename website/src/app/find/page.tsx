@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense,useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import TagAutocomplete from '@/components/TagAutocomplete'
@@ -188,7 +188,7 @@ const CUTOFF_STEPS: { days: number; label: string }[] = [
   { days: 365, label: '1 year' },
 ]
 
-export default function FindPage() {
+function FindPageInner() {
   const router = useRouter()
   const { user: authUser } = useAuth()
   useRequireUser()
@@ -1027,5 +1027,20 @@ export default function FindPage() {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * This page reads the query string — FindPageInner (or a hook it calls, e.g.
+ * useRequireUser's ?next= round-trip) uses useSearchParams(). Next 14 refuses
+ * to prerender such a page unless it sits under a Suspense boundary, and
+ * fails the PRODUCTION build with "useSearchParams() should be wrapped in a
+ * suspense boundary" — an error `next dev`, tsc and vitest never surface.
+ */
+export default function FindPage() {
+  return (
+    <Suspense fallback={null}>
+      <FindPageInner />
+    </Suspense>
   )
 }

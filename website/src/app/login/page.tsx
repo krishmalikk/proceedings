@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { Suspense,useState, FormEvent, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { safeReturnPath } from '@/lib/useRequireUser';
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading, signInWithEmail, signInWithGoogle } = useAuth();
@@ -192,4 +192,19 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+/**
+ * This page reads the query string — LoginPageInner (or a hook it calls, e.g.
+ * useRequireUser's ?next= round-trip) uses useSearchParams(). Next 14 refuses
+ * to prerender such a page unless it sits under a Suspense boundary, and
+ * fails the PRODUCTION build with "useSearchParams() should be wrapped in a
+ * suspense boundary" — an error `next dev`, tsc and vitest never surface.
+ */
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  )
 }
