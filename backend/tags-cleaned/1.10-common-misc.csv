@@ -3,7 +3,6 @@ processing-fee,Government filing or processing fee for a form/visa
 consular-processing,"Green-Card consular-processing path (CP vs AOS). Use ONLY when the post discusses the GC consular-processing route or explicitly names ""consular processing"". A nonimmigrant visa interview / stamping at a consulate is NOT consular-processing. Mutually exclusive with change-of-status-COS."
 family-based-immigration,Immigration through family relationship to a U.S. citizen or LPR
 employment-based-immigration,Immigration through an employer sponsorship pathway
-adjustment-of-status-AOS,Process of adjusting to Green Card status from within the U.S.
 temporary-work-visas,Non-immigrant visa categories that authorize temporary employment
 asylum,Protection granted to persons unable to return home due to persecution
 refugee,Protection granted to persons outside the U.S. unable to return home due to persecution

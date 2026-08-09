@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import SearchPageRedirect from '../page'
 
 const mockRedirect = vi.fn()
-vi.mock('next/navigation', () => ({ redirect: (url: string) => mockRedirect(url) }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(), redirect: (url: string) => mockRedirect(url) }))
 
 beforeEach(() => mockRedirect.mockClear())
 

@@ -8,7 +8,8 @@ let mockUser: { displayName?: string; email?: string } | null = null
 vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }))
-vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(), usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: mockUser, loading: false, signOut: vi.fn() }) }))
 vi.mock('@/lib/activeUser', () => ({ USER_KEY: 'demo-user-id', userHeaders: vi.fn(() => ({})) }))
 

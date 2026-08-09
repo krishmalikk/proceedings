@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense,useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Markdown from '@/components/Markdown'
 import { useAuth } from '@/contexts/AuthContext'
@@ -70,7 +70,7 @@ const LIST_SECTIONS: { field: ListField; label: string; kind: TagKind }[] = [
   { field: 'tags', label: 'Miscellaneous tags and topics', kind: 'misc' },
 ]
 
-export default function OnboardingPage() {
+function OnboardingPageInner() {
   const router = useRouter()
   const { user: authUser } = useAuth()
   useRequireUser()
@@ -682,5 +682,20 @@ export default function OnboardingPage() {
         </aside>
       </div>
     </div>
+  )
+}
+
+/**
+ * This page reads the query string — OnboardingPageInner (or a hook it calls, e.g.
+ * useRequireUser's ?next= round-trip) uses useSearchParams(). Next 14 refuses
+ * to prerender such a page unless it sits under a Suspense boundary, and
+ * fails the PRODUCTION build with "useSearchParams() should be wrapped in a
+ * suspense boundary" — an error `next dev`, tsc and vitest never surface.
+ */
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingPageInner />
+    </Suspense>
   )
 }

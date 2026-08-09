@@ -11,6 +11,7 @@ import {
   FindScreen,
   PostScreen,
   GroupChatScreen,
+  GroupAttributesScreen,
   LoginScreen,
   SignupScreen,
   EmailVerificationScreen,
@@ -76,6 +77,7 @@ function HomeStack() {
       <Stack.Screen name="Post" component={PostScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="GroupAttributes" component={GroupAttributesScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -91,6 +93,7 @@ function NewsStack() {
     <Stack.Navigator screenOptions={screenTransitionOptions}>
       <Stack.Screen name="NewsMain" component={NewsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="GroupAttributes" component={GroupAttributesScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
@@ -107,6 +110,7 @@ function DiscussionsStack() {
     <Stack.Navigator screenOptions={screenTransitionOptions}>
       <Stack.Screen name="DiscussionsMain" component={DiscussionsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="GroupAttributes" component={GroupAttributesScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
@@ -123,6 +127,7 @@ function FindStack() {
     <Stack.Navigator screenOptions={screenTransitionOptions}>
       <Stack.Screen name="FindMain" component={FindScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="GroupAttributes" component={GroupAttributesScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
@@ -142,6 +147,7 @@ function ProfileStack() {
       <Stack.Screen name="ExperiencesOnboarding" component={ExperiencesOnboardingScreen} />
       <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="GroupAttributes" component={GroupAttributesScreen} />
       <Stack.Screen name="Author" component={AuthorScreen} />
       <Stack.Screen name="AuthorByHandle" component={AuthorByHandleScreen} />
       <Stack.Screen name="Disclaimer" component={DisclaimerScreen} options={modalTransitionOptions} />

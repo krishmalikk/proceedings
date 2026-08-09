@@ -35,13 +35,37 @@ Tests: `test_posting_tagging.py` E12a–E12d. 96/96 passing. Committed to `build
 
 ---
 
+## Casing convention in 1.2 (2026-08-06)
+
+`1.2-greencard-categories.csv` was uniformly uppercase, which put the three
+multi-word *generic* codes in the same visual class as the real category codes.
+They are now lowercase-kebab:
+
+| was | is |
+|---|---|
+| `ADJUSTMENT-OF-STATUS` | `adjustment-of-status` |
+| `FAMILY-IMMIGRATION` | `family-immigration` |
+| `EMPLOYMENT-IMMIGRATION` | `employment-immigration` |
+
+**The rule, now that 1.2 has one:** UPPERCASE is reserved for an actual code or
+abbreviation — `EB-2`, `IR-1`, `DV`, `SB-1`, `F1-FAMILY`, `SIV`. Anything that
+is a descriptive phrase rather than a code is lowercase-kebab, matching 1.6
+(`stem-opt-extension`) and 1.10 (`humanitarian-parole`). Prompted by the
+eligibility dropdown, which draws from five vocabularies at once (1.1, 1.2,
+1.3, 1.6, 1.10) and so surfaces any inconsistency between them.
+
+No data migration was needed: a live check found zero Firestore groups, zero
+profiles and zero indexed postings carrying any of the three old codes.
+`backend/scripts/rename_generic_category_codes.py` exists for the case where
+one appears between this change and a deploy.
+
 ## Generic-category fallback — implemented
 
 Prompted by Category C containing files like `dont-know-what-to-think.txt` (I-485 pending, `employment-based-immigration` tag present, but no EB level stated) — cases where the text clearly signals the *broad* immigration path but not the *specific* code — added two last-resort fallback vocab codes and a deterministic backfill that fills them in only when nothing more specific is derivable, so `validate()` no longer flatly rejects these.
 
 **Vocab (`backend/tags-cleaned/1.2-greencard-categories.csv`):**
-- `FAMILY-IMMIGRATION` — "Family-Based - Unspecified Category"
-- `EMPLOYMENT-IMMIGRATION` — "Employment-Based - Unspecified Category"
+- `family-immigration` — "Family-Based - Unspecified Category"
+- `employment-immigration` — "Employment-Based - Unspecified Category"
 
 Both are documented in-CSV as last-resort-only — a specific code (`IR-1`, `EB-2`, etc.) should always be preferred when the text supports one.
 
@@ -51,13 +75,13 @@ Both are documented in-CSV as last-resort-only — a specific code (`IR-1`, `EB-
 - Never overrides an already-populated `visa_applying_for`/`current_visa_or_greencard_category` — purely a last-resort fill for otherwise-empty fields.
 - Prompt guardrail added to `_SYSTEM_PROMPT` (and `docs/tagging/LLM-EXTRACTION-PROMPT.md`) warning the model against reaching for these codes when a specific one is supportable.
 
-**Tests:** `test_posting_tagging.py` E14/E15 updated (behavior intentionally changed — bare I-130 content now resolves to `FAMILY-IMMIGRATION` and passes `validate()`), plus new E16a–E16m covering isolated triggers, the real `dont-know-what-to-think.txt` shape, specific-wins-over-generic, no-signal-stays-empty, never-overrides-populated-fields, end-to-end via `build_canonical()`, and the exact call-order fix. Full suite: 109/109 passing.
+**Tests:** `test_posting_tagging.py` E14/E15 updated (behavior intentionally changed — bare I-130 content now resolves to `family-immigration` and passes `validate()`), plus new E16a–E16m covering isolated triggers, the real `dont-know-what-to-think.txt` shape, specific-wins-over-generic, no-signal-stays-empty, never-overrides-populated-fields, end-to-end via `build_canonical()`, and the exact call-order fix. Full suite: 109/109 passing.
 
 **Live-user UX (website `src/app/post/page.tsx`, mobile `PostScreen.tsx`):** this backfill exists for manual curation, where there's no original poster to ask for the missing specifics. A live app user is right there, so a generic-only code must **not** be enough to enable Submit — the UI should push them for the exact category instead:
 - `hasVisa` now requires at least one *specific* (non-fallback) code in either visa field — a generic-only result is treated the same as no result.
 - When the only signal is a generic code, a distinct message replaces the original "Add at least one visa/status" warning: *"We could tell this is family/employment-based, but need the exact category — please add the specific one below (e.g. IR-1, EB-2) if you know it."*
 - The generic code is still shown as a normal removable chip (not hidden) — the user can replace it with a specific one or add one alongside it, and Submit re-enables the moment a specific code is present.
-- Live-verified end-to-end in a real browser against a real Gemini call: narrative I-130/I-485 content → backend derived `FAMILY-IMMIGRATION` → page showed the new message, `Submit posting` disabled → removed the generic chip, added `IR-1` → message cleared, Submit enabled.
+- Live-verified end-to-end in a real browser against a real Gemini call: narrative I-130/I-485 content → backend derived `family-immigration` → page showed the new message, `Submit posting` disabled → removed the generic chip, added `IR-1` → message cleared, Submit enabled.
 - Website: `src/app/post/__tests__/page.test.tsx` — 5 new tests (generic-only per code, specific-alongside-or-instead, no-signal-shows-original-message, unrelated specific-code-still-works). Full website suite: 82/82 passing.
 - Mobile: same `hasVisa`/message logic mirrored in `PostScreen.tsx` (Alert copy + inline warning text); no existing test file for this screen, so no automated coverage added there yet — a known gap, not yet addressed.
 
@@ -96,7 +120,7 @@ No vocab gap — a real code exists for each of these — but the source text it
 
 **Proposed next step:** for each, either (a) you supply the missing detail from context you have (the original source thread, if any) and I patch + publish, or (b) they stay unpublished — there's no safe deterministic way to fill these in.
 
-**Update:** 2 of these 9 now auto-resolve via the generic-category fallback below, since they already carry a bare `family-based-immigration`/`employment-based-immigration` tag with no specific code: `dont-know-what-to-think.txt` → `EMPLOYMENT-IMMIGRATION`, `i130-approval.txt` → `FAMILY-IMMIGRATION`. Both now pass `validate()` instead of blocking outright. The other 7 (`changed-my-mind.txt`, `different-name-ssn-gc.txt`, `duplicate-status-updates.txt`, `i539-approved.txt`, `traffic-ticket.txt`, `uscis-reps.txt`, `usps-ead-delivery.txt`) have no derivable family/employment signal at all and remain blocked pending human input.
+**Update:** 2 of these 9 now auto-resolve via the generic-category fallback below, since they already carry a bare `family-based-immigration`/`employment-based-immigration` tag with no specific code: `dont-know-what-to-think.txt` → `employment-immigration`, `i130-approval.txt` → `family-immigration`. Both now pass `validate()` instead of blocking outright. The other 7 (`changed-my-mind.txt`, `different-name-ssn-gc.txt`, `duplicate-status-updates.txt`, `i539-approved.txt`, `traffic-ticket.txt`, `uscis-reps.txt`, `usps-ead-delivery.txt`) have no derivable family/employment signal at all and remain blocked pending human input.
 
 ---
 

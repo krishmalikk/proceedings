@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense,useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getActiveUser, userHeaders } from '@/lib/activeUser'
 import { useRequireUser } from '@/lib/useRequireUser'
@@ -50,7 +50,7 @@ const POSTING_TYPE_LABEL: Record<string, string> = {
   general_question: 'General question',
 }
 
-export default function PostPage() {
+function PostPageInner() {
   useRequireUser()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -93,7 +93,7 @@ export default function PostPage() {
   const consulateByCode = useMemo(() => new Map(vocab.consulate_options.map((o) => [o.code, o.label])), [vocab])
 
   const canPreview = title.trim().length >= 3 && description.trim().length >= 10
-  // FAMILY-IMMIGRATION / EMPLOYMENT-IMMIGRATION (backend: posting.py's
+  // family-immigration / employment-immigration (backend: posting.py's
   // _apply_visa_backfill()) are a LAST-RESORT fallback meant for manual
   // curation, where there's no original poster left to ask for more detail.
   // A live app user is right here and can always be asked directly instead
@@ -101,7 +101,7 @@ export default function PostPage() {
   // satisfy this gate on its own. Still shown as a chip (removable, same as
   // any other tag) so the user sees what was inferred and can either
   // replace it with a specific code or add one alongside it.
-  const GENERIC_VISA_FALLBACKS = new Set(['FAMILY-IMMIGRATION', 'EMPLOYMENT-IMMIGRATION'])
+  const GENERIC_VISA_FALLBACKS = new Set(['family-immigration', 'employment-immigration'])
   const hasSpecificVisa = (arr: string[]) => arr.some((v) => !GENERIC_VISA_FALLBACKS.has(v))
   const hasVisa = hasSpecificVisa(groups.visa_applying_for) || hasSpecificVisa(groups.current_visa_or_greencard_category)
   const hasOnlyGenericVisa = !hasVisa && (groups.visa_applying_for.length > 0 || groups.current_visa_or_greencard_category.length > 0)
@@ -466,5 +466,20 @@ export default function PostPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * This page reads the query string — PostPageInner (or a hook it calls, e.g.
+ * useRequireUser's ?next= round-trip) uses useSearchParams(). Next 14 refuses
+ * to prerender such a page unless it sits under a Suspense boundary, and
+ * fails the PRODUCTION build with "useSearchParams() should be wrapped in a
+ * suspense boundary" — an error `next dev`, tsc and vitest never surface.
+ */
+export default function PostPage() {
+  return (
+    <Suspense fallback={null}>
+      <PostPageInner />
+    </Suspense>
   )
 }

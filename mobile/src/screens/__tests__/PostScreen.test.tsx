@@ -70,29 +70,29 @@ async function previewWith(screen: Awaited<ReturnType<typeof renderScreen>>, gro
   await screen.findByText('Review Tags');
 }
 
-// FAMILY-IMMIGRATION/EMPLOYMENT-IMMIGRATION (backend: posting.py's
+// family-immigration/employment-immigration (backend: posting.py's
 // _apply_visa_backfill(), a last-resort fallback meant for manual curation
 // with no original poster to ask) must never be enough to enable Submit for
 // a LIVE app user, who's right here and can always be asked directly for
 // the specific category instead. Mirrors website/src/app/post/__tests__/page.test.tsx.
-describe('PostScreen — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPLOYMENT-IMMIGRATION)', () => {
+describe('PostScreen — generic visa-fallback gating (family-immigration / employment-immigration)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('a generic-only category does NOT enable Submit, and shows the "need the exact category" message', async () => {
     const screen = await renderPostScreen();
-    await previewWith(screen, { current_visa_or_greencard_category: ['FAMILY-IMMIGRATION'] });
+    await previewWith(screen, { current_visa_or_greencard_category: ['family-immigration'] });
 
     expect(screen.getByText(/need the exact category/i)).toBeOnTheScreen();
     // The generic value is still shown as a removable chip, not hidden.
-    expect(screen.getByText('FAMILY-IMMIGRATION')).toBeOnTheScreen();
+    expect(screen.getByText('family-immigration')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByText('Submit Posting'));
     expect(createPosting).not.toHaveBeenCalled();
   });
 
-  it('EMPLOYMENT-IMMIGRATION alone also does NOT enable Submit', async () => {
+  it('employment-immigration alone also does NOT enable Submit', async () => {
     const screen = await renderPostScreen();
-    await previewWith(screen, { current_visa_or_greencard_category: ['EMPLOYMENT-IMMIGRATION'] });
+    await previewWith(screen, { current_visa_or_greencard_category: ['employment-immigration'] });
 
     await fireEvent.press(screen.getByText('Submit Posting'));
     expect(createPosting).not.toHaveBeenCalled();
@@ -100,7 +100,7 @@ describe('PostScreen — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPL
 
   it('a SPECIFIC code (e.g. IR-1) alongside — or instead of — the generic one DOES enable Submit', async () => {
     const screen = await renderPostScreen();
-    await previewWith(screen, { current_visa_or_greencard_category: ['FAMILY-IMMIGRATION', 'IR-1'] });
+    await previewWith(screen, { current_visa_or_greencard_category: ['family-immigration', 'IR-1'] });
 
     expect(screen.queryByText(/need the exact category/i)).toBeNull();
 

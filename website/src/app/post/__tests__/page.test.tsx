@@ -3,7 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import PostPage from '../page'
 
 // Active user = demo-arjun; userHeaders forwards it as X-User-Id (as the real lib does).
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(), useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false, signOut: vi.fn() }) }))
 vi.mock('@/lib/activeUser', () => ({
   getActiveUser: vi.fn(() => 'demo-arjun'),
@@ -112,12 +114,12 @@ describe('PostPage — reconcile + update-profile-to-match (profile ↔ message)
   })
 })
 
-// A generic FAMILY-IMMIGRATION/EMPLOYMENT-IMMIGRATION (backend:
+// A generic family-immigration/employment-immigration (backend:
 // posting.py's _apply_visa_backfill(), a last-resort fallback meant for
 // manual curation with no original poster to ask) must never be enough to
 // enable Submit for a LIVE app user, who's right here and can always be
 // asked directly for the specific category instead.
-describe('PostPage — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPLOYMENT-IMMIGRATION)', () => {
+describe('PostPage — generic visa-fallback gating (family-immigration / employment-immigration)', () => {
   function mockTagSuggest(groups: Partial<typeof EMPTY_GROUPS>) {
     global.fetch = vi.fn(async (url: string) => {
       const u = String(url)
@@ -146,20 +148,20 @@ describe('PostPage — generic visa-fallback gating (FAMILY-IMMIGRATION / EMPLOY
   }
 
   it('a generic-only category does NOT enable Submit, and shows the "need the exact category" message', async () => {
-    await previewWith({ current_visa_or_greencard_category: ['FAMILY-IMMIGRATION'] })
+    await previewWith({ current_visa_or_greencard_category: ['family-immigration'] })
     expect(screen.getByRole('button', { name: /Submit posting/ })).toBeDisabled()
     expect(screen.getByText(/need the exact category/i)).toBeInTheDocument()
     // The generic value is still shown as a removable chip, not hidden.
-    expect(screen.getByText('FAMILY-IMMIGRATION')).toBeInTheDocument()
+    expect(screen.getByText('family-immigration')).toBeInTheDocument()
   })
 
-  it('EMPLOYMENT-IMMIGRATION alone also does NOT enable Submit', async () => {
-    await previewWith({ current_visa_or_greencard_category: ['EMPLOYMENT-IMMIGRATION'] })
+  it('employment-immigration alone also does NOT enable Submit', async () => {
+    await previewWith({ current_visa_or_greencard_category: ['employment-immigration'] })
     expect(screen.getByRole('button', { name: /Submit posting/ })).toBeDisabled()
   })
 
   it('a SPECIFIC code (e.g. IR-1) alongside — or instead of — the generic one DOES enable Submit', async () => {
-    await previewWith({ current_visa_or_greencard_category: ['FAMILY-IMMIGRATION', 'IR-1'] })
+    await previewWith({ current_visa_or_greencard_category: ['family-immigration', 'IR-1'] })
     expect(screen.getByRole('button', { name: /Submit posting/ })).not.toBeDisabled()
     expect(screen.queryByText(/need the exact category/i)).toBeNull()
   })
